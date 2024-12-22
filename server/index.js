@@ -7,6 +7,11 @@ import { getRelevantKnowledge_is, detectLanguage } from './knowledgeBase_is.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
+console.log('Environment Check:');
+console.log('PORT:', process.env.PORT);
+console.log('API_KEY set:', !!process.env.API_KEY);
+console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
+
 // Configuration
 const config = {
     PORT: process.env.PORT || "8080",
@@ -26,12 +31,15 @@ const openai = new OpenAI({
 const corsOptions = {
     origin: [
         'http://localhost:3000',
-        'https://sveinnssr.github.io'  // Add your GitHub Pages domain
+        'http://localhost:8080',
+        'https://sveinnssr.github.io',
+        'https://sveinnssr.github.io/sky-lagoon-chat-2024'
     ],
     methods: ['POST', 'OPTIONS', 'GET'],
-    allowedHeaders: ['Content-Type', 'x-api-key'],
+    allowedHeaders: ['Content-Type', 'x-api-key', 'webhook-headers'],
     credentials: true
 };
+
 
 // Rate limiter
 const limiter = rateLimit({
