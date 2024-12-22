@@ -22,9 +22,12 @@ const openai = new OpenAI({
     apiKey: config.OPENAI_API_KEY
 });
 
-// CORS Configuration for local development
+// CORS Configuration
 const corsOptions = {
-    origin: '*',  // For testing only - we'll make this more secure later
+    origin: [
+        'http://localhost:3000',
+        'https://sveinnssr.github.io'  // Add your GitHub Pages domain
+    ],
     methods: ['POST', 'OPTIONS', 'GET'],
     allowedHeaders: ['Content-Type', 'x-api-key'],
     credentials: true
