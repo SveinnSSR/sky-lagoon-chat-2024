@@ -1443,11 +1443,11 @@ const verifyApiKey = (req, res, next) => {
     const apiKey = req.header('x-api-key');
     console.log('\n🔑 API Key Check:', {
         receivedKey: apiKey,
-        configuredKey: config.API_KEY,
-        matches: apiKey === config.API_KEY
+        configuredKey: process.env.API_KEY,
+        matches: apiKey === process.env.API_KEY
     });
     
-    if (!apiKey || apiKey !== config.API_KEY) {
+    if (!apiKey || apiKey !== process.env.API_KEY) {
         console.error('❌ Invalid or missing API key');
         return res.status(401).json({ error: "Unauthorized request" });
     }
@@ -1584,7 +1584,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const sessionId = req.sessionId || `session_${Date.now()}`;        
         
         // Initialize context before any usage
-        let context = conversationContext.get(sessionId) || {
+        context = conversationContext.get(sessionId) || {
             messages: [],
             bookingTime: null,
             lateArrival: null,
