@@ -1,5 +1,5 @@
 // Constants
-const WEBHOOK_URL = 'http://localhost:8080/chat';  // Updated URL to match new endpoint
+const WEBHOOK_URL = 'https://sky-lagoon-chat-2024.vercel.app/chat';
 const API_KEY = 'sky-lagoon-secret-2024';  // This should match your .env API_KEY
 
 console.log('Script loaded!'); // Add this line
