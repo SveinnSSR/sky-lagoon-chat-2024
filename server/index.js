@@ -1406,7 +1406,8 @@ const corsOptions = {
         'http://localhost:3000',
         'http://localhost:8080',
         'https://sveinnssr.github.io',
-        'https://sveinnssr.github.io/sky-lagoon-chat-2024'
+        'https://sveinnssr.github.io/sky-lagoon-chat-2024',
+        'https://raw.githubusercontent.com/SveinnSSR/sky-lagoon-chat-2024/main/server/index.js'
     ],
     methods: ['POST', 'OPTIONS', 'GET'],
     allowedHeaders: ['Content-Type', 'x-api-key', 'webhook-headers'],
