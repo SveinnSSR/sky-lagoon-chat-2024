@@ -1407,7 +1407,7 @@ const corsOptions = {
         'http://localhost:8080', // local server
         'https://sveinnssr.github.io',
         'https://sveinnssr.github.io/sky-lagoon-chat-2024', // your specific GitHub Pages path
-        'https://sky-lagoon-chat-2024.vercel.app/', // your Vercel React app URL
+        'https://sky-lagoon-chat-2024.vercel.app', // your Vercel React app URL
         'https://sky-lagoon-chat-2024-git-main-svorum-straxs-projects.vercel.app', // secondary Vercel URL (if any)
         'https://sky-lagoon-chat-2024-rayuxftbk-svorum-straxs-projects.vercel.app' // another Vercel URL
     ],
