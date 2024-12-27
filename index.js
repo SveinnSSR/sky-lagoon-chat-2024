@@ -1459,7 +1459,7 @@ app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json());
 
-// Health check endpoint
+// Health check endpoint for root path
 app.get('/', (req, res) => {
     res.json({ 
         status: 'OK', 
@@ -1468,6 +1468,15 @@ app.get('/', (req, res) => {
             openaiConfigured: !!config.OPENAI_API_KEY,
             apiKeyConfigured: !!config.API_KEY
         }
+    });
+});
+
+// Health check endpoint for chat path
+app.get('/chat', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        message: 'Chat server is running',
+        timestamp: new Date().toISOString()
     });
 });
 
