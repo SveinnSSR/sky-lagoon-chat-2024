@@ -2652,10 +2652,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
 
-        // Apply terminology enhancement with language awareness
-        const enhancedResponse = isIcelandic ? 
-            enforceTerminology(response) + "\nLáttu mig vita ef þú hefur fleiri spurningar!" :
-            enforceTerminology(response);
+        // Apply terminology enhancement
+        const enhancedResponse = enforceTerminology(response);
             
         console.log('\n✨ Enhanced Response:', enhancedResponse);
 
