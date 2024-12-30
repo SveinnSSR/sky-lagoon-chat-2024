@@ -2677,13 +2677,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         let completion;
         while (attempt < MAX_RETRIES) {
             try {
-                // Add timeout and retry with exponential backoff
+                // Remove timeout from OpenAI parameters
                 completion = await openai.chat.completions.create({
                     model: "gpt-4-1106-preview",
                     messages: messages,
                     temperature: 0.7,
-                    max_tokens: getMaxTokens(userMessage),
-                    timeout: OPENAI_TIMEOUT
+                    max_tokens: getMaxTokens(userMessage)
+                    // Removed timeout parameter that was causing the error
                 });
                 break;
             } catch (error) {
@@ -2692,8 +2692,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     error: error.message,
                     status: error.response?.status,
                     attempt: attempt,
-                    maxRetries: MAX_RETRIES,
-                    timeout: OPENAI_TIMEOUT
+                    maxRetries: MAX_RETRIES
                 });
 
                 // If we've used all retries, throw the error
