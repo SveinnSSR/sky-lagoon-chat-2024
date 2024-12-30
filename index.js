@@ -643,15 +643,15 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage) => {
         message: userMessage
     });
 
-    // Enhanced language detection
-    const languageCheck = {
-        hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-        rawDetection: detectLanguage(userMessage),
-        languageContext: getLanguageContext(userMessage)
-    };
+//    // Enhanced language detection
+//    const languageCheck = {
+//        hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+//        rawDetection: detectLanguage(userMessage),
+//        languageContext: getLanguageContext(userMessage)
+//    };
 
-    // Stricter language determination
-    const isIcelandic = languageCheck.rawDetection && languageCheck.hasIcelandicChars;
+    // Get isIcelandic from context
+    const isIcelandic = context?.language === 'is';
     
     const relevantKnowledge = isIcelandic ? 
         getRelevantKnowledge_is(userMessage) : 
