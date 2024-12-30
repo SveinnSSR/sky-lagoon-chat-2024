@@ -152,6 +152,7 @@ const RATE_LIMIT_MAX_REQUESTS = 100;  // Maximum requests per window
 const CACHE_TTL = 3600000; // 1 hour
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
+const OPENAI_TIMEOUT = 15000;  // 15 seconds
 
 // Confidence Scoring System
 const CONFIDENCE_THRESHOLDS = {
@@ -289,18 +290,38 @@ const smallTalkPatterns = [
 ];
 
 const acknowledgmentPatterns = {
-    simple: [
-        'thanks', 'ok', 'got it', 'perfect', 'understood', 
-        'sure', 'alright', 'yep'
-    ],
-    positive: [
-        'great', 'helpful', 'good', 'comfortable', 'excellent'
-    ],
-    continuity: [
-        'a few more questions', 'can i ask', 'actually',
-        'have questions', 'want to ask', 'few more',
-        'another question'
-    ]
+    simple: {
+        en: [
+            'thanks', 'ok', 'got it', 'perfect', 'understood', 
+            'sure', 'alright', 'yep', 'cool', 'great'
+        ],
+        is: [
+            'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 
+            'gott', 'skil', 'já', 'geggjað', 'næs'
+        ]
+    },
+    positive: {
+        en: [
+            'great', 'helpful', 'good', 'comfortable', 'excellent',
+            'wonderful', 'fantastic', 'amazing'
+        ],
+        is: [
+            'frábært', 'hjálplegt', 'gott', 'þægilegt', 'æðislegt',
+            'dásamlegt', 'geggjað', 'ótrúlegt'
+        ]
+    },
+    continuity: {
+        en: [
+            'a few more questions', 'can i ask', 'actually',
+            'have questions', 'want to ask', 'few more',
+            'another question'
+        ],
+        is: [
+            'fleiri spurningar', 'má ég spyrja', 'reyndar',
+            'er með spurningar', 'vil spyrja', 'aðra spurningu',
+            'spyrja meira'
+        ]
+    }
 };
 
 // Helper functions for response handling
@@ -2630,23 +2651,40 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         let completion;
         while (attempt < MAX_RETRIES) {
             try {
+                // Add timeout and retry with exponential backoff
                 completion = await openai.chat.completions.create({
                     model: "gpt-4-1106-preview",
                     messages: messages,
                     temperature: 0.7,
-                    max_tokens: getMaxTokens(userMessage)
+                    max_tokens: getMaxTokens(userMessage),
+                    timeout: OPENAI_TIMEOUT
                 });
                 break;
             } catch (error) {
                 attempt++;
                 console.error(`OpenAI request failed (Attempt ${attempt}/${MAX_RETRIES}):`, {
                     error: error.message,
-                    status: error.response?.status
+                    status: error.response?.status,
+                    attempt: attempt,
+                    maxRetries: MAX_RETRIES,
+                    timeout: OPENAI_TIMEOUT
                 });
-                if (attempt === MAX_RETRIES) throw error;
-                console.log(`Retrying in ${INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1)}ms...`);
-                await sleep(INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1));
+
+                // If we've used all retries, throw the error
+                if (attempt === MAX_RETRIES) {
+                    throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
+                }
+
+                // Calculate delay with exponential backoff
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
+        }
+
+        // If we get here, we have a successful completion
+        if (!completion) {
+            throw new Error('Failed to get completion after retries');
         }
 
         const response = completion.choices[0].message.content;
