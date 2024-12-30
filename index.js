@@ -2242,9 +2242,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             languageContext: getLanguageContext(userMessage)
         };
         
+        // Declare isIcelandic BEFORE using it
+        const isIcelandic = languageCheck.rawDetection && languageCheck.hasIcelandicChars;
+
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
-            isIcelandic: isIcelandic,
+            isIcelandic,  // Now we can use it here
             detectionMethod: {
                 hasIcelandicChars: languageCheck.hasIcelandicChars,
                 rawDetection: languageCheck.rawDetection
@@ -2257,9 +2260,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             bookingTime: null,
             lateArrival: null,
             lastInteraction: Date.now(),
-            language: ((isIcelandic) => isIcelandic ? 'is' : 'en')(
-                languageCheck.rawDetection && languageCheck.hasIcelandicChars
-            ),      
+            language: isIcelandic ? 'is' : 'en',  // Add here, after lastInteraction
             conversationStarted: false,
             messageCount: 0,
             lastTopic: null,
