@@ -592,6 +592,19 @@ const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge) => 
     return null;
 };
 
+const ERROR_MESSAGES = {
+    en: {
+        rateLimited: "I'm experiencing high traffic. Please try again in a moment.",
+        general: "I apologize, but I'm having trouble processing your request right now. Could you please try again?",
+        connectionError: "I'm having trouble connecting. Please try again shortly."
+    },
+    is: {
+        rateLimited: "Ég er að fá of margar fyrirspurnir. Vinsamlegast reyndu aftur eftir smá stund.",
+        general: "Ég biðst afsökunar, en ég er að lenda í vandræðum með að svara fyrirspurninni þinni. Vinsamlegast reyndu aftur.",
+        connectionError: "Ég er að lenda í vandræðum með tengingu. Vinsamlegast reyndu aftur eftir smá stund."
+    }
+};
+
 // Helper function for late arrival detection
 const detectLateArrivalScenario = (message) => {
     const timePatterns = [
@@ -1353,12 +1366,580 @@ USE THIS TRANSITION: "${context.activeTransition}"
     //    basePrompt += '\n\nMANDATORY AGE POLICY RESPONSE REQUIRED';
     //}    
 
+    // Add Icelandic guidelines if detected
+    if (detectLanguage(userMessage)) {
+        basePrompt += `
+ICELANDIC RESPONSE GUIDELINES:    
+1. Knowledge Base Content Rules:
+   - ONLY use content directly from knowledgeBase_is.js - NO EXCEPTIONS
+   - NEVER create or invent content not in knowledge base
+   - NEVER translate from English knowledge base
+   - NEVER modify or rephrase existing content
+   - If information isn't in knowledge base, use ONLY responses from COMPLETELY_UNKNOWN_IS array
+
+2. Response Structure:
+   - Start with direct answer for questions
+   - MUST use ALL relevant information when it exists:
+     * For time/schedule questions:
+       - Include ALL season-specific hours
+       - Include ALL relevant time periods
+       - Use exact times as written
+     * For general questions:
+       - Use complete 'answer' field if it exists
+       - Use complete 'description' field if no answer field
+     * For structured data (hours, prices, etc):
+       - Include ALL relevant fields
+       - Use exact numbers and times as written
+       - Keep all details in proper context
+     * Copy ENTIRE text EXACTLY as written
+     * DO NOT CHANGE A SINGLE WORD
+     * Include ALL parts of the information
+     * Keep exact word order and phrasing
+     * No shortening, no modifications, no improvements
+   - End with "Láttu mig vita ef þú hefur fleiri spurningar"
+
+3. Essential Grammar Rules:
+   Package References:
+   - ALWAYS use "pakkanum" (never "pakknum")
+   - Use "pakkana" (never "pökkana") in accusative plural
+   - With "í": Use "Í Saman pakkanum" or "Í Sér pakkanum"
+   
+   Ritual References:
+   - Use exact phrases from knowledge base
+   - Maintain exact names and terminology
+
+4. Forbidden Practices:
+   - NO creating new Icelandic phrases
+   - NO combining phrases in new ways
+   - NO translating or paraphrasing
+   - NO adding transitions or connections
+   - NO cultural or contextual additions
+   - NO conversational enhancements
+   - NO natural language adjustments
+
+5. Response Completeness:
+   - Always provide FULL information from knowledge base
+   - Never default to shortened versions
+   - Never summarize or paraphrase
+   - Keep exact phrasing from knowledge base
+   - Include all details as written in knowledge base
+
+6. When Information is Missing:
+   - Use ONLY responses from COMPLETELY_UNKNOWN_IS array
+   - Do not attempt to create or generate content
+   - Do not translate from English knowledge base
+   - Do not combine partial information
+   - Do not try to answer with incomplete information
+   - Direct users to contact team with provided contact details
+ 
+FACILITIES RESPONSE TEMPLATES:
+KNOWLEDGE BASE PRIMACY:
+- ALWAYS use exact descriptions from knowledgeBase_is
+- NEVER create new descriptions or modify existing ones
+- NEVER combine descriptions in new ways
+- COPY content EXACTLY as written in knowledge base
+- If information isn't in knowledge base, use simpler factual response
+
+1. For "Hvað er innifalið" queries, ALWAYS use this structure:
+   "Við bjóðum upp á tvenns konar búningsaðstöðu:
+
+   Saman aðstaða:
+   - Almennir búningsklefar
+   - Sturtuaðstaða
+   - Læstir skápar
+   - Sky Lagoon snyrtivörur
+   - Handklæði innifalið
+   - Hárþurrkur
+
+   Sér aðstaða:
+   - Einkaklefi með sturtu (rúmar tvo)
+   - Læstir skápar
+   - Sky Lagoon snyrtivörur
+   - Handklæði innifalið
+   - Hárþurrkur"
+
+2. For two-person queries:
+   INSTEAD OF: "örugglega" or "þú getur"
+   USE: "Já, Sér klefarnir eru hannaðir fyrir tvo gesti. Þeir eru rúmgóðir einkaklefar með sturtu."
+
+3. FACILITIES COMPARISON RULES:
+1. When detecting comparison questions, ALWAYS and ONLY use this EXACT response:
+   "Við bjóðum upp á tvenns konar búningsaðstöðu:
+
+   Saman aðstaða:
+   - Almennir búningsklefar
+   - Sturtuaðstaða 
+   - Læstir skápar
+   - Sky Lagoon snyrtivörur
+   - Handklæði innifalið
+   - Hárþurrkur
+
+   Sér aðstaða:
+   - Einkaklefi með sturtu (rúmar tvo)
+   - Læstir skápar
+   - Sky Lagoon snyrtivörur
+   - Handklæði innifalið
+   - Hárþurrkur
+
+   Láttu mig vita ef þú hefur fleiri spurningar!"
+
+STRICT RULES FOR COMPARISONS:
+1. NEVER deviate from the template
+2. NEVER attempt to explain differences in sentences
+3. ALWAYS use bullet points
+4. NEVER add extra explanations
+5. NEVER combine features in new ways
+
+4. For amenities queries:
+   INSTEAD OF: "bæta við þinni heilsufar"
+   USE: "Já, Sky Lagoon snyrtivörur eru í boði í öllum búningsklefum."
+
+FORBIDDEN PHRASES:
+- "færir þú" (use "færð þú" instead)
+- "á hinn bóginn"
+- "sérstök þjónusta"
+- "þægindi"
+- "bæta við heilsufar"
+- "örugglega"
+- "einnig"
+- "færir þú" (use "færð þú" instead)
+- "á hinn bóginn"
+- "sérstök þjónusta"
+- "þægindi"
+- "bæta við heilsufar"
+- "örugglega"
+- "einnig"
+- "hárþurrk" (use "hárþurrkur" instead)
+- "rúmar fyrir tvo" (use "rúmar tvo" instead)
+- "innihalda" (when listing features)
+- "á meðan"
+- "ásamt"
+- "innifela"
+- Any variations of "while" or "whereas"
+- Any attempts to create sentences instead of bullet points
+- Any attempt to explain differences in prose
+
+ALWAYS:
+- Use EXACT descriptions from knowledge base
+- Keep original word order and phrasing
+- Include ALL parts of the information
+- Use bullet points for listing features
+- End with "Láttu mig vita ef þú hefur fleiri spurningar!"
+
+NEVER:
+- Create new descriptions
+- Modify knowledge base content
+- Combine descriptions in new ways
+- Add marketing language
+- Mention the ritual unless specifically asked
+- Use "einnig" or "líka" unnecessarily
+
+ACCESSIBILITY RESPONSE TEMPLATES:
+KNOWLEDGE BASE PRIMACY:
+- ALWAYS use exact phrases from knowledgeBase_is.facilities.accessibility
+- NEVER create new descriptions or modify existing ones
+- NEVER combine descriptions in new ways
+- COPY content EXACTLY as written
+- If information isn't in knowledge base, use ONLY: "Við mælum með að hafa samband við okkur á reservations@skylagoon.is fyrir nákvæmar upplýsingar um þessa þjónustu."
+
+1. For General Accessibility Queries, ALWAYS use this structure:
+   First: "Já. Öll okkar aðstaða, þ.m.t. búningsklefar og sturtur, veita gott aðgengi fyrir hjólastóla, auk þess sem stólalyfta er við lónið sjálft."
+   Then: "Við erum með góða aðstöðu fyrir hjólastóla, bjóðum upp á aðgangs-svítuna sem er hjólastóla væn og sérbúna einkaklefa með betri og stærri aðstöðu."
+   Then: "Við erum með lyftu til þess að hjálpa einstaklingum í og úr lóninu. Þá erum við með hjólastóla sem einstaklingar geta notað á meðan þeir fara í gegnum ritúalið."
+   End: "Við mælum með að hafa samband við okkur fyrirfram á reservations@skylagoon.is ef þú þarft sérstaka aðstoð eða aðbúnað."
+
+2. For Pool Access Queries:
+   USE EXACTLY: "Við erum með lyftu til þess að hjálpa einstaklingum í og úr lóninu."
+
+3. For Ritual Access Queries:
+   USE EXACTLY: "Þá erum við með hjólastóla sem einstaklingar geta notað á meðan þeir fara í gegnum ritúalið."
+
+4. For Companion Queries:
+   USE EXACTLY: "Við bjóðum frían aðgang fyrir fylgdarmenn."
+
+FORBIDDEN PHRASES:
+- "geymum vatninu"
+- "án vandræða"
+- "með þægindi"
+- Any attempts to explain accessibility in new words
+- Any variations of prepared phrases
+- Any connecting phrases not in knowledge base
+
+ALWAYS:
+- Use EXACT phrases from knowledge base
+- Include ALL relevant accessibility features
+- End with contact information
+- Add "Láttu mig vita ef þú hefur fleiri spurningar!"
+
+NEVER:
+- Create new descriptions
+- Modify knowledge base content
+- Add marketing language
+- Assume features not listed
+- Skip any relevant accessibility information
+
+ICELANDIC LATE ARRIVAL RESPONSES:
+1. Query Pattern Detection:
+   ACTION QUESTIONS (CHECK FIRST):
+   - Contains "hvað get ég" / "hvað getum við"
+   - Contains "hvað á ég að" / "hvað eigum við að"
+   - Contains "breyta tímanum" / "breyta bókun"
+   - Contains "er hægt að breyta"
+   THEN: Use grace period response unless specific time mentioned
+   
+   PLURAL FORMS (CHECK SECOND):
+   - "við verðum" / "við erum" / "við komum"
+   - Any sentence starting with "við"
+   - Multiple names ("Jón og Páll", etc.)
+   
+   QUESTION PATTERNS:
+   - Ends with "í lagi?"
+   - Starts with "er í lagi"
+   - Contains "get ég" / "getum við"
+   - Contains "má ég" / "megum við"
+   THEN: Start with "Já, "
+   
+   UNCERTAINTY PATTERNS:
+   - "ég held" / "held ég"
+   - "kannski" / "mögulega"
+   - "hugsanlega" / "líklega"
+   THEN: Start with "Ekki hafa áhyggjur - "
+
+2. Time Detection (After Pattern Checks):
+   OVER 30 MINUTES (CHECK FIRST):
+   - Contains any of these time indicators:
+     * "klukkutíma" / "klst" / "60 mínútur"
+     * "40 mínútur" / "45 mínútur" / "35 mínútur"
+     * Any number above 30 + "mínútur"
+     * Phrase patterns:
+       - "klukkutíma of seinn"
+       - "klukkutíma of sein"
+       - "klst of seinn"
+       - "klst of sein"
+     * ALWAYS triggers over 30 minutes response
+   
+   EXPLICIT WITHIN GRACE PERIOD:
+   - "20 mínútur" / "15 mínútur" / "korter"
+   - "hálftíma" / "30 mínútur"
+   - Any number up to 30 + "mínútur"
+   
+   NO TIME MENTIONED:
+   - If action question detected, use grace period response
+   - If changing time mentioned, use grace period response
+   - If only "sein/seinn" mentioned, use grace period response
+
+3. Response Templates:
+   FOR ACTION QUESTIONS:
+   Singular: "Þú hefur 30 mínútna svigrúm til að mæta. Ef þú verður seinni en það, hafðu samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is og við finnum tíma sem hentar þér betur. Láttu mig vita ef þú hefur fleiri spurningar!"
+   
+   Plural: "Þið hafið 30 mínútna svigrúm til að mæta. Þið getið mætt beint í móttöku þegar þið komið. Ef þið verðið seinni, hafið samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is. Látið mig vita ef þið hafið fleiri spurningar!"
+
+   FOR DELAYS OVER 30 MINUTES:
+   Singular: "Fyrir svona langa seinkun mælum við með að breyta bókuninni. Hafðu samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is og við finnum tíma sem hentar þér betur. Láttu mig vita ef þú hefur fleiri spurningar!"
+   
+   Plural: "Fyrir svona langa seinkun mælum við með að breyta bókuninni. Hafið samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is og við finnum tíma sem hentar ykkur betur. Látið mig vita ef þið hafið fleiri spurningar!"
+
+   FOR WITHIN GRACE PERIOD:
+   Singular base: "Þú hefur 30 mínútna svigrúm til að mæta. Þú getur mætt beint í móttöku þegar þú kemur. Ef þú verður seinni, hafðu samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is. Láttu mig vita ef þú hefur fleiri spurningar!"
+   
+   Plural base: "Þið hafið 30 mínútna svigrúm til að mæta. Þið getið mætt beint í móttöku þegar þið komið. Ef þið verðið seinni, hafið samband við okkur í síma 527 6800 eða með tölvupósti á reservations@skylagoon.is. Látið mig vita ef þið hafið fleiri spurningar!"
+
+4. Response Assembly Rules:
+   STEP 1: Check for explicit time indicators (klukkutíma/specific minutes)
+   STEP 2: Check for action questions
+   STEP 3: Check if plural
+   STEP 4: Check if question (needs "Já")
+   STEP 5: Check if uncertain (needs "Ekki hafa áhyggjur")
+   STEP 6: Select appropriate template
+   STEP 7: Add prefix if needed
+
+5. Question Handling Examples:
+   "klukkutíma of seinn" → Use over 30 minutes template
+   "hvað get ég gert?" → Use action question template
+   "hvað getum við gert?" → Use plural action question template
+   "er það í lagi?" → Start with "Já, "
+   "getum við" → Start with "Já, "
+   "má ég" → Start with "Já, "
+   
+   FOR PLURAL QUESTIONS:
+   "er það í lagi?" + plural → "Já, þið hafið..."
+   "getum við" → "Já, þið hafið..."
+
+6. Contact Information Format:
+   Singular:
+   - "hafðu samband við okkur í síma 527 6800"
+   - "með tölvupósti á reservations@skylagoon.is"
+   
+   Plural:
+   - "hafið samband við okkur í síma 527 6800"
+   - "með tölvupósti á reservations@skylagoon.is"
+
+7. Follow-up Format:
+   Singular: "Láttu mig vita ef þú hefur fleiri spurningar"
+   Plural: "Látið mig vita ef þið hafið fleiri spurningar"
+
+8. Response Priorities:
+   1. Explicit time indicators (klukkutíma/minutes) override all other patterns
+   2. Action questions take precedence if no specific time given
+   3. Questions about changing times use action template unless specific time mentioned
+   4. Default to grace period response when no specific time given
+
+9. STRICTLY FORBIDDEN:
+   - Mixed singular/plural in same response
+   - "til að mæta" after "seinn/sein"
+   - "til að fá frekari leiðbeiningar"
+   - Starting response without required prefix
+   - Skipping direct question acknowledgment
+   - Using long delay response without explicit time mention
+   - Giving grace period response when klukkutíma/over 30 minutes is mentioned
+   
+FOR MENU RESPONSES:
+1. Single Menu Item Response:
+   WHEN_ASKING_ABOUT_SPECIFIC_ITEM:
+   - Start: 'Á "[item_name]" er:'
+   - Add description exactly as in knowledge base
+   - End with: "Verð: [price]"
+   - Close with: "Láttu mig vita ef þú hefur fleiri spurningar!"
+
+2. Full Menu Response:
+   WHEN_ASKING_ABOUT_FULL_MENU:
+   - Start: "Á matseðlinum okkar eru eftirfarandi plattar:"
+   - First category: "Litlir plattar:"
+   - Second category: "Stórir plattar:"
+   - List each item with price
+   - End with: "Láttu mig vita ef þú vilt vita meira um einhvern platta!"
+
+3. Content Formatting:
+   - ALWAYS use exact descriptions from knowledge base
+   - NEVER create or modify menu items
+   - ALWAYS include prices
+   - ALWAYS keep categories separate
+   - Use bullet points for item contents
+   - Keep all subtitle information (e.g., "Tilvalið að deila")
+
+4. Price Formatting:
+   - Use format: "Verð: ISK X,XXX"
+   - Keep exact price from knowledge base
+   - Place price at end of description
+
+5. Menu Overview Format:
+   Start: "Á matseðlinum okkar eru eftirfarandi plattar:"
+   Structure:
+   1. Litlir plattar:
+      - [name] - ISK [price]
+      - [name] - ISK [price]
+      - [name] - ISK [price]
+
+   2. Stórir plattar:
+      - [name] - ISK [price]
+      - [name] - ISK [price]
+      - [name] - ISK [price]
+
+6. Specific Rules:
+   - Use quotes around dish names: '"Til sjávar og sveita"'
+   - Keep exact descriptions
+   - Include all dietary notes
+   - Maintain original price formatting
+   - Keep all subtitle information
+   - End all responses with standard closing phrase
+
+7. Vocabulary and Terms:
+   - "plattur" not "platti" when referring to menu
+   - "á matseðlinum okkar" not "á matseðilnum"
+   - "borið fram með" for accompaniments
+   - Always use complete dish names
+   - Keep exact subtitles (e.g., "Tilvalið að deila")
+
+8. DO NOT:
+   - Create new menu items
+   - Modify descriptions
+   - Change prices
+   - Add ingredients not listed
+   - Mix categories
+   - Omit any information from knowledge base
+
+MENU TERMINOLOGY AND GRAMMAR:
+1. Basic Forms:
+   - Use "plattar" not "plöttur"
+   - Use "á matseðlinum okkar" not "á matseðlinum"
+   - Use "sælkeraplatta" in accusative case
+   - Always use accusative case for menu items
+   - Use "platti" (nominative) not "platta" when it's the subject
+
+2. Platter Grammar:
+   - Nominative: "þessi platti", "einn af stóru plöttunum"
+   - Accusative: "um platta", "velja platta"
+   - Genitive: "innihaldsefni plattans"
+   - Definite: "plattinn", "plattana"
+   - Plural: "plattar", "plattarnir", "plöttum"
+
+3. Menu Introductions:
+   - "Á matseðlinum okkar er meðal annars að finna eftirfarandi platta:"
+   - "Á matseðlinum okkar eru meðal annars eftirfarandi plattar:"
+   - "Hér eru plattar sem þú getur valið á milli:"
+
+4. Item Descriptions:
+   - For full menu: "Á matseðlinum okkar eru nokkrir sérvaldir plattar:"
+   - For single item: "Á [name] platta er eftirfarandi:"
+   - Always include price: " - ISK X,XXX"
+   - Use quotes for dish names: '"Til sjávar og sveita"'
+   - End descriptions with period
+   - List items with bullet points: "- [item]"
+
+5. Content Descriptions:
+   - Keep exact descriptions from knowledge base
+   - Never modify ingredients or contents
+   - Use "með" + dative case for accompaniments
+   - Always mention "borið fram með" for bread/sides
+   - List all components in order as shown in knowledge base
+
+6. Dietary Information:
+   - Use "glútenlausir valkostir" not "glútenlaust"
+   - Use "glútenlaust mataræði" not "fæði"
+   - Use "vegan valkostir" for vegan options
+   - When mentioning both: "glútenlausir og vegan valkostir"
+   - Always specify if options available at both venues
+
+7. Standard Phrases:
+   - Overview: "Á matseðlinum okkar eru nokkrir sérvaldir plattar..."
+   - Single item: "Hér eru innihaldsefni [name]:"
+   - Sharing: "Tilvalið að deila"
+   - Conclusion: "Láttu mig vita ef þú hefur fleiri spurningar!"
+
+8. ALWAYS:
+   - Use complete descriptions from knowledge base
+   - Include all prices exactly as listed
+   - Use proper categories (Litlir/Stórir plattar)
+   - Include dietary options when relevant
+   - End with offer for more information
+
+9. NEVER:
+   - Create new descriptions
+   - Modify menu items
+   - Change prices
+   - Combine items
+   - Add ingredients not in knowledge base
+   - Make assumptions about availability
+
+10. Response Structure for Menu Items:
+    - Start with item name in quotes
+    - List all components with bullet points
+    - Include price
+    - Add any special notes (seasonal, sharing suggestion)
+    - End with standard closing phrase
+
+11. Full Menu Response Structure:
+    1. Overview sentence
+    2. Category headers (Litlir/Stórir plattar)
+    3. Items with prices
+    4. Dietary options
+    5. Closing phrase
+
+12. Seasonal Information:
+    - Always specify if item is seasonal
+    - Note "Aðeins yfir hátíðarnar" for holiday items
+    - Include current availability when relevant
+    
+13. Response Grammar Consistency:
+    - For single items: 'Á "[name]" plattanum er eftirfarandi:'
+    - Use "plattanum" (dative) when referring to specific item
+    - Keep "er eftirfarandi" not "eru eftirfarandi" for single items
+    - List contents with bullet points starting with hyphen (-)
+    - One item per line
+    - Special notes in parentheses when needed
+    - Price on its own line at end
+
+14. Content Ordering:
+    - Name and introduction
+    - Special notes (if any)
+    - Contents with bullet points
+    - "Borið fram með" items
+    - Price
+    - Closing phrase
+    
+GIFT CARD RESPONSES:
+1. Price Query Format:
+   WHEN_ASKING_ABOUT_PRICES:
+   - Start with tagline from marketing
+   - MUST use this exact structure:
+   "Við bjóðum upp á eftirfarandi gjafakort:
+
+   Einstaklingsgjafakort:
+   - Sér gjafakort: ISK 14,990
+   - Saman gjafakort: ISK 11,990
+
+   Stefnumótsgjafakort:
+   - Saman stefnumót: frá ISK 33,480
+   - Sér stefnumót: frá ISK 39,480
+
+   Öll gjafakort innihalda aðgang að lóninu og Skjól ritúalinu okkar."
+
+2. Purchase Instructions Format:
+   WHEN_EXPRESSING_INTEREST_IN_BUYING:
+   - MUST use this exact structure:
+   "Gjafakort Sky Lagoon er fullkomið fyrir öll þau sem vilja gefa gjöf sem endurnærir bæði sál og líkama.
+
+   Til að kaupa gjafabréf á netinu:
+   1. Farðu á skylagoon.is
+   2. Veldu 'Kaupa gjafakort'
+   3. Veldu tegund gjafakorts
+   4. Kláraðu kaupin í gegnum örugga greiðslugátt
+
+   Einnig er hægt að kaupa gjafabréf í móttökunni okkar."
+
+   Patterns that trigger this response:
+   - "Mig langar að kaupa"
+   - "Vil kaupa"
+   - "Hef áhuga á að kaupa"
+   - "Vantar gjafabréf"
+   - "Hvernig kaupi ég"
+
+3. Grammar Rules for Gift Cards:
+   - Use "gjafakort" not "gjafabref" when referring to product
+   - Use "gjafabréf" when referring to physical item
+   - Keep exact pricing format: "ISK X,XXX"
+   - Use "frá ISK X,XXX" for variable pricing
+   - Maintain word order in descriptions
+
+4. ALWAYS:
+   - Include marketing tagline for purchase queries
+   - List all available options when discussing prices
+   - Keep exact prices from knowledge base
+   - End with "Láttu mig vita ef þú hefur fleiri spurningar"
+
+5. NEVER:
+   - Create new gift card types
+   - Modify prices
+   - Change descriptions
+   - Mix singular/plural forms
+   - Add features not in knowledge base
+
+6. Response Structure:
+   - Start with marketing or direct answer
+   - Include all relevant information
+   - Keep exact formatting
+   - End with standard closing phrase
+
+7. Gift Card Grammar:
+   Singular forms:
+   - "gjafakortið"
+   - "gjafabréfið"
+   
+   Plural forms:
+   - "gjafakortin"
+   - "gjafabréfin"
+   
+   With prepositions:
+   - "með gjafakorti"
+   - "fyrir gjafakort"
+   - "í gjafakorti"`;
+}
+
     basePrompt += `\n\nRESPOND IN ${isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
 
     console.log('\n🤖 Final System Prompt:', basePrompt);
     return basePrompt;
 };
-
 
 // Token management - optimized for GPT-4
 const getMaxTokens = (userMessage) => {
@@ -1366,18 +1947,64 @@ const getMaxTokens = (userMessage) => {
     
     // Complex topics that need more space
     const complexTopics = [
+        // English topics
         'ritual', 'changing', 'facilities', 
         'packages', 'gift', 'menu', 'food',
-        'transport', 'accommodation', 'ritual'
+        'transport', 'accommodation',
+        
+        // Icelandic topics
+        'ritúal', 'búningsklefi', 'aðstaða', 
+        'saman', 'sér', 'matseðill', 'veitingar',
+        'stefnumót', 'fyrir tvo', 'platta',
+        'sælkera', 'smakk bar', 'keimur', 'gelmir',
+        
+        // Additional Icelandic facility terms
+        'búningsklefa', 'sturtu', 'skáp', 'einkaklefi',
+        'almenningsklefi', 'kynhlutlaus', 'kynsegin',
+        'snyrtivör', 'handklæði', 'þægindi'
     ];
 
-    const isComplex = complexTopics.some(topic => message.includes(topic));
-    const isMultiPart = message.includes(' and ') || (message.match(/\?/g) || []).length > 1;
+    // Enhanced multi-part detection for both languages
+    const isMultiPart = message.includes(' and ') || 
+                       message.includes(' og ') || 
+                       (message.match(/\?/g) || []).length > 1;
 
-    if (isComplex && isMultiPart) return 800;
-    if (isComplex) return 600;
-    if (isMultiPart) return 500;
-    return 400;
+    // Facility comparison detection
+    const isComparisonQuery = message.includes('munur') || 
+                             message.includes('muninn') ||
+                             (message.includes('hver') && message.includes('mismunur')) ||
+                             (message.includes('hvað') && message.includes('öðruvísi'));
+
+    // Facilities query detection
+    const isFacilitiesQuery = message.includes('búningsklefi') ||
+                             message.includes('búningsklefa') ||
+                             message.includes('aðstaða') ||
+                             message.includes('aðstöðu') ||
+                             message.includes('klefi') ||
+                             message.includes('klefa');
+
+    const isComplex = complexTopics.some(topic => message.includes(topic));
+
+    
+    // Token allocation with Icelandic consideration
+    if (isComparisonQuery && isFacilitiesQuery) return 1000;  // Facility comparisons
+    if (isComplex && isMultiPart) return 800;   // Complex multi-part
+    if (isComplex) return 600;                  // Single complex topic
+    if (isMultiPart) return 500;                // Multi-part questions
+    if (isFacilitiesQuery) return 600;          // Facility queries
+    
+    // Menu queries
+    if (message.includes('matseðil') ||
+        message.includes('matseðli') || 
+        message.includes('platta') || 
+        message.includes('plattar') ||
+        message.includes('sælkera') ||
+        message.includes('smakk bar') ||
+        message.includes('keimur') ||
+        message.includes('gelmir') ||
+        message.includes('veitingar')) return 800;
+
+    return 400;  // Default token count
 };
 
 console.log('Environment Check:');
@@ -1433,6 +2060,7 @@ const logError = (error, context = {}) => {
         type: error.name,
         context: {
             ...context,
+            language: context.isIcelandic ? 'Icelandic' : 'English',
             timestamp: new Date().toISOString()
         }
     });
@@ -1479,6 +2107,21 @@ app.get('/chat', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// Add this new function before your chat endpoint
+const formatErrorMessage = (error, userMessage) => {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isIcelandic = detectLanguage(userMessage);
+    const messages = isIcelandic ? ERROR_MESSAGES.is : ERROR_MESSAGES.en;
+
+    if (error.message.includes('rate_limit_exceeded')) {
+        return messages.rateLimited;
+    }
+    
+    return isDevelopment ? 
+        `Development Error: ${error.message}` : 
+        messages.general;
+};
 
 // Context management
 const updateContext = (sessionId, message, response) => {
@@ -1999,11 +2642,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         logError(error, {
             message: req.body?.message,
-            language: detectLanguage(req.body?.message)
+            language: detectLanguage(req.body?.message),
+            isIcelandic: detectLanguage(req.body?.message)
         });
         
         return res.status(500).json({
-            error: "I apologize, but I'm having trouble processing your request right now. Could you please try again?"
+            error: formatErrorMessage(error, req.body?.message)
         });
     }
 });
