@@ -2234,6 +2234,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Add this before the cache check
         const sessionId = req.sessionId || `session_${Date.now()}`;        
+
+        // Enhanced language detection
+        const languageCheck = {
+            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+            rawDetection: detectLanguage(userMessage),
+            languageContext: getLanguageContext(userMessage)
+        };
+        
+        console.log('\n🌍 Language Detection:', {
+            message: userMessage,
+            isIcelandic: isIcelandic,
+            detectionMethod: {
+                hasIcelandicChars: languageCheck.hasIcelandicChars,
+                rawDetection: languageCheck.rawDetection
+            }
+        });
         
         // Initialize context before any usage
         context = conversationContext.get(sessionId) || {
@@ -2241,6 +2257,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             bookingTime: null,
             lateArrival: null,
             lastInteraction: Date.now(),
+            language: ((isIcelandic) => isIcelandic ? 'is' : 'en')(
+                languageCheck.rawDetection && languageCheck.hasIcelandicChars
+            ),      
             conversationStarted: false,
             messageCount: 0,
             lastTopic: null,
@@ -2292,11 +2311,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Greeting handling
-        const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
+        const greetings = [
+            // English greetings
+            'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+            // Icelandic greetings
+            'hæ', 'halló', 'hallo', 'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
+        ];
+
         if (greetings.includes(userMessage.toLowerCase().trim())) {
-            const greeting = GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
+            const greeting = isIcelandic ? 
+                "Hæ! Hvernig get ég aðstoðað þig í dag?" :
+                GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
+
+            // Update context with proper language
+            context.language = isIcelandic ? 'is' : 'en';
+            context.conversationStarted = true;
+
             return res.status(200).json({
-                message: greeting
+                message: greeting,
+                language: isIcelandic ? 'is' : 'en'
             });
         }
 
@@ -2305,11 +2338,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (smallTalkPatterns.some(pattern => msg.includes(pattern))) {
             context.lastTopic = 'small_talk';
             context.conversationStarted = true;
+            
+            // Add language-aware response
+            const response = isIcelandic ?
+                "Ég er hér til að hjálpa þér að kynnast Sky Lagoon betur. Hverju langar þig að vita meira um?" :
+                getContextualResponse('small_talk', context.messages.map(m => m.content));
+
             return res.status(200).json({
-                message: getContextualResponse('small_talk', context.messages.map(m => m.content))
+                message: response,
+                language: isIcelandic ? 'is' : 'en'
             });
         }
-
+        
         // Acknowledgment and continuity handling
         // Check for conversation continuity first
         if (acknowledgmentPatterns.continuity.some(pattern => msg.includes(pattern))) {
@@ -2392,6 +2432,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             getRelevantKnowledge(userMessage);
 
         console.log('\n📚 Knowledge Base Match:', {
+            language: isIcelandic ? 'Icelandic' : 'English',  // Add language info
             matches: knowledgeBaseResults.length,
             types: knowledgeBaseResults.map(k => k.type),
             details: JSON.stringify(knowledgeBaseResults, null, 2)
@@ -2548,15 +2589,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const messages = [
             { 
                 role: "system", 
-                content: systemPrompt
+                content: getSystemPrompt(sessionId, isHoursQuery, userMessage)
             }
         ];
 
-        // Add context awareness for late arrivals
+        // Add context awareness
+        if (context.messages && context.messages.length > 0) {
+            messages.push(...context.messages.slice(-5).map(msg => ({
+                ...msg,
+                content: msg.content + (isIcelandic ? ' [IS]' : ' [EN]')
+            })));
+        }
+
         if (context?.lateArrivalScenario || context?.bookingModification?.requested) {
             messages.push({
                 role: "system",
                 content: `CURRENT CONTEXT:
+                    Language: ${isIcelandic ? 'Icelandic' : 'English'}
                     Late Arrival: ${context.lateArrivalScenario ? JSON.stringify(context.lateArrivalScenario) : 'No'}
                     Sold Out Status: ${context.soldOutStatus ? 'Yes' : 'No'}
                     Booking Modification: ${context.bookingModification?.requested ? 'Requested' : 'No'}
@@ -2573,6 +2622,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             Please provide a natural, conversational response using ONLY the information from the knowledge base. 
             Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
+            ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}
             ${transition ? `Start with: "${transition}"` : ''}
             ${followUp ? `End with: "${followUp}"` : ''}`
         });
@@ -2604,14 +2654,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
 
-        // Apply terminology enhancement
-        const enhancedResponse = enforceTerminology(response);
+        // Apply terminology enhancement with language awareness
+        const enhancedResponse = isIcelandic ? 
+            enforceTerminology(response) + "\nLáttu mig vita ef þú hefur fleiri spurningar!" :
+            enforceTerminology(response);
+            
         console.log('\n✨ Enhanced Response:', enhancedResponse);
 
-        // Cache the response
+        // Cache the response with language
         responseCache.set(cacheKey, {
             response: {
-                message: response,
+                message: enhancedResponse,
                 language: {
                     detected: isIcelandic ? 'Icelandic' : 'English',
                     confidence: 'high'
@@ -2620,13 +2673,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             timestamp: Date.now()
         });
 
-        // Update conversation context
+        // Update conversation context with language
         context.lastInteraction = Date.now();
+        context.language = isIcelandic ? 'is' : 'en';
         conversationContext.set(sessionId, context);
 
         // Return enhanced response format
         return res.status(200).json({
-            message: response,
+            message: enhancedResponse,
             language: {
                 detected: isIcelandic ? 'Icelandic' : 'English',
                 confidence: 'high'
