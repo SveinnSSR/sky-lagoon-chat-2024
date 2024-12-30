@@ -2424,10 +2424,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Enhanced language detection
-        const isIcelandic = detectLanguage(userMessage) && /[þæðöáíúéó]/i.test(userMessage);
-        console.log('\n🌍 Language detected:', isIcelandic ? 'Icelandic' : 'English');
-
         // Get relevant knowledge base content with better logging
         const knowledgeBaseResults = isIcelandic ? 
             getRelevantKnowledge_is(userMessage) : 
