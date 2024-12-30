@@ -579,10 +579,10 @@ const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge) => 
     // Only treat as completely unknown if we have zero knowledge and zero confidence
     if (confidenceScore === 0 && (!relevantKnowledge || relevantKnowledge.length === 0)) {
         console.log('📝 Query Type: COMPLETELY_UNKNOWN');
-        const isIcelandic = detectLanguage(userMessage);
+        const isIcelandicQuery = detectLanguage(userMessage);
         return {
             type: UNKNOWN_QUERY_TYPES.COMPLETELY_UNKNOWN,
-            response: getRandomResponse(isIcelandic ? 
+            response: getRandomResponse(isIcelandicQuery ? 
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS : 
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN)
         };
