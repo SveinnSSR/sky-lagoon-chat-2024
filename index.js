@@ -2111,8 +2111,8 @@ app.get('/chat', (req, res) => {
 // Add this new function before your chat endpoint
 const formatErrorMessage = (error, userMessage) => {
     const isDevelopment = process.env.NODE_ENV === 'development';
-    const isIcelandic = detectLanguage(userMessage);
-    const messages = isIcelandic ? ERROR_MESSAGES.is : ERROR_MESSAGES.en;
+    // Instead of declaring isIcelandic again, just use it
+    const messages = context.language === 'is' ? ERROR_MESSAGES.is : ERROR_MESSAGES.en;
 
     if (error.message.includes('rate_limit_exceeded')) {
         return messages.rateLimited;
@@ -2131,6 +2131,7 @@ const updateContext = (sessionId, message, response) => {
         bookingTime: null,
         lateArrival: null,
         lastInteraction: Date.now(),
+        language: detectLanguage(message) ? 'is' : 'en',  // Add language here        
         conversationStarted: false,
         messageCount: 0,
         lastTopic: null,
