@@ -2042,6 +2042,7 @@ const config = {
 
 // Initialize Express
 const app = express();
+app.set('trust proxy', 1);  // Add this line to fix X-Forwarded-For error
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -2375,27 +2376,52 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         // Acknowledgment and continuity handling
         // Check for conversation continuity first
-        if (acknowledgmentPatterns.continuity.some(pattern => msg.includes(pattern))) {
+        if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
+            acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
+            const response = isIcelandic ?
+                "Endilega spurðu!" :
+                "Of course! Please go ahead and ask your questions.";
             return res.status(200).json({
-                message: "Of course! Please go ahead and ask your questions."
+                message: response,
+                language: {
+                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    confidence: 'high'
+                }
             });
         }
 
         // Check for positive feedback
-        if (acknowledgmentPatterns.positive.some(word => msg.includes(word))) {
-            const response = context.lastTopic ?
-                `I'm glad I could help! If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
-                `I'm glad I could help! What else would you like to know about Sky Lagoon?`;
+        if (acknowledgmentPatterns.positive.en.some(word => msg.includes(word)) ||
+            acknowledgmentPatterns.positive.is.some(word => msg.includes(word))) {
+            const response = isIcelandic ?
+                context.lastTopic ?
+                    `Gott að geta hjálpað! Ef þú hefur fleiri spurningar um ${context.lastTopic}, eða eitthvað annað, ekki hika við að spyrja.` :
+                    `Gott að geta hjálpað! Hverju langar þig að vita meira um?` :
+                context.lastTopic ?
+                    `I'm glad I could help! If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
+                    `I'm glad I could help! What else would you like to know about Sky Lagoon?`;
             return res.status(200).json({
-                message: response
+                message: response,
+                language: {
+                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    confidence: 'high'
+                }
             });
         }
 
         // Check for simple acknowledgments (1-4 words)
         if (userMessage.split(' ').length <= 4 && 
-            acknowledgmentPatterns.simple.some(word => msg.includes(word))) {
+            (acknowledgmentPatterns.simple.en.some(word => msg.includes(word)) ||
+             acknowledgmentPatterns.simple.is.some(word => msg.includes(word)))) {
+            const response = isIcelandic ?
+                "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                "Is there anything else you'd like to know about Sky Lagoon?";
             return res.status(200).json({
-                message: "Is there anything else you'd like to know about Sky Lagoon?"
+                message: response,
+                language: {
+                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    confidence: 'high'
+                }
             });
         }
 
