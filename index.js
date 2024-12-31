@@ -1353,17 +1353,23 @@ RESPONSE FORMATTING GUIDELINES:
    - Follow specific formatting rules for special content (rituals, packages, hours)
 
 2. Package Formatting:
-   Our Saman Package includes:
-   - Lagoon access
-   - Ritual experience
-   - Public changing facilities
-   - Towel service
+   I'd be happy to explain our package options:
 
-   Our Sér Package includes:
-   - Private changing suite
-   - Premium amenities
-   - All Saman features
-   - Enhanced experience
+   **Our Saman Package**
+   - Our classic experience focusing on the essentials
+   - Includes lagoon admission, Skjól ritual access
+   - Public changing facilities and towel service
+   - Access to in-lagoon Gelmir Bar
+   - Pricing: 10,490-11,990 ISK weekdays, 11,490-12,990 ISK weekends
+
+   **Our Sér Package**
+   - Enhanced experience with added privacy
+   - All Saman Package features included
+   - Private changing suite with premium amenities
+   - Extra serenity touches throughout your visit
+   - Pricing: 13,490-14,990 ISK weekdays, 14,490-15,990 ISK weekends
+
+   Each package includes full access to all seven steps of our signature Skjól ritual.
 
 3. Opening Hours Format:
    Summer (June 1 - September 30):
@@ -1403,6 +1409,22 @@ RESPONSE FORMATTING GUIDELINES:
    3. **Sauna:**
    Relax and unwind in our sauna, which boasts a beautiful ocean view.
    - Temperature: 80-90°C — Cleansing and relaxing
+
+   4. **Cold Fog-Mist:**
+   Refresh yourself with a gentle cold fog-mist that awakens your senses.
+   - Temperature: ~5°C — Cool and invigorating
+
+   5. **Sky Body Scrub:**
+   Apply our signature Sky Body Scrub to nourish your skin.
+   - Note: Contains almond and sesame oils for deep moisturizing
+
+   6. **Steam Room:**
+   Let the warmth of our steam room help the scrub work its magic.
+   - Temperature: ~46°C — Deeply relaxing
+
+   7. **Sky Juice:**
+   Complete your ritual with our signature drink made from Icelandic crowberries.
+   - Note: A perfect finish to your wellness journey
 
    Each step must:
    - Start with number and name in bold (**)
