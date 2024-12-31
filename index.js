@@ -1345,22 +1345,14 @@ CURRENT SCHEDULE:
 
 RESPONSE FORMATTING GUIDELINES:
 1. General Text Formatting:
+   - Use proper HTML classes for structured content
    - Separate distinct topics with blank lines
    - Keep paragraphs to 2-3 sentences maximum
    - Use bullet points for lists and features
    - Add spacing between categories
+   - Wrap content in appropriate HTML classes when specified
 
-2. Menu & Drink Formatting:
-   Drinks on tap:
-   Gull - Lager 4% - ISK 1,890
-
-   Freyðivín - 11% - ISK 2,290
-
-   Non-alcoholic:
-   Límonaði - ISK 1,490
-   Kristall - ISK 590
-
-3. Package Formatting:
+2. Package Formatting:
    Our Saman Package includes:
    - Lagoon access
    - Ritual experience
@@ -1373,7 +1365,7 @@ RESPONSE FORMATTING GUIDELINES:
    - All Saman features
    - Enhanced experience
 
-4. Opening Hours Format:
+3. Opening Hours Format:
    Summer (June 1 - September 30):
    - Daily: 09:00 - 23:00
 
@@ -1381,7 +1373,7 @@ RESPONSE FORMATTING GUIDELINES:
    - Monday to Friday: 11:00 - 22:00
    - Saturday and Sunday: 10:00 - 22:00
 
-5. Facility Description Format:
+4. Facility Description Format:
    Our facilities include:
    
    Main Areas:
@@ -1395,37 +1387,52 @@ RESPONSE FORMATTING GUIDELINES:
    - Gelmir Bar
    - Shower amenities
 
-6. Ritual Step Format:
-   For ritual descriptions, use double line breaks and dashes for formatting:
+5. Ritual Step Format:
+   For ritual descriptions, use HTML formatting with proper structure:
 
-   Here's what you need to know about our Skjól Ritual:
+   <div class="ritual-introduction">
+   Let me share the details of our Skjól Ritual, a signature seven-step journey that is an integral part of the experience at our lagoon.
+   </div>
 
-   1. Lagoon - Begin your ritual by immersing yourself in our geothermal waters
-   38-40°C --- Warm and soothing
+   <div class="ritual-step">
+   <span class="step-number">1.</span>
+   <span class="step-title">Lagoon</span>
+   <div class="step-description">Begin your ritual by immersing yourself in our geothermal waters</div>
+   <div class="step-temperature">38-40°C — Warm and soothing</div>
+   </div>
 
-   2. Cold plunge - Invigorate your senses with a dip in our cold plunge pool
-   5°C --- Natural energizing boost
+   <div class="ritual-step">
+   <span class="step-number">2.</span>
+   <span class="step-title">Cold plunge</span>
+   <div class="step-description">Invigorate your senses with a dip in our cold plunge pool</div>
+   <div class="step-temperature">5°C — Natural energizing boost</div>
+   </div>
 
-   3. Sauna - Relax in our sauna with the added delight of an ocean view
-   80-90°C --- Cleansing and relaxing
+   <div class="ritual-step">
+   <span class="step-number">3.</span>
+   <span class="step-title">Sauna</span>
+   <div class="step-description">Relax in our sauna with the added delight of an ocean view</div>
+   <div class="step-temperature">80-90°C — Cleansing and relaxing</div>
+   </div>
 
-   Each step should:
-   - Have a blank line before and after
-   - Include temperatures on separate line
-   - Use dashes (---) to separate temperature descriptions 
+   Each ritual step must:
+   - Use the proper HTML class structure shown above
+   - Include all elements (number, title, description, temperature)
+   - Maintain consistent formatting for all steps
 
 ALWAYS:
-- Use blank lines between sections
-- Use bullet points for lists
-- Keep pricing on separate lines
-- Include all relevant details
-- Maintain consistent spacing
+- Use proper HTML classes for formatting
+- Include all step components
+- Maintain consistent structure
+- Keep temperature information in separate divs
+- Use proper spacing and hierarchy
 
 NEVER:
-- Combine different topics in one paragraph
-- List prices without proper formatting
-- Skip line breaks between categories
-- Crowd information without proper spacing`;
+- Skip HTML classes
+- Mix formatting styles
+- Combine steps without proper structure
+- Leave out any step components
+- Use plain text formatting for ritual steps`;
 
     // Add seasonal context instructions
     if (context && context.seasonalContext) {
