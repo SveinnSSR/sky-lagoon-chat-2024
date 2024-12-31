@@ -1396,16 +1396,9 @@ RESPONSE FORMATTING GUIDELINES:
    - Shower amenities
 
 6. Ritual Step Format:
-   For ritual descriptions format as:
+   For ritual descriptions, use double line breaks and dashes for formatting:
 
-   1. [Step Name] - [Brief Description]
-   [Temperature or Details]
-
-   2. [Step Name] - [Brief Description]
-   [Temperature or Details]
-
-   Example:
-   "Here's what you need to know about our Skjól Ritual:
+   Here's what you need to know about our Skjól Ritual:
 
    1. Lagoon - Begin your ritual by immersing yourself in our geothermal waters
    38-40°C --- Warm and soothing
@@ -1413,12 +1406,13 @@ RESPONSE FORMATTING GUIDELINES:
    2. Cold plunge - Invigorate your senses with a dip in our cold plunge pool
    5°C --- Natural energizing boost
 
+   3. Sauna - Relax in our sauna with the added delight of an ocean view
+   80-90°C --- Cleansing and relaxing
+
    Each step should:
-   - Start with number and name
-   - Include clear description
-   - Show temperature when relevant
-   - Add blank line between steps
-   - Keep consistent formatting throughout"   
+   - Have a blank line before and after
+   - Include temperatures on separate line
+   - Use dashes (---) to separate temperature descriptions 
 
 ALWAYS:
 - Use blank lines between sections
