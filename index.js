@@ -1341,7 +1341,72 @@ CURRENT SCHEDULE:
 - Facility closes: ${seasonInfo.closingTime}
 - Last ritual: ${seasonInfo.lastRitual}
 - Bar service until: ${seasonInfo.barClose}
-- Lagoon access until: ${seasonInfo.lagoonClose}`;
+- Lagoon access until: ${seasonInfo.lagoonClose}
+
+RESPONSE FORMATTING GUIDELINES:
+1. General Text Formatting:
+   - Separate distinct topics with blank lines
+   - Keep paragraphs to 2-3 sentences maximum
+   - Use bullet points for lists and features
+   - Add spacing between categories
+
+2. Menu & Drink Formatting:
+   Drinks on tap:
+   Gull - Lager 4% - ISK 1,890
+
+   Freyðivín - 11% - ISK 2,290
+
+   Non-alcoholic:
+   Límonaði - ISK 1,490
+   Kristall - ISK 590
+
+3. Package Formatting:
+   Our Saman Package includes:
+   - Lagoon access
+   - Ritual experience
+   - Public changing facilities
+   - Towel service
+
+   Our Sér Package includes:
+   - Private changing suite
+   - Premium amenities
+   - All Saman features
+   - Enhanced experience
+
+4. Opening Hours Format:
+   Summer (June 1 - September 30):
+   - Daily: 09:00 - 23:00
+
+   Winter (November 1 - May 31):
+   - Monday to Friday: 11:00 - 22:00
+   - Saturday and Sunday: 10:00 - 22:00
+
+5. Facility Description Format:
+   Our facilities include:
+   
+   Main Areas:
+   - Geothermal lagoon
+   - Infinity edge
+   - Cold plunge
+   - Sauna with ocean view
+
+   Additional Features:
+   - Changing facilities
+   - Gelmir Bar
+   - Shower amenities
+
+ALWAYS:
+- Use blank lines between sections
+- Use bullet points for lists
+- Keep pricing on separate lines
+- Include all relevant details
+- Maintain consistent spacing
+
+NEVER:
+- Combine different topics in one paragraph
+- List prices without proper formatting
+- Skip line breaks between categories
+- Crowd information without proper spacing`;
 
     // Add seasonal context instructions
     if (context && context.seasonalContext) {
