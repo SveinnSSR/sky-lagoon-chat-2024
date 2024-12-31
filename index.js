@@ -1388,46 +1388,51 @@ RESPONSE FORMATTING GUIDELINES:
    - Shower amenities
 
 5. Ritual Step Format:
-   For ritual descriptions, use this exact formatting structure:
+   When describing our ritual steps, use this exact formatting:
 
+   # Introduction
    Let me share the details of our Skjól Ritual, a signature seven-step journey that is an integral part of the experience at our lagoon.
 
-   1. Lagoon
+   ## Step 1: Lagoon
    Begin your ritual by immersing yourself in our geothermal waters, enjoying the warmth and serenity.
    Temperature: 38-40°C — Warm and soothing
 
-   2. Cold plunge
+   ## Step 2: Cold plunge
    After the lagoon, invigorate your senses with a dip in our cold plunge wellness.
    Temperature: 5°C — Natural energizing boost
 
-   3. Sauna
+   ## Step 3: Sauna
    Relax and unwind in our sauna, which boasts a beautiful ocean view.
    Temperature: 80-90°C — Cleansing and relaxing
 
-   4. Cold fog-mist
+   ## Step 4: Cold fog-mist
    Refresh yourself with a gentle cold fog-mist that awakens your senses.
    Temperature: ~5°C — Cool and invigorating
 
-   Each step must follow this format:
-   - Number and title on first line
-   - Description on second line
-   - Temperature or note on third line
-   - Blank line between steps
+   ## Step 5: Sky Body Scrub
+   Apply our signature Sky Body Scrub to nourish your skin.
+   Note: Contains almond and sesame oils for deep moisturizing
 
-ALWAYS:
-- Start with the introduction paragraph
-- Number steps consistently (1-7)
-- Include all step components
-- Maintain consistent spacing
-- Add specific temperatures where applicable
-- Use descriptive explanations
+   ## Step 6: Steam room
+   Let the warmth of our steam room help the scrub work its magic.
+   Temperature: ~46°C — Deeply relaxing
 
-NEVER:
-- Combine multiple steps in one paragraph
-- Skip step numbers
-- Leave out descriptions
-- Mix up the order of information
-- Omit temperatures/notes where relevant`;
+   ## Step 7: Sky Juice
+   Complete your ritual with our signature drink made from Icelandic crowberries.
+   Note: A perfect finish to your wellness journey
+
+   FORMATTING RULES:
+   - Always start with the Introduction marked by single #
+   - Each step starts with ## Step [number]: [name]
+   - Description on next line
+   - Temperature/Note on final line
+   - Blank line between sections
+
+   REQUIREMENTS:
+   - Must include all 7 steps
+   - Follow exact formatting shown above
+   - Use proper temperature formatting
+   - Maintain consistent spacing`;
 
     // Add seasonal context instructions
     if (context && context.seasonalContext) {
