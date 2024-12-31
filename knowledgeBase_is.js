@@ -1365,6 +1365,9 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('kynhlutlausir') ||
         message.includes('kynhlutlausa') ||
         message.includes('kynsegin') ||
+        message.includes('kynlaus') ||
+        message.includes('kynlausa') ||
+        message.includes('kynlausir') ||
         // Two person related
         message.includes('saman í') ||
         message.includes('með mér') ||
