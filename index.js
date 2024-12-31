@@ -1395,6 +1395,31 @@ RESPONSE FORMATTING GUIDELINES:
    - Gelmir Bar
    - Shower amenities
 
+6. Ritual Step Format:
+   For ritual descriptions format as:
+
+   1. [Step Name] - [Brief Description]
+   [Temperature or Details]
+
+   2. [Step Name] - [Brief Description]
+   [Temperature or Details]
+
+   Example:
+   "Here's what you need to know about our Skjól Ritual:
+
+   1. Lagoon - Begin your ritual by immersing yourself in our geothermal waters
+   38-40°C --- Warm and soothing
+
+   2. Cold plunge - Invigorate your senses with a dip in our cold plunge pool
+   5°C --- Natural energizing boost
+
+   Each step should:
+   - Start with number and name
+   - Include clear description
+   - Show temperature when relevant
+   - Add blank line between steps
+   - Keep consistent formatting throughout"   
+
 ALWAYS:
 - Use blank lines between sections
 - Use bullet points for lists
