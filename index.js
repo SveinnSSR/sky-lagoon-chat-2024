@@ -1345,12 +1345,12 @@ CURRENT SCHEDULE:
 
 RESPONSE FORMATTING GUIDELINES:
 1. General Text Formatting:
-   - Use proper HTML classes for structured content
+   - Use clear text formatting with proper spacing
    - Separate distinct topics with blank lines
    - Keep paragraphs to 2-3 sentences maximum
    - Use bullet points for lists and features
    - Add spacing between categories
-   - Wrap content in appropriate HTML classes when specified
+   - Follow specific formatting rules for special content (rituals, packages, hours)
 
 2. Package Formatting:
    Our Saman Package includes:
@@ -1388,51 +1388,46 @@ RESPONSE FORMATTING GUIDELINES:
    - Shower amenities
 
 5. Ritual Step Format:
-   For ritual descriptions, use HTML formatting with proper structure:
+   For ritual descriptions, use this exact formatting structure:
 
-   <div class="ritual-introduction">
    Let me share the details of our Skjól Ritual, a signature seven-step journey that is an integral part of the experience at our lagoon.
-   </div>
 
-   <div class="ritual-step">
-   <span class="step-number">1.</span>
-   <span class="step-title">Lagoon</span>
-   <div class="step-description">Begin your ritual by immersing yourself in our geothermal waters</div>
-   <div class="step-temperature">38-40°C — Warm and soothing</div>
-   </div>
+   1. Lagoon
+   Begin your ritual by immersing yourself in our geothermal waters, enjoying the warmth and serenity.
+   Temperature: 38-40°C — Warm and soothing
 
-   <div class="ritual-step">
-   <span class="step-number">2.</span>
-   <span class="step-title">Cold plunge</span>
-   <div class="step-description">Invigorate your senses with a dip in our cold plunge pool</div>
-   <div class="step-temperature">5°C — Natural energizing boost</div>
-   </div>
+   2. Cold plunge
+   After the lagoon, invigorate your senses with a dip in our cold plunge wellness.
+   Temperature: 5°C — Natural energizing boost
 
-   <div class="ritual-step">
-   <span class="step-number">3.</span>
-   <span class="step-title">Sauna</span>
-   <div class="step-description">Relax in our sauna with the added delight of an ocean view</div>
-   <div class="step-temperature">80-90°C — Cleansing and relaxing</div>
-   </div>
+   3. Sauna
+   Relax and unwind in our sauna, which boasts a beautiful ocean view.
+   Temperature: 80-90°C — Cleansing and relaxing
 
-   Each ritual step must:
-   - Use the proper HTML class structure shown above
-   - Include all elements (number, title, description, temperature)
-   - Maintain consistent formatting for all steps
+   4. Cold fog-mist
+   Refresh yourself with a gentle cold fog-mist that awakens your senses.
+   Temperature: ~5°C — Cool and invigorating
+
+   Each step must follow this format:
+   - Number and title on first line
+   - Description on second line
+   - Temperature or note on third line
+   - Blank line between steps
 
 ALWAYS:
-- Use proper HTML classes for formatting
+- Start with the introduction paragraph
+- Number steps consistently (1-7)
 - Include all step components
-- Maintain consistent structure
-- Keep temperature information in separate divs
-- Use proper spacing and hierarchy
+- Maintain consistent spacing
+- Add specific temperatures where applicable
+- Use descriptive explanations
 
 NEVER:
-- Skip HTML classes
-- Mix formatting styles
-- Combine steps without proper structure
-- Leave out any step components
-- Use plain text formatting for ritual steps`;
+- Combine multiple steps in one paragraph
+- Skip step numbers
+- Leave out descriptions
+- Mix up the order of information
+- Omit temperatures/notes where relevant`;
 
     // Add seasonal context instructions
     if (context && context.seasonalContext) {
