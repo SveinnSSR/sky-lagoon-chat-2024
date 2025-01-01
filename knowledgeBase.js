@@ -48,13 +48,14 @@ export const knowledgeBase = {
     packages: {
         saman: {
             name: "Saman Package (Standard)",
-            description: "Our classic package - focuses on the essential Sky Lagoon experience",
+            description: "Our classic and most popular package - connect with tradition through the essential Sky Lagoon experience",  // Enhanced with website phrasing
             includes: [
                 "Sky Lagoon admission",
                 "Skjól ritual access",
                 "Public changing facilities",
                 "Towels included",
-                "Access to in-water Gelmir Bar"
+                "Access to in-water Gelmir Bar",
+                "Basic Sky Lagoon amenities"
             ],
             changing_facilities: {
                 type: "Public",
@@ -62,7 +63,8 @@ export const knowledgeBase = {
                     "Showers",
                     "Hair dryers",
                     "Lockers",
-                    "Basic amenities"
+                    "Basic amenities",
+                    "Shared facilities"
                 ]
             },
             pricing: {
@@ -87,20 +89,21 @@ export const knowledgeBase = {
             }
         },
         ser: {
-            name: "Sér Package (Premium)",
-            description: "Our premium experience with enhanced privacy and luxury",
+            name: "Sér Package (Premium)", 
+            description: "Discover the ultimate Sky Lagoon experience where the sea meets the sky. Our premium package includes Sky Lagoon's signature Skjól ritual and access to our private changing facilities.",  // Enhanced with website phrasing
             includes: [
                 "Sky Lagoon admission",
-                "Skjól ritual access",
-                "Private changing facilities",
-                "Premium amenities",
+                "One journey through the Skjól ritual",
+                "Private changing facilities with our signature Sky Body Lotion",
+                "Premium Sky Lagoon amenities",
                 "Towels included",
                 "Access to in-water Gelmir Bar"
             ],
             changing_facilities: {
                 type: "Private",
                 amenities: [
-                    "Private shower and changing space",
+                    "Individual private changing space",
+                    "Personal shower and changing area",
                     "Premium hair dryers",
                     "Sky Lagoon skincare products",
                     "Enhanced privacy",
@@ -117,8 +120,9 @@ export const knowledgeBase = {
                     range: "15,490 - 15,990 ISK",
                     days: "Friday-Sunday"
                 }
-            }
-        },  // Closes ser package
+            },
+            features: "Well-appointed private changing rooms with enhanced comfort and premium amenities"
+        },
         for_two: {
             name: "Sky Lagoon for Two",
             also_known_as: "Date Night",
@@ -331,27 +335,45 @@ export const knowledgeBase = {
     seasonal_information: {
         winter: {
             experience: {
+                tagline: "Where the Sea Meets the Sky - A Winter Journey",
+                description: "Enter a journey of the senses powered by the elements, as you experience our iconic destination in winter's embrace",
                 highlights: [
-                    "A chance to see the northern lights while relaxing in the lagoon (weather and conditions permitting)",
-                    "Snow-covered surroundings",
-                    "Contrast between warm water and crisp air",
-                    "Cozy winter atmosphere"
+                    "A chance to see the northern lights dancing above while relaxing in the lagoon (weather and conditions permitting)",
+                    "Snow-covered surroundings creating a magical winter atmosphere",
+                    "Experience the powerful contrast between warm geothermal waters and crisp winter air",
+                    "Gaze at stunning winter sunsets from our infinity edge",
+                    "Starry night sky views stretching endlessly over the ocean (weather permitting)",
+                    "Connect with the dramatic winter elements in our warm embrace",
+                    "Less crowded than summer months for a more serene experience"
                 ],
                 temperature: {
                     water: "38-40°C maintained year-round",
                     air: "Average -1°C to 4°C"
                 },
                 visitor_patterns: "Generally less crowded than summer",
-                special_features: "Winter sunset views from infinity edge"
-            },
+                special_features: {
+                    northern_lights: {
+                        description: "Possibility to view the northern lights while soaking in our warm waters (weather dependent)",
+                        best_viewing: "On clear, dark winter nights",
+                        notes: "While sightings cannot be guaranteed as they depend on natural conditions, our infinity edge provides an unobstructed view of the dancing lights"
+                    },
+                    winter_sky: "Opportunity to connect with Iceland's starry winter skies from the warm embrace of our lagoon"
+                }
+            }
         },
         summer: {
             experience: {
+                tagline: "Endless Summer Light Where Sky Meets Sea",
+                description: "Experience the magic of Icelandic summer, where day seamlessly blends into night under the Midnight Sun",
                 highlights: [
+                    "Experience the legendary Midnight Sun (around June 21)",
                     "Extended daylight hours until closing at 23:00",
                     "Late evening sun views from infinity edge",
-                    "Bright Nordic evening atmosphere",
-                    "Warmer outdoor temperatures"
+                    "Bask in the bright Nordic evening atmosphere",
+                    "Experience warmer outdoor temperatures while maintaining our perfectly heated waters",
+                    "Golden light illuminating the lagoon at midnight (June)",
+                    "Perfect for evening relaxation under the eternal sun",
+                    "Take in the panoramic ocean views from our infinity edge"
                 ],
                 temperature: {
                     water: "38-40°C maintained year-round",
@@ -359,62 +381,304 @@ export const knowledgeBase = {
                 },
                 visitor_patterns: "Peak season with more visitors",
                 special_features: {
-                    evening: {
-                        description: "During summer (June 1 - September 30), enjoy bright evenings until our 23:00 closing time",
-                        highlights: [
-                            "Late evening sun views from infinity edge",
-                            "Extended twilight atmosphere",
-                            "Optimal viewing times from 20:00-23:00",
-                            "Perfect for evening relaxation"
-                        ],
-                        operating_hours: "9:00 - 23:00 daily"
+                    midnight_sun: {
+                        description: "Experience nearly 24 hours of daylight during our magical summer months",
+                        peak_period: "Mid-May to mid-August",
+                        longest_day: "Around June 21",
+                        evening_experience: {
+                            hours: "9:00 - 23:00 daily",
+                            highlights: [
+                                "Late evening sun views from infinity edge",
+                                "Extended twilight atmosphere",
+                                "Optimal viewing times from 20:00-23:00",
+                                "Perfect for evening relaxation under the midnight sun"
+                            ]
+                        }
                     }
                 }
             }
         },
         general: {
+            tagline: "Experience the Elements Year-Round",
+            description: "Enter a journey where the power of nature meets modern comfort, powered by the elements that make Iceland unique",
             year_round_features: [
-                "Consistent water temperature",
-                "Skjól ritual available all seasons",
+                "Consistent geothermal water temperature (38-40°C)",
+                "Our signature Skjól ritual available all seasons",
                 "Indoor facilities heated year-round",
-                "Geothermal seawater benefits"
-            ]
+                "Experience the healing powers of geothermal water",
+                "Panoramic ocean views stretching to the horizon",
+                "Connect with nature at our iconic infinity edge"
+            ],
+            weather_info: {
+                description: "Icelandic weather can be unpredictable",
+                recommendations: [
+                    "Dress appropriately for the season",
+                    "Consider bringing a head covering for additional comfort",
+                    "Hats available for purchase at reception and Gelmir Bar",
+                    "Weather changes do not affect water temperature"
+                ]
+            }
         }
     },
 
     dining: {
+        introduction: {
+            main_tagline: "Indulge in Icelandic Cuisine - A Taste of our Island Nation",
+            description: "After invigorating both body and mind, let your taste buds have their moment. At Sky Lagoon, we believe in honouring Icelandic culture, heritage and tradition through our carefully selected local vendors and authentic dining experiences."
+        },
         venues: {
+                smakk_bar: {
+                    name: "Smakk Bar",
+                    tagline: "Explore and Discover at Smakk Bar",
+                    description: "Sample Iceland's culinary world at Smakk Bar. Team your lagoon experience with a unique tasting platter, offering a taste of the flavours that are characteristic of our island nation. It's an inspiring way to connect with Iceland in a whole new sense.",
+                    concept: {
+                        description: "We believe in honouring Icelandic culture, tradition and heritage in everything we do — big and small.",
+                        local_focus: "Our partners are local family businesses and community members that have made a mark on the Icelandic food saga — from our island nation's first specialty coffee shop to one of the oldest bakeries in Iceland."
+                    },
+                location: "Post-lagoon dining area",
+                opening_hours: {
+                    summer: {
+                        period: "June 1 - September 30",
+                        hours: "12:00 - 22:30"
+                    },
+                    autumn: {
+                        period: "October 1 - October 31",
+                        hours: "12:00 - 22:30"
+                    },
+                    winter: {
+                        period: "November 1 - May 31",
+                        hours: "12:00 - 21:30"
+                    }
+                },
+                menu: {
+                    small_platters: [
+                        {
+                            name: "Mind At Cheese",
+                            description: "A creamy cheese named Auður, the fittingly named white mould cheese Ljótur (meaning 'ugly') and the flavourful Feykir paired with organic bilberry jam from Vallanes. Served with freshly baked bread.",
+                            price: "2,490 ISK"
+                        },
+                        {
+                            name: "The Generous Sea",
+                            description: "Traditional pickled herring from the fishing village Djúpivogur, served on rye bread with Icelandic beetroots and Iceland's signature gravlax with a home-made mustard and dill sauce. Served with freshly baked bread.",
+                            price: "2,590 ISK"
+                        },
+                        {
+                            name: "Cheese & Chocolate",
+                            description: "Delicious chocolate assortments from the oldest chocolate factory in Iceland, Nói Siríus, paired with our favourite cheese duo: the creamy Auður and the piquant Feykir from north of Iceland, served with organic bilberry jam.",
+                            price: "2,190 ISK"
+                        }
+                    ],
+                    large_platters: [
+                        {
+                            name: "The Sky Platter",
+                            description: "The platter with everything. Auður cheese, Feykir and organic bilberry jam, reindeer, pork and goose wild game pâté with red onion jam, signature gravlax with home-made mustard and dill sauce, Hjónabandssæla rhubarb pie. Served with freshly baked bread.",
+                            price: "7,190 ISK",
+                            note: "Ideal for sharing"
+                        },
+                        {
+                            name: "The Icelandic Feast",
+                            description: "Iceland's signature gravlax with home-made mustard and dill sauce and cured sheep fillet with horseradish sauce, pickled herring from Djúpivogur on rye bread, Ljótur blue cheese, flavourful Feykir and organic blueberry jam. Served with freshly baked bread.",
+                            price: "7,090 ISK"
+                        },
+                        {
+                            name: "The Good-Natured Vegan Platter",
+                            description: "Delicious 'feta cheese' with pickled Icelandic vegetables, date and beetroot purée served on freshly baked rye bread, fresh hummus, olives and gourmet sauerkraut along with a chocolate cake with peanuts. Served with freshly baked bread.",
+                            price: "6,890 ISK"
+                        }
+                    ],
+                    drinks: {
+                        beer_on_tap: [
+                            {
+                                name: "Gull",
+                                type: "Lager 4%",
+                                price: "1,890 ISK"
+                            },
+                            {
+                                name: "Somersby",
+                                type: "Apple Cider 4.5%",
+                                price: "1,990 ISK"
+                            }
+                        ],
+                        wine: [
+                            {
+                                name: "House Wine",
+                                type: "Red/White/Rosé",
+                                price: "from 1,890 ISK"
+                            },
+                            {
+                                name: "Moët & Chandon",
+                                type: "Champagne",
+                                price: "3,490 ISK"
+                            }
+                        ],
+                        soft_drinks: [
+                            {
+                                name: "Various Soft Drinks",
+                                price: "590 ISK"
+                            },
+                            {
+                                name: "Premium Lemonade",
+                                price: "1,490 ISK"
+                            }
+                        ]
+                    }
+                },
+                features: [
+                    "Vegan options available",
+                    "Gluten-free options available",
+                    "Local Icelandic ingredients",
+                    "Fresh baked bread",
+                    "Seasonal specialties"
+                ]
+            },
             keimur_cafe: {
                 name: "Keimur Café",
-                type: "Café and snack bar",
-                offerings: ["Light snacks", "Refreshments", "Quick bites"],
-                location: "Main facility area",
-                timing: "Open during facility hours"
-            },
-            smakk_bar: {
-                name: "Smakk Bar",
-                type: "Tasting bar",
-                offerings: ["Icelandic tasting platters", "Traditional dishes", "Specialty items"],
-                location: "Post-lagoon dining area",
-                recommended: "Perfect after your lagoon experience"
+                tagline: "Rustic. Simple. Keimur Café.",
+                description: "Slow down, savour the here and now. Join us at Keimur Café for sandwiches, soups and baked goods delivered fresh every morning from one of Iceland's oldest bakeries, Sandholt.",
+                opening_hours: {
+                    summer: {
+                        period: "June 1 - September 30",
+                        hours: "9:00 - 22:30"
+                    },
+                    autumn: {
+                        period: "October 1 - October 31",
+                        hours: "10:00 - 22:30"
+                    },
+                    winter: {
+                        period: "November 1 - May 31",
+                        hours: "11:00 - 21:30"
+                    }
+                },
+                menu: {
+                    hot_drinks: [
+                        {
+                            name: "Coffee",
+                            price: "690 ISK"
+                        },
+                        {
+                            name: "Americano",
+                            price: "690 ISK"
+                        },
+                        {
+                            name: "Latte",
+                            price: "790 ISK"
+                        },
+                        {
+                            name: "Cappuccino",
+                            price: "780 ISK"
+                        },
+                        {
+                            name: "Tea",
+                            price: "650 ISK"
+                        }
+                    ],
+                    food: [
+                        {
+                            name: "Soup of the day",
+                            price: "2,490 ISK"
+                        },
+                        {
+                            name: "Ham and Cheese Toastie",
+                            price: "2,190 ISK"
+                        },
+                        {
+                            name: "Veggie Toastie",
+                            price: "1,990 ISK"
+                        },
+                        {
+                            name: "Gravlax Bagel",
+                            price: "2,390 ISK"
+                        },
+                        {
+                            name: "Hummus Bagel",
+                            price: "1,990 ISK"
+                        },
+                        {
+                            name: "Grandma's Skyr",
+                            price: "1,890 ISK"
+                        }
+                    ]
+                }
             },
             gelmir_bar: {
-                name: "Gelmir Lagoon Bar",
-                type: "Lagoon bar",
-                offerings: ["Beverages", "Alcoholic drinks", "Non-alcoholic options"],
+                name: "Gelmir Bar",
+                tagline: "Let your Mind Drift at Gelmir Bar",
+                description: "Enjoy an Icelandic beer, mixed drink or glass of wine right where the sea meets the sky. Find your way to our cave-side bar beneath the canopy on the far edge of the lagoon to relax and linger with your drink of choice in hand.",
+                location: "In-water bar within the lagoon",
                 policies: {
-                    drink_limit: "Maximum three alcoholic beverages per guest",
-                    payment: "Use your wristband for convenient payment",
-                    requirements: "Valid ID may be requested"
+                    payment: "Use wristband for all purchases",
+                    drink_limit: "Maximum three alcoholic drinks per guest",
+                    requirements: "Valid ID may be required"
                 },
-                location: "Within the lagoon"
+                menu: {
+                    on_tap: [
+                        {
+                            name: "Gull",
+                            type: "Lager 4%",
+                            price: "1,890 ISK"
+                        },
+                        {
+                            name: "Somersby",
+                            type: "Apple Cider 4.5%",
+                            price: "1,990 ISK"
+                        }
+                    ],
+                    wine: [
+                        {
+                            name: "Sparkling Wine",
+                            price: "2,290 ISK"
+                        },
+                        {
+                            name: "Monalto Rosé",
+                            price: "2,490 ISK"
+                        }
+                    ],
+                    non_alcoholic: [
+                        {
+                            name: "Soft Drinks",
+                            price: "590 ISK"
+                        },
+                        {
+                            name: "Collab",
+                            type: "Caffeine Drink",
+                            price: "790 ISK"
+                        },
+                        {
+                            name: "Fresh Juice",
+                            price: "590 ISK"
+                        }
+                    ]
+                },
+                closing: "Closes one hour before facility closing time"
+            }
+        },
+        philosophy: {
+            locally_sourced: {
+                description: "Ingredients arrive from throughout Iceland. Game is hunted by a father-son duo roaming the historic fields of Landeyjar, South Iceland. Pickled herring originates from the charming fishing village of Djúpivogur.",
+                vision: "Every smakk (meaning taste) on our distinctly Icelandic platters blends in perfect harmony with one another, creating an authentic culinary journey."
             }
         },
         general_info: {
-            payment_methods: "Cashless system using wristband",
-            dietary_options: "Various options available",
-            peak_times: "Busiest during midday",
-            reservations: "Not required for dining"
+            payment: {
+                method: "Cashless system using wristband",
+                process: "Credit card linked at check-in for all purchases"
+            },
+            dietary_options: {
+                available: [
+                    "Vegan options",
+                    "Gluten-free options",
+                    "Vegetarian options"
+                ]
+            },
+            local_focus: {
+                description: "Featuring dishes and drinks from local vendors",
+                highlights: [
+                    "Local family businesses",
+                    "Traditional Icelandic ingredients",
+                    "Seasonal specialties",
+                    "Fresh local produce"
+                ]
+            }
         }
     },
 
@@ -1100,25 +1364,9 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-    // Seasonal information
-    if (message.includes('winter') ||
-        message.includes('summer') ||
-        message.includes('season') ||
-        message.includes('weather') ||
-        message.includes('temperature') ||
-        message.includes('crowd') ||
-        message.includes('busy') ||
-        message.includes('northern lights') ||
-        message.includes('midnight sun')) {
-        relevantInfo.push({
-            type: 'seasonal_information',
-            content: knowledgeBase.seasonal_information
-        });
-    }
-
     // Package and pricing related
-    if (message.includes('package') || 
-        message.includes('price') || 
+    if (message.includes('package') ||
+        message.includes('price') ||
         message.includes('cost') ||
         message.includes('saman') ||
         message.includes('ser') ||
@@ -1127,6 +1375,9 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('for two') ||
         message.includes('couple') ||
         message.includes('romantic') ||
+        message.includes('together') ||  // Added from website language
+        message.includes('share') ||     // Added from website language
+        message.includes('partner') ||   // Added from website language
         message.includes('booking') ||
         message.includes('book') ||
         message.includes('purchase') ||
@@ -1159,8 +1410,17 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('room') ||
         message.includes('spots left') ||
         message.includes('seats') ||
-        message.includes('space left')
-    ) {
+        message.includes('space left') ||
+        message.includes('ultimate') ||
+        message.includes('discover') ||
+        message.includes('journey') ||
+        message.includes('signature') ||
+        message.includes('classic') ||
+        message.includes('popular') ||
+        message.includes('admission') ||
+        message.includes('access') ||
+        message.includes('included') ||
+        message.includes('value')) {
         relevantInfo.push({
             type: 'policies',
             content: knowledgeBase.policies
@@ -1169,6 +1429,29 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'packages',
             content: knowledgeBase.packages
         });
+
+        // Add dining info if they ask about food-related aspects
+        if (message.includes('platter') ||
+            message.includes('food') ||
+            message.includes('dinner') ||
+            message.includes('smakk') ||
+            message.includes('drinks included')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // Add ritual info if they ask about ritual-related aspects
+        if (message.includes('ritual') ||
+            message.includes('skjol') ||
+            message.includes('skjól') ||
+            message.includes('journey')) {
+            relevantInfo.push({
+                type: 'ritual',
+                content: knowledgeBase.ritual
+            });
+        }
     }
 
     // Gift ticket related queries
@@ -1203,6 +1486,56 @@ export const getRelevantKnowledge = (userMessage) => {
         relevantInfo.push({
             type: 'packages',
             content: knowledgeBase.packages
+        });
+    }
+
+    // Seasonal information
+    if (message.includes('winter') ||
+        message.includes('summer') ||
+        message.includes('season') ||
+        message.includes('weather') ||
+        message.includes('temperature') ||
+        message.includes('crowd') ||
+        message.includes('busy') ||
+        message.includes('northern lights') ||
+        message.includes('midnight sun') ||
+        message.includes('snow') ||
+        message.includes('crisp air') ||
+        message.includes('starry') ||
+        message.includes('star') ||
+        message.includes('night sky') ||
+        message.includes('sunset') ||
+        message.includes('peak season') ||
+        message.includes('less crowded') ||
+        message.includes('quieter') ||
+        message.includes('daylight') ||
+        message.includes('evening') ||
+        message.includes('late evening') ||
+        message.includes('twilight') ||
+        message.includes('golden light') ||
+        message.includes('infinity edge') ||
+        message.includes('view') ||
+        message.includes('unpredictable') ||
+        message.includes('dress') ||
+        message.includes('clothing') ||
+        message.includes('hat') ||
+        message.includes('head covering') ||
+        message.includes('best time') ||
+        message.includes('optimal time') ||
+        message.includes('june') ||
+        message.includes('august') ||
+        message.includes('may') ||
+        message.includes('time of year') ||
+        message.includes('conditions') ||
+        message.includes('atmosphere') ||
+        message.includes('air temperature') ||
+        message.includes('water temperature') ||
+        message.includes('warm water') ||
+        message.includes('geothermal water') ||
+        message.includes('what to expect')) {
+        relevantInfo.push({
+            type: 'seasonal_information',
+            content: knowledgeBase.seasonal_information
         });
     }
 
@@ -1320,8 +1653,8 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-        // Dining and bar queries
-        if (message.includes('bar') || 
+    // Dining and bar queries
+    if (message.includes('bar') || 
         message.includes('drink') ||
         message.includes('beverage') ||
         message.includes('alcohol') ||
@@ -1330,9 +1663,57 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('dining') ||
         message.includes('cafe') ||
         message.includes('restaurant') ||
-        message.includes('premises') ||  // Catches location questions about facilities
+        message.includes('premises') ||
         message.includes('inside') ||
-        message.includes('where is')) {
+        message.includes('where is') ||
+        // Adding specific venue names
+        message.includes('smakk') ||
+        message.includes('keimur') ||
+        // Food-specific terms
+        message.includes('platter') ||
+        message.includes('menu') ||
+        message.includes('eat') ||
+        message.includes('soup') ||
+        message.includes('bagel') ||
+        message.includes('toastie') ||
+        message.includes('skyr') ||
+        message.includes('coffee') ||
+        message.includes('snack') ||
+        message.includes('lunch') ||
+        // Specific menu items
+        message.includes('cheese') ||
+        message.includes('gravlax') ||
+        message.includes('herring') ||
+        message.includes('vegan') ||
+        message.includes('hummus') ||
+        message.includes('gluten') ||
+        // Drink specifics
+        message.includes('wine') ||
+        message.includes('beer') ||
+        message.includes('gull') ||
+        message.includes('somersby') ||
+        message.includes('cocktail') ||
+        message.includes('soft drink') ||
+        message.includes('coffee') ||
+        message.includes('latte') ||
+        message.includes('cappuccino') ||
+        message.includes('tea') ||
+        // Price related
+        message.includes('how much') ||
+        message.includes('cost of food') ||
+        message.includes('price of drink') ||
+        // Timing related
+        message.includes('kitchen') ||
+        message.includes('serving') ||
+        message.includes('last order') ||
+        message.includes('after swim') ||
+        message.includes('before swim') ||
+        // Local focus terms
+        message.includes('icelandic food') ||
+        message.includes('local food') ||
+        message.includes('traditional') ||
+        message.includes('tasting') ||
+        message.includes('culinary')) {
         relevantInfo.push({
             type: 'dining',
             content: knowledgeBase.dining
