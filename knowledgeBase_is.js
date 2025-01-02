@@ -14,11 +14,18 @@ export const detectLanguage = (message) => {
         'minni', 'mínum', 'mínar', 'minn'  // Possessives
     ];
 
-    // Special handling for 'sér' to not trigger Icelandic detection
-    if (message.toLowerCase().trim() === 'sér' || 
-        message.toLowerCase().includes('sér package') || 
-        message.toLowerCase().includes('ser package')) {
-        return false;
+    // Special handling for 'sér' and package-related queries
+    const lowercaseMessage = message.toLowerCase();
+    if (lowercaseMessage.includes('package') || 
+        lowercaseMessage.includes('packages') ||
+        lowercaseMessage.includes('difference between') ||
+        lowercaseMessage.includes('what is') ||
+        lowercaseMessage.includes('what are')) {
+        // If the message ONLY contains 'sér' as an Icelandic character, don't count it as Icelandic
+        const otherIcelandicChars = message.match(/[áðíóúýþæö]/g) || [];
+        if (otherIcelandicChars.length === 0) {
+            return false;
+        }
     }
     
     return icelandicIndicators.some(char => message.includes(char)) ||
