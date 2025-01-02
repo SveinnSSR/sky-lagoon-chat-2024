@@ -13,6 +13,13 @@ export const detectLanguage = (message) => {
         'hvað', 'gera', 'get', 'má',       // Common verbs
         'minni', 'mínum', 'mínar', 'minn'  // Possessives
     ];
+
+    // Special handling for 'sér' to not trigger Icelandic detection
+    if (message.toLowerCase().trim() === 'sér' || 
+        message.toLowerCase().includes('sér package') || 
+        message.toLowerCase().includes('ser package')) {
+        return false;
+    }
     
     return icelandicIndicators.some(char => message.includes(char)) ||
            commonIcelandicWords.some(word => message.toLowerCase().includes(word));
@@ -27,7 +34,7 @@ export const getLanguageContext = (message) => {
     const hasIcelandicWords = commonIcelandicWords.some(word => 
         message.toLowerCase().split(/\s+/).includes(word)
     );
-// Enhanced context information
+    // Enhanced context information
     return {
         isIcelandic: hasIcelandicChars || hasIcelandicWords,
         confidence: hasIcelandicChars && hasIcelandicWords ? 'high' : 
