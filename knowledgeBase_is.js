@@ -25,10 +25,20 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('steps') ||
         lowercaseMessage.includes('included in') ||
         lowercaseMessage.includes('what\'s in') ||
-        lowercaseMessage.includes('pass')) {
-        // If the message ONLY contains 'sér' or 'skjól' as Icelandic characters, don't count it as Icelandic
+        lowercaseMessage.includes('pass') ||
+        // Adding transportation-related English queries
+        lowercaseMessage.includes('how do i get') ||
+        lowercaseMessage.includes('how to get') ||
+        lowercaseMessage.includes('bus from') ||
+        lowercaseMessage.includes('shuttle') ||
+        lowercaseMessage.includes('transport') ||
+        lowercaseMessage.includes('excursions')) {
+        // If the message ONLY contains Icelandic place names or 'sér'/'skjól' as Icelandic characters, don't count it as Icelandic
         const otherIcelandicChars = message.match(/[áðíúýþæö]/g) || [];
-        if (otherIcelandicChars.length === 0) {
+        const containsOnlyPlaceNames = otherIcelandicChars.every(char => 
+            'reykjavíkbsíkeflavíkkópavogurstrætóhlemmurhamraborg'.includes(char.toLowerCase())
+        );
+        if (otherIcelandicChars.length === 0 || containsOnlyPlaceNames) {
             return false;
         }
     }
@@ -46,6 +56,27 @@ export const getLanguageContext = (message) => {
     const hasIcelandicWords = commonIcelandicWords.some(word => 
         message.toLowerCase().split(/\s+/).includes(word)
     );
+
+    // Special handling for transportation queries
+    const lowercaseMessage = message.toLowerCase();
+    if ((hasIcelandicChars || hasIcelandicWords) && 
+        (lowercaseMessage.includes('how do i get') ||
+         lowercaseMessage.includes('how to get') ||
+         lowercaseMessage.includes('bus from') ||
+         lowercaseMessage.includes('shuttle') ||
+         lowercaseMessage.includes('transport') ||
+         lowercaseMessage.includes('excursions'))) {
+        return {
+            isIcelandic: false,
+            confidence: 'low',
+            detected: {
+                specialChars: hasIcelandicChars,
+                commonWords: hasIcelandicWords,
+                transportQuery: true
+            }
+        };
+    }
+
     // Enhanced context information
     return {
         isIcelandic: hasIcelandicChars || hasIcelandicWords,
