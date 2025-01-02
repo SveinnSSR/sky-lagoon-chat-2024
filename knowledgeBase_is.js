@@ -26,13 +26,21 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('included in') ||
         lowercaseMessage.includes('what\'s in') ||
         lowercaseMessage.includes('pass') ||
-        // Adding transportation-related English queries
+        // Transportation and location queries
         lowercaseMessage.includes('how do i get') ||
         lowercaseMessage.includes('how to get') ||
         lowercaseMessage.includes('bus from') ||
         lowercaseMessage.includes('shuttle') ||
         lowercaseMessage.includes('transport') ||
-        lowercaseMessage.includes('excursions')) {
+        lowercaseMessage.includes('excursions') ||
+        // Adding distance/location patterns
+        lowercaseMessage.includes('how far') ||
+        lowercaseMessage.includes('distance') ||
+        lowercaseMessage.includes('from reykjavík') ||
+        lowercaseMessage.includes('from reykjavik') ||
+        lowercaseMessage.includes('close to') ||
+        lowercaseMessage.includes('near to') ||
+        lowercaseMessage.includes('minutes from')) {
         // If the message ONLY contains Icelandic place names or 'sér'/'skjól' as Icelandic characters, don't count it as Icelandic
         const otherIcelandicChars = message.match(/[áðíúýþæö]/g) || [];
         const containsOnlyPlaceNames = otherIcelandicChars.every(char => 
