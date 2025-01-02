@@ -20,9 +20,11 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('packages') ||
         lowercaseMessage.includes('difference between') ||
         lowercaseMessage.includes('what is') ||
-        lowercaseMessage.includes('what are')) {
-        // If the message ONLY contains 'sér' as an Icelandic character, don't count it as Icelandic
-        const otherIcelandicChars = message.match(/[áðíóúýþæö]/g) || [];
+        lowercaseMessage.includes('what are') ||
+        lowercaseMessage.includes('ritual') ||
+        lowercaseMessage.includes('steps')) {
+        // If the message ONLY contains 'sér' or 'skjól' as Icelandic characters, don't count it as Icelandic
+        const otherIcelandicChars = message.match(/[áðíúýþæö]/g) || [];
         if (otherIcelandicChars.length === 0) {
             return false;
         }
