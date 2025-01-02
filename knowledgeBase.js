@@ -1,48 +1,142 @@
 // knowledgeBase.js
 export const knowledgeBase = {
     opening_hours: {
+        tagline: "We look forward to welcoming you where the sea meets the sky",
         regular: {
             summer: {
                 period: "June 1 - September 30",
-                hours: "9:00 - 23:00",
-                daily: true
+                hours: "09:00 - 23:00",
+                daily: true,
+                facilities: {
+                    lagoon: "Closes 30 minutes before closing time",
+                    ritual: "Closes 1 hour before closing time",
+                    gelmir_bar: "Closes 1 hour before closing time",
+                    keimur_cafe: "09:00 - 22:30",
+                    smakk_bar: "12:00 - 22:30"
+                }
             },
             autumn: {
                 period: "October 1 - October 31",
                 hours: "10:00 - 23:00",
-                daily: true
+                daily: true,
+                facilities: {
+                    lagoon: "Closes 30 minutes before closing time",
+                    ritual: "Closes 1 hour before closing time",
+                    gelmir_bar: "Closes 1 hour before closing time",
+                    keimur_cafe: "10:00 - 22:30",
+                    smakk_bar: "12:00 - 22:30"
+                }
             },
             winter: {
                 period: "November 1 - May 31",
                 weekday: {
                     days: "Monday - Friday",
-                    hours: "11:00 - 22:00"
+                    hours: "11:00 - 22:00",
+                    facilities: {
+                        lagoon: "Closes 30 minutes before closing time",
+                        ritual: "Closes 1 hour before closing time",
+                        gelmir_bar: "Closes 1 hour before closing time",
+                        keimur_cafe: "11:00 - 21:30",
+                        smakk_bar: "12:00 - 21:30"
+                    }
                 },
                 weekend: {
                     days: "Saturday - Sunday",
-                    hours: "10:00 - 22:00"
+                    hours: "10:00 - 22:00",
+                    facilities: {
+                        lagoon: "Closes 30 minutes before closing time",
+                        ritual: "Closes 1 hour before closing time",
+                        gelmir_bar: "Closes 1 hour before closing time",
+                        keimur_cafe: "11:00 - 21:30",
+                        smakk_bar: "12:00 - 21:30"
+                    }
                 }
             }
         },
         holidays: {
             christmas_eve: {
                 date: "December 24",
-                hours: "9:00 - 16:00"
+                hours: "09:00 - 16:00",
             },
             christmas_day: {
                 date: "December 25",
-                hours: "9:00 - 18:00"
+                hours: "09:00 - 18:00",
+            },
+            boxing_day: {
+                date: "December 26",
+                hours: "09:00 - 22:00",
             },
             new_years_eve: {
                 date: "December 31",
-                hours: "9:00 - 22:00"
+                hours: "09:00 - 18:00",
             },
             new_years_day: {
                 date: "January 1",
-                hours: "10:00 - 22:00"
+                hours: "10:00 - 22:00",
             }
         },
-        additional_info: "The Lagoon area closes 30 minutes before advertised closing. The Skjól Ritual and Gelmir Bar close an hour before."
+        important_notes: [
+            "The Lagoon area closes 30 minutes before advertised closing time",
+            "The Skjól Ritual and Gelmir Bar close one hour before facility closing",
+            "Last food orders at Smakk Bar are taken 30 minutes before closing",
+            "Advance booking recommended to secure your preferred time slot",
+            "Hours may vary during special holidays or events"
+        ],
+        dining_hours: {
+            keimur_cafe: {
+                name: "Keimur Café",
+                description: "Fresh coffee, light meals, and Icelandic treats",
+                summer: {
+                    period: "June 1 - September 30",
+                    hours: "09:00 - 22:30"
+                },
+                autumn: {
+                    period: "October 1 - October 31",
+                    hours: "10:00 - 22:30"
+                },
+                winter: {
+                    period: "November 1 - May 31",
+                    hours: "11:00 - 21:30"
+                },
+                notes: "Last orders 30 minutes before closing"
+            },
+            smakk_bar: {
+                name: "Smakk Bar",
+                description: "Icelandic culinary experience with tasting platters",
+                summer: {
+                    period: "June 1 - September 30",
+                    hours: "12:00 - 22:30"
+                },
+                autumn: {
+                    period: "October 1 - October 31",
+                    hours: "12:00 - 22:30"
+                },
+                winter: {
+                    period: "November 1 - May 31",
+                    hours: "12:00 - 21:30"
+                },
+                notes: "Last orders 30 minutes before closing"
+            },
+            gelmir_bar: {
+                name: "Gelmir Bar",
+                description: "In-water bar for drinks and refreshments",
+                note: "Closes one hour before facility closing",
+                access: "Available throughout lagoon opening hours until one hour before closing"
+            }
+        },
+        arrival_guidance: {
+            check_in: "Arrive within your 30-minute check-in window",
+            early_arrival: "Early arrival may result in waiting",
+            late_arrival: {
+                grace_period: "30 minutes from booked time",
+                beyond_grace: "Subject to availability if arriving after grace period"
+            }
+        },
+        seasonal_notes: {
+            summer: "Extended daylight hours with midnight sun possibilities in June",
+            winter: "Potential for northern lights viewing on clear evenings",
+            general: "Experience varies with Iceland's dramatic seasonal changes"
+        }
     },
 
     packages: {
@@ -164,50 +258,63 @@ export const knowledgeBase = {
     },
 
     gift_tickets: {
+        marketing: {
+            tagline: "Share an oceanside escape with a Sky Lagoon gift ticket",
+            description: "From birthdays and anniversaries to holidays and thank you presents, a trip to Sky Lagoon is the gift that rejuvenates both body and soul.",
+            occasions: [
+                "Birthdays",
+                "Anniversaries",
+                "Holidays",
+                "Thank you presents",
+                "Special celebrations"
+            ]
+        },
         options: {
             ser_gift: {
                 name: "Sér Gift Ticket",
-                description: "Our premium package including lagoon access, the Skjól ritual and private changing facilities",
-                price: "From ISK 14,990",
+                tagline: "Gift our premium package",
+                description: "Gift our premium package, including lagoon access, the Skjól ritual and private changing facilities",
+                price: "14,990 ISK",
                 includes: [
                     "Lagoon access",
-                    "Skjól ritual access",
-                    "Private changing facilities"
+                    "One journey through the Skjól ritual",
+                    "Private changing facilities with our signature Sky Body Lotion",
+                    "Towel"
                 ]
             },
             saman_gift: {
                 name: "Saman Gift Ticket",
-                description: "Our classic and most popular package including lagoon access and a journey through the traditional bathing culture with the Skjól ritual",
-                price: "From ISK 11,990",
+                tagline: "Gift our classic package",
+                description: "Gift our classic and most popular package, including lagoon access and a journey through the traditional bathing culture with the Skjól ritual",
+                price: "11,990 ISK",
                 includes: [
                     "Lagoon access",
-                    "Skjól ritual access",
-                    "Public changing facilities"
+                    "One journey through the Skjól ritual",
+                    "Public changing facilities",
+                    "Towel"
                 ]
             },
             for_two_gift: {
                 name: "Sky Lagoon for Two Gift Ticket",
-                description: "Give the gift of relaxation shared together",
+                tagline: "Give the gift of relaxation shared together",
                 options: {
                     saman_for_two: {
                         name: "Saman for Two",
-                        price: "From ISK 33,480",
+                        price: "33,480 ISK",
+                        description: "Two Saman passes to share a rejuvenating journey together",
                         includes: [
                             "Two Saman Passes",
-                            "Public changing facilities",
-                            "Access to our signature Skjól ritual",
-                            "One drink per guest at our Gelmir lagoon bar",
+                            "One drink per guest",
                             "Sky Platter from Smakk Bar"
                         ]
                     },
                     ser_for_two: {
                         name: "Sér for Two",
-                        price: "From ISK 39,480",
+                        price: "39,480 ISK",
+                        description: "Two Sér passes for the ultimate shared experience",
                         includes: [
                             "Two Sér Passes",
-                            "Private changing facilities",
-                            "Access to our signature Skjól ritual",
-                            "One drink per guest at our Gelmir lagoon bar",
+                            "One drink per guest",
                             "Sky Platter from Smakk Bar"
                         ]
                     }
@@ -216,29 +323,58 @@ export const knowledgeBase = {
             },
             multi_pass_gift: {
                 name: "Multi-Pass Gift Ticket",
-                description: "Share the joys of regular visits to Sky Lagoon",
+                tagline: "Share the joys of regular wellness",
+                description: "Share the gift of lasting bliss with our Multi-Pass gift cards which include six visits to Sky Lagoon for far less than regular price.",
                 options: {
                     hefd: {
                         name: "Hefð Multi-Pass",
                         description: "Six premium Sér experiences",
-                        price: "44,970 ISK"
+                        price: "56,970 ISK",
+                        features: "Premium experience with private facilities"
                     },
                     venja: {
                         name: "Venja Multi-Pass",
                         description: "Six classic Saman experiences",
-                        price: "35,970 ISK"
+                        price: "44,970 ISK",
+                        features: "Classic experience with standard facilities"
                     }
                 },
                 note: "Valid for 4 years from purchase date"
             }
         },
         redemption: {
+            tagline: "How to Redeem Your Gift Ticket",
             steps: [
-                "Book your time in advance",
-                "Enter gift ticket code in Order Details during checkout",
-                "Receive new ticket via email for selected date and time"
+                {
+                    name: "Book Your Time in Advance",
+                    description: "If you have a gift ticket, it's essential to schedule your visit beforehand"
+                },
+                {
+                    name: "Enter Gift Ticket Code",
+                    description: "To book your visit, check out through the booking portal and enter your gift ticket code in the 'Order Details' section"
+                },
+                {
+                    name: "Receive New Ticket",
+                    description: "After booking, you'll receive a new ticket via email that will grant you access on the date and time you've selected"
+                }
             ],
-            note: "It's essential to schedule your visit beforehand"
+            for_two_note: "For Sky Lagoon for Two gift cards, you will need to enter two codes - press Apply after each one",
+            important_notes: [
+                "Advance booking essential",
+                "Must use gift ticket code during booking process",
+                "Bring booking confirmation to Sky Lagoon",
+                "For Two packages must be booked together"
+            ]
+        },
+        availability: {
+            booking_required: true,
+            subject_to_capacity: true,
+            advance_recommended: true,
+            modifications: {
+                allowed: true,
+                notice_required: "24 hours",
+                contact: "reservations@skylagoon.is"
+            }
         }
     },
 
@@ -292,6 +428,16 @@ export const knowledgeBase = {
     },
 
     ritual: {
+        marketing: {
+            tagline: "A healing journey rooted in heritage",
+            description: "Our all-encompassing wellness journey guides you through Icelandic bathing culture, powered by the elements that make Iceland unique.",
+            highlights: [
+                "Connect with tradition through ancient bathing practices",
+                "Experience the power of warm and cold therapy",
+                "Journey through seven steps of rejuvenation",
+                "Immerse yourself in Iceland's bathing heritage"
+            ]
+        },
         status: {
             included: true,
             mandatory: true,
@@ -301,34 +447,63 @@ export const knowledgeBase = {
             ],
             booking: "Cannot be booked separately or excluded from packages"
         },
-        description: {
-            name: "Skjól Ritual",
-            type: "Signature seven-step ritual",
-            location: "Dedicated ritual area within Sky Lagoon",
-            experience: "Essential part of the Sky Lagoon journey"
+        steps: {
+            laug: {
+                name: "Laug (Warm Lagoon)",
+                description: "Begin your journey by feeling the embrace of our geothermal Laug. Settle into the natural warmth, lose yourself in the calming energy and soak in the stunning views.",
+                temperature: "38-40°C — Warm and relaxing"
+            },
+            kuldi: {
+                name: "Kuldi (Cold Plunge)",
+                description: "Inspired by Iceland's ancient Snorralaug pool, the Kuldi plunge engages and awakens your every sense, connecting you to a practice passed down for countless generations.",
+                temperature: "5°C — Cold but energising"
+            },
+            ylur: {
+                name: "Ylur (Sauna)",
+                description: "Discover absolute tranquility as steam and Ylur open your pores, remove toxins and cleanse your skin. Choose from our classic or phone-free sauna, both offering breathtaking seaside views.",
+                temperature: "80-90°C — Warm and ethereal"
+            },
+            suld: {
+                name: "Súld (Cold Mist)",
+                description: "Feel the touch of Icelandic winds and the crisp, cool Súld — a revitalizing mist that whispers stories of resilience.",
+                temperature: "~5°C — Cold but refreshing"
+            },
+            mykt: {
+                name: "Mýkt (Sky Body Scrub)",
+                description: "It's time for gentle invigoration. Exfoliate your skin and lose yourself in the Mýkt of our signature Sky Body Scrub. Slowly, you'll feel the enlivening effects.",
+                features: "Exfoliating and rejuvenating",
+                ingredients: [
+                    "Almond oil",
+                    "Sesame seed oil"
+                ]
+            },
+            gufa: {
+                name: "Gufa (Steam)",
+                description: "Let the Gufa wrap around you, allowing your skin to absorb the key therapeutic elements of the Skjól ritual and maximize the hydrating benefits of the Sky Body Scrub.",
+                temperature: "46°C — A healing heat"
+            },
+            saft: {
+                name: "Saft (Refreshment)",
+                description: "Taste the essence of krækiber — the crowberries that dot our lava fields. Drank by Icelanders for centuries, this wholesome Saft elixir stimulates the palate with a profile that embodies the spirit of our land."
+            }
         },
-        details: {
-            steps: [
-                "Lagoon",
-                "Cold plunge",
-                "Sauna",
-                "Cold fog-mist",
-                "Sky Body Scrub",
-                "Steam",
-                "Shower"
-            ],
-            features: [
-                "Guided experience",
-                "Natural products",
-                "Traditional Icelandic elements",
-                "Wellness-focused journey"
+        experience: {
+            location: "Dedicated ritual areas within Sky Lagoon",
+            duration: "Take your time to enjoy each step",
+            guidance: "Self-guided with clear instructions at each station",
+            benefits: [
+                "Deep relaxation and rejuvenation",
+                "Traditional therapeutic elements",
+                "Connection to Icelandic heritage",
+                "Complete mind and body wellness"
             ]
         },
         important_notes: [
             "Essential part of Sky Lagoon experience",
             "Cannot be excluded from visit",
             "Included in all admission packages",
-            "No separate booking option available"
+            "No separate booking option available",
+            "One complete journey through all seven steps included per visit"
         ]
     },
 
@@ -1334,18 +1509,143 @@ export const getRelevantKnowledge = (userMessage) => {
     const message = userMessage.toLowerCase();
     let relevantInfo = [];
 
-    // Opening hours and timing
+// Opening hours and timing
     if (message.includes('open') || 
         message.includes('hour') || 
         message.includes('time') ||
         message.includes('close') ||
         message.includes('slot') ||
         message.includes('when') ||
-        message.includes('schedule')) {
+        message.includes('schedule') ||
+        // Adding specific time-related queries
+        message.includes('opening') ||
+        message.includes('closing') ||
+        message.includes('early') ||
+        message.includes('late') ||
+        message.includes('winter hours') ||
+        message.includes('summer hours') ||
+        message.includes('weekend') ||
+        message.includes('weekday') ||
+        message.includes('saturday') ||
+        message.includes('sunday') ||
+        message.includes('monday') ||
+        message.includes('tuesday') ||
+        message.includes('wednesday') ||
+        message.includes('thursday') ||
+        message.includes('friday') ||
+        // Holiday specific
+        message.includes('holiday') ||
+        message.includes('christmas') ||
+        message.includes('new year') ||
+        message.includes('december 24') ||
+        message.includes('december 25') ||
+        message.includes('december 26') ||
+        message.includes('december 31') ||
+        message.includes('january 1') ||
+        // Time of day
+        message.includes('morning') ||
+        message.includes('evening') ||
+        message.includes('afternoon') ||
+        message.includes('night') ||
+        message.includes('tonight') ||
+        message.includes('today') ||
+        message.includes('tomorrow') ||
+        // Venue-specific queries
+        message.includes('ritual closing') ||
+        message.includes('bar closing') ||
+        message.includes('gelmir') ||
+        message.includes('cafe hour') ||
+        message.includes('café hour') ||
+        message.includes('keimur') ||
+        message.includes('smakk') ||
+        // Seasonal and monthly queries
+        (message.includes('season') && (
+            message.includes('time') || 
+            message.includes('hour') || 
+            message.includes('open') || 
+            message.includes('close')
+        )) ||
+        message.includes('june') ||
+        message.includes('july') ||
+        message.includes('august') ||
+        message.includes('september') ||
+        message.includes('october') ||
+        message.includes('november') ||
+        message.includes('december') ||
+        message.includes('january') ||
+        message.includes('february') ||
+        message.includes('march') ||
+        message.includes('april') ||
+        message.includes('may') ||
+        // Common website phrases and questions
+        message.includes('visit hour') ||
+        message.includes('operating hour') ||
+        message.includes('business hour') ||
+        message.includes('what time do you') ||
+        message.includes('how late') ||
+        message.includes('how early') ||
+        message.includes('until when') ||
+        // Service timing questions
+        message.includes('kitchen') ||
+        message.includes('food service') ||
+        message.includes('last order') ||
+        message.includes('stop serving') ||
+        message.includes('when can i order') ||
+        // Check-in and arrival
+        message.includes('arrive') ||
+        message.includes('arrival') ||
+        message.includes('check in') ||
+        message.includes('check-in') ||
+        message.includes('get there')) {
+
+        // Add opening hours info
         relevantInfo.push({
             type: 'opening_hours',
             content: knowledgeBase.opening_hours
         });
+
+        // If query is about dining venues, also include dining info
+        if (message.includes('bar') || 
+            message.includes('cafe') || 
+            message.includes('café') || 
+            message.includes('smakk') || 
+            message.includes('keimur') ||
+            message.includes('gelmir') ||
+            message.includes('food') ||
+            message.includes('drink') ||
+            message.includes('dining') ||
+            message.includes('kitchen') ||
+            message.includes('last order') ||
+            message.includes('restaurant')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // If query is about ritual times, also include ritual info
+        if (message.includes('ritual') || 
+            message.includes('skjol') || 
+            message.includes('skjól') ||
+            message.includes('seven step') ||
+            message.includes('7 step')) {
+            relevantInfo.push({
+                type: 'ritual',
+                content: knowledgeBase.ritual
+            });
+        }
+
+        // If query mentions check-in or arrival, also include booking info
+        if (message.includes('arrive') ||
+            message.includes('arrival') ||
+            message.includes('check in') ||
+            message.includes('check-in') ||
+            message.includes('get there')) {
+            relevantInfo.push({
+                type: 'transportation',
+                content: knowledgeBase.transportation
+            });
+        }
     }
 
     // Booking modifications and late arrivals
@@ -1462,12 +1762,89 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('buy for') ||
         message.includes('redeem') ||
         message.includes('gift code') ||
-        message.includes('gift ticket')) {
+        message.includes('gift ticket') ||
+        message.includes('gift card') ||
+        // Special occasions
+        message.includes('birthday') ||
+        message.includes('anniversary') ||
+        message.includes('celebration') ||
+        message.includes('thank you') ||
+        message.includes('special occasion') ||
+        // Redemption related
+        message.includes('how to use') ||
+        message.includes('redeem') ||
+        message.includes('activate') ||
+        message.includes('gift voucher') ||
+        message.includes('voucher code') ||
+        // Purchasing related
+        message.includes('buy a gift') ||
+        message.includes('purchase a gift') ||
+        message.includes('get a gift') ||
+        message.includes('giving') ||
+        message.includes('gift options') ||
+        // Multi-pass specific
+        message.includes('multi-pass gift') ||
+        message.includes('multi pass gift') ||
+        message.includes('hefð gift') ||
+        message.includes('hefd gift') ||
+        message.includes('venja gift') ||
+        // For Two packages
+        (message.includes('for two') && 
+            (message.includes('gift') || 
+             message.includes('present') || 
+             message.includes('buy') || 
+             message.includes('purchase'))) ||
+        message.includes('couple gift') ||
+        message.includes('together gift') ||
+        // Common questions
+        message.includes('gift price') ||
+        message.includes('gift cost') ||
+        message.includes('gift ticket price') ||
+        message.includes('gift validity') ||
+        message.includes('gift expiry') ||
+        message.includes('book with gift') ||
+        message.includes('use my gift')) {
+
         relevantInfo.push({
             type: 'gift_tickets',
             content: knowledgeBase.gift_tickets
         });
-    }    
+
+        // If asking about booking with gift tickets, also include opening hours
+        if (message.includes('book') || 
+            message.includes('redeem') || 
+            message.includes('use') || 
+            message.includes('when can i')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                content: knowledgeBase.opening_hours
+            });
+        }
+
+        // If asking about For Two packages, include dining info
+        if (message.includes('for two') || 
+            message.includes('couple') || 
+            message.includes('together') ||
+            message.includes('date night')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // If asking about specific packages, include package info
+        if (message.includes('ser ') || 
+            message.includes('sér ') || 
+            message.includes('saman') || 
+            message.includes('premium') || 
+            message.includes('standard') ||
+            message.includes('classic')) {
+            relevantInfo.push({
+                type: 'packages',
+                content: knowledgeBase.packages
+            });
+        }
+    }
 
     // Ritual related queries
     if (message.includes('ritual') || 
@@ -1477,7 +1854,39 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('skip ritual') ||
         message.includes('optional ritual') ||
         message.includes('ritual included') ||
-        message.includes('ritual access')) {
+        message.includes('ritual access') ||
+        // Adding step-specific terms from website
+        message.includes('laug') ||
+        message.includes('kuldi') ||
+        message.includes('ylur') ||
+        message.includes('súld') ||
+        message.includes('suld') ||
+        message.includes('mykt') ||
+        message.includes('mýkt') ||
+        message.includes('gufa') ||
+        message.includes('saft') ||
+        // Adding descriptive terms from website
+        message.includes('seven step') ||
+        message.includes('7 step') ||
+        message.includes('steps') ||
+        message.includes('healing journey') ||
+        message.includes('wellness journey') ||
+        message.includes('bathing culture') ||
+        message.includes('cold plunge') ||
+        message.includes('sauna') ||
+        message.includes('steam') ||
+        message.includes('mist') ||
+        message.includes('body scrub') ||
+        message.includes('crowberry') ||
+        message.includes('krækiber') ||
+        message.includes('kraekiber') ||
+        // Temperature-related queries
+        message.includes('temperature') && (
+            message.includes('sauna') ||
+            message.includes('steam') ||
+            message.includes('mist') ||
+            message.includes('plunge')
+        )) {
         relevantInfo.push({
             type: 'ritual',
             content: knowledgeBase.ritual

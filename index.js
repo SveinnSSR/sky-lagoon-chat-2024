@@ -2434,7 +2434,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // English greetings
             'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
             // Icelandic greetings
-            'hæ', 'hæhæ','halló', 'hallo', 'sæl', 'sæl og blessuð', 'sælar', 'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
+            'hæ', 'hæhæ','hææ', 'halló', 'hallo', 'sæl', 'sæl og blessuð', 'sælar', 'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
         ];
 
         if (greetings.includes(userMessage.toLowerCase().trim())) {
