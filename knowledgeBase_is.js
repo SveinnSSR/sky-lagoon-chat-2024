@@ -22,7 +22,10 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('what is') ||
         lowercaseMessage.includes('what are') ||
         lowercaseMessage.includes('ritual') ||
-        lowercaseMessage.includes('steps')) {
+        lowercaseMessage.includes('steps') ||
+        lowercaseMessage.includes('included in') ||
+        lowercaseMessage.includes('what\'s in') ||
+        lowercaseMessage.includes('pass')) {
         // If the message ONLY contains 'sér' or 'skjól' as Icelandic characters, don't count it as Icelandic
         const otherIcelandicChars = message.match(/[áðíúýþæö]/g) || [];
         if (otherIcelandicChars.length === 0) {
