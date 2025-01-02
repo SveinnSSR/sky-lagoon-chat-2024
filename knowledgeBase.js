@@ -1086,30 +1086,39 @@ export const knowledgeBase = {
 
     facilities: {
         amenities: {
+            tagline: "Experience the heart of Icelandic tradition at our oceanside geothermal lagoon",
             included: [
-                "Towels (free of charge)",
-                "Changing rooms",
-                "Lockers",
-                "Water fountains",
-                "In-water Gelmir Bar",
-                "Keimur Café",
-                "Smakk Bar"
+                "Towels included free of charge",
+                "Changing rooms designed for comfort and privacy",
+                "Secure lockers with electronic wristband access",
+                "Fresh drinking water stations",
+                "In-water Gelmir Bar beneath the cave-wall canopy",
+                "Keimur Café for light refreshments",
+                "Smakk Bar for Icelandic culinary experiences"
             ],
             changing_facilities: {
                 public: {
+                    name: "Saman facilities",
+                    marketing_description: "Our classic and most popular option, offering a traditional Icelandic bathing experience",
                     features: [
-                        "Shower facilities",
-                        "Hair dryers",
-                        "Basic amenities",
-                        "Secure lockers"
+                        "Traditional public changing facilities",
+                        "Full shower amenities",
+                        "Hair dryers for convenience",
+                        "Essential Sky Lagoon amenities",
+                        "Secure locker system",
+                        "Gender-specific areas for comfort"
                     ]
                 },
                 private: {
+                    name: "Sér facilities",
+                    marketing_description: "Discover the ultimate Sky Lagoon experience with enhanced privacy and premium amenities",
                     features: [
-                        "Individual changing space",
-                        "Premium amenities",
-                        "Sky Lagoon skincare products",
-                        "Enhanced privacy"
+                        "Well-appointed private changing rooms",
+                        "Individual shower suites",
+                        "Premium Sky Lagoon amenities",
+                        "Signature Sky Body Lotion",
+                        "Enhanced privacy and comfort",
+                        "Gender-neutral private facilities"
                     ]
                 }
             },
@@ -1117,164 +1126,140 @@ export const knowledgeBase = {
                 swimsuit: {
                     available: true,
                     price: "1,500 ISK",
-                    options: ["Various sizes available", "Clean and sanitized"]
+                    description: "Clean and comfortable swimwear options available for rent",
+                    options: [
+                        "Various sizes of swimsuits and swim trunks",
+                        "Freshly cleaned and sanitized",
+                        "Available at reception",
+                        "Optional if you prefer to bring your own"
+                    ]
                 },
                 luggage_storage: {
                     available: true,
                     price: "990 ISK",
-                    location: "Reception area"
+                    description: "Secure storage for any kind of baggage that does not fit into your locker",
+                    location: "Conveniently located at reception"
                 }
             }
         },
         accessibility: {
+            tagline: "Sky Lagoon welcomes everyone to experience the healing powers of geothermal waters",
+            description: "From the beginning, Sky Lagoon has prioritized accessibility, ensuring that our facilities welcome all guests with warmth and consideration",
             features: [
-                "Wheelchair accessible entrances",
-                "Accessible changing rooms",
-                "Chairlift for lagoon entry/exit",
-                "Trained team member assistance available"
+                "Full wheelchair accessibility throughout the facility",
+                "Modern chairlift for safe lagoon entry and exit",
+                "Accessible changing rooms with necessary support equipment",
+                "Lifts available for all ritual areas including cold pool",
+                "Trained team members ready to assist",
+                "Individual changing spaces for enhanced privacy",
+                "Gender-neutral facilities available"
             ],
-            additional_services: {
-                team_member_assistance: "Available upon request",
-                private_spaces: "Available for those needing extra assistance",
-                equipment: "Modern accessibility equipment"
+            commitment: {
+                pride_statement: "We are proud participants in Visit Iceland's Good Access Program",
+                ongoing_commitment: "We strive to continuously improve our accessibility features",
+                support: "Our team members are trained to provide warm and professional assistance"
             }
         },
         changing_rooms: {
+            etiquette: {
+                description: "From what to wear to hygiene practices, we take bathing culture seriously",
+                rules: [
+                    "Remove outdoor shoes before entering changing facilities",
+                    "Shower thoroughly without swimsuit before entering the lagoon",
+                    "Use designated storage for personal belongings",
+                    "Maintain a peaceful atmosphere",
+                    "Respect others' privacy and space"
+                ]
+            },
             saman_package: {
-                type: "Public facilities",
-                gender_separation: {
-                    layout: "Separate facilities for men and women",
-                    features: [ 
-                        "Gender-specific shower and locker areas",
-                        "Full privacy within gender-designated spaces",
-                        "Complete amenities in each changing area"
-                    ]
-                }
+                type: "Public changing facilities",
+                description: "Traditional Icelandic bathing facilities with complete amenities",
+                features: [
+                    "Separated facilities for comfort",
+                    "Complete shower amenities",
+                    "Secure locker system",
+                    "Fresh towels provided",
+                    "Hair dryers available"
+                ]
             },
             ser_package: {
-                type: "Private facilities",
+                type: "Premium private changing facilities",
+                description: "Well-appointed private changing rooms for an elevated experience",
                 features: [
-                    "Individual private changing suites",
-                    "Personal shower and changing space",
-                    "Accommodates up to two people per suite",
-                    "Gender-neutral private facilities",
-                    "Enhanced privacy and comfort"
+                    "Individual changing suites",
+                    "Private shower facilities",
+                    "Premium Sky Lagoon amenities",
+                    "Enhanced privacy and comfort",
+                    "Gender-neutral facilities"
                 ],
                 gender_inclusive: {
-                    features: [
-                        "Gender-neutral private suites",
-                        "Individual changing and shower space",
-                        "Complete privacy for all guests",
-                        "Suitable for guests of any gender identity"
-                    ],
-                    accommodation: "Guests who prefer gender-neutral facilities can request Sér package upgrade at check-in without additional cost"
+                    description: "We want everyone to feel welcome at Sky Lagoon. No matter how you identify, you are more than welcome to use our private changing facilities.",
+                    policy: "If you don't identify as male or female or aren't comfortable within the gendered changing rooms, just let our team know and we will upgrade you to a gender neutral changing room at no extra cost."
                 }
-            },
-            general_amenities: [
-                "Lockers",
-                "Showers",
-                "Essential amenities"
-            ]
+            }
         },
         lagoon: {
+            marketing_description: "Where the sea meets the sky - enter a journey of the senses, powered by the elements",
             specifications: {
                 temperature: {
                     regular: "38-40°C (100-104°F)",
-                    notes: "Temperature may vary slightly based on weather conditions",
-                    comfort_level: "Maintained at optimal therapeutic temperature"
+                    description: "Icelandic weather can often have a dramatic effect on the guest experience and the temperature can vary",
+                    comfort: "Maintained at optimal therapeutic temperature year-round"
                 },
                 depth: {
                     maximum: "120 centimeters (47 inches)",
-                    variations: "Multiple depth zones throughout",
-                    accessibility: "Most guests can stand comfortably",
-                    features: [
-                        "Gentle slopes between depth zones",
-                        "Clear depth indicators around lagoon",
-                        "Non-slip surfaces"
-                    ]
+                    description: "At its deepest point, the lagoon is 120 cm (3'11\" ft) deep",
+                    features: "Various depth zones for comfort and accessibility"
                 },
-                capacity: {
-                    managed: "Capacity-controlled booking system",
-                    comfort: "Spacious design for optimal guest experience"
-                },
-                water: {
-                    type: "Geothermal water",
-                    benefits: [
-                        "Natural minerals",
-                        "Therapeutic properties",
-                        "Constantly renewed"
-                    ],
-                    temperature: "Maintained at 38-40°C year-round for optimal comfort"                    
+                special_features: {
+                    infinity_edge: {
+                        description: "Experience our iconic 70-metre infinity edge, where sky and sea seamlessly meet",
+                        views: [
+                            "Panoramic ocean views",
+                            "Stunning sunsets",
+                            "Possible northern lights in winter",
+                            "Midnight sun in summer"
+                        ]
+                    },
+                    cave_area: {
+                        description: "Find your way to our cave-side bar beneath the canopy on the far edge of the lagoon"
+                    }
                 }
             },
             rules: {
                 photography: {
-                    allowed: true,
-                    restrictions: [
-                        "Subject to team member approval",
-                        "Private use only",
-                        "No commercial photography",
-                        "Must respect other guests' privacy",
-                        "Prohibited in changing rooms and showers"
+                    policy: "To truly immerse in the authentic Icelandic bathing culture, we encourage you to unplug, connect with nature, and embrace the serenity of gathering in warm waters",
+                    guidelines: [
+                        "Small cameras or phones permitted for memories",
+                        "Be mindful of other guests' privacy",
+                        "No photography in changing rooms or shower areas",
+                        "Professional photography requires permission"
                     ],
                     device_protection: {
                         available: true,
                         type: "Waterproof phone cases",
                         price: "2,500 ISK",
-                        purchase_locations: [
-                            "Reception desk",
-                            "In-water bar"
-                        ]
+                        locations: ["Reception", "Gelmir Bar"]
                     }
                 },
                 swimming: {
                     ocean_access: {
                         allowed: false,
-                        reason: "Safety regulations",
-                        requirements: [
-                            "Stay within designated areas",
-                            "Follow team member instructions",
-                            "Comply with safety guidelines"
-                        ]
-                    },
-                    general_rules: [
-                        "No diving",
-                        "No running",
-                        "Shower before entering",
-                        "Follow team member instructions"
-                    ]
-                },
-                time_limits: {
-                    duration: {
-                        restriction: "No specific time limit",
-                        recommended: "1.5 to 3 hours",
-                        check_in: "Arrival within 30 minutes of booked time"
-                    },
-                    facility_closing: {
-                        lagoon: "30 minutes before facility closing",
-                        ritual: "1 hour before facility closing",
-                        bar: "1 hour before facility closing"
+                        explanation: "Due to safety concerns, swimming in the sea around Sky Lagoon is prohibited",
+                        alternative: "Instead, enjoy the beautiful ocean view from the lagoon, where himin and haf (sky and sea) blend together at the infinity edge"
                     }
                 }
             },
-            features: {
-                infinity_edge: {
-                    description: "Panoramic ocean views",
-                    location: "Main viewing area",
-                    experience: "Seamless horizon integration"
+            safety: {
+                hydration: {
+                    importance: "It's very important that you stay hydrated during your visit to Sky Lagoon",
+                    stations: "Drinking water fountains in changing rooms and at the lagoon",
+                    guidelines: "Regular hydration ensures you get the most out of your experience and stay healthy"
                 },
-                relaxation_areas: {
-                    types: [
-                        "Built-in benches",
-                        "Calm zones",
-                        "Viewing platforms"
-                    ],
-                    features: "Multiple temperatures and depths"
-                },
-                lighting: {
-                    daytime: "Natural illumination",
-                    evening: "Ambient lighting system",
-                    seasonal: "Adapted to Iceland's daylight variations"
+                monitoring: {
+                    staff: "Trained team members monitor guest safety",
+                    medical: "First aid trained personnel available",
+                    support: "Special assistance available when needed"
                 }
             }
         }
@@ -1282,78 +1267,125 @@ export const knowledgeBase = {
 
     transportation: {
         location: {
-            address: "Vesturvör 44, 200 Kópavogur",
-            distance: "7 kilometers from central Reykjavík",
-            drive_time: "13-15 minutes",
-            landmarks: {
-                from_perlan: "9 minutes",
-                from_hallgrimskirkja: "12 minutes",
-                from_harpa: "14 minutes",
-                from_bsi: "9 minutes"
+            address: "Vesturvör 44-48, 200 Kópavogur",
+            description: "Sky Lagoon is conveniently located just minutes from central Reykjavík",
+            distance: {
+                from_city: "7 kilometers from central Reykjavík",
+                drive_time: "13-15 minutes",
+                from_landmarks: {
+                    perlan: "9 minutes",
+                    hallgrimskirkja: "12 minutes",
+                    harpa: "14 minutes",
+                    bsi: "9 minutes"
+                }
+            },
+            positioning: {
+                description: "Located on the Kársnes peninsula in Kópavogur",
+                features: [
+                    "Oceanside location",
+                    "Stunning coastal views",
+                    "Easy access from Reykjavík"
+                ]
             }
         },
         shuttle_service: {
             provider: "Reykjavík Excursions",
             bsi_service: {
                 departure_point: "BSÍ bus terminal",
+                departure_times: ["13:00", "15:00", "17:00", "19:00"],
                 timing: "Bus departs BSÍ on the hour of your booking",
-                direction: "Direct service to Sky Lagoon"
-            },
-            hotel_pickup: {
-                available: true,
-                timing: "Starts 30 minutes before your selected time",
-                important_notes: [
-                    "Be ready and visible at designated bus stop or outside hotel",
-                    "Call +354 580 5400 if pickup hasn't arrived 20 minutes after start time",
-                    "If pickup is missed, must reach BSÍ at own cost before departure time"
-                ],
-                restrictions: "Drop-off may be limited due to street closures and city centre bus restrictions"
+                direction: "Direct service to Sky Lagoon",
+                pickup_service: {
+                    available: true,
+                    timing: "Starts 30 minutes before your selected time",
+                    important_notes: [
+                        "Be ready and visible at designated bus stop or outside hotel",
+                        "Call +354 580 5400 if pickup hasn't arrived 20 minutes after start time",
+                        "If pickup is missed, must reach BSÍ at own cost before departure time"
+                    ],
+                    restrictions: "Drop-off may be limited due to street closures and city centre bus restrictions"
+                }
             },
             return_service: {
                 departure_point: "Sky Lagoon",
                 destination: "BSÍ bus terminal",
-                times: ["14:30", "15:30", "16:30", "17:30", "18:30", "19:30", "20:30", "21:30"]
+                departure_times: [
+                    "14:30", "15:30", "16:30", "17:30", 
+                    "18:30", "19:30", "20:30", "21:30"
+                ]
             },
             booking: {
-                options: [
+                methods: [
                     "Book with Sky Lagoon ticket purchase",
                     "Book separately through www.re.is"
-                ]
+                ],
+                modifications: "Contact Reykjavík Excursions directly for changes"
             }
         },
         public_transport: {
+            description: "Sky Lagoon is accessible via public bus service",
             bus_route: {
                 first_leg: {
-                    bus: "Take bus #4 to Hamraborg",
-                    duration: "15 minutes",
-                    from: "Hlemmur square"
+                    bus: "Take bus #4",
+                    from: "Hlemmur square",
+                    to: "Hamraborg",
+                    duration: "15 minutes"
                 },
                 second_leg: {
                     bus: "Transfer to bus #35",
                     stop: "Exit at Hafnarbraut",
                     duration: "4 minutes"
                 },
-                final_leg: "Short walk along ocean to Sky Lagoon",
+                final_leg: {
+                    description: "Short walk along ocean to Sky Lagoon",
+                    duration: "Approximately 10 minutes"
+                },
                 schedule: "Visit straeto.is for current timings"
             }
         },
         parking: {
             available: true,
-            cost: "Free",
-            time_limit: "No time limit",
-            features: ["Electric car charging stations", "Well-lit", "Monitored", "Easy access to facility entrance"],
+            cost: "Free of charge",
+            time_limit: "No time restrictions",
+            features: [
+                "Ample parking spaces",
+                "Electric car charging stations",
+                "Well-lit area",
+                "Easy access to facility entrance"
+            ],
             accessibility: {
                 disabled_spaces: true,
-                location: "Near main entrance"
+                location: "Near main entrance",
+                features: "Wide, accessible spaces"
             }
         },
         airport_transfer: {
             distance: "45 minutes from Keflavík International Airport",
+            driving: {
+                duration: "Approximately 40 minutes by taxi or rental car",
+                route: "Direct route via main roads"
+            },
+            bus_option: {
+                steps: [
+                    "From Keflavík airport, take bus no. 55 and stop at Hlemmur (57 min)",
+                    "From there, take bus no.1 to Hamraborg (21 min)",
+                    "Then take bus no. 35 to Hafnarbraut (4 min)"
+                ],
+                note: "Currently, Flybus transfers do not travel directly to Sky Lagoon from the airport",
+                alternatives: "Transfer to central Reykjavík first"
+            },
+            luggage: {
+                storage: "Available for small fee (990 ISK)",
+                location: "At reception"
+            }
+        },
+        eco_friendly_options: {
+            description: "We encourage environmentally friendly transport options",
             options: [
-                "Flybus to BSÍ then shuttle to Sky Lagoon",
-                "Taxi services",
-                "Private car rental",
-                "Private transfer services"
+                "Walking paths along the ocean",
+                "Cycling routes available",
+                "Public transportation",
+                "Electric car charging stations"
             ]
         }
     },
@@ -2025,6 +2057,7 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('bring') ||
         message.includes('swimsuit') ||
         message.includes('changing room') ||
+        message.includes('change room') ||    // Added common variation
         message.includes('private') ||
         message.includes('storage') ||
         message.includes('locker') ||
@@ -2055,7 +2088,64 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('gender neutral') ||
         message.includes('transgender') ||
         message.includes('trans') ||
-        message.includes('gender identity')) {
+        message.includes('gender identity') ||
+        // Amenities and rentals
+        message.includes('amenity') ||
+        message.includes('amenities') ||
+        message.includes('rent') ||
+        message.includes('hair dryer') ||
+        message.includes('hairdryer') ||
+        message.includes('robe') ||
+        message.includes('slipper') ||
+        message.includes('luggage') ||
+        message.includes('bag') ||
+        message.includes('baggage') ||
+        // Accessibility terms
+        message.includes('mobility') ||
+        message.includes('chairlift') ||
+        message.includes('lift') ||
+        message.includes('support equipment') ||
+        message.includes('special needs') ||
+        // Photography and rules
+        message.includes('photography') ||
+        message.includes('phone') ||
+        message.includes('device') ||
+        message.includes('waterproof') ||
+        message.includes('case') ||
+        message.includes('pictures allowed') ||
+        message.includes('taking pictures') ||
+        // Facility features
+        message.includes('infinity edge') ||
+        message.includes('cave') ||
+        message.includes('cave-side') ||
+        message.includes('canopy') ||
+        message.includes('horizon') ||
+        message.includes('bench') ||
+        message.includes('viewing platform') ||
+        // Etiquette and rules
+        message.includes('etiquette') ||
+        message.includes('rule') ||
+        message.includes('shoes') ||
+        message.includes('shower before') ||
+        message.includes('hygiene') ||
+        message.includes('clean') ||
+        // Hydration and safety
+        message.includes('hydration') ||
+        message.includes('drinking water') ||
+        message.includes('fountain') ||
+        message.includes('drink water') ||
+        message.includes('stay hydrated') ||
+        message.includes('medical') ||
+        message.includes('first aid') ||
+        message.includes('safety') ||
+        // Common question phrasings
+        message.includes('where is') ||
+        message.includes('how deep') ||
+        message.includes('how warm') ||
+        message.includes('what facilities') ||
+        message.includes('can i bring') ||
+        message.includes('is there') ||
+        message.includes('do you have')) {
         relevantInfo.push({
             type: 'facilities',
             content: knowledgeBase.facilities
@@ -2141,7 +2231,7 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('how to get') ||
         message.includes('get to') ||
         message.includes('from bsi') ||
-        message.includes('bsi to') ||
+        message.includes('bus to') ||
         message.includes('from bsí') ||
         message.includes('bsí to') ||
         message.includes('transfer') ||
@@ -2166,7 +2256,90 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('where') ||
         message.includes('area') ||
         message.includes('neighbourhood') ||
-        message.includes('near')) {
+        message.includes('near') ||
+        // Adding website specific terms
+        message.includes('kópavogur') ||
+        message.includes('kopavogur') ||
+        message.includes('vesturvör') ||
+        message.includes('vesturvor') ||
+        message.includes('kársnes') ||
+        message.includes('karsnes') ||
+        // Public transport specifics
+        message.includes('public transport') ||
+        message.includes('strætó') ||
+        message.includes('straeto') ||
+        message.includes('bus number') ||
+        message.includes('bus #') ||
+        message.includes('bus 4') ||
+        message.includes('bus 35') ||
+        message.includes('bus route') ||
+        message.includes('hlemmur') ||
+        message.includes('hamraborg') ||
+        message.includes('hafnarbraut') ||
+        // Airport transfer specifics
+        message.includes('keflavik') ||
+        message.includes('kef') ||
+        message.includes('flybus') ||
+        message.includes('fly bus') ||
+        message.includes('from airport') ||
+        message.includes('to airport') ||
+        // BSÍ transfer specifics
+        message.includes('reykjavik excursions') ||
+        message.includes('pickup') ||
+        message.includes('pick up') ||
+        message.includes('pick-up') ||
+        message.includes('hotel pickup') ||
+        message.includes('shuttle time') ||
+        message.includes('shuttle schedule') ||
+        message.includes('return shuttle') ||
+        message.includes('bus terminal') ||
+        // Eco transport options
+        message.includes('walking path') ||
+        message.includes('cycle') ||
+        message.includes('cycling') ||
+        message.includes('bike') ||
+        message.includes('biking') ||
+        message.includes('electric car') ||
+        message.includes('charging') ||
+        // Parking specifics
+        message.includes('park') ||
+        message.includes('parking lot') ||
+        message.includes('car park') ||
+        message.includes('free parking') ||
+        message.includes('disabled parking') ||
+        message.includes('accessible parking') ||
+        // Common question formats
+        message.includes('how do i get') ||
+        message.includes('best way to') ||
+        message.includes('easiest way to') ||
+        message.includes('what is the way to') ||
+        message.includes('how to reach') ||
+        message.includes('how can i get') ||
+        message.includes('minutes from') ||
+        message.includes('hours from') ||
+        message.includes('directions to') ||
+        message.includes('directions from') ||
+        // Time and duration queries
+        message.includes('how long') ||
+        message.includes('travel time') ||
+        message.includes('journey time') ||
+        message.includes('duration') ||
+        message.includes('minutes away') ||
+        message.includes('hours away') ||
+        // Location queries
+        message.includes('where are you') ||
+        message.includes('where is sky') ||
+        message.includes('located in') ||
+        message.includes('situated in') ||
+        message.includes('whereabouts') ||
+        // Luggage related
+        message.includes('luggage') ||
+        message.includes('suitcase') ||
+        message.includes('bags') ||
+        message.includes('baggage storage') ||
+        message.includes('store luggage') ||
+        message.includes('store bags')) {
+        
         // Include both location and full transportation info
         relevantInfo.push({
             type: 'location',
