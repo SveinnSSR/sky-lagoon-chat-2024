@@ -1709,6 +1709,89 @@ export const knowledgeBase = {
             }
         }
     },
+
+    products: {
+        locations: {
+            retail_area: "Available in our retail area right next to the check out",
+            gelmir_bar: "Selected items available at Gelmir Bar",
+            online: "Available through our website"
+        },
+        items: {
+            skin_care: {
+                body_scrub: {
+                    name: "Sky Body Scrub",
+                    description: "Our signature scrub used in the Skjól ritual",
+                    ingredients: [
+                        "Maris Sal",
+                        "Isopropyl Myristate",
+                        "Prunus Amygdalus Dulcis (Sweet Almond) Oil",
+                        "Sesamum Indicum (Sesame) Seed Oil",
+                        "Parfum",
+                        "Vitis Vinifera (Grape) Seed Oil",
+                        "Argania Spinosa Kernel Oil",
+                        "Rosa Canina Fruit Oil",
+                        "Tocopheryl Acetate"
+                    ]
+                },
+                body_lotion: {
+                    name: "Sky Body Lotion",
+                    sizes: ["120ml", "30ml (travel size)"],
+                    features: [
+                        "Free of parabens",
+                        "Free of preservatives",
+                        "Free of alcohol",
+                        "Created with aloe vera for calming moisturizing"
+                    ]
+                },
+                body_oil: {
+                    name: "Sky Body Oil",
+                    sizes: ["50ml", "30ml (travel size)"],
+                    features: ["Made with vitamin E-rich sunflower oil", "Anti-inflammatory properties"]
+                }
+            },
+            home_fragrance: {
+                pillow_mist: {
+                    name: "Sky Pillow Mist",
+                    size: "30ml",
+                    description: "Create the perfect aroma for a restful evening"
+                },
+                candle: {
+                    name: "Sky Ilmkerti",
+                    description: "Sky Lagoon signature scented candle"
+                },
+                spray: {
+                    name: "Sky Home Spray",
+                    description: "Sky Lagoon signature home fragrance spray"
+                },
+                diffuser: {
+                    name: "Sky Ilmgjafi",
+                    description: "Sky Lagoon signature home diffuser"
+                }
+            },
+            bath_essentials: {
+                soap: {
+                    name: "Sky Hand Soap",
+                    description: "Sky Lagoon signature hand soap"
+                }
+            }
+        },
+        miniature_combo: {
+            name: "Miniature Combo",
+            description: "Make wellness a part of your daily routine with our miniature combos",
+            includes: [
+                "Pillow mist (30ml)",
+                "Body oil (30ml)",
+                "Body lotion (30ml)"
+            ],
+            features: "Perfect gift option or travel set"
+        },
+        purchasing_info: {
+            location: "Available at our retail area near the exit",
+            gift_packaging: "Available upon request",
+            shipping: "International shipping available"
+        }
+    },
+
     lost_found: {
         overview: {
             description: "If you lost something in Sky Lagoon, we will do our best to find your item and return it to you.",
@@ -2864,8 +2947,48 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-        // Lost and Found related queries
-        if (message.includes('lost') ||
+    // Products and retail related queries
+    if (message.includes('product') || 
+        message.includes('buy') ||
+        message.includes('purchase') ||
+        message.includes('shop') ||
+        message.includes('retail') ||
+        message.includes('scrub') ||
+        message.includes('lotion') ||
+        message.includes('oil') ||
+        message.includes('mist') ||
+        message.includes('candle') ||
+        message.includes('spray') ||
+        message.includes('diffuser') ||
+        message.includes('soap') ||
+        message.includes('miniature') ||
+        message.includes('travel size') ||
+        message.includes('gift set') ||
+        message.includes('body products') ||
+        message.includes('skin care') ||
+        message.includes('fragrance') ||
+        message.includes('home products') ||
+        message.includes('ingredients') ||
+        message.includes('where can i buy') ||
+        message.includes('what products') ||
+        message.includes('take home')) {
+        
+        relevantInfo.push({
+            type: 'products',
+            content: knowledgeBase.products
+        });
+
+        // If asking about scrub ingredients specifically
+        if (message.includes('ingredient') || message.includes('allerg')) {
+            relevantInfo.push({
+                type: 'health_safety',
+                content: knowledgeBase.policies.health_safety
+            });
+        }
+    }
+
+    // Lost and Found related queries
+    if (message.includes('lost') ||
         message.includes('found') ||
         message.includes('missing') ||
         message.includes('left behind') ||
