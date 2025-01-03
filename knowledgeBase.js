@@ -1456,44 +1456,52 @@ export const knowledgeBase = {
 
     multi_pass: {
         overview: {
-            description: "A wellness program offering six visits to Sky Lagoon",
+            tagline: "Regular Wellness Routine",
+            description: "Make wellness part of your regular routine with a Hefð or Venja Multi-Pass, each containing six visits to Sky Lagoon.",
+            marketing: "Set wellness and health as your priority with Multi-Pass and get six visits to Sky Lagoon at about half the regular price.",
             validity: "Valid for 4 years from purchase date",
             restrictions: [
                 "Valid for one visitor only",
                 "Cannot be used for groups",
                 "Non-transferable between guests",
                 "Same code used for all six visits"
-            ]
+            ],
+            important_note: "Please note, each multi-pass is valid for one visitor only. It cannot be used for groups of guests."
         },
         types: {
             hefd: {
                 name: "Hefð Multi-Pass",
-                type: "Premium package",
-                price: "44,970 ISK",
+                tagline: "The Skjól Ritual & Private Change Room",
+                description: "Join us for six premium Sér visits, including lagoon access, the Skjól ritual and private changing facilities.",
+                price: "56,970 ISK",
                 visits: 6,
                 includes: [
                     "Six Sér package visits",
-                    "Sky Lagoon admission",
-                    "Skjól ritual access",
-                    "Private changing facilities"
+                    "Lagoon access for each visit",
+                    "One journey through the Skjól ritual each visit", 
+                    "Private changing facilities with our signature Sky Body Lotion",
+                    "Towel included each visit"
                 ],
-                features: "Premium experience with private facilities"
+                features: "Well-appointed private changing rooms with enhanced comfort and premium amenities"
             },
             venja: {
                 name: "Venja Multi-Pass",
-                type: "Classic package",
-                price: "35,970 ISK",
+                tagline: "The Skjól Ritual",
+                description: "Join us for six classic Saman Sky Lagoon experiences, including lagoon access and a journey though the Skjól ritual.",
+                price: "44,970 ISK",
                 visits: 6,
                 includes: [
                     "Six Saman package visits",
-                    "Sky Lagoon admission",
-                    "Skjól ritual access",
-                    "Public changing facilities"
+                    "Lagoon access for each visit",
+                    "One journey through the Skjól ritual each visit",
+                    "Public changing facilities",
+                    "Towel included each visit"
                 ],
                 features: "Classic experience with standard facilities"
             }
         },
         redemption: {
+            tagline: "How to Redeem Your Multi-Pass",
             process: [
                 "Plan visit by choosing date and time",
                 "Enter Multi-Pass code during booking",
@@ -1503,20 +1511,21 @@ export const knowledgeBase = {
             booking_steps: {
                 step1: {
                     name: "Plan the Visit",
-                    description: "Book your visit in advance by selecting date and time"
+                    description: "Book your visit in advance by choosing a date and time"
                 },
                 step2: {
                     name: "Complete the Booking",
-                    description: "Enter your Multi-Pass code during checkout"
+                    description: "Enter your Multi-Pass code while completing the booking. You use the same code all six times."
                 },
                 step3: {
-                    name: "Check-in",
-                    description: "Present email ticket and photo ID at Sky Lagoon"
+                    name: "Let the Relaxation Begin",
+                    description: "You will receive your Sky Lagoon ticket by email. Bring that ticket and photo ID with you when you check in at Sky Lagoon."
                 }
             },
             important_notes: [
-                "Same code used for all six visits",
                 "Advance booking recommended",
+                "Must use gift ticket code during booking process",
+                "Bring booking confirmation to Sky Lagoon",
                 "Photo ID required at check-in",
                 "Booking subject to availability"
             ]
@@ -2380,7 +2389,21 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('multiple visits') ||
         message.includes('loyalty') ||
         message.includes('regular visits') ||
-        message.includes('frequent visits')) {
+        message.includes('frequent visits') ||
+        message.includes('regular wellness') ||
+        message.includes('wellness routine') ||
+        message.includes('half price visits') ||
+        message.includes('discount pass') ||
+        message.includes('multiple entries') ||
+        message.includes('several visits') ||
+        message.includes('repeat visits') ||
+        message.includes('reduced price') ||
+        message.includes('regular guest') ||
+        message.includes('frequent guest') ||
+        message.includes('visit often') ||
+        message.includes('come back') ||
+        message.includes('return visits') ||
+        message.includes('regular basis')) {
         relevantInfo.push({
             type: 'multi_pass',
             content: knowledgeBase.multi_pass
