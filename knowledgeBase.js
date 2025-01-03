@@ -491,13 +491,35 @@ export const knowledgeBase = {
             location: "Dedicated ritual areas within Sky Lagoon",
             duration: "Take your time to enjoy each step",
             guidance: "Self-guided with clear instructions at each station",
-            benefits: [
+            benefits: {
+                skin: {
+                    title: "Enhanced Skin Health",
+                    description: "Our geothermal waters contain minerals that can detoxify and help remedy skin ailments. Combined with our signature Sky Body Scrub during the Skjól ritual, your skin will feel fresh, clean, and be aglow.",
+                },
+                pain_relief: {
+                    title: "Natural Pain Relief",
+                    description: "The warmth of our geothermal water can help alleviate pain sensations. Scientific research shows that soaking in hot water blocks pain receptors in bones and muscles.",
+                },
+                relaxation: {
+                    title: "Deep Relaxation",
+                    description: "Soaking in our warm water can be deeply restorative. It can help reduce stress, bring a sense of peace and serenity. By combining a warm soak with our cooling experiences, you're enhancing your chances of a great night's sleep.",
+                },
+                breathing: {
+                    title: "Enhanced Breathing",
+                    description: "The heat of our water combined with minerals helps release nasal and lung congestion in powerful ways. You'll emerge breathing clearly and deeply.",
+                },
+                community: {
+                    title: "Connection & Community",
+                    description: "Iceland's hot pools have served as a form of community for hundreds of years. People gather in the warmth to visit, catch up, share and collaborate - an important aspect of wellbeing.",
+                }
+            },
+            general_benefits: [
                 "Deep relaxation and rejuvenation",
                 "Traditional therapeutic elements",
                 "Connection to Icelandic heritage",
                 "Complete mind and body wellness"
             ]
-        },
+        },    
         important_notes: [
             "Essential part of Sky Lagoon experience",
             "Cannot be excluded from visit",
@@ -2282,6 +2304,41 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('crowberry') ||
         message.includes('krækiber') ||
         message.includes('kraekiber') ||
+        // Adding wellness-focused terms
+        message.includes('benefit') ||
+        message.includes('wellness') ||
+        message.includes('healing') ||
+        message.includes('therapeutic') ||
+        message.includes('therapy') ||
+        message.includes('pain relief') ||
+        message.includes('muscle') ||
+        message.includes('stress') ||
+        message.includes('relax') ||
+        message.includes('relaxing') ||
+        message.includes('relaxation') ||
+        message.includes('detox') ||
+        message.includes('detoxify') ||
+        message.includes('mineral') ||
+        message.includes('breathing') ||
+        message.includes('congestion') ||
+        message.includes('sleep') ||
+        message.includes('community') ||
+        message.includes('peaceful') ||
+        message.includes('serenity') ||
+        message.includes('restore') ||
+        message.includes('restorative') ||
+        message.includes('skin') ||
+        message.includes('fresh') ||
+        message.includes('clean') ||
+        message.includes('glow') ||
+        message.includes('pain') ||
+        message.includes('ache') ||
+        message.includes('sore') ||
+        message.includes('peace') ||
+        message.includes('quiet') ||
+        message.includes('tranquil') ||
+        message.includes('rejuvenate') ||
+        message.includes('rejuvenation') ||
         // Temperature-related queries
         message.includes('temperature') && (
             message.includes('sauna') ||
@@ -2298,6 +2355,19 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'packages',
             content: knowledgeBase.packages
         });
+
+        // Also include facilities info for specific wellness queries
+        if (message.includes('relax') ||
+            message.includes('peaceful') ||
+            message.includes('quiet') ||
+            message.includes('tranquil') ||
+            message.includes('community') ||
+            message.includes('healing')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
     }
 
     // Seasonal information
