@@ -943,42 +943,64 @@ export const knowledgeBase = {
         age_restrictions: {
             minimum_age: 12,
             supervision: "Ages 12-14 must be accompanied by a guardian (18 years or older)",
-            verification: "Valid ID may be requested",
+            verification: {
+                requirement: "Valid ID may be requested to confirm child's date of birth",
+                right_of_refusal: "Sky Lagoon team members reserve the right to refuse access if ID cannot be provided"
+            },
             rationale: {
                 reasons: [
                     "Experience designed for adult relaxation",
-                    "Alcohol service in lagoon",
-                    "Optimal guest experience"
-                ]
+                    "Alcohol service in the lagoon area",
+                    "12-year age limit is a policy to ensure quality of experience for all guests"
+                ],
+                additional_info: "The experience is focused on adult individuals to provide relaxation and rejuvenation",
+                age_calculation: "Birth year counts for age limit - children turning 12 within the calendar year may visit Sky Lagoon"
+            },
+            recommendations: {
+                changing_rooms: "We recommend that families with children aged 12-14 use the Sér Pass' premium changing rooms for space and privacy",
+                supervision: "Guardian must be 18 years or older",
+                group_size: "One guardian can supervise multiple children aged 12-14"
             }
         },
         cancellation: {
             individual: {
                 notice: "24 hours",
                 group_size: "1-9 guests",
-                refund: "Full refund available with proper notice"
+                refund: "Full refund available with proper notice",
+                contact: "reservations@skylagoon.is",
+                requirements: "Cancellations must be presented in writing through email"
             },
             groups: {
                 small: {
                     notice: "72 hours",
-                    size: "11-25 guests"
+                    size: "11-25 guests",
+                    refund: "Full refund with proper notice"
                 },
                 medium: {
                     notice: "96 hours",
-                    size: "26-50 guests"
+                    size: "26-50 guests",
+                    refund: "Full refund with proper notice"
                 },
                 large: {
                     notice: "2 weeks",
-                    size: "51-100 guests"
+                    size: "51-100 guests",
+                    refund: "Full refund with proper notice"
                 },
                 extra_large: {
                     notice: "12 weeks",
-                    size: "101+ guests"
+                    size: "101+ guests",
+                    refund: "Full refund with proper notice"
                 }
             },
             how_to_cancel: {
+                method: "Email only",
                 email: "reservations@skylagoon.is",
-                required_info: ["Booking reference number", "Preferred action (refund/date change)"]
+                required_info: [
+                    "Booking reference number",
+                    "Preferred action (refund/date change)",
+                    "Original booking details"
+                ],
+                processing: "All refunds processed to original payment method"
             }
         },
         health_safety: {
@@ -988,13 +1010,15 @@ export const knowledgeBase = {
                     "Cardiovascular disease",
                     "High or low blood pressure",
                     "Recent surgery",
-                    "Serious medical conditions"
+                    "Serious medical conditions",
+                    "Epilepsy or seizure disorders"
                 ],
                 safety_measures: {
                     wristbands: {
                         available: "High-visibility wristbands for guests needing extra attention",
                         process: "Request at reception",
-                        team_member_notification: "Safety personnel notified"
+                        team_member_notification: "Safety personnel notified",
+                        use_case: "For conditions requiring additional monitoring (e.g., epilepsy)"
                     },
                     monitoring: "Regular team member supervision",
                     assistance: "Trained team members available",
@@ -1011,13 +1035,21 @@ export const knowledgeBase = {
                     "Exit if feeling uncomfortable",
                     "Avoid extreme temperature changes"
                 ],
-                recommendations: "Each person responsible for own health assessment"
+                recommendations: "Each person responsible for own health assessment",
+                important_note: "Under normal circumstances, pregnant women can visit Sky Lagoon, but each individual must assess their own condition"
             },
             allergies: {
                 ritual_products: {
-                    ingredients: [
-                        "Almond oil",
-                        "Sesame seed oil"
+                    sky_scrub_ingredients: [
+                        "Maris Sal",
+                        "Isopropyl Myristate",
+                        "Prunus Amygdalus Dulcis (Sweet Almond) Oil",
+                        "Sesamum Indicum (Sesame) Seed Oil",
+                        "Parfum",
+                        "Vitis Vinifera (Grape) Seed Oil",
+                        "Argania Spinosa Kernel Oil",
+                        "Rosa Canina Fruit Oil",
+                        "Tocopheryl Acetate"
                     ],
                     alternatives: "Skip scrub step if allergic",
                     notification: "Inform team members of allergies"
@@ -1025,7 +1057,7 @@ export const knowledgeBase = {
                 food_allergies: {
                     protocol: "Alert our dining team members",
                     information: "Ingredient lists available",
-                    alternatives: "Various options available"
+                    alternatives: "Various options available including vegan and gluten-free"
                 }
             },
             hydration_wellness: {
@@ -1045,14 +1077,19 @@ export const knowledgeBase = {
                     "Don't visit on empty stomach",
                     "Avoid excessive alcohol"
                 ],
-                bar_options: {  // New section to clarify hydration vs bar service
+                dining_recommendations: {
+                    pre_visit: "Eat something light and nutritious before your visit",
+                    options: "Light snacks available at Keimur Café"
+                },
+                bar_options: {
                     location: "Gelmir lagoon bar in the lagoon",
                     options: [
                         "Various non-alcoholic beverages",
                         "Refreshing drinks",
                         "Alcoholic beverages (maximum three per guest)"
                     ],
-                    payment: "Cashless wristband system"
+                    payment: "Cashless wristband system",
+                    restrictions: "Maximum three alcoholic drinks per adult during visit"
                 }
             }
         },
@@ -1070,17 +1107,82 @@ export const knowledgeBase = {
                     restrictions: "Cannot accommodate guests beyond shown availability, even for walk-ins",
                     reason: "Strict capacity limits for guest comfort and safety"
                 },
-                cancellations: "Website automatically updates if spots become available due to cancellations"
+                cancellations: "Website automatically updates if spots become available due to cancellations",
+                advance_booking: {
+                    recommended: true,
+                    reason: "To secure preferred time slot",
+                    walk_in: "Subject to availability upon arrival"
+                }
             }
         },
         photography: {
+            general_policy: "We allow our guests to bring small cameras or phones to capture a memory from their Sky Lagoon journey",
+            recommendation: "To truly immerse in the authentic Icelandic bathing culture, we encourage you to unplug, connect with nature, and embrace the serenity of gathering in warm waters",
             rules: [
-                "Permission required from Sky Lagoon team",
-                "Private use only",
-                "No commercial use",
+                "Small cameras or phones permitted for memories",
+                "Be very mindful with photography",
                 "Respect other guests' privacy",
-                "No photography in changing rooms"
-            ]
+                "Strictly prohibited in changing rooms and shower area",
+                "Only permitted in lagoon area",
+                "No professional photography without permission"
+            ],
+            device_protection: {
+                available: true,
+                type: "Waterproof phone cases",
+                price: "2,500 ISK",
+                locations: [
+                    "Reception",
+                    "In-water Gelmir Bar"
+                ]
+            }
+        },
+        payment_systems: {
+            wristband: {
+                functions: {
+                    primary: [
+                        "Payment method for all in-facility purchases",
+                        "Locker key",
+                        "Access control"
+                    ],
+                    setup: {
+                        process: "Credit card linked at check-in",
+                        security: "Secure encryption for all transactions",
+                        location: "Reception desk during check-in"
+                    }
+                },
+                usage: {
+                    accepted_locations: [
+                        "In-water Gelmir Bar",
+                        "Keimur Café",
+                        "Smakk Bar",
+                        "All facility outlets"
+                    ],
+                    limitations: {
+                        alcohol: "Maximum three alcoholic drinks per guest",
+                        currency: "No cash accepted in lagoon area"
+                    }
+                }
+            },
+            payment_methods: {
+                accepted: {
+                    pre_booking: [
+                        "Credit cards",
+                        "Debit cards",
+                        "Online payment systems"
+                    ],
+                    on_site: [
+                        "Credit cards",
+                        "Debit cards",
+                        "Cash (ISK only)",
+                        "Wristband (within facility)"
+                    ]
+                },
+                booking_requirements: {
+                    online: "Full payment required at time of booking",
+                    groups: "Special payment arrangements available for large groups",
+                    modifications: "Changes subject to availability and terms"
+                }
+            }
         }
     },
 
@@ -1456,67 +1558,83 @@ export const knowledgeBase = {
 
     multi_pass: {
         overview: {
-            description: "A wellness program offering six visits to Sky Lagoon",
+            tagline: "Regular Wellness Routine",
+            description: "Make wellness part of your regular routine with a Hefð or Venja Multi-Pass, each containing six visits to Sky Lagoon.",
+            marketing_phrases: [
+                "Set wellness and health as your priority with Multi-Pass",
+                "Get six visits to Sky Lagoon for far less than regular price",
+                "Share the gift of lasting bliss",
+                "Make wellness a part of your regular routine"
+            ],
             validity: "Valid for 4 years from purchase date",
             restrictions: [
                 "Valid for one visitor only",
                 "Cannot be used for groups",
                 "Non-transferable between guests",
                 "Same code used for all six visits"
-            ]
+            ],
+            important_note: "Please note, each multi-pass is valid for one visitor only. It cannot be used for groups of guests."
         },
         types: {
             hefd: {
                 name: "Hefð Multi-Pass",
-                type: "Premium package",
-                price: "44,970 ISK",
+                tagline: "The Skjól Ritual & Private Change Room",
+                description: "Join us for six premium Sér visits, including lagoon access, the Skjól ritual and well-appointed private changing facilities.",
+                price: "56,970 ISK",
+                marketing: "Choose a Hefð Multi-Pass for six premium Sér experiences. Our signature Sky Lagoon package includes the Skjól ritual and private changing rooms.",
                 visits: 6,
                 includes: [
                     "Six Sér package visits",
-                    "Sky Lagoon admission",
-                    "Skjól ritual access",
-                    "Private changing facilities"
+                    "Lagoon access for each visit",
+                    "One journey through the Skjól ritual each visit", 
+                    "Private changing facilities with our signature Sky Body Lotion",
+                    "Towel included each visit"
                 ],
-                features: "Premium experience with private facilities"
+                features: "Well-appointed private changing rooms with enhanced comfort and premium amenities"
             },
             venja: {
                 name: "Venja Multi-Pass",
-                type: "Classic package",
-                price: "35,970 ISK",
+                tagline: "The Skjól Ritual",
+                description: "Join us for six classic Saman Sky Lagoon experiences, including lagoon access and a journey though the Skjól ritual.",
+                price: "44,970 ISK",
+                marketing: "Join us for six classic Saman experiences with lagoon access and the Skjól ritual.",
                 visits: 6,
                 includes: [
                     "Six Saman package visits",
-                    "Sky Lagoon admission",
-                    "Skjól ritual access",
-                    "Public changing facilities"
+                    "Lagoon access for each visit",
+                    "One journey through the Skjól ritual each visit",
+                    "Public changing facilities",
+                    "Towel included each visit"
                 ],
                 features: "Classic experience with standard facilities"
             }
         },
         redemption: {
+            tagline: "How to Redeem Your Multi-Pass",
             process: [
                 "Plan visit by choosing date and time",
-                "Enter Multi-Pass code during booking",
+                "Enter Multi-Pass code during booking - use the same code all six times",
                 "Receive confirmation email with ticket",
                 "Present ticket and photo ID at check-in"
             ],
             booking_steps: {
                 step1: {
                     name: "Plan the Visit",
-                    description: "Book your visit in advance by selecting date and time"
+                    description: "Book your visit in advance by choosing a date and time."
                 },
                 step2: {
                     name: "Complete the Booking",
-                    description: "Enter your Multi-Pass code during checkout"
+                    description: "Enter your Multi-Pass code while completing the booking. You use the same code for all six visits."
                 },
                 step3: {
-                    name: "Check-in",
-                    description: "Present email ticket and photo ID at Sky Lagoon"
+                    name: "Let the Relaxation Begin",
+                    description: "You will receive your Sky Lagoon ticket by email. Bring that ticket and photo ID with you when you check in at Sky Lagoon."
                 }
             },
             important_notes: [
-                "Same code used for all six visits",
                 "Advance booking recommended",
+                "Must use gift ticket code during booking process",
+                "Bring booking confirmation to Sky Lagoon",
                 "Photo ID required at check-in",
                 "Booking subject to availability"
             ]
@@ -2092,66 +2210,155 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-    // Health and safety
-    if (message.includes('medical') || 
+    // Policy related queries
+    if (message.includes('policy') || 
+        message.includes('policies') ||
+        message.includes('rule') ||
+        message.includes('requirement') ||
+        // Age related
+        message.includes('age') || 
+        message.includes('old') ||
+        message.includes('child') ||
+        message.includes('children') ||
+        message.includes('teenager') ||
+        message.includes('teen') ||
+        message.includes('kid') ||
+        message.includes('young') ||
+        message.includes('adult') ||
+        message.includes('guardian') ||
+        message.includes('parent') ||
+        message.includes('supervise') ||
+        message.includes('supervision') ||
+        message.includes('minimum age') ||
+        message.includes('age limit') ||
+        message.includes('bring my child') ||
+        message.includes('family') ||
+        message.includes('under 12') ||
+        message.includes('12 years') ||
+        message.includes('14 years') ||
+        // Health and Safety
+        message.includes('medical') ||
         message.includes('health') ||
-        message.includes('sick') ||
         message.includes('condition') ||
         message.includes('pregnant') ||
         message.includes('pregnancy') ||
         message.includes('safe') ||
         message.includes('doctor') ||
-        message.includes('wheelchair') ||
-        message.includes('disability') ||
-        message.includes('accessible') ||
-        message.includes('allergy') ||
-        message.includes('allergic') ||
-        message.includes('emergency') ||
-        message.includes('injury') ||
-        message.includes('injured') ||
+        message.includes('epilepsy') ||
         message.includes('heart') ||
         message.includes('blood pressure') ||
-        message.includes('nursing') ||
-        message.includes('medical condition') ||
-        message.includes('nut') ||
-        message.includes('help') ||
+        message.includes('surgery') ||
+        message.includes('seizure') ||
+        message.includes('allergy') ||
+        message.includes('allergic') ||
+        message.includes('ingredients') ||
+        message.includes('scrub ingredients') ||
+        message.includes('body scrub') ||
         message.includes('water') ||
         message.includes('drink') ||
-        message.includes('wellness') ||
-        message.includes('therapy') ||
-        message.includes('therapeutic') ||
-        message.includes('healing') ||
-        message.includes('relax') ||
-        message.includes('stress') ||
-        message.includes('recovery') ||
-        message.includes('risk') ||
-        message.includes('anxiety') ||
-        message.includes('tension') ||
-        message.includes('relief')) {            
-        relevantInfo.push({
-            type: 'safety',
-            content: knowledgeBase.policies.health_safety
-        });
-    }
+        message.includes('hydrate') ||
+        message.includes('hydration') ||
+        message.includes('eat before') ||
+        message.includes('food before') ||
+        message.includes('empty stomach') ||
+        // Photography
+        message.includes('photo') ||
+        message.includes('picture') ||
+        message.includes('camera') ||
+        message.includes('phone') ||
+        message.includes('pictures allowed') ||
+        message.includes('take pictures') ||
+        message.includes('photography') ||
+        message.includes('waterproof') ||
+        message.includes('phone case') ||
+        message.includes('camera allowed') ||
+        message.includes('photography rules') ||
+        // Cancellation
+        message.includes('cancel') ||
+        message.includes('refund') ||
+        message.includes('change booking') ||
+        message.includes('modify booking') ||
+        message.includes('change date') ||
+        message.includes('reschedule') ||
+        message.includes('money back') ||
+        message.includes('cancellation policy') ||
+        // Booking and Capacity
+        message.includes('availability') ||
+        message.includes('available') ||
+        message.includes('full') ||
+        message.includes('capacity') ||
+        message.includes('spot') ||
+        message.includes('space') ||
+        message.includes('book') ||
+        message.includes('reservation') ||
+        message.includes('advance') ||
+        message.includes('walk in') ||
+        message.includes('walk-in') ||
+        message.includes('without booking') ||
+        message.includes('sold out') ||
+        // Payment
+        message.includes('pay') ||
+        message.includes('payment') ||
+        message.includes('wristband') ||
+        message.includes('credit card') ||
+        message.includes('debit card') ||
+        message.includes('cash') ||
+        message.includes('money') ||
+        message.includes('wallet') ||
+        message.includes('purchase') ||
+        message.includes('buy') ||
+        message.includes('cost') ||
+        message.includes('price') ||
+        message.includes('locker') ||
+        message.includes('store items') ||
+        message.includes('belongings') ||
+        message.includes('valuables')) {
 
-    // Age and policies
-    if (message.includes('age') || 
-        message.includes('old') ||
-        message.includes('child') ||
-        message.includes('children') ||
-        message.includes('restriction') ||
-        message.includes('policy') ||
-        message.includes('son') ||
-        message.includes('daughter') ||
-        message.includes('kid') ||
-        message.includes('young') ||
-        message.includes('baby') ||
-        message.includes('infant') ||
-        message.includes('family')) {
+        // Always include general policies
         relevantInfo.push({
             type: 'policies',
             content: knowledgeBase.policies
         });
+
+        // Add specific related sections based on query
+        if (message.includes('pay') || 
+            message.includes('payment') || 
+            message.includes('wristband') ||
+            message.includes('credit card') ||
+            message.includes('cash') ||
+            message.includes('money') ||
+            message.includes('wallet')) {
+            relevantInfo.push({
+                type: 'payment_systems',
+                content: knowledgeBase.policies.payment_systems
+            });
+        }
+
+        // Add facility info for specific queries
+        if (message.includes('locker') || 
+            message.includes('store items') || 
+            message.includes('belongings') || 
+            message.includes('valuables') ||
+            message.includes('changing room') ||
+            message.includes('shower')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+
+        // Add dining info for food/drink related queries
+        if (message.includes('eat') || 
+            message.includes('food') || 
+            message.includes('drink') ||
+            message.includes('bar') ||
+            message.includes('cafe') ||
+            message.includes('restaurant')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
     }
 
     // Facility specific
@@ -2480,7 +2687,7 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-    // Multi-Pass related queries 
+    // Multi-Pass related queries
     if (message.includes('multi-pass') || 
         message.includes('multi pass') ||
         message.includes('multipass') ||
@@ -2492,7 +2699,21 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('multiple visits') ||
         message.includes('loyalty') ||
         message.includes('regular visits') ||
-        message.includes('frequent visits')) {
+        message.includes('frequent visits') ||
+        message.includes('regular wellness') ||
+        message.includes('wellness routine') ||
+        message.includes('half price visits') ||
+        message.includes('discount pass') ||
+        message.includes('multiple entries') ||
+        message.includes('several visits') ||
+        message.includes('repeat visits') ||
+        message.includes('reduced price') ||
+        message.includes('regular guest') ||
+        message.includes('frequent guest') ||
+        message.includes('visit often') ||
+        message.includes('come back') ||
+        message.includes('return visits') ||
+        message.includes('regular basis')) {
         relevantInfo.push({
             type: 'multi_pass',
             content: knowledgeBase.multi_pass
