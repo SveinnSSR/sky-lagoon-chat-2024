@@ -1494,12 +1494,18 @@ export const knowledgeBase = {
 
     group_bookings: {
         overview: {
-            description: "Wellness, together - experience Sky Lagoon as a group",
+            tagline: "Wellness, together - experience Sky Lagoon as a group",
+            description: "Recharge, reconnect and be inspired where the sea meets the sky",
             minimum_size: 10,
-            tagline: "Recharge, reconnect and be inspired where the sea meets the sky",
             contact: {
                 email: "reservations@skylagoon.is",
-                response_time: "Within 24 hours"
+                response_time: "Within 24 hours",
+                required_info: [
+                    "Group size",
+                    "Preferred date and time",
+                    "Package preference (Saman/Sér)",
+                    "Any special requirements"
+                ]
             }
         },
         booking_process: {
@@ -1511,7 +1517,12 @@ export const knowledgeBase = {
             ],
             requirements: {
                 payment: "Full payment required to confirm group reservation",
-                minimum_notice: "Based on group size, from 72 hours to 12 weeks"
+                minimum_notice: {
+                    size_11_25: "72 hours notice",
+                    size_26_50: "96 hours notice",
+                    size_51_100: "2 weeks notice",
+                    size_101_plus: "12 weeks notice"
+                }
             }
         },
         cancellation_policies: {
@@ -1535,16 +1546,18 @@ export const knowledgeBase = {
         amenities: {
             standard: [
                 "Access to our geothermal lagoon",
-                "Our signature Skjól ritual",
-                "Changing facilities",
+                "One journey through our signature Skjól ritual",
+                "Changing facilities (public or private based on package)",
                 "Towels included",
-                "Access to our in-water Gelmir Bar"
+                "Access to our in-water Gelmir Bar",
+                "Use of electronic wristband payment system"
             ],
             optional_additions: [
                 "Private changing areas (subject to availability)",
-                "Food and beverage packages",
+                "Food and beverage packages from Smakk Bar",
                 "Transportation arrangements",
-                "Extended visit duration"
+                "Extended visit duration",
+                "Customized group experiences"
             ]
         },
         ideal_for: [
@@ -1552,7 +1565,51 @@ export const knowledgeBase = {
             "Team building",
             "Special celebrations",
             "Tour groups",
-            "Wellness retreats"
+            "Wellness retreats",
+            "Incentive groups",
+            "Conference add-ons"
+        ],
+        package_options: {
+            saman: {
+                name: "Group Saman Package",
+                includes: [
+                    "Access to Sky Lagoon",
+                    "Skjól ritual experience",
+                    "Public changing facilities",
+                    "Towels included"
+                ],
+                note: "Our most popular option for groups"
+            },
+            ser: {
+                name: "Group Sér Package",
+                includes: [
+                    "Access to Sky Lagoon",
+                    "Skjól ritual experience",
+                    "Private changing facilities",
+                    "Premium Sky Lagoon amenities",
+                    "Towels included"
+                ],
+                note: "Recommended for VIP groups or when enhanced privacy is desired"
+            }
+        },
+        dining_options: {
+            smakk_bar: {
+                description: "Experience Icelandic culinary traditions with our group platters",
+                options: [
+                    "Traditional Icelandic tasting platters",
+                    "Vegan and gluten-free options available",
+                    "Customized group menus",
+                    "Drink packages available"
+                ],
+                note: "Advance booking required for group dining"
+            }
+        },
+        important_notes: [
+            "Advance booking required for all groups",
+            "Group rates available for 10+ guests",
+            "All members of the group must be 12 years or older",
+            "One complimentary group leader ticket for large groups",
+            "Special arrangements possible for accessibility needs"
         ]
     },
 
@@ -2670,21 +2727,108 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-        // Group booking related queries
-        if (message.includes('group') || 
+    // Group booking related queries
+    if (message.includes('group') || 
         message.includes('corporate') ||
-        message.includes('team building') ||
+        message.includes('team') ||
         message.includes('party') ||
+        message.includes('multiple people') ||
+        message.includes('many people') ||
+        message.includes('several people') ||
+        message.includes('together') ||
+        // Specific group types
+        message.includes('company') ||
+        message.includes('conference') ||
+        message.includes('retreat') ||
         message.includes('celebration') ||
         message.includes('tour group') ||
-        message.includes('company') ||
-        message.includes('retreat') ||
-        message.includes('multiple people') ||
-        message.includes('many people')) {
+        message.includes('office') ||
+        message.includes('team building') ||
+        message.includes('business') ||
+        message.includes('work') ||
+        message.includes('colleagues') ||
+        message.includes('staff') ||
+        message.includes('employees') ||
+        // Size related
+        message.includes('10 people') ||
+        message.includes('large group') ||
+        message.includes('small group') ||
+        message.includes('big group') ||
+        message.includes('group size') ||
+        message.includes('group rate') ||
+        message.includes('group discount') ||
+        // Booking process
+        message.includes('group booking') ||
+        message.includes('book for group') ||
+        message.includes('group reservation') ||
+        message.includes('organize') ||
+        message.includes('arrange') ||
+        message.includes('plan') ||
+        // Group amenities
+        message.includes('group package') ||
+        message.includes('group deal') ||
+        message.includes('group offer') ||
+        message.includes('private area') ||
+        message.includes('group dining') ||
+        message.includes('group food') ||
+        message.includes('group transport')) {
+
+        // Always include group booking info
         relevantInfo.push({
             type: 'group_bookings',
             content: knowledgeBase.group_bookings
         });
+
+        // Add dining info for food/dining related queries
+        if (message.includes('food') || 
+            message.includes('dining') || 
+            message.includes('eat') ||
+            message.includes('restaurant') ||
+            message.includes('menu') ||
+            message.includes('platter')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // Add transportation info for transfer related queries
+        if (message.includes('transport') || 
+            message.includes('transfer') || 
+            message.includes('bus') ||
+            message.includes('shuttle') ||
+            message.includes('getting there')) {
+            relevantInfo.push({
+                type: 'transportation',
+                content: knowledgeBase.transportation
+            });
+        }
+
+        // Add package info when asking about group packages
+        if (message.includes('package') || 
+            message.includes('deal') || 
+            message.includes('offer') ||
+            message.includes('price') ||
+            message.includes('cost') ||
+            message.includes('rate')) {
+            relevantInfo.push({
+                type: 'packages',
+                content: knowledgeBase.packages
+            });
+        }
+
+        // Add policies info for relevant queries
+        if (message.includes('cancel') || 
+            message.includes('policy') || 
+            message.includes('rule') ||
+            message.includes('requirement') ||
+            message.includes('minimum') ||
+            message.includes('notice')) {
+            relevantInfo.push({
+                type: 'policies',
+                content: knowledgeBase.policies
+            });
+        }
     }
 
     // Multi-Pass related queries
