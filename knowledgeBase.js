@@ -2368,7 +2368,7 @@ export const getRelevantKnowledge = (userMessage) => {
         });
     }
 
-    // Multi-Pass related queries
+    // Multi-Pass related queries 
     if (message.includes('multi-pass') || 
         message.includes('multi pass') ||
         message.includes('multipass') ||
