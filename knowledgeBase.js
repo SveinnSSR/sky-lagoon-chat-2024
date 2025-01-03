@@ -1534,6 +1534,53 @@ export const knowledgeBase = {
             }
         }
     },
+    lost_found: {
+        overview: {
+            description: "If you lost something in Sky Lagoon, we will do our best to find your item and return it to you.",
+            contact: {
+                email: "lostandfound@skylagoon.is",
+                required_info: [
+                    "Your name",
+                    "Description of the item",
+                    "Where and when it was lost",
+                    "Photo if possible"
+                ]
+            }
+        },
+        storage_policy: {
+            valuables: {
+                duration: "Three months",
+                items: [
+                    "Wallets",
+                    "Bags",
+                    "Jewelry",
+                    "Phones",
+                    "Cameras",
+                    "Other valuable items"
+                ]
+            },
+            clothing: {
+                duration: "One week",
+                items: [
+                    "Bathing suits",
+                    "Towels",
+                    "Other clothing items"
+                ]
+            }
+        },
+        shipping: {
+            fee: "4000 ISK",
+            process: "Shipping fee applies for returning lost items"
+        },
+        recommendations: {
+            prevention: [
+                "Use provided lockers for all valuables",
+                "Keep electronic wristband secure",
+                "Check changing area thoroughly before leaving",
+                "Report lost items as soon as possible"
+            ]
+        }
+    },
 };
 
 // Enhanced getRelevantKnowledge function
@@ -2385,6 +2432,60 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'multi_pass',
             content: knowledgeBase.multi_pass
         });
+    }
+
+        // Lost and Found related queries
+        if (message.includes('lost') ||
+        message.includes('found') ||
+        message.includes('missing') ||
+        message.includes('left behind') ||
+        message.includes('forgot') ||
+        message.includes('forgotten') ||
+        message.includes('leave') ||
+        message.includes('left') ||
+        message.includes('find my') ||
+        message.includes('lost and found') ||
+        message.includes('lost property') ||
+        message.includes('retrieve') ||
+        message.includes('get back') ||
+        message.includes('ship') ||
+        message.includes('send') ||
+        message.includes('shipping fee') ||
+        message.includes('return item') ||
+        message.includes('claim') ||
+        message.includes('belongings') ||
+        // Specific item mentions
+        message.includes('wallet') ||
+        message.includes('phone') ||
+        message.includes('camera') ||
+        message.includes('jewelry') ||
+        message.includes('swimsuit') ||
+        message.includes('towel') ||
+        message.includes('clothes') ||
+        message.includes('clothing') ||
+        message.includes('items') ||
+        // Question formats
+        message.includes('what happens if') ||
+        message.includes('how do i get') ||
+        message.includes('where can i find') ||
+        message.includes('how can i get') ||
+        message.includes('is there')) {
+        
+        relevantInfo.push({
+            type: 'lost_found',
+            content: knowledgeBase.lost_found
+        });
+
+        // Also include facilities info for locker-related queries
+        if (message.includes('locker') || 
+            message.includes('storage') || 
+            message.includes('keep') ||
+            message.includes('secure')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
     }
     return relevantInfo;
 };
