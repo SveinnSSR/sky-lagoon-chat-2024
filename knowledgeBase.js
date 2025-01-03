@@ -1343,7 +1343,55 @@ export const knowledgeBase = {
                             "Stunning sunsets",
                             "Possible northern lights in winter",
                             "Midnight sun in summer"
-                        ]
+                        ],
+                        landmarks: {
+                            keilir: {
+                                name: "Keilir Mountain",
+                                description: "A perfectly triangle-shaped mountain visible to the left, historically used by sailors for navigation",
+                                location: "Furthest to the left in your view"
+                            },
+                            fagradalsfjall: {
+                                name: "Fagradalsfjall Volcano",
+                                description: "Active volcano visible from a safe distance, with recent eruptions since 2021",
+                                location: "Visible in clear conditions"
+                            },
+                            bessastadir: {
+                                name: "Bessastaðir",
+                                description: "Historic property and official residence of the President of Iceland, featuring white buildings with red roofs",
+                                features: [
+                                    "Presidential Residence",
+                                    "Historic church",
+                                    "Reception buildings",
+                                    "Historic manor farm dating back to Age of Settlement"
+                                ]
+                            },
+                            snaefellsjokull: {
+                                name: "Snæfellsjökull glacier",
+                                description: "700,000-year-old stratovolcano with glacial ice cap, visible on clear days",
+                                features: [
+                                    "Made famous by Jules Verne's 'Journey to the Center of the Earth'",
+                                    "Mesmerizing sunset views",
+                                    "Visible from next peninsula"
+                                ]
+                            }
+                        },
+                        wildlife: {
+                            birds: [
+                                "Black and white Brant",
+                                "Red-eyed oystercatcher",
+                                "Tiny sandpiper",
+                                "Arctic terns",
+                                "Robust Cormorant"
+                            ],
+                            marine_life: {
+                                seals: "Occasional seal sightings possible (Kópavogur means 'seal pup bay')"
+                            }
+                        },
+                        seasonal_highlights: {
+                            summer: "Midnight sun and extended twilight views",
+                            winter: "Potential northern lights viewing and starry night skies",
+                            sunset: "Stunning views especially behind Snæfellsjökull glacier"
+                        }
                     },
                     cave_area: {
                         description: "Find your way to our cave-side bar beneath the canopy on the far edge of the lagoon"
@@ -2679,6 +2727,66 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'facilities',
             content: knowledgeBase.facilities
         });
+    }
+
+    // View and landmark related queries (add this section near other facility queries)
+    if (message.includes('view') ||
+        message.includes('see') ||
+        message.includes('vista') ||
+        message.includes('outlook') ||
+        message.includes('look out') ||
+        message.includes('scenery') ||
+        message.includes('scenic') ||
+        message.includes('landscape') ||
+        message.includes('panorama') ||
+        message.includes('panoramic') ||
+        // Landmark specific
+        message.includes('keilir') ||
+        message.includes('fagradalsfjall') ||
+        message.includes('volcano') ||
+        message.includes('bessastadir') ||
+        message.includes('bessastaðir') ||
+        message.includes('president') ||
+        message.includes('snaefellsjokull') ||
+        message.includes('snæfellsjökull') ||
+        message.includes('glacier') ||
+        message.includes('mountain') ||
+        // Wildlife
+        message.includes('bird') ||
+        message.includes('seal') ||
+        message.includes('wildlife') ||
+        message.includes('animal') ||
+        message.includes('whale') ||
+        message.includes('watching') ||
+        // Location viewing terms
+        message.includes('infinity') ||
+        message.includes('edge') ||
+        message.includes('horizon') ||
+        message.includes('infinite') ||
+        message.includes('endless') ||
+        message.includes('stretch') ||
+        message.includes('landmark') ||
+        message.includes('surroundings')) {
+        
+        relevantInfo.push({
+            type: 'facilities',
+            content: knowledgeBase.facilities
+        });
+
+        // If asking about seasonal views, also include seasonal info
+        if (message.includes('winter') ||
+            message.includes('summer') ||
+            message.includes('northern light') ||
+            message.includes('midnight sun') ||
+            message.includes('sunset') ||
+            message.includes('twilight') ||
+            message.includes('star') ||
+            message.includes('night sky')) {
+            relevantInfo.push({
+                type: 'seasonal_information',
+                content: knowledgeBase.seasonal_information
+            });
+        }
     }
 
     // Dining and bar queries
