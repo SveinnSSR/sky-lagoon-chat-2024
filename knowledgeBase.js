@@ -1581,6 +1581,71 @@ export const knowledgeBase = {
             ]
         }
     },
+
+    pride_accessibility: {
+        pride: {
+            tagline: "Celebrating Diversity at Sky Lagoon",
+            pledge: "At Sky Lagoon, we are committed to fostering a diverse and inclusive culture where everyone can celebrate their authentic selves.",
+            commitments: [
+                {
+                    name: "Safe and Welcoming Space",
+                    description: "We strive to create a safe and welcoming environment for all our guests. Our Sky changing rooms are gender neutral and we have redone restroom signs to accommodate all."
+                },
+                {
+                    name: "Educating and Informing",
+                    description: "We are committed to educating ourselves about the challenges and issues faced by the LGBTQ+ community, with the aim of fostering empathy, understanding and support."
+                },
+                {
+                    name: "Striving for Improvement",
+                    description: "We welcome feedback from both our team and guests and strive to continuously improve inclusivity and accessibility at Sky Lagoon."
+                }
+            ],
+            changing_room_policy: {
+                description: "If guests who have purchased Saman tickets with access to public changing rooms don't identify as male or female or aren't comfortable within the gendered changing rooms, just let the team know and we will upgrade to a gender neutral changing room at no extra cost.",
+                features: [
+                    "Gender-neutral private facilities available",
+                    "Free upgrade from Saman to private facilities when needed",
+                    "Discrete and respectful process",
+                    "No questions asked policy"
+                ]
+            }
+        },
+        accessibility: {
+            tagline: "Sky Lagoon welcomes everyone to experience the healing powers of geothermal waters",
+            description: "From the beginning, Sky Lagoon has prioritized accessibility, ensuring that our facilities welcome all guests with warmth and consideration",
+            features: {
+                mobility: [
+                    "Full wheelchair accessibility throughout the facility",
+                    "Modern chairlift for safe lagoon entry and exit",
+                    "Accessible changing rooms with necessary support equipment",
+                    "Lifts available for all ritual areas including cold pool",
+                    "Wide, accessible spaces in all areas"
+                ],
+                facilities: [
+                    "Individual changing spaces for enhanced privacy",
+                    "Gender-neutral facilities available",
+                    "Accessible shower facilities",
+                    "Support equipment available",
+                    "Trained staff ready to assist"
+                ]
+            },
+            certifications: {
+                program: "Visit Iceland's Good Access Program",
+                commitment: "Sky Lagoon is a proud participant in the Good Access in Tourism project",
+                promise: "Our commitment to providing excellent access for all guests"
+            },
+            support: {
+                staff_training: "Our team members are trained to provide warm and professional assistance",
+                special_needs: "Special arrangements available upon request",
+                advance_notice: "Contact us before your visit for any specific requirements"
+            },
+            continuous_improvement: {
+                statement: "We strive to continuously improve our accessibility features",
+                feedback: "We welcome suggestions for improving our accessibility",
+                goal: "Our aim is to be a leader in accessible tourism in Iceland"
+            }
+        }
+    },
 };
 
 // Enhanced getRelevantKnowledge function
@@ -2481,6 +2546,65 @@ export const getRelevantKnowledge = (userMessage) => {
             message.includes('storage') || 
             message.includes('keep') ||
             message.includes('secure')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+    }
+
+    // Pride and Accessibility related queries
+    if (message.includes('pride') ||
+        message.includes('lgbtq') ||
+        message.includes('lgbt') ||
+        message.includes('gay') ||
+        message.includes('lesbian') ||
+        message.includes('queer') ||
+        message.includes('trans') ||
+        message.includes('transgender') ||
+        message.includes('gender') ||
+        message.includes('identity') ||
+        message.includes('non binary') ||
+        message.includes('nonbinary') ||
+        message.includes('non-binary') ||
+        message.includes('inclusive') ||
+        message.includes('diversity') ||
+        // Accessibility terms
+        message.includes('wheelchair') ||
+        message.includes('accessible') ||
+        message.includes('accessibility') ||
+        message.includes('disabled') ||
+        message.includes('disability') ||
+        message.includes('mobility') ||
+        message.includes('handicap') ||
+        message.includes('special needs') ||
+        message.includes('lift') ||
+        message.includes('chairlift') ||
+        message.includes('assistance') ||
+        message.includes('help') ||
+        message.includes('support') ||
+        // Changing room related
+        message.includes('gender neutral') ||
+        message.includes('private room') ||
+        message.includes('changing room') ||
+        message.includes('upgrade room') ||
+        message.includes('privacy') ||
+        // Question formats
+        message.includes('can you accommodate') ||
+        message.includes('is it accessible') ||
+        message.includes('do you have facilities') ||
+        message.includes('how accessible')) {
+
+        relevantInfo.push({
+            type: 'pride_accessibility',
+            content: knowledgeBase.pride_accessibility
+        });
+
+        // Add facilities info for specific queries
+        if (message.includes('changing') || 
+            message.includes('room') || 
+            message.includes('facility') ||
+            message.includes('shower')) {
             relevantInfo.push({
                 type: 'facilities',
                 content: knowledgeBase.facilities
