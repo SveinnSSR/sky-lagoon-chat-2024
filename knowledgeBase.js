@@ -526,7 +526,33 @@ export const knowledgeBase = {
             "Included in all admission packages",
             "No separate booking option available",
             "One complete journey through all seven steps included per visit"
-        ]
+        ],
+        cultural_significance: {
+            meaning: {
+                word: "Skjól",
+                translations: ["shelter", "retreat", "protection"],
+                description: "At Sky Lagoon, Skjól means so much more. Bathing culture has been our 'Skjól' in Iceland for generations. Faced with harsh winter storms, everchanging weather and never-ending summer days, our ancestors chose to embrace the elements rather than resent them."
+            },
+            historical_importance: {
+                gathering_places: "Naturally occurring hot springs have been gathering places since settlement",
+                community_aspects: [
+                    "Sharing stories",
+                    "Building communities",
+                    "Connecting with each other and the land",
+                    "Experiencing rejuvenation of body and spirit"
+                ],
+                connection: "Skjól at Sky Lagoon is our invitation to experience the treasured traditions of Icelandic bathing culture for yourself."
+            },
+            elements: {
+                description: "Everything we do at Sky Lagoon is rooted in Icelandic tradition. From our lagoon's stunning oceanside location to the wellness rituals we share with guests, we are honoured to celebrate our home every day.",
+                features: [
+                    "Embracing natural elements",
+                    "Connection to land and sea",
+                    "Traditional bathing practices",
+                    "Ancient wellness wisdom"
+                ]
+            }
+        }
     },
 
     seasonal_information: {
@@ -591,6 +617,23 @@ export const knowledgeBase = {
                                 "Perfect for evening relaxation under the midnight sun"
                             ]
                         }
+                    },
+                    recommended_activities: {
+                        evening_soak: {
+                            description: "A soothing soak in the geothermal-heated water is the perfect place to experience the Midnight Sun",
+                            features: [
+                                "Natural grottos and dark volcanic rock formations illuminated in golden light",
+                                "Infinity edge views of the endless daylight",
+                                "Cold drinks available from Gelmir Bar",
+                                "Combine with Skjól ritual for complete rejuvenation"
+                            ]
+                        },
+                        photo_opportunities: [
+                            "Midnight sun illuminating the horizon",
+                            "Golden evening light on the water",
+                            "Panoramic views from infinity edge",
+                            "Dramatic sky colors"
+                        ]
                     }
                 }
             }
@@ -1023,6 +1066,88 @@ export const knowledgeBase = {
                     "Original booking details"
                 ],
                 processing: "All refunds processed to original payment method"
+            }
+        },
+        etiquette: {
+            general_rules: {
+                shoe_removal: {
+                    rule: "Remove outdoor shoes before entering changing facilities",
+                    description: "Icelanders enjoy thermal spas barefoot. Proper spa etiquette begins with removing outdoor shoes before entering the changing facilities to prevent bacteria and debris from dirtying the floors."
+                },
+                shower_rules: {
+                    rule: "Shower thoroughly with soap before entering lagoon",
+                    description: "Icelandic spas require all spa-goers to cleanse thoroughly with soap and warm water to help keep the pools clean",
+                    requirements: [
+                        "Remove all clothing before showering",
+                        "Use provided soap and warm water",
+                        "Complete thorough cleaning before putting on swimsuit",
+                        "Required for all guests without exception"
+                    ]
+                },
+                swimwear: {
+                    rule: "Wearing a swimsuit is obligatory for all spa goers",
+                    process: "After your shower, put on your bathing suit before leaving the changing room",
+                    rental: "If you didn't pack one, bathing suits are available for rent or purchase at reception"
+                },
+                personal_items: {
+                    wristband: {
+                        functions: [
+                            "Locker key",
+                            "Payment method for food and refreshments",
+                            "Linked to credit card at check-in"
+                        ],
+                        usage: "Store all personal items including wallet, mobile phone and clothing in your locker"
+                    }
+                }
+            },
+            behavior_guidelines: {
+                voice_level: {
+                    guideline: "Speak in your spa voice",
+                    description: "While in-person conversation is welcome, spa etiquette encourages keeping your voice as low as possible",
+                    reason: "Guests visit Sky Lagoon to experience Iceland's traditional bathing culture focused on healing, relaxation and rejuvenation in a tranquil environment"
+                },
+                hydration: {
+                    importance: "Stay well hydrated while bathing in Sky Lagoon's warm geothermal waters",
+                    locations: [
+                        "Water fountains in changing rooms",
+                        "Water fountains at the lagoon",
+                        "Drinks available at Gelmir Bar"
+                    ],
+                    alcohol_limit: "Alcoholic beverages limited to three per adult"
+                }
+            },
+            post_bathing: {
+                drying_off: {
+                    rule: "Always take time to towel dry your hair and body before re-entering changing rooms",
+                    reason: "To prevent excess water on floors and seating areas",
+                    disposal: "Look for linen baskets to dispose of your wet towel once finished"
+                },
+                dining_traditions: {
+                    description: "Icelanders typically enjoy a post-spa meal",
+                    recommendations: [
+                        "Visit Keimur Cafe for a hearty post-spa meal",
+                        "Try warm soup and fresh baked goods",
+                        "Enjoy a local beer and light bites at Smakk Bar"
+                    ]
+                }
+            },
+            social_customs: {
+                interaction: {
+                    description: "Icelanders will readily engage in conversation about current events while soaking in the Lagoon",
+                    guidelines: [
+                        "Listening or participating is a great way to experience local culture",
+                        "To avoid conversation, close your eyes and lay head back",
+                        "This signals you're in relaxation mode"
+                    ]
+                },
+                respect: {
+                    guidelines: [
+                        "Respect other guests' privacy and space",
+                        "Maintain peaceful atmosphere",
+                        "Follow staff instructions",
+                        "Honor facility rules"
+                    ]
+                }
             }
         },
         health_safety: {
@@ -2387,6 +2512,36 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('tranquil') ||
         message.includes('rejuvenate') ||
         message.includes('rejuvenation') ||
+        // Add these terms to the ritual detection section
+        message.includes('skjól meaning') ||
+        message.includes('skjol meaning') ||
+        message.includes('meaning of skjol') ||
+        message.includes('meaning of skjól') ||
+        message.includes('what does skjol mean') ||
+        message.includes('what does skjól mean') ||
+        message.includes('shelter') ||
+        message.includes('retreat') ||
+        message.includes('protection') ||
+        message.includes('tradition') ||
+        message.includes('traditional') ||
+        message.includes('ancestor') ||
+        message.includes('historic') ||
+        message.includes('historical') ||
+        message.includes('heritage') ||
+        message.includes('cultural') ||
+        message.includes('culture') ||
+        message.includes('element') ||
+        message.includes('root') ||
+        message.includes('origin') ||
+        message.includes('background') ||
+        message.includes('story behind') ||
+        message.includes('history') ||
+        message.includes('meaning behind') ||
+        message.includes('why is it called') ||
+        message.includes('where does the name') ||
+        message.includes('settlement') ||
+        message.includes('gathering') ||
+        message.includes('community') ||
         // Temperature-related queries
         message.includes('temperature') && (
             message.includes('sauna') ||
@@ -2418,61 +2573,51 @@ export const getRelevantKnowledge = (userMessage) => {
         }
     }
 
-    // Seasonal information
-    if (message.includes('winter') ||
-        message.includes('summer') ||
-        message.includes('season') ||
-        message.includes('weather') ||
-        message.includes('temperature') ||
-        message.includes('crowd') ||
-        message.includes('busy') ||
-        message.includes('northern lights') ||
-        message.includes('midnight sun') ||
-        message.includes('snow') ||
-        message.includes('crisp air') ||
-        message.includes('starry') ||
-        message.includes('star') ||
-        message.includes('night sky') ||
-        message.includes('sunset') ||
-        message.includes('peak season') ||
-        message.includes('less crowded') ||
-        message.includes('quieter') ||
-        message.includes('daylight') ||
-        message.includes('evening') ||
-        message.includes('late evening') ||
-        message.includes('twilight') ||
-        message.includes('golden light') ||
-        message.includes('infinity edge') ||
-        message.includes('view') ||
-        message.includes('unpredictable') ||
-        message.includes('dress') ||
-        message.includes('clothing') ||
-        message.includes('hat') ||
-        message.includes('head covering') ||
-        message.includes('best time') ||
-        message.includes('optimal time') ||
-        message.includes('june') ||
-        message.includes('august') ||
-        message.includes('may') ||
-        message.includes('time of year') ||
-        message.includes('conditions') ||
-        message.includes('atmosphere') ||
-        message.includes('air temperature') ||
-        message.includes('water temperature') ||
-        message.includes('warm water') ||
-        message.includes('geothermal water') ||
-        message.includes('what to expect')) {
-        relevantInfo.push({
-            type: 'seasonal_information',
-            content: knowledgeBase.seasonal_information
-        });
-    }
-
     // Policy related queries
     if (message.includes('policy') || 
         message.includes('policies') ||
         message.includes('rule') ||
         message.includes('requirement') ||
+        // Etiquette related
+        message.includes('etiquette') ||
+        message.includes('proper behavior') ||
+        message.includes('shoes') ||
+        message.includes('barefoot') ||
+        message.includes('shower') ||
+        message.includes('shower before') ||
+        message.includes('must shower') ||
+        message.includes('soap') ||
+        message.includes('clean') ||
+        message.includes('washing') ||
+        message.includes('voice') ||
+        message.includes('quiet') ||
+        message.includes('talk') ||
+        message.includes('volume') ||
+        message.includes('noise') ||
+        message.includes('dry off') ||
+        message.includes('drying') ||
+        message.includes('towel') ||
+        message.includes('social') ||
+        message.includes('tradition') ||
+        message.includes('custom') ||
+        message.includes('behavior') ||
+        message.includes('behave') ||
+        message.includes('proper') ||
+        message.includes('protocol') ||
+        message.includes('standard') ||
+        message.includes('expectation') ||
+        message.includes('what should i') ||
+        message.includes('how should i') ||
+        message.includes('do i need to') ||
+        message.includes('required to') ||
+        message.includes('must i') ||
+        message.includes('before entering') ||
+        message.includes('before going in') ||
+        message.includes('what do i do') ||
+        message.includes('how does it work') ||
+        message.includes('first time') ||
+        message.includes('never been') ||
+        message.includes('spa rules') ||
         // Age related
         message.includes('age') || 
         message.includes('old') ||
