@@ -324,6 +324,25 @@ const acknowledgmentPatterns = {
     }
 };
 
+const questionPatterns = {
+    booking: {
+        en: [
+            'how do i book', 'how to book', 'can i book',
+            'want to book', 'book a ticket', 'make a booking',
+            'book tickets', 'booking process'
+        ],
+        is: [
+            'hvernig bóka', 'hvernig get ég bókað', 'get ég bókað',
+            'vil bóka', 'bóka miða', 'gera bókun',
+            'bóka tíma', 'bókunarferli'
+        ]
+    },
+    question: {
+        en: ['how', 'what', 'when', 'where', 'why', 'can', 'do', 'does', 'which'],
+        is: ['hvernig', 'hvað', 'hvenær', 'hvar', 'af hverju', 'get', 'er', 'má', 'hver']
+    }
+};
+
 // Helper functions for response handling
 const getContextualResponse = (type, previousResponses = []) => {
     let responses;
@@ -2504,20 +2523,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Check for simple acknowledgments (1-4 words)
-        if (userMessage.split(' ').length <= 4 && 
-            (acknowledgmentPatterns.simple.en.some(word => msg.includes(word)) ||
-             acknowledgmentPatterns.simple.is.some(word => msg.includes(word)))) {
-            const response = isIcelandic ?
-                "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                "Is there anything else you'd like to know about Sky Lagoon?";
-            return res.status(200).json({
-                message: response,
-                language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+        // Check for booking or question patterns first
+        const hasBookingPattern = questionPatterns.booking[isIcelandic ? 'is' : 'en']
+            .some(pattern => msg.includes(pattern));
+        const hasQuestionWord = questionPatterns.question[isIcelandic ? 'is' : 'en']
+            .some(word => msg.includes(word));
+
+        // Only proceed with acknowledgment check if no booking/question patterns detected
+        if (!hasBookingPattern && !hasQuestionWord) {
+                // Check for simple acknowledgments (1-4 words)
+                if (userMessage.split(' ').length <= 4 && 
+                    (acknowledgmentPatterns.simple.en.some(word => msg.includes(word)) ||
+                     acknowledgmentPatterns.simple.is.some(word => msg.includes(word)))) {
+                        const response = isIcelandic ?
+                            "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                            "Is there anything else you'd like to know about Sky Lagoon?";
+                        return res.status(200).json({
+                            message: response,
+                            language: {
+                                detected: isIcelandic ? 'Icelandic' : 'English',
+                                confidence: 'high'
+                            }
+                        });
                 }
-            });
         }
 
         // Yes/Confirmation handling
