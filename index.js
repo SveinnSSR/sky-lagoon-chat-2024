@@ -2679,7 +2679,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const transition = topicResult.transition || (topicResult.topic ? getRandomResponse(TRANSITION_PHRASES.general) : '');
 
         // Enhanced system prompt with all context
-        let systemPrompt = getSystemPrompt(req.sessionId || `session_${Date.now()}`, isHoursQuery, userMessage);
+        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage);
 
         // Get current season information
         const seasonInfo = getCurrentSeason();
@@ -2707,7 +2707,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const messages = [
             { 
                 role: "system", 
-                content: getSystemPrompt(sessionId, isHoursQuery, userMessage)
+                content: systemPrompt
             }
         ];
 
