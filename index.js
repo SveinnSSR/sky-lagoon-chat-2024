@@ -2271,9 +2271,6 @@ const updateContext = (sessionId, message, response) => {
         conversationStarted: false,
         messageCount: 0,
         lastTopic: null,
-        offeredMoreInfo: false,
-        expectingTopicResponse: false,
-        topicDetails: null,
         lastResponse: null,
         // New properties for greetings and acknowledgments
         selectedGreeting: null,
@@ -2401,9 +2398,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             conversationStarted: false,
             messageCount: 0,
             lastTopic: null,
-            offeredMoreInfo: false,
-            expectingTopicResponse: false,
-            topicDetails: null,
             lastResponse: null,
             // New properties for greetings and acknowledgments
             selectedGreeting: null,
