@@ -192,41 +192,6 @@ const TRANSITION_PHRASES = {
     ]
 };
 
-const FOLLOW_UP_SUGGESTIONS = {
-    packages: [
-        "Would you like to learn about our transportation options to Sky Lagoon?",
-        "I can tell you about our signature Skjól ritual if you're interested.",
-        "Would you like to know more about what's included in each package?"
-    ],
-    ritual: [
-        "Would you like to know about the different packages that include our ritual?",
-        "I can tell you more about the seven steps of the ritual experience.",
-        "Would you like to learn about the traditional elements we use in the ritual?"
-    ],
-    transportation: [
-        "Would you like to know about our convenient parking facilities?",
-        "I can tell you about our shuttle service schedule if you're interested.",
-        "Would you like information about public transport options?"
-    ],
-    seasonal: {
-        winter: [
-            "Would you like to know about potential northern lights viewing during winter visits?",
-            "I can tell you about our winter-specific features.",
-            "Would you like to learn about our cozy winter facilities?"
-        ],
-        summer: [
-            "Would you like to know about our extended summer hours?",
-            "I can tell you about our summer evening experiences.",
-            "Would you like to learn about optimal viewing times for the late evening sun?"
-        ]
-    },
-    booking: [
-        "Would you like to know about our different packages?",
-        "I can tell you about our current availability.",
-        "Would you like information about group bookings?"
-    ]
-};
-
 const CONTEXT_TRANSITIONS = {
     normal_to_late: "I understand you'll be running late. Let me help you with your options.",
     late_to_modification: "Since you'll be delayed, would you like to know about changing your booking time?",
@@ -2710,14 +2675,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.operatingHours = seasonInfo;
         }
 
-        // Get transition and follow-up after seasonal context is set
+        // Get transition for response
         const transition = topicResult.transition || (topicResult.topic ? getRandomResponse(TRANSITION_PHRASES.general) : '');
-        const followUp = topicResult.topic && FOLLOW_UP_SUGGESTIONS[topicResult.topic] ? 
-            getRandomResponse(context.seasonalContext?.type === 'winter' ? 
-                FOLLOW_UP_SUGGESTIONS.seasonal.winter : 
-                context.seasonalContext?.type === 'summer' ? 
-                    FOLLOW_UP_SUGGESTIONS.seasonal.summer : 
-                    FOLLOW_UP_SUGGESTIONS[topicResult.topic]) : '';
 
         // Enhanced system prompt with all context
         let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage);
@@ -2742,9 +2701,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transition) {
             systemPrompt += `\n\nUSE THIS TRANSITION: "${transition}"`;
-        }
-        if (followUp) {
-            systemPrompt += `\n\nEND WITH THIS FOLLOW-UP: "${followUp}"`;
         }
 
         // Prepare messages array
