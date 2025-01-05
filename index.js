@@ -3,7 +3,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { OpenAI } from 'openai';  // Changed this line
+const { OpenAI } = pkg;
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './knowledgeBase_is.js';
 
