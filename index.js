@@ -2742,7 +2742,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
             ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}
             ${transition ? `Start with: "${transition}"` : ''}
-            ${followUp ? `End with: "${followUp}"` : ''}`
         });
 
         // Make GPT-4 request with retries
