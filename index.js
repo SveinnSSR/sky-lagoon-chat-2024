@@ -192,21 +192,6 @@ const TRANSITION_PHRASES = {
     ]
 };
 
-const CONTEXT_TRANSITIONS = {
-    normal_to_late: "I understand you'll be running late. Let me help you with your options.",
-    late_to_modification: "Since you'll be delayed, would you like to know about changing your booking time?",
-    modification_to_contact: "Our team can help with this change. Would you like our contact information?",
-    package_to_ritual: "Since you're interested in our packages, would you like to know more about our signature Skjól ritual that's included?",
-    ritual_to_facilities: "To complement the ritual experience, would you like to know about our facilities?",
-    facilities_to_dining: "Speaking of our facilities, would you like to know about our dining options?",
-    transportation_to_parking: "In addition to transportation, would you like to know about our parking facilities?",
-    booking_to_packages: "Before you book, would you like to know more about our different packages?",
-    seasonal_to_experiences: {
-        winter: "To make the most of your winter visit, would you like to know about our unique seasonal experiences?",
-        summer: "For the best summer experience, would you like to know about the special features of visiting during summer?"
-    }
-};
-
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -330,19 +315,7 @@ const getContextualResponse = (type, previousResponses = []) => {
 };
 
 const getContextualTransition = (prevTopic, newTopic) => {
-    const transitionKey = `${prevTopic}_to_${newTopic}`;
-    if (CONTEXT_TRANSITIONS[transitionKey]) {
-        return CONTEXT_TRANSITIONS[transitionKey];
-    }
-    
-    const generalTransition = getRandomResponse(TRANSITION_PHRASES.topic_switch);
-    
-    const followUps = FOLLOW_UP_SUGGESTIONS[newTopic];
-    if (followUps) {
-        return `${generalTransition} ${getRandomResponse(followUps)}`;
-    }
-    
-    return generalTransition;
+    return getRandomResponse(TRANSITION_PHRASES.topic_switch);
 };
 
 // Late Arrival and Booking Constants
@@ -2829,24 +2802,12 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
     // Detect current topic
     if (msg.includes('package') || msg.includes('sér') || msg.includes('saman')) {
         topic = 'packages';
-        if (previousTopic && previousTopic !== 'packages') {
-            transition = CONTEXT_TRANSITIONS.booking_to_packages;
-        }
     } else if (msg.includes('ritual') || msg.includes('skjol') || msg.includes('skjól')) {
         topic = 'ritual';
-        if (previousTopic === 'packages') {
-            transition = CONTEXT_TRANSITIONS.package_to_ritual;
-        }
     } else if (msg.includes('transport') || msg.includes('bus') || msg.includes('drive')) {
         topic = 'transportation';
-        if (previousTopic === 'booking') {
-            transition = CONTEXT_TRANSITIONS.booking_to_packages;
-        }
     } else if (msg.includes('facilities') || msg.includes('changing') || msg.includes('amenities')) {
         topic = 'facilities';
-        if (previousTopic === 'ritual') {
-            transition = CONTEXT_TRANSITIONS.ritual_to_facilities;
-        }
     } else if (msg.includes('winter') || msg.includes('northern lights')) {
         topic = 'seasonal';
         if (context) {
@@ -2854,7 +2815,6 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
                 type: 'winter',
                 subtopic: msg.includes('northern lights') ? 'northern_lights' : 'general'
             };
-            transition = CONTEXT_TRANSITIONS.seasonal_to_experiences.winter;
         }
     } else if (msg.includes('summer') || msg.includes('midnight sun')) {
         topic = 'seasonal';
@@ -2863,16 +2823,11 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
                 type: 'summer',
                 subtopic: msg.includes('midnight sun') ? 'midnight_sun' : 'general'
             };
-            transition = CONTEXT_TRANSITIONS.seasonal_to_experiences.summer;
         }
     } else if (msg.includes('dining') || msg.includes('food') || msg.includes('restaurant')) {
         topic = 'dining';
-        if (previousTopic === 'facilities') {
-            transition = CONTEXT_TRANSITIONS.facilities_to_dining;
-        }
     } else if (msg.includes('late') || msg.includes('delay')) {
         topic = 'booking';
-        transition = CONTEXT_TRANSITIONS.normal_to_late;
     }
     
     // Check knowledge base results if no topic found in message
