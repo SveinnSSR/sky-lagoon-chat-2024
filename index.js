@@ -2746,7 +2746,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             Please provide a natural, conversational response using ONLY the information from the knowledge base. 
             Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
             ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}
-            ${transition ? `Start with: "${transition}"` : ''}
+            ${transition ? `Start with: "${transition}"` : ''}`  // Added closing backtick here
         });
 
         // Make GPT-4 request with retries
