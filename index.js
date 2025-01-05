@@ -2332,7 +2332,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const userMessage = req.body.message;
 
         // Add this before the cache check
-        const sessionId = req.sessionId || `session_${Date.now()}`;        
+        const sessionId = req.sessionId || `session_${Date.now()}`;
+        console.log('\n🔍 Session ID:', {
+            sessionId,
+            isPresent: !!sessionId,
+            reqSessionId: req.sessionId
+        });        
 
         // Enhanced language detection
         const languageCheck = {
