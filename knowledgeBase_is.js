@@ -1707,18 +1707,28 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('7') || 
         message.includes('ofnæmi') || 
         message.includes('skref') ||
+        // Add these new patterns for general ritual queries
+        (message.includes('hvernig') && message.includes('ritúal')) ||
+        (message.includes('hvernig') && message.includes('skjól')) ||
+        (message.includes('hvað') && message.includes('ritúal')) ||
+        (message.includes('hvað') && message.includes('skjól')) ||
+        (message.includes('segðu') && message.includes('ritúal')) ||
         (message.includes('má') && message.includes('oft')) ||
         (message.includes('hver') && message.includes('skref'))) {
 
         console.log('\n🧖‍♀️ Ritual Match Found');
 
-        // Check if asking specifically about steps
-        if (message.includes('skref') || 
-            message.includes('þrep') || 
-            message.includes('hver') || 
-            message.includes('hvernig') || 
-            message.includes('sjö') || 
-            message.includes('7')) {
+        // If asking about allergies
+        if (message.includes('ofnæmi')) {
+            console.log('\n🧪 Ritual Allergies Match Found');
+            relevantInfo.push({
+                type: 'ritual_allergies',
+                content: knowledgeBase_is.ritual.allergies
+            });
+        }
+        // For all ritual queries (including steps), give full ritual information
+        else {
+            console.log('\n✨ Full Ritual Information Match Found');
             relevantInfo.push({
                 type: 'ritual',
                 content: {
@@ -1731,20 +1741,6 @@ export const getRelevantKnowledge_is = (userMessage) => {
                     steps: knowledgeBase_is.ritual.steps,
                     closing: "Láttu mig vita ef þú hefur fleiri spurningar!"
                 }
-            });
-        } 
-        // If asking about allergies
-        else if (message.includes('ofnæmi')) {
-            relevantInfo.push({
-                type: 'ritual_allergies',
-                content: knowledgeBase_is.ritual.allergies
-            });
-        }
-        // For all other ritual queries
-        else {
-            relevantInfo.push({
-                type: 'ritual',
-                content: knowledgeBase_is.ritual
             });
         }
     }
