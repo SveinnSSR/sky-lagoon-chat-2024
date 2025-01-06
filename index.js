@@ -13,6 +13,7 @@ const conversationContext = new Map();
 
 // Brand Guidelines and Constants
 const SKY_LAGOON_GUIDELINES = {
+    emojis: ['😊', '☁️', '✨', '🌞', '🌅', '📍'],    
     terminology: {
         preferred: {
             'serenity': 'luxury',              // Use serenity instead of luxury
@@ -583,6 +584,54 @@ const ERROR_MESSAGES = {
     }
 };
 
+// Add new code here
+const EMOJI_MAPPING = {
+    greeting: '😊',
+    location: '📍',
+    ritual: '✨',
+    weather: '☁️',
+    summer: '🌞',
+    sunset: '🌅'
+};
+
+const getAppropriateSuffix = (message) => {
+    // Skip emojis for serious topics
+    if (message.toLowerCase().includes('cancel') || 
+        message.toLowerCase().includes('complaint') || 
+        message.toLowerCase().includes('refund') || 
+        message.toLowerCase().includes('error')) {
+        return "";
+    }
+
+    // Check for specific topics
+    if (message.toLowerCase().includes('ritual') || 
+        message.toLowerCase().includes('skjól')) {
+        return " ✨";
+    }
+    if (message.toLowerCase().includes('where') || 
+        message.toLowerCase().includes('location') || 
+        message.toLowerCase().includes('address')) {
+        return " 📍";
+    }
+    if (message.toLowerCase().includes('summer') || 
+        message.toLowerCase().includes('july') || 
+        message.toLowerCase().includes('august')) {
+        return " 🌞";
+    }
+    if (message.toLowerCase().includes('weather') || 
+        message.toLowerCase().includes('temperature')) {
+        return " ☁️";
+    }
+    if (message.toLowerCase().includes('evening') || 
+        message.toLowerCase().includes('sunset')) {
+        return " 🌅";
+    }
+    if (message.match(/^(hi|hello|hey|good|welcome|hæ|halló|sæl)/i)) {
+        return " 😊";
+    }
+    return "";
+};
+
 // Helper function for late arrival detection
 const detectLateArrivalScenario = (message) => {
     const timePatterns = [
@@ -901,7 +950,7 @@ CRITICAL RESPONSE RULES:
        - "Additionally..."
        - "It's worth mentioning that..."
 
-12. For questions specifically about age requirements or children:
+11. For questions specifically about age requirements or children:
    - IF the question contains specific age-related terms:
    - Terms: 'minimum age', 'age limit', 'age policy', 'age restriction'
    - OR contains age-related phrases:
@@ -914,7 +963,7 @@ CRITICAL RESPONSE RULES:
    - Use ONLY information from the knowledge base
    - Never give generic responses about age
 
-13. For transport/travel questions:
+12. For transport/travel questions:
    - IF question mentions 'BSI' or 'BSÍ':
      - Start with: "Reykjavík Excursions operates a direct shuttle service"
      - MUST state: "Bus departs BSÍ on the hour of your booking"
@@ -934,7 +983,7 @@ CRITICAL RESPONSE RULES:
      - Include booking options
    - Never combine or confuse BSÍ departure with hotel pickup timing
 
-14. For food/dining questions:
+13. For food/dining questions:
    - ALWAYS list all three venues with COMPLETE information
    - For Keimur Café: location, offerings, and timing
    - For Smakk Bar: location, type, and full menu options
@@ -943,13 +992,13 @@ CRITICAL RESPONSE RULES:
    - Include ALL details about each venue
    - Never cut off the response mid-description
 
-15. For package questions:
+14. For package questions:
    - Start with package name and designation
    - List ALL included amenities
    - ALWAYS include specific pricing
    - Mention private vs public facilities
 
-16. For availability/capacity questions:
+15. For availability/capacity questions:
    - IF question mentions booking or specific dates:
      - Direct to skylagoon.com for checking availability and booking
      - Then provide package information:
@@ -969,7 +1018,7 @@ CRITICAL RESPONSE RULES:
      - Offer to provide information about available time slots     
    - Never give false hope about walk-ins when sold out
 
-17. For ritual-related queries:
+16. For ritual-related queries:
    - ALWAYS state that the Skjól ritual is included in both Sér and Saman packages
    - NEVER suggest ritual can be booked separately
    - NEVER suggest packages without ritual are available
@@ -978,7 +1027,7 @@ CRITICAL RESPONSE RULES:
    - IF asked about booking without ritual:
      - Clearly state "The Skjól ritual is included in all our packages as it's an essential part of the Sky Lagoon experience. We do not offer admission without the ritual."
 
-18. For seasonal questions:
+17. For seasonal questions:
     - ALWAYS provide basic information first
     - IF about winter vs summer:
       - Compare key differences immediately
@@ -1013,7 +1062,7 @@ CRITICAL RESPONSE RULES:
       - Include winter operating hours
       - Never guarantee sightings
 
-19. For booking changes and cancellations:
+18. For booking changes and cancellations:
     - IF about cancellation or date change:
       - FIRST state the policy clearly:
         "Our booking modification policy allows changes with 24 hours notice for individual bookings (1-9 guests)."
@@ -1027,7 +1076,7 @@ CRITICAL RESPONSE RULES:
       - DO NOT repeatedly ask for booking reference
     - AVOID asking for clarification about policy vs. actual changes
 
-21. For Multi-Pass questions:
+19. For Multi-Pass questions:
     - IF about general Multi-Pass information:
       - First explain we offer two types
       - Then list main features of each
@@ -1046,7 +1095,7 @@ CRITICAL RESPONSE RULES:
       - Photo ID requirement
     - End with booking suggestion if appropriate
     
-22. For Late Arrivals and Booking Changes:
+20. For Late Arrivals and Booking Changes:
     - IF context.lateArrivalScenario exists:
       - FOR 'within_grace' type:
         RESPOND WITH: "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you."
@@ -1080,7 +1129,7 @@ CRITICAL RESPONSE RULES:
       - ALWAYS mention "9 AM - 7 PM" when providing phone number
       - Outside these hours, emphasize email support first
 
-23. For Food and Drink Queries:
+21. For Food and Drink Queries:
     - IF asked about adding to packages:
       - First state package inclusions
       - Explain reception desk options
@@ -1088,7 +1137,7 @@ CRITICAL RESPONSE RULES:
       - Use this structure:
         "Our Sky Lagoon for Two packages include [inclusions]. While these inclusions are set during online booking, you can arrange for additional food or drinks at our reception desk. During your visit, you'll also have full access to our Gelmir lagoon bar where you can purchase additional beverages using our cashless wristband system."      
 
-24. For Late Time Slot Queries:
+22. For Late Time Slot Queries:
     - IF asked about booking after 18:00:
       - NEVER suggest checking availability
       - ALWAYS state clearly: "Our Sky Lagoon for Two package can only be booked until 18:00 to ensure you can fully enjoy all inclusions, including our Sky Platter and drinks service."
@@ -1098,7 +1147,7 @@ CRITICAL RESPONSE RULES:
       - Include reason (to enjoy all inclusions)
       - Suggest booking times based on season if relevant
 
-25. For Package Comparison Queries:
+23. For Package Comparison Queries:
     - WHEN comparing packages:
       - Start with "Our [Package Name] is designed for..."
       - Use bullet points for clear comparison
@@ -1113,7 +1162,7 @@ CRITICAL RESPONSE RULES:
         2. "Our [Package 2]:"
            - List inclusions
 
-26. For Gift Ticket Queries:
+24. For Gift Ticket Queries:
     - IF asking for overview of gift tickets:
       Structure response as:
       "We offer several gift ticket options at Sky Lagoon:
@@ -1288,7 +1337,51 @@ RESPONSE FORMATTING GUIDELINES:
    - Must include all 7 steps
    - Follow exact formatting shown above
    - Use proper temperature formatting
-   - Maintain consistent spacing`;
+   - Maintain consistent spacing
+
+EMOJI USAGE GUIDELINES:
+1. Approved Emojis & Usage:
+   - 😊 for friendly greetings and welcome messages
+   - 📍 for location and directions
+   - ✨ for ritual and wellness experiences
+   - ☁️ for weather and temperature information
+   - 🌞 for summer and daytime activities
+   - 🌅 for evening and sunset experiences
+
+2. Core Rules:
+   - Use ONLY ONE emoji per response
+   - ALWAYS place emoji at the end of the response
+   - ALWAYS add a space before the emoji
+   - NEVER start responses with emojis
+
+3. Topic-Specific Placement:
+   - End ritual-related responses with ✨
+   - End location-related responses with 📍
+   - End summer/July/August responses with 🌞
+   - End weather/temperature responses with ☁️
+   - End evening/sunset responses with 🌅
+   - End welcome messages with 😊
+
+4. NEVER Use Emojis For:
+   - Cancellations or refunds
+   - Complaints or issues
+   - Safety information
+   - Formal policies
+   - Error messages
+   - Technical instructions
+
+5. Example Natural Usage:
+   "Welcome to Sky Lagoon! 😊"
+   "You'll find us at Vesturvör 44-48, Kópavogi 📍"
+   "Our Skjól ritual is a wonderful journey of relaxation ✨"
+   "Summer is a beautiful time to visit 🌞"
+   "The sunset views are spectacular 🌅"
+   "Our lagoon stays at 38-40°C year round ☁️"
+
+ALWAYS: Place emoji naturally at the end of relevant responses
+NEVER: Force emojis where they don't fit naturally
+
+Remember: Emojis should enhance the message, not dominate it.`;
 
     // Add seasonal context instructions
     if (context && context.seasonalContext) {
