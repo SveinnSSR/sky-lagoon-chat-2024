@@ -2025,6 +2025,15 @@ const getMaxTokens = (userMessage) => {
         'snyrtivör', 'handklæði', 'þægindi'
     ];
 
+    // Add ritual detection first
+    if (message.includes('ritual') || 
+        message.includes('ritúal') || 
+        message.includes('skjól') ||
+        message.includes('skref') ||
+        message.includes('þrep')) {
+        return 1000;  // Higher token limit for ritual
+    }
+
     // Enhanced multi-part detection for both languages
     const isMultiPart = message.includes(' and ') || 
                        message.includes(' og ') || 
@@ -2044,18 +2053,9 @@ const getMaxTokens = (userMessage) => {
                              message.includes('klefi') ||
                              message.includes('klefa');
 
-    // Ritual detection (added)
-    const isRitualQuery = message.includes('ritual') || 
-                         message.includes('ritúal') || 
-                         message.includes('skjól') ||
-                         message.includes('skref') ||
-                         message.includes('steps') ||
-                         message.includes('þrep');
-
     const isComplex = complexTopics.some(topic => message.includes(topic));
-
-    // Token allocation with Ritual priority
-    if (isRitualQuery) return 1000;             // Ritual queries need most space
+    
+    // Token allocation with Icelandic consideration
     if (isComparisonQuery && isFacilitiesQuery) return 1000;  // Facility comparisons
     if (isComplex && isMultiPart) return 800;   // Complex multi-part
     if (isComplex) return 600;                  // Single complex topic
