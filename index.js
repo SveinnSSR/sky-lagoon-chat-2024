@@ -2044,10 +2044,18 @@ const getMaxTokens = (userMessage) => {
                              message.includes('klefi') ||
                              message.includes('klefa');
 
+    // Ritual detection (added)
+    const isRitualQuery = message.includes('ritual') || 
+                         message.includes('ritúal') || 
+                         message.includes('skjól') ||
+                         message.includes('skref') ||
+                         message.includes('steps') ||
+                         message.includes('þrep');
+
     const isComplex = complexTopics.some(topic => message.includes(topic));
 
-    
-    // Token allocation with Icelandic consideration
+    // Token allocation with Ritual priority
+    if (isRitualQuery) return 1000;             // Ritual queries need most space
     if (isComparisonQuery && isFacilitiesQuery) return 1000;  // Facility comparisons
     if (isComplex && isMultiPart) return 800;   // Complex multi-part
     if (isComplex) return 600;                  // Single complex topic
@@ -2066,18 +2074,6 @@ const getMaxTokens = (userMessage) => {
         message.includes('veitingar')) return 800;
 
     return 400;  // Default token count
-};
-
-console.log('Environment Check:');
-console.log('PORT:', process.env.PORT);
-console.log('API_KEY set:', !!process.env.API_KEY);
-console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
-
-// Configuration
-const config = {
-    PORT: process.env.PORT || "8080",
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    API_KEY: process.env.API_KEY
 };
 
 // Initialize Express
