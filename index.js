@@ -2076,6 +2076,18 @@ const getMaxTokens = (userMessage) => {
     return 400;  // Default token count
 };
 
+console.log('Environment Check:');
+console.log('PORT:', process.env.PORT);
+console.log('API_KEY set:', !!process.env.API_KEY);
+console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
+
+// Configuration
+const config = {
+    PORT: process.env.PORT || "8080",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    API_KEY: process.env.API_KEY
+};
+
 // Initialize Express
 const app = express();
 app.set('trust proxy', 1);  // Add this line to fix X-Forwarded-For error
