@@ -1706,13 +1706,47 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('sjö') || 
         message.includes('7') || 
         message.includes('ofnæmi') || 
-        (message.includes('má') && message.includes('oft'))) {
-    
+        message.includes('skref') ||
+        (message.includes('má') && message.includes('oft')) ||
+        (message.includes('hver') && message.includes('skref'))) {
+
         console.log('\n🧖‍♀️ Ritual Match Found');
-        relevantInfo.push({
-            type: 'ritual',
-            content: knowledgeBase_is.ritual
-    });
+
+        // Check if asking specifically about steps
+        if (message.includes('skref') || 
+            message.includes('þrep') || 
+            message.includes('hver') || 
+            message.includes('hvernig') || 
+            message.includes('sjö') || 
+            message.includes('7')) {
+            relevantInfo.push({
+                type: 'ritual',
+                content: {
+                    introduction: {
+                        name: knowledgeBase_is.ritual.name,
+                        tagline: knowledgeBase_is.ritual.tagline,
+                        description: knowledgeBase_is.ritual.description,
+                        answer: knowledgeBase_is.ritual.answer
+                    },
+                    steps: knowledgeBase_is.ritual.steps,
+                    closing: "Láttu mig vita ef þú hefur fleiri spurningar!"
+                }
+            });
+        } 
+        // If asking about allergies
+        else if (message.includes('ofnæmi')) {
+            relevantInfo.push({
+                type: 'ritual_allergies',
+                content: knowledgeBase_is.ritual.allergies
+            });
+        }
+        // For all other ritual queries
+        else {
+            relevantInfo.push({
+                type: 'ritual',
+                content: knowledgeBase_is.ritual
+            });
+        }
     }
 
     // If specifically asking about allergies
@@ -1724,6 +1758,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             content: knowledgeBase_is.ritual.allergies
         });
     }
+    
     // Pakkar - Saman, Sér, Stefnumót (Packages)
     if (message.includes('pakki') || 
         message.includes('pakkanum') ||
