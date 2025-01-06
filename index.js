@@ -2113,8 +2113,37 @@ const getMaxTokens = (userMessage) => {
         message.includes('skjól') ||
         message.includes('skref') ||
         message.includes('þrep')) {
-        return 1000;  // Higher token limit for ritual
+        return 1000;  // Increased from 800 for ritual
     }
+
+    // Transportation detection
+    if (message.includes('kemst') ||
+        message.includes('komast') ||
+        message.includes('strætó') ||
+        message.includes('rútu') ||
+        message.includes('bíl') ||
+        message.includes('hjóla') ||
+        message.includes('ganga') ||
+        message.includes('samgöngur') ||
+        message.includes('transport') ||
+        message.includes('directions')) {
+        return 1000;  // Increased from 800 for transport info
+    }
+
+    // Bar/Menu content detection
+    if (message.includes('matseðil') ||
+        message.includes('matseðli') || 
+        message.includes('platta') || 
+        message.includes('plattar') ||
+        message.includes('sælkera') ||
+        message.includes('smakk bar') ||
+        message.includes('keimur') ||
+        message.includes('gelmir') ||
+        message.includes('veitingar') ||
+        message.includes('bar') ||
+        message.includes('drykkir')) {
+        return 1200;  // Increased from 800 for menu content
+    }    
 
     // Enhanced multi-part detection for both languages
     const isMultiPart = message.includes(' and ') || 
@@ -2138,24 +2167,13 @@ const getMaxTokens = (userMessage) => {
     const isComplex = complexTopics.some(topic => message.includes(topic));
     
     // Token allocation with Icelandic consideration
-    if (isComparisonQuery && isFacilitiesQuery) return 1000;  // Facility comparisons
-    if (isComplex && isMultiPart) return 800;   // Complex multi-part
-    if (isComplex) return 600;                  // Single complex topic
-    if (isMultiPart) return 500;                // Multi-part questions
-    if (isFacilitiesQuery) return 600;          // Facility queries
-    
-    // Menu queries
-    if (message.includes('matseðil') ||
-        message.includes('matseðli') || 
-        message.includes('platta') || 
-        message.includes('plattar') ||
-        message.includes('sælkera') ||
-        message.includes('smakk bar') ||
-        message.includes('keimur') ||
-        message.includes('gelmir') ||
-        message.includes('veitingar')) return 800;
+    if (isComparisonQuery && isFacilitiesQuery) return 1200;  // Facility comparisons // Increased from 1000
+    if (isComplex && isMultiPart) return 1000;   // Complex multi-part // Increased from 800
+    if (isComplex) return 800;                  // Single complex topic // Increased from 600
+    if (isMultiPart) return 600;                // Multi-part questions // Increased from 500
+    if (isFacilitiesQuery) return 800;          // Facility queries // Increased from 600
 
-    return 400;  // Default token count
+    return 500;  // Default token count
 };
 
 console.log('Environment Check:');
