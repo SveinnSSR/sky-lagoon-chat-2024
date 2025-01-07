@@ -2107,6 +2107,7 @@ export const getRelevantKnowledge = (userMessage) => {
     let relevantInfo = [];
 
 // Opening hours and timing
+    // Opening hours and timing
     if (message.includes('open') || 
         message.includes('hour') || 
         message.includes('time') ||
@@ -2162,6 +2163,14 @@ export const getRelevantKnowledge = (userMessage) => {
             message.includes('open') || 
             message.includes('close')
         )) ||
+        // Add our new seasonal patterns here
+        (message.includes('like') && 
+            (message.includes('during winter') || 
+             message.includes('during summer') || 
+             message.includes('in winter') || 
+             message.includes('in summer'))) ||
+        (message.includes('sky lagoon') && 
+            message.includes('during')) ||
         message.includes('june') ||
         message.includes('july') ||
         message.includes('august') ||
