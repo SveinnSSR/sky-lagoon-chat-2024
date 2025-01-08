@@ -692,6 +692,7 @@ export const knowledgeBase_is = {
     },
     dining: {
         questions: [
+            // Original questions (keep all existing ones)
             "Hvað er í boði á Smakk Bar?",
             "Hvar get ég fengið að borða?",
             "Er veitingastaður á staðnum?",
@@ -703,9 +704,16 @@ export const knowledgeBase_is = {
             "Hvaða veitingar eru í boði?",
             "Er kaffihús á staðnum?",
             "Er hægt að fá kaffi?",
-            "Hvað er í boði á Keimur Café?"
+            "Hvað er í boði á Keimur Café?",
+            // New questions from website
+            "Hvað er á matseðlinum?",
+            "Hvernig mat eruð þið með?",
+            "Er hægt að fá mat eftir laugina?",
+            "Hvað er Smakk Bar?",
+            "Get ég fengið að borða eftir dvölina?"
         ],
         overview: {
+            // Enhanced with official website content
             tagline: "Sælkeraferðalag um Ísland",
             description: "Keimur Café og Smakk Bar bjóða bragðlaukunum í spennandi ferðalag þar sem ferskt íslenskt hráefni er í aðalhlutverki.",
             encouragement: "Njóttu augnabliksins lengur með viðkomu á Keimur Café eða Smakk Bar eftir dvölina í lóninu."
@@ -714,8 +722,25 @@ export const knowledgeBase_is = {
             smakk_bar: {
                 name: "Smakk Bar",
                 tagline: "Ferðalag fyrir bragðlaukana á Smakk Bar",
+                // Enhanced description from website
                 description: "Á Smakk Bar bjóðum við upp á nokkra sérvalda íslenska sælkeraplatta ásamt frábæru úrvali af víni, bjór og öðrum drykkjum. Sælkeraplattarnir innihalda sérvalda bita sem mynda fullkomið jafnvægi og eru settir saman úr árstíðabundnu hráefni. Tilvalin leið til að ljúka góðri heimsókn í Sky Lagoon.",
                 dietary_options: "Boðið er upp á vegan og glútenlausa valkosti.",
+                // New section from website content
+                about: {
+                    title: "Óður til íslenskrar matarmenningar",
+                    description: "Í Sky Lagoon leggjum við áherslu á að kynna íslenskar hefðir og menningu fyrir gestum. Þar skipar matur stóran sess og því höfum við leitað til matreiðslufólks sem nýtir ferskt íslenskt hráefni á nýjan og spennandi máta. Íslendingar ættu því að rekast á kunnuglega rétti á matseðlinum á Smakk Bar en þó í nýjum og framandi búningi",
+                    highlights: [
+                        "Einstakir óðalsostar",
+                        "Íslenskir sjávarréttir",
+                        "Hráefni úr héraði"
+                    ]
+                },
+                // New section from website content
+                production: {
+                    title: "Íslensk framleiðsla",
+                    description: "Við vinnum með fjölskyldufyrirtækjum sem hafa íslenska matarhefð í heiðri. Við vöndum valið til að tryggja að útkoman verði eins góð og hugsast getur.",
+                    sourcing: "Hráefnin koma alls staðar að á landinu. Villibráðin er frá feðgum í Landeyjum, síldin frá Djúpavogi, ostarnir úr Dölunum og sultan frá Fljótsdalshéraði. Saman verða þessi gæðahráefni að ógleymanlegu ferðalagi fyrir bragðlaukana."
+                },
                 menu: {
                     small_platters: {
                         name: "Litlir plattar",
@@ -766,49 +791,37 @@ export const knowledgeBase_is = {
                             }
                         ]
                     },
-                    about: {
-                        title: "Óður til íslenskrar matarmenningar",
-                        description: "Í Sky Lagoon leggjum við áherslu á að kynna íslenskar hefðir og menningu fyrir gestum. Þar skipar matur stóran sess og því höfum við leitað til matreiðslufólks sem nýtir ferskt íslenskt hráefni á nýjan og spennandi máta. Íslendingar ættu því að rekast á kunnuglega rétti á matseðlinum á Smakk Bar en þó í nýjum og framandi búningi",
-                        highlights: [
-                            "Einstakir óðarlsostar",
-                            "Íslenskir sjávarréttir",
-                            "Hráefni úr héraði"
-                        ]
-                    },
-                    production: {
-                        title: "Íslensk framleiðsla",
-                        description: "Við vinnum með fjölskyldufyrirtækjum sem hafa íslenska matarhefð í heiðri. Við vöndum valið til að tryggja að útkoman verði eins góð og hugsast getur.",
-                        sourcing: "Hráefnin koma alls staðar að á landinu. Villibráðin er frá feðgum í Landeyjum, síldin frá Djúpavogi, ostarnir úr Dölunum og sultan frá Fljótsdalshéraði. Saman verða þessi gæðahráefni að ógleymanlegu ferðalagi fyrir bragðlaukana."
-                    }
-                },
-                opening_hours: {
-                    winter: {
-                        period: "Frá 1. október til 17. maí",
-                        hours: "12:00--21:30",
-                        days: "alla daga"
-                    },
-                    summer: {
-                        period: "Frá 18. maí til 14. ágúst",
-                        hours: "12:00--22:30",
-                        days: "alla daga"
-                    },
-                    autumn: {
-                        period: "Frá 15. ágúst til 30. september",
-                        weekday: {
-                            days: "sunnudaga til föstudaga",
-                            hours: "11:00--22:30"
+                    opening_hours: {
+                        winter: {
+                            period: "Frá 1. október til 17. maí",
+                            hours: "12:00--21:30",
+                            days: "alla daga"
                         },
-                        weekend: {
-                            days: "laugardaga",
-                            hours: "10:00--22:30"
+                        summer: {
+                            period: "Frá 18. maí til 14. ágúst",
+                            hours: "12:00--22:30",
+                            days: "alla daga"
+                        },
+                        autumn: {
+                            period: "Frá 15. ágúst til 30. september",
+                            weekday: {
+                                days: "sunnudaga til föstudaga",
+                                hours: "11:00--22:30"
+                            },
+                            weekend: {
+                                days: "laugardaga",
+                                hours: "10:00--22:30"
+                            }
                         }
                     }
-                }
-            },
+                },  // This closes menu
+            },      // This closes smakk_bar
             keimur_cafe: {
                 name: "Keimur Café",
                 tagline: "Notaleg stund á Keimur Café",
-                description: "Á Keimur Café finnur þú gæðakaffi frá Te & Kaffi, frískandi drykki, ljúffengar súpur og nýbakað lostæti frá einu elsta bakaríi landsins, Sandholt Bakarí.",
+                description: "Á Keimur Café finnur þú gæðakaffi frá Te & Kaffi, frískandi drykki, ljúffengar súpur og nýbakað lostæti frá einu elsta bakarí landsins, Sandholt Bakarí.",
+                intro: "Eigðu ljúfa stund á Keim Café",
+                encouragement: "Njóttu augnabliksins lengur með viðkomu á Keimur Café eftir dvölina í lóninu",
                 dietary_options: "Hér finnur þú einnig glútenlausa og vegan valkosti.",
                 additional_info: "Á Keim Café getur þú sest niður með góðan kaffibolla og notið augnabliksins. Þar bjóðum við líka upp á nýbakað kruðerí, súpur og samlokur.",
                 menu: {
@@ -855,48 +868,56 @@ export const knowledgeBase_is = {
                     },
                     food: {
                         name: "Matur",
+                        description: "Á Keimur Café finnur þú ljúffengar súpur og nýbakað lostæti frá einu elsta bakarí landsins.",
                         items: [
                             {
                                 name: "Súpa dagsins",
+                                description: "Ljúffeng súpa dagsins, borin fram með nýbökuðu brauði",
                                 price: "ISK 2,490"
                             },
                             {
                                 name: "Grilluð súrdeigssamloka með skinku og osti",
+                                description: "Heimalöguð súrdeigssamloka með gæðahráefni",
                                 price: "ISK 2,190"
                             },
                             {
                                 name: "Grilluð súrdeigssamloka með grænmeti",
+                                description: "Ljúffeng grænmetissamloka á nýbökuðu súrdeigsbrauði",
                                 price: "ISK 1,990"
                             },
                             {
                                 name: "Beygla með graflax",
+                                description: "Fersk beygla með graflax og heimagerðri graflaxsósu",
                                 price: "ISK 2,390"
                             },
                             {
                                 name: "Beygla með hummus",
+                                description: "Fersk beygla með heimagerðu hummus og grænmeti",
                                 price: "ISK 1,990"
                             },
                             {
                                 name: "Skyrið hennar ömmu með berjum og rjóma",
+                                description: "Hefðbundið íslenskt skyr með ferskum berjum og rjóma",
                                 price: "ISK 1,890"
                             },
                             {
                                 name: "Skyr með múslí og berjum",
+                                description: "Ferskt skyr með heimagerðu múslí og berjum",
                                 price: "ISK 1,890"
                             }
                         ]
                     },
                     bakery: {
                         name: "Bakkelsi",
-                        description: "Það besta frá bakaranum hverju sinni."
+                        description: "Það besta frá bakaranum hverju sinni frá Sandholt Bakaríi.",
+                        highlight: "Nýbakað kruðerí og sætmeti frá einu elsta bakaríi landsins"
                     }
                 }
             },
             gelmir_bar: {
                 name: "Gelmir Bar",
                 tagline: "Fullkomnaðu augnablikið á Gelmir Bar",
-                description: "Gelmir Bar er staðsettur ofan í lóninu. Þar er fjölbreytt úrval drykkja í boði sem er tilvalið að njóta á meðan þú slakar á.",
-                additional_info: "Gelmir bar er staðsettur ofan í lóninu. Þar er boðið upp á fjölbreytt úrval áfengra og óáfengra drykkja sem þú getur notið í heitu lóninu. Einfalt er að ganga frá pöntun með því að skanna armbandið þitt.",
+                description: "Gelmir bar er staðsettur ofan í lóninu. Þar er boðið upp á fjölbreytt úrval áfengra og óáfengra drykkja sem þú getur notið í heitu lóninu. Einfalt er að ganga frá pöntun með því að skanna armbandið þitt.",
                 menu: {
                     draft_beers: {
                         name: "Á krana",
@@ -2022,7 +2043,18 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('opið') ||
         message.includes('lokað') ||
         message.includes('tími') ||
-        message.includes('opnunartími')) {
+        message.includes('opnunartími') ||
+        // New patterns from website content
+        message.includes('matarhefð') ||
+        message.includes('hefðir') ||
+        message.includes('menning') ||
+        message.includes('matreiðslu') ||
+        message.includes('hefðbundin') ||
+        message.includes('réttur') ||
+        message.includes('réttir') ||
+        message.includes('ljúffeng') ||
+        message.includes('gómsæt') ||
+        message.includes('fersk')) {
 
         console.log('\n🍽️ Food & Beverage Match Found');
 
@@ -2069,10 +2101,11 @@ export const getRelevantKnowledge_is = (userMessage) => {
                 });
             }
         }
-        // Check for dietary requirements (keep existing code)
+        // Check for dietary requirements 
         else if (message.includes('glúten') || 
                 message.includes('gluten') || 
-                message.includes('vegan')) {
+                message.includes('vegan') ||
+                message.includes('grænmetis')) {
             
             console.log('\n🥗 Dietary Options Match Found');
             relevantInfo.push({
@@ -2130,7 +2163,14 @@ export const getRelevantKnowledge_is = (userMessage) => {
                    message.includes('súpa') ||
                    message.includes('beygla') ||
                    message.includes('skyr') ||
-                   message.includes('bakkelsi')) {
+                   message.includes('bakkelsi') ||
+                   // New patterns from website content
+                   message.includes('nýbakað') ||
+                   message.includes('te & kaffi') ||
+                   message.includes('sandholt') ||
+                   message.includes('kruðerí') ||
+                   message.includes('kaffibolla') ||
+                   (message.includes('notaleg') && message.includes('stund'))) {
             
             console.log('\n☕ Keimur Café Match Found');
             relevantInfo.push({
@@ -2144,7 +2184,17 @@ export const getRelevantKnowledge_is = (userMessage) => {
                    message.includes('vín') ||
                    message.includes('drykkir') ||
                    message.includes('bar') ||
-                   message.includes('lóninu')) {
+                   message.includes('lóninu') ||
+                   // New patterns from website content
+                   message.includes('drykkja') ||
+                   message.includes('armband') ||
+                   message.includes('skanna') ||
+                   message.includes('búbblur') ||
+                   message.includes('áfengislaus') ||
+                   message.includes('heilsusafi') ||
+                   (message.includes('þrír') && message.includes('drykkir')) ||
+                   (message.includes('panta') && message.includes('drykk')) ||
+                   message.includes('freyðivín')) {
             
             console.log('\n🍷 Gelmir Bar Match Found');
             relevantInfo.push({
@@ -2160,7 +2210,11 @@ export const getRelevantKnowledge_is = (userMessage) => {
             message.includes('matsölustaðir') ||
             message.includes('staðir') ||
             message.includes('matur') ||
-            (message.includes('hvað') && message.includes('boði')))) {
+            (message.includes('hvað') && message.includes('boði')) ||
+            // New patterns from website
+            message.includes('matarhefð') ||
+            message.includes('hefðir') ||
+            message.includes('menning'))) {
             
             console.log('\n🍽️ General Dining Information Match Found');
             relevantInfo.push({
@@ -2172,6 +2226,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             });
         }
     }  // End of Dining section
+    
     // Transport and location related queries
     if (message.includes('staðsetn') || 
         message.includes('hvar er') ||
