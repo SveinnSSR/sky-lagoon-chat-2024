@@ -372,8 +372,57 @@ export const knowledgeBase_is = {
                 "Er fylgdarmaður ókeypis?",
                 "Þarf ég að borga fyrir fylgdarmann?",
                 "Er hægt að fá hjólastól lánaðan?",
-                "Er hægt að fá aðstoð við að komast í og úr lóninu?"
+                "Er hægt að fá aðstoð við að komast í og úr lóninu?",
+                // New questions from website
+                "Hvernig er aðgengið fyrir hreyfihamlaða?",
+                "Eruð þið með lyftu?",
+                "Er hjólastóll í boði?",
+                "Er sérstök aðstaða fyrir hreyfihamlaða?",
+                "Hvernig er aðstaðan fyrir kynsegin fólk?",
+                "Eruð þið með kynhlutlaus salerni?",
+                "Get ég fengið aðstoð starfsfólks?"
             ],
+            mission_statement: {
+                // New from website
+                general: "Sky Lagoon hefur sett sér það markmið frá upphafi að veita öllum okkar gestum hlýlegar móttökur og þar af leiðandi lagt mikið upp úr aðgengismálum.",
+                design_focus: "Frá hönnun var mikil áhersla lögð á að aðgengi fyrir hreyfihamlaða væri eins og best er á kosið"
+            },
+            accessibility_suite: {
+                // New detailed info from website
+                name: "Aðgengissvítan",
+                description: "Aðgengissvítan okkar er einkaklefi með auknu aðgengi sem inniheldur:",
+                features: [
+                    "Sex læstir skápar",
+                    "Rúmgott svæði til að athafna sig",
+                    "Öryggis- og hjálparbjalla",
+                    "Hindrunarlaust aðgengi að sturtum með stuðningsslá",
+                    "Færanlegur sturtustóll með baki og örmum",
+                    "Salerni með stuðningsslá",
+                    "Rúmgóður bekkur",
+                    "Spegill"
+                ]
+            },
+            pool_access: {
+                // Enhanced with official website wording
+                lifts: {
+                    main_pool: "Við útvegum hjólastól sem farið er í að lyftu sem staðsett er við laugarbrúnina og aðstoðar þig við að komast í og úr lóni.",
+                    ritual_area: "Önnur lyfta er svo til þess að komast upp á bakka við torfbæinn, ofan í og úr kalda pottinum. Þaðan útvegum við svo hjólastól til afnota í torfbænum."
+                }
+            },
+            staff_assistance: {
+                // New from website
+                communication: "Sky Lagoon teymið notar talstöðvar til samskipta, svo það er auðvelt að láta okkur vita til dæmis til þess að hafa aðgengislyftu tilbúna eftir ákveðinn tíma eða þegar þú vilt komast upp úr.",
+                service: "Teymið okkar mun alltaf glatt aðstoða þig þurfir þú aðstoð."
+            },
+            lgbtqia_support: {
+                // New from website
+                main_info: "Sky búningsklefarnir okkar eru kynhlutlausir. Kynsegin gestir (þau sem skilgreina sig utan tvíhyggjukerfisins) og hafa keypt Saman aðgang eru hvattir til að láta vita við innritun og við uppfærum bókunina í Sér án aukakostnaðar.",
+                commitments: [
+                    "Öruggt rými fyrir öll - Við leggjum okkur fram við að taka á móti fólki á öruggan hátt, með virðingu og hlýju.",
+                    "Fræðsla í fyrirrúmi - Við leggjum áherslu á að fræða okkur um málefni og áskoranir sem hinsegin samfélagið stendur frammi fyrir.",
+                    "Bætum okkur - Við tökum fagnandi á móti tillögum frá bæði teyminu okkar og gestum um hvernig við getum haldið áfram að vinna að betra aðgengi fyrir öll í Sky Lagoon."
+                ]
+            },
             features: [
                 "Öll aðstaða með gott aðgengi fyrir hjólastóla",
                 "Aðgengilegir búningsklefar fyrir hjólastóla",
@@ -1696,7 +1745,16 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('fylgdarmann') ||
         message.includes('fylgdarmen') ||
         message.includes('lyfta') ||
-        message.includes('lyftu')) {
+        message.includes('lyftu') ||
+        // New patterns for enhanced accessibility content
+        message.includes('aðgengissvíta') ||
+        message.includes('sturtustól') ||
+        message.includes('stuðningsslá') ||
+        message.includes('hindrunarlaus') ||
+        message.includes('kynsegin') ||
+        message.includes('kynhlutlaus') ||
+        message.includes('talstöð') ||
+        message.includes('hjálparbjall')) {
             
         console.log('\n♿ Accessibility Match Found');
 
@@ -1706,6 +1764,48 @@ export const getRelevantKnowledge_is = (userMessage) => {
             subtype: 'accessibility'
         };
 
+        // Check for accessibility suite specific queries
+        if (message.includes('aðgengissvíta') || 
+            message.includes('sturtustól') ||
+            message.includes('stuðningsslá') ||
+            message.includes('hjálparbjall') ||
+            message.includes('einkaklefi') ||
+            (message.includes('sérstök') && message.includes('aðstaða'))) {
+            
+            console.log('\n🚿 Accessibility Suite Match Found');
+            accessibilityInfo.content = {
+                mission_statement: knowledgeBase_is.facilities.accessibility.mission_statement,
+                accessibility_suite: knowledgeBase_is.facilities.accessibility.accessibility_suite
+            };
+        }
+
+        // Check for staff assistance queries
+        if (message.includes('starfsfólk') || 
+            message.includes('aðstoð') ||
+            message.includes('talstöð') ||
+            message.includes('teymi') ||
+            (message.includes('get') && message.includes('hjálp'))) {
+            
+            console.log('\n👥 Staff Assistance Match Found');
+            accessibilityInfo.content = {
+                staff_assistance: knowledgeBase_is.facilities.accessibility.staff_assistance,
+                main_info: knowledgeBase_is.facilities.accessibility.main_info
+            };
+        }
+
+        // Check for LGBTQIA+ related queries
+        if (message.includes('kynsegin') || 
+            message.includes('kynhlutlaus') ||
+            message.includes('hinsegin') ||
+            message.includes('trans')) {
+            
+            console.log('\n🌈 LGBTQIA+ Support Match Found');
+            accessibilityInfo.content = {
+                lgbtqia_support: knowledgeBase_is.facilities.accessibility.lgbtqia_support
+            };
+        }
+
+        // Keep existing specific checks
         // Check for specific queries about pool/lón access
         if (message.includes('lón') || 
             message.includes('lónið') || 
