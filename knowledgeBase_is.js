@@ -1289,7 +1289,42 @@ export const knowledgeBase_is = {
             ],
             price: "Verð: 2.500 kr"
         }
-    },        
+    },
+    views_and_landmarks: {
+        questions: [
+            "Hvað sést frá Sky Lagoon?",
+            "Hvaða fjöll sjást?",
+            "Er hægt að sjá norðurljós?",
+            "Sést Snæfellsjökull?",
+            "Hvað er hægt að sjá?",
+            "Sést til Bessastaða?",
+            "Hvaða kennileiti sjást?"
+        ],
+        landmarks: {
+            bessastadir: {
+                name: "Bessastaðir",
+                description: "Þetta gamla höfuðból hefur verið í byggð frá landnámsöld og er nú, eins og allir vita, bústaður forseta Íslands. Á Bessastöðum eru mörg hús, þar á meðan híbýli forseta, móttökustofa, þjónustálma og kirkja, sem öll eru hvítmáluð með rauðu þaki og sjást vel frá Sky Lagoon þar sem þau ber við grænan bakgrunn Álftaness."
+            },
+            keilir: {
+                name: "Keilir",
+                description: "Þegar horft er í átt að Reykjarnesi má glöggt sjá hinn þríhyrningslaga Keili. Keilir var um aldaraðir eitt af kennileitum sjófarenda á svæðinu."
+            },
+            snaefellsjokull: {
+                name: "Snæfellsjökull",
+                description: "Á heiðskírum degi fer Snæfellsjökull ekki framhjá nokkrum gesti Sky Lagoon þar sem hann trónir yst á Snæfellsnesi. Jökullinn situr ofan á eldkeilu sem myndaðist fyrir um 700.000 árum og teygir sig rúma 1.400 metra upp í loft. Það er fátt í þessum heimi sem jafnast á við að sjá sólina setjast bak við Snæfellsjökul þar sem fegurð og ægikraftur náttúrunnar birtast skýrum hætti."
+            }
+        },
+        natural_phenomena: {
+            sunset: {
+                name: "Sumarsólsetur og miðnætursól",
+                description: "Fallegu íslensku sumarkvöldin og næturnar eru yndisleg og hvergi betra að njóta en einmitt á bakkanum í Sky Lagoon þegar sólin kyssir sjóndeildarhringinn á roðagullnum himni."
+            },
+            northern_lights: {
+                name: "Norðurljósin",
+                description: "Upplifunin í Sky Lagoon að vetri til er sannarlega ekki síðri en að sumri, með tilkomumiklu útsýni yfir stjörnubjartan himinn. Ef þú ert heppin sérðu kannski norðurljósin velta fram um himinskaut."
+            }
+        }
+    }            
 };
 
 // Knowledge base retrieval function
@@ -2574,6 +2609,75 @@ export const getRelevantKnowledge_is = (userMessage) => {
             type: 'photography_rules',
             content: knowledgeBase_is.photography_rules
         });
+    }
+
+        // Views and landmarks related queries
+        if (message.includes('sést') ||
+        message.includes('útsýni') ||
+        message.includes('norðurljós') ||
+        message.includes('bessastað') ||
+        message.includes('keili') ||
+        message.includes('snæfellsjökul') ||
+        message.includes('sólarlag') ||
+        message.includes('sólsetur') ||
+        message.includes('miðnætursól') ||
+        message.includes('stjörnu') ||
+        message.includes('kennileiti') ||
+        message.includes('fjöll') ||
+        message.includes('jökul')) {
+        
+        console.log('\n👀 Views and Landmarks Match Found');
+
+        // Check for specific natural phenomena queries
+        if (message.includes('norðurljós') || 
+            message.includes('sólarlag') ||
+            message.includes('sólsetur') ||
+            message.includes('miðnætursól') ||
+            message.includes('stjörnu')) {
+            
+            console.log('\n🌌 Natural Phenomena Match Found');
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'natural_phenomena',
+                content: knowledgeBase_is.views_and_landmarks.natural_phenomena
+            });
+        }
+
+        // Check for specific landmark queries
+        if (message.includes('bessastað')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.bessastadir
+            });
+        }
+        if (message.includes('keili')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.keilir
+            });
+        }
+        if (message.includes('snæfellsjökul') || message.includes('jökul')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.snaefellsjokull
+            });
+        }
+
+        // If no specific matches or general view query, return all views info
+        if (!relevantInfo.length || 
+            message.includes('útsýni') ||
+            message.includes('sést') ||
+            message.includes('kennileiti')) {
+            
+            console.log('\n🏔️ General Views Information Match Found');
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                content: knowledgeBase_is.views_and_landmarks
+            });
+        }
     }
 
     return relevantInfo; 
