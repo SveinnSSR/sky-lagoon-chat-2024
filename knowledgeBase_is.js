@@ -11,7 +11,9 @@ export const detectLanguage = (message) => {
         'sundföt', 'sundskýl', 'sundbol',  // Swimwear terms
         'ekki', 'þú', 'hann', 'hún',       // Common pronouns
         'hvað', 'gera', 'get', 'má',       // Common verbs
-        'minni', 'mínum', 'mínar', 'minn'  // Possessives
+        'minni', 'mínum', 'mínar', 'minn',  // Possessives
+        // Add age-related terms
+        'aldur', 'aldurstakmark', 'takmark'
     ];
 
     // Special handling for 'sér' and package-related queries
