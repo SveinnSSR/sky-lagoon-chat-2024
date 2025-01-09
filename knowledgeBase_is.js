@@ -1376,7 +1376,9 @@ export const knowledgeBase_is = {
             "Í sambandi við aldurstakmark, gildir aldurinn eða árið?",
             "Hvenær telst barn 12 ára?",
             "Þarf barnið að vera orðið 12 ára?",
-            "Hvernig reiknast aldurstakmarkið?"
+            "Hvernig reiknast aldurstakmarkið?",
+            "Má koma með ungling?",
+            "Þarf að vera með foreldri?"
         ],
         general_rules: {
             minimum_age: "Börnum yngri en 12 ára aldri eru óheimill aðgangur að Sky Lagoon.",
@@ -2815,14 +2817,20 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('foreldri') ||
         message.includes('foreldra') ||
         message.includes('forráðamanna') ||
-        message.includes('fæðingarár')) {
+        message.includes('fæðingarár') ||
+        message.includes('ungling') ||
+        // Add these new patterns
+        message.includes('aldurstakmark') ||
+        (message.includes('má') && message.includes('koma')) ||
+        (message.includes('þarf') && message.includes('vera')) ||
+        (message.includes('hver') && message.includes('aldur'))) {
         
         console.log('\n👶 Age Policy Match Found');
         relevantInfo.push({
             type: 'age_policy',
             content: knowledgeBase_is.age_policy
         });
-    }  // End of Age Policy section
+    }
 
     // Photography rules related queries
     if (message.includes('ljósmynd') || 
