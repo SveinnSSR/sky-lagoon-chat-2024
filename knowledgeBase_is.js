@@ -2243,7 +2243,8 @@ export const getRelevantKnowledge_is = (userMessage) => {
             }
         }
         // Check for dietary requirements 
-        else if (message.includes('glúten') || 
+        else if (message.includes('glúten') ||
+                message.includes('glútein') ||
                 message.includes('gluten') || 
                 message.includes('vegan') ||
                 message.includes('grænmetis')) {
