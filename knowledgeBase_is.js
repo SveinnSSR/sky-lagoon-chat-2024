@@ -1373,7 +1373,34 @@ export const knowledgeBase_is = {
                 description: "Upplifunin í Sky Lagoon að vetri til er sannarlega ekki síðri en að sumri, með tilkomumiklu útsýni yfir stjörnubjartan himinn. Ef þú ert heppin sérðu kannski norðurljósin velta fram um himinskaut."
             }
         }
-    }            
+    },
+    lost_found: {
+        questions: [
+            "Ég týndi einhverju í Sky Lagoon",
+            "Hvað geri ég ef ég týni einhverju?",
+            "Hvert á ég að leita ef ég gleymi einhverju?",
+            "Er óskilamunadeild?",
+            "Hvernig get ég fundið týnda hluti?",
+            "Hvert get ég leitað ef ég skildi eitthvað eftir?",
+            "Týndi síma",
+            "Gleymdi veski",
+            "Týndi skartgripum",
+            "Gleymdi fötunum mínum",
+            "Týndi sundfötunum"
+        ],
+        info: {
+            general: "Ef þú týndir eitthverju í Sky Lagoon munum við gera okkar besta í að finna það og skila því til þín.",
+            storage_periods: [
+                "Við geymum verðmæti í þrjá mánuði (veski, töskur, skartgripi, síma, myndavélar og annað).",
+                "Sundföt, handklæði og annan fatnað geymum við í eina viku."
+            ],
+            shipping_cost: "Kostnaður við að senda hlut sem týndist eru 4000 kr.",
+            contact: {
+                email: "lostandfound@skylagoon.is",
+                instructions: "Gott er að taka fram nafn, lýsingu á hlutnum, hvar og hvenær hann týndist og mynd ef kostur er."
+            }
+        }
+    }                     
 };
 
 // Knowledge base retrieval function
@@ -2714,8 +2741,8 @@ export const getRelevantKnowledge_is = (userMessage) => {
         });
     }
 
-        // Views and landmarks related queries
-        if (message.includes('sést') ||
+    // Views and landmarks related queries
+    if (message.includes('sést') ||
         message.includes('útsýni') ||
         message.includes('norðurljós') ||
         message.includes('bessastað') ||
@@ -2782,6 +2809,27 @@ export const getRelevantKnowledge_is = (userMessage) => {
             });
         }
     }
+
+    // Lost and found queries
+    if (message.includes('týnd') || 
+        message.includes('týnt') ||
+        message.includes('týndi') ||
+        message.includes('gleym') ||
+        message.includes('gleymd') ||
+        message.includes('gleymdi') ||
+        message.includes('óskilamun') ||
+        message.includes('fann') ||
+        message.includes('fundið') ||
+        message.includes('skildi eftir') ||
+        message.includes('finna') ||
+        (message.includes('hvar') && message.includes('leita'))) {
+
+        console.log('\n🔍 Lost & Found Match Found');
+        relevantInfo.push({
+            type: 'lost_found',
+            content: knowledgeBase_is.lost_found
+        });
+}
 
     return relevantInfo; 
 }  // Final closing bracket for the entire function
