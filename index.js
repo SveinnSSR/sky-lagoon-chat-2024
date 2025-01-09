@@ -2417,7 +2417,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         };
         
         // Declare isIcelandic BEFORE using it
-        const isIcelandic = languageCheck.rawDetection && languageCheck.hasIcelandicChars;
+        const isIcelandic = languageCheck.rawDetection || languageCheck.hasIcelandicChars;
 
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
