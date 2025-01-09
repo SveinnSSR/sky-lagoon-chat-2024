@@ -1734,6 +1734,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('stólalyftu') ||
         message.includes('fatlaða') ||
         message.includes('fatlaðra') ||
+        message.includes('fatlaðir') ||
         message.includes('hreyfihamlaða') ||
         message.includes('hreyfihamlaðra') ||
         message.includes('komast') ||
