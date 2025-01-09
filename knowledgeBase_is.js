@@ -1057,7 +1057,10 @@ export const knowledgeBase_is = {
             "Hvernig kemst ég með almenningssamgöngum?"
         ],
         location: {
+            // Enhanced with official website phrasing
             address: "Vesturvör 44-48, 200 Kópavogi",
+            tagline: "Þú finnur okkur þar sem himinn og haf renna saman",
+            position: "Á ysta odda Kársness í Kópavogi",
             distance: "7 kilómetrar frá miðborg Reykjavíkur",
             landmark_distances: {
                 perlan: "9 mínútur",
@@ -1107,7 +1110,7 @@ export const knowledgeBase_is = {
                 from_bsi: {
                     departures: ["13:00", "15:00", "17:00", "19:00"],
                     location: "BSÍ rútumiðstöð",
-                    type: "Beint tengiferðir að Sky Lagoon"
+                    type: "Beinar tengiferðir að Sky Lagoon"
                 },
                 hotel_pickup: {
                     timing: "Hefst 30 mínútum fyrir valinn tíma",
@@ -2011,6 +2014,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('síld') ||
         message.includes('vegan') ||
         message.includes('glútein') ||
+        message.includes('glúteinlausa') ||
         message.includes('glúten') ||
         message.includes('gluten') ||
         message.includes('glutenfrítt') ||
