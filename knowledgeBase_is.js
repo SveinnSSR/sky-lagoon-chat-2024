@@ -11,13 +11,13 @@ export const detectLanguage = (message) => {
         'sundföt', 'sundskýl', 'sundbol',  // Swimwear terms
         'ekki', 'þú', 'hann', 'hún',       // Common pronouns
         'hvað', 'gera', 'get', 'má',       // Common verbs
-        'minni', 'mínum', 'mínar', 'minn',  // Possessives
-        // Add age-related terms
-        'aldur', 'aldurstakmark', 'takmark'
+        'minni', 'mínum', 'mínar', 'minn', // Possessives
+        'aldur', 'aldurstakmark', 'takmark' // Age-related terms
     ];
 
-    // Special handling for 'sér' and package-related queries
     const lowercaseMessage = message.toLowerCase();
+    
+    // Special handling for English-specific queries
     if (lowercaseMessage.includes('package') || 
         lowercaseMessage.includes('packages') ||
         lowercaseMessage.includes('difference between') ||
@@ -28,14 +28,12 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('included in') ||
         lowercaseMessage.includes('what\'s in') ||
         lowercaseMessage.includes('pass') ||
-        // Transportation and location queries
         lowercaseMessage.includes('how do i get') ||
         lowercaseMessage.includes('how to get') ||
         lowercaseMessage.includes('bus from') ||
         lowercaseMessage.includes('shuttle') ||
         lowercaseMessage.includes('transport') ||
         lowercaseMessage.includes('excursions') ||
-        // Adding distance/location patterns
         lowercaseMessage.includes('how far') ||
         lowercaseMessage.includes('distance') ||
         lowercaseMessage.includes('from reykjavík') ||
@@ -43,7 +41,8 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('close to') ||
         lowercaseMessage.includes('near to') ||
         lowercaseMessage.includes('minutes from')) {
-        // If the message ONLY contains Icelandic place names or 'sér'/'skjól' as Icelandic characters, don't count it as Icelandic
+        
+        // Check if message contains Icelandic characters that aren't just place names
         const otherIcelandicChars = message.match(/[áðíúýþæö]/g) || [];
         const containsOnlyPlaceNames = otherIcelandicChars.every(char => 
             'reykjavíkbsíkeflavíkkópavogurstrætóhlemmurhamraborg'.includes(char.toLowerCase())
@@ -52,15 +51,24 @@ export const detectLanguage = (message) => {
             return false;
         }
     }
+
+    // First check for any Icelandic special characters
+    const hasIcelandicChars = icelandicIndicators.some(char => message.includes(char));
+    if (hasIcelandicChars) return true;
+
+    // Then check for common Icelandic words
+    const hasIcelandicWord = commonIcelandicWords.some(word => lowercaseMessage.includes(word));
     
-    return icelandicIndicators.some(char => message.includes(char)) ||
-           commonIcelandicWords.some(word => message.toLowerCase().includes(word));
+    return hasIcelandicWord;
 };
 
 // Enhanced language detection with context
 export const getLanguageContext = (message) => {
     const icelandicIndicators = ['ð', 'þ', 'æ', 'ö', 'á', 'í', 'ú', 'é', 'ó'];
-    const commonIcelandicWords = ['og', 'að', 'er', 'það', 'við', 'ekki', 'ég', 'þú', 'hann', 'hún'];
+    const commonIcelandicWords = [
+        'og', 'að', 'er', 'það', 'við', 'ekki', 'ég', 'þú', 'hann', 'hún',
+        'aldur', 'aldurstakmark', 'takmark'  // Added age-related terms here too
+    ];
     
     const hasIcelandicChars = icelandicIndicators.some(char => message.includes(char));
     const hasIcelandicWords = commonIcelandicWords.some(word => 
