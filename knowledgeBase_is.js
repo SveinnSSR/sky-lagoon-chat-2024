@@ -1304,6 +1304,62 @@ export const knowledgeBase_is = {
             reason: "Þar sem oft er fullbókað hjá okkur er fyrirframgreiðsla alltaf nauðsynleg til að staðfesta bókunina."
         }
     },
+    group_bookings: {
+        questions: [
+            "Get ég bókað fyrir hóp?",
+            "Er hægt að koma með hóp?",
+            "Hvernig bóka ég fyrir hóp?",
+            "Er afsláttur fyrir hópa?",
+            "Hvað með stóra hópa?",
+            "Er hópafsláttur?",
+            "Get ég fengið verð fyrir hóp?",
+            "Hvað kostar fyrir hóp?",
+            "Geturðu gefið mér verð í hópabókun?",
+            "Hvert er verðið fyrir hóp?"
+        ],
+        intro: {
+            title: "Upplifðu Sky Lagoon með hópnum þínum",
+            tagline: "Njótið saman",
+            description: "Slakaðu á undir berum himni í góðra vina hópi. Heimsókn í Sky Lagoon er ávísun á ógleymanlega stund undir kvöldsól eða jafnvel dansandi norðurljósum.",
+            group_size: "Við tökum við hópabókunum fyrir 10 manns eða fleiri."
+        },
+        packages: {
+            saman: {
+                name: "Saman aðgangur",
+                description: "Veitir aðgang að almennri búningsaðstöðu og sjö skrefa Skjól Ritúal meðferðinni.",
+                pricing: {
+                    weekday: {
+                        range: "10.490 - 11.990 ISK",
+                        note: "Verð á virkum dögum"
+                    },
+                    weekend: {
+                        range: "11.490 - 12.990 ISK",
+                        note: "Verð um helgar"
+                    }
+                }
+            },
+            ser: {
+                name: "Sér aðgangur",
+                description: "Býður upp á aukið næði með aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
+                pricing: {
+                    weekday: {
+                        range: "13.490 - 14.990 ISK",
+                        note: "Verð á virkum dögum"
+                    },
+                    weekend: {
+                        range: "15.490 - 15.990 ISK",
+                        note: "Verð um helgar"
+                    }
+                }
+            }
+        },
+        booking_info: {
+            contact: {
+                message: "Fyrir hópabókanir mælum við með að hafa samband beint til að fá nákvæmari upplýsingar og tilboð sem hentar ykkar þörfum.",
+                email: "reservations@skylagoon.is"
+            }
+        }
+    },
     age_policy: {
         questions: [
             "Er aldurstakmark?",
@@ -1419,7 +1475,7 @@ export const knowledgeBase_is = {
                 instructions: "Gott er að taka fram nafn, lýsingu á hlutnum, hvar og hvenær hann týndist og mynd ef kostur er."
             }
         }
-    }                     
+    }                 
 };
 
 // Knowledge base retrieval function
@@ -2728,6 +2784,25 @@ export const getRelevantKnowledge_is = (userMessage) => {
         }
     }
 
+    // Group bookings related queries
+    if (message.includes('hóp') ||
+        message.includes('hópa') ||
+        message.includes('hópabókun') ||
+        message.includes('hópnum') ||
+        message.includes('saman') ||
+        message.includes('margir') ||
+        (message.includes('fleiri') && message.includes('manns')) ||
+        (message.includes('verð') && message.includes('hóp')) ||
+        (message.includes('bóka') && message.includes('marga')) ||
+        (message.includes('koma') && message.includes('saman'))) {
+        
+        console.log('\n👥 Group Booking Match Found');
+        relevantInfo.push({
+            type: 'group_bookings',
+            content: knowledgeBase_is.group_bookings
+        });
+    }
+
     // Age policy related queries
     if (message.includes('aldur') || 
         message.includes('aldurs') ||
@@ -2867,7 +2942,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             type: 'lost_found',
             content: knowledgeBase_is.lost_found
         });
-}
+    }
 
     return relevantInfo; 
 }  // Final closing bracket for the entire function
