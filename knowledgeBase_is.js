@@ -2754,7 +2754,13 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('stjörnu') ||
         message.includes('kennileiti') ||
         message.includes('fjöll') ||
-        message.includes('jökul')) {
+        message.includes('jökul') ||
+        message.includes('staði') ||
+        (message.includes('hvaða') && message.includes('sjá')) ||
+        (message.includes('hvað') && message.includes('sjá')) ||
+        (message.includes('hægt') && message.includes('sjá')) ||
+        (message.includes('hvernig') && message.includes('útsýni')) ||
+        (message.includes('hvernig') && message.includes('sést'))) {
         
         console.log('\n👀 Views and Landmarks Match Found');
 
@@ -2800,7 +2806,10 @@ export const getRelevantKnowledge_is = (userMessage) => {
         if (!relevantInfo.length || 
             message.includes('útsýni') ||
             message.includes('sést') ||
-            message.includes('kennileiti')) {
+            message.includes('kennileiti') ||
+            message.includes('staði') ||
+            (message.includes('hvaða') && message.includes('sjá')) ||
+            (message.includes('hvað') && message.includes('sjá'))) {
             
             console.log('\n🏔️ General Views Information Match Found');
             relevantInfo.push({
