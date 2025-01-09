@@ -2819,8 +2819,11 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('forráðamanna') ||
         message.includes('fæðingarár') ||
         message.includes('ungling') ||
-        // Add these new patterns
+        // Add more variations of aldurstakmark
         message.includes('aldurstakmark') ||
+        message.includes('aldurstakmörk') ||
+        message.includes('aldurstakmarki') ||
+        message.includes('aldurstakmarkið') ||
         (message.includes('má') && message.includes('koma')) ||
         (message.includes('þarf') && message.includes('vera')) ||
         (message.includes('hver') && message.includes('aldur'))) {
@@ -2831,7 +2834,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             content: knowledgeBase_is.age_policy
         });
     }
-
+    
     // Photography rules related queries
     if (message.includes('ljósmynd') || 
         message.includes('mynd') ||
