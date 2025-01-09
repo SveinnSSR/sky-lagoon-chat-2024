@@ -417,11 +417,30 @@ export const knowledgeBase_is = {
             lgbtqia_support: {
                 // New from website
                 main_info: "Sky búningsklefarnir okkar eru kynhlutlausir. Kynsegin gestir (þau sem skilgreina sig utan tvíhyggjukerfisins) og hafa keypt Saman aðgang eru hvattir til að láta vita við innritun og við uppfærum bókunina í Sér án aukakostnaðar.",
-                commitments: [
-                    "Öruggt rými fyrir öll - Við leggjum okkur fram við að taka á móti fólki á öruggan hátt, með virðingu og hlýju.",
-                    "Fræðsla í fyrirrúmi - Við leggjum áherslu á að fræða okkur um málefni og áskoranir sem hinsegin samfélagið stendur frammi fyrir.",
-                    "Bætum okkur - Við tökum fagnandi á móti tillögum frá bæði teyminu okkar og gestum um hvernig við getum haldið áfram að vinna að betra aðgengi fyrir öll í Sky Lagoon."
-                ]
+                hinsegin_heit: {
+                    title: "Fögnum fjölbreytileikanum",
+                    intro: "Hjá Sky Lagoon heitum við því að gera ávallt okkar besta til að bæði gestum og teyminu okkar líði vel og viti að öll séu velkomin.",
+                    commitments: [
+                        {
+                            title: "Öruggt rými fyrir öll",
+                            description: "Við leggjum okkur fram við að taka á móti fólki á öruggan hátt, með virðingu og hlýju. Sky búningsklefarnir okkar eru kynhlutlausir og höfum við endurmerkt salernin til að koma til móts við öll.",
+                            extra_info: "Kynsegin gestir eða þau sem skilgreina sig utan tvíhyggjukerfisins og hafa keypt Saman miða með aðgangi að almennri búningsaðstöðu eru hvattir til að láta okkur vita og við munum uppfæra bókunina í kynhlutlausan klefa í Sér viðkomandi að kostnaðarlausu."
+                        },
+                        {
+                            title: "Fræðsla í fyrirrúmi",
+                            description: "Við leggjum áherslu á að fræða okkur um málefni og áskoranir sem hinsegin samfélagið stendur frammi fyrir, með það að markmiði að efla samkennd, skilning og stuðning."
+                        },
+                        {
+                            title: "Bætum okkur",
+                            description: "Við tökum fagnandi á móti tillögum frá bæði teyminu okkar og gestum um hvernig við getum haldið áfram að vinna að betra aðgengi fyrir öll í Sky Lagoon."
+                        }
+                    ],
+                    closing_statements: [
+                        "Með auknum sýnileika getum við öll gert betur.",
+                        "Við lofum að leggja okkar af mörkum.",
+                        "Við erum stolt af því að leggja okkar af mörkum."
+                    ]
+                }
             },
             features: [
                 "Öll aðstaða með gott aðgengi fyrir hjólastóla",
@@ -1822,11 +1841,21 @@ export const getRelevantKnowledge_is = (userMessage) => {
         }
 
         // Check for LGBTQIA+ related queries
-        if (message.includes('kynsegin') || 
+        if (message.includes('kynsegin') ||
             message.includes('kynhlutlaus') ||
             message.includes('hinsegin') ||
-            message.includes('trans')) {
-            
+            message.includes('trans') ||
+            // Add these new patterns
+            message.includes('lgbt') ||
+            message.includes('queer') ||
+            message.includes('fjölbreytileik') ||
+            message.includes('sýnileik') ||
+            message.includes('heit') ||
+            (message.includes('kyn') && message.includes('hlutlaus')) ||
+            // Add these bathroom related patterns
+            message.includes('salerni') ||
+            message.includes('merking')) {
+
             console.log('\n🌈 LGBTQIA+ Support Match Found');
             accessibilityInfo.content = {
                 lgbtqia_support: knowledgeBase_is.facilities.accessibility.lgbtqia_support
