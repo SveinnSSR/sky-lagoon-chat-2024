@@ -2150,6 +2150,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('síld') ||
         message.includes('vegan') ||
         message.includes('glútein') ||
+        message.includes('glúteinfrían') ||
         message.includes('glúteinlausa') ||
         message.includes('glúten') ||
         message.includes('gluten') ||
