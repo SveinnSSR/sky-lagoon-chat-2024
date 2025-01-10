@@ -390,7 +390,21 @@ export const knowledgeBase_is = {
                 "Er sérstök aðstaða fyrir hreyfihamlaða?",
                 "Hvernig er aðstaðan fyrir kynsegin fólk?",
                 "Eruð þið með kynhlutlaus salerni?",
-                "Get ég fengið aðstoð starfsfólks?"
+                "Get ég fengið aðstoð starfsfólks?",
+                "Hvernig er aðstaðan fyrir fatlaða?",
+                "Hvernig er aðgangssvítan?",
+                "Hvernig er aðgengissvítan?",
+                "Fá fatlaðir aðgang?",
+                "Get ég fengið aðstoð?",
+                "Er hjálp í boði?",
+                "Er hægt að fá aðstoð?",
+                "Fá fatlaðir meiri aðstoð?",
+                "Er sérstök aðstaða?",
+                "Er sérútbúin aðstaða?",
+                "Hvernig er aðstaðan?",
+                "Er aðstoð í boði?",
+                "Fæ ég hjálp?",
+                "Er hægt að fá fylgdarmann?"
             ],
             mission_statement: {
                 // New from website
@@ -399,19 +413,21 @@ export const knowledgeBase_is = {
             },
             accessibility_suite: {
                 // New detailed info from website
-                name: "Aðgengissvítan",
-                description: "Aðgengissvítan okkar er einkaklefi með auknu aðgengi sem inniheldur:",
-                features: [
-                    "Sex læstir skápar",
-                    "Rúmgott svæði til að athafna sig",
-                    "Öryggis- og hjálparbjalla",
-                    "Hindrunarlaust aðgengi að sturtum með stuðningsslá",
-                    "Færanlegur sturtustóll með baki og örmum",
-                    "Salerni með stuðningsslá",
-                    "Rúmgóður bekkur",
-                    "Spegill"
-                ]
-            },
+                accessibility_suite: {
+                    name: "Aðgengissvítan",
+                    description: "Aðgengissvítan er sérhönnuð einkaaðstaða fyrir fatlaða gesti með auknu aðgengi.",
+                    features: [
+                        "Sex læstir skápar",
+                        "Rúmgott svæði til að athafna sig",
+                        "Öryggis- og hjálparbjalla",
+                        "Hindrunarlaust aðgengi að sturtum með stuðningsslá",
+                        "Færanlegur sturtustóll með baki og örmum",
+                        "Salerni með stuðningsslá",
+                        "Rúmgóður bekkur",
+                        "Spegill"
+                    ],
+                    access: "Allir fatlaðir gestir geta fengið aðgang að aðgengissvítunni"
+                },
             pool_access: {
                 // Enhanced with official website wording
                 lifts: {
@@ -420,9 +436,11 @@ export const knowledgeBase_is = {
                 }
             },
             staff_assistance: {
-                // New from website
-                communication: "Sky Lagoon teymið notar talstöðvar til samskipta, svo það er auðvelt að láta okkur vita til dæmis til þess að hafa aðgengislyftu tilbúna eftir ákveðinn tíma eða þegar þú vilt komast upp úr.",
-                service: "Teymið okkar mun alltaf glatt aðstoða þig þurfir þú aðstoð."
+                general: "Sky Lagoon teymið er sérstaklega þjálfað til að aðstoða fatlaða gesti og er alltaf tilbúið að hjálpa.",
+                communication: "Teymið okkar notar talstöðvar til samskipta, svo það er auðvelt að láta okkur vita ef þú þarft aðstoð, til dæmis með aðgengislyftu eða þegar þú vilt komast upp úr.",
+                service: "Teymið okkar mun alltaf glatt aðstoða þig þurfir þú aðstoð.",
+                contact: "Við mælum með að hafa samband við okkur fyrirfram á reservations@skylagoon.is ef þú þarft sérstaka aðstoð eða aðbúnað."
+            },
             },
             lgbtqia_support: {
                 // New from website
@@ -480,7 +498,14 @@ export const knowledgeBase_is = {
             "Get ég sleppt ritúalinu?",
             "Hvað er Skjól ritúalið?",
             "Hvernig virkar ritúalið?",
-            "Er ritúalið val?"
+            "Er ritúalið val?",
+            // Add new question patterns from website
+            "Hvernig fer ritúalið fram?",
+            "Hver eru skrefin?",
+            "Hvað eru mörg skref?",
+            "Útskýrðu ritúalið",
+            "Segðu mér frá ritúalinu",
+            "Hvernig er ritúalmeðferðin?"
         ],
         name: "Skjól Ritúal",
         tagline: "Nærandi ferðalag fyrir öll skilningarvitin",
@@ -1861,15 +1886,24 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('fylgdarmen') ||
         message.includes('lyfta') ||
         message.includes('lyftu') ||
-        // New patterns for enhanced accessibility content
-        message.includes('aðgengissvíta') ||
+        // Enhanced accessibility patterns
+        message.includes('aðgangssvít') ||
+        message.includes('aðgengissvít') ||
+        message.includes('svíta') ||
+        message.includes('svítu') ||
+        message.includes('sérbúin') ||
+        message.includes('sérhönnuð') ||
+        message.includes('sérútbúin') ||
         message.includes('sturtustól') ||
         message.includes('stuðningsslá') ||
         message.includes('hindrunarlaus') ||
         message.includes('kynsegin') ||
         message.includes('kynhlutlaus') ||
         message.includes('talstöð') ||
-        message.includes('hjálparbjall')) {
+        message.includes('hjálparbjall') ||
+        (message.includes('fá') && message.includes('aðstoð')) ||
+        (message.includes('meiri') && message.includes('aðstoð')) ||
+        (message.includes('sérstök') && message.includes('aðstaða'))) {
             
         console.log('\n♿ Accessibility Match Found');
 
@@ -1880,7 +1914,13 @@ export const getRelevantKnowledge_is = (userMessage) => {
         };
 
         // Check for accessibility suite specific queries
-        if (message.includes('aðgengissvíta') || 
+        if (message.includes('aðgangssvít') ||
+            message.includes('aðgengissvít') ||
+            message.includes('svíta') ||
+            message.includes('svítu') ||
+            message.includes('sérbúin') ||
+            message.includes('sérhönnuð') ||
+            message.includes('sérútbúin') ||
             message.includes('sturtustól') ||
             message.includes('stuðningsslá') ||
             message.includes('hjálparbjall') ||
@@ -1913,14 +1953,12 @@ export const getRelevantKnowledge_is = (userMessage) => {
             message.includes('kynhlutlaus') ||
             message.includes('hinsegin') ||
             message.includes('trans') ||
-            // Add these new patterns
             message.includes('lgbt') ||
             message.includes('queer') ||
             message.includes('fjölbreytileik') ||
             message.includes('sýnileik') ||
             message.includes('heit') ||
             (message.includes('kyn') && message.includes('hlutlaus')) ||
-            // Add these bathroom related patterns
             message.includes('salerni') ||
             message.includes('merking')) {
 
@@ -1930,7 +1968,6 @@ export const getRelevantKnowledge_is = (userMessage) => {
             };
         }
 
-        // Keep existing specific checks
         // Check for specific queries about pool/lón access
         if (message.includes('lón') || 
             message.includes('lónið') || 
