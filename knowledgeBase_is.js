@@ -15,7 +15,26 @@ export const detectLanguage = (message) => {
         'aldur', 'aldurstakmark', 'takmark' // Age-related terms
     ];
 
+    // ADD THIS NEW ARRAY HERE - English detection
+    const englishIndicators = [
+        'the', 'is', 'are', 'what', 'where', 'when', 'how', 'who',
+        'can', 'do', 'does', 'your', 'you', 'have', 'has', 'had',
+        'will', 'would', 'should', 'could', 'and', 'but', 'or',
+        'warm', 'cold', 'hot', 'water', 'temperature', 'pool',
+        'in', 'at', 'to', 'from', 'with', 'without', 'about',
+        'need', 'want', 'like', 'much', 'many', 'few', 'some',
+        'any', 'which', 'for', 'bar', 'drink', 'food', 'eat',
+        'booking', 'book', 'reservation', 'reserve', 'price',
+        'cost', 'expensive', 'cheap', 'open', 'closed', 'hours'
+    ];
+
     const lowercaseMessage = message.toLowerCase();
+
+    // ADD THESE THREE LINES HERE - English word count check
+    const messageWords = lowercaseMessage.split(/\s+/);
+    const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
+    if (englishWordCount >= 2) return false;
+
     
     // Special handling for English-specific queries
     if (lowercaseMessage.includes('package') || 
@@ -58,6 +77,22 @@ export const detectLanguage = (message) => {
 
     // Then check for common Icelandic words
     const hasIcelandicWord = commonIcelandicWords.some(word => lowercaseMessage.includes(word));
+
+    // ADD THIS BLOCK BEFORE THE FINAL RETURN - Additional English pattern check
+    const hasEnglishPattern = (
+        lowercaseMessage.startsWith('is ') ||
+        lowercaseMessage.startsWith('are ') ||
+        lowercaseMessage.startsWith('do ') ||
+        lowercaseMessage.startsWith('does ') ||
+        lowercaseMessage.startsWith('can ') ||
+        lowercaseMessage.startsWith('what ') ||
+        lowercaseMessage.startsWith('when ') ||
+        lowercaseMessage.startsWith('where ') ||
+        lowercaseMessage.startsWith('how ') ||
+        lowercaseMessage.startsWith('why ')
+    );
+
+    if (hasEnglishPattern) return false;
     
     return hasIcelandicWord;
 };
