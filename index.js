@@ -33,13 +33,20 @@ const SKY_LAGOON_GUIDELINES = {
         }
     },
     specialPhrases: {
-        // Enhanced Bar-Related Phrases (Add these at the top)
-        'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,', 
+        // Basic bar redundancy and positioning phrases
+        'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,',
         'Nestled within the lagoon, our Gelmir lagoon bar': 'Nestled within the lagoon,',
-        ', our lagoon bar is': ' is',  // More specific to catch the "is" variant
-        ', our lagoon bar offers': ' offers', 
+        'Nestled on the far edge of the lagoon beneath a cave-wall canopy, our lagoon bar': 'Nestled on the far edge of the lagoon beneath a cave-wall canopy',
+        'Nestled on the far edge of the lagoon, our lagoon bar': 'Nestled on the far edge of the lagoon',
+        ' beneath a cave-wall canopy, our lagoon bar': ' beneath a cave-wall canopy',
+        ', our lagoon bar is': ' is',
+        ', our lagoon bar offers': ' offers',
+        ', our lagoon bar': '',
+        ' our lagoon bar is': ' is',
         'within the lagoon, our lagoon bar': 'within the lagoon',
-        'of our lagoon': 'of the lagoon',  // Prevent double "our" references
+        'of our lagoon': 'of the lagoon',
+        
+        // Gelmir Bar location variations
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
@@ -52,11 +59,11 @@ const SKY_LAGOON_GUIDELINES = {
         'located in the geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir bar': 'Gelmir lagoon bar',
-        ', our lagoon bar': '',  // Remove redundant mention
-        ', our Gelmir lagoon bar': '',  // More specific redundancy prevention
-        'within the lagoon, our lagoon bar': 'within the lagoon',
-                
-        // Add variations with 'our'
+        
+        // Redundancy prevention
+        ', our Gelmir lagoon bar': '',
+        
+        // Variations with 'our'
         'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
         'our in-geothermal water Gelmir bar': 'our Gelmir lagoon bar',
         'our Gelmir Bar': 'our Gelmir lagoon bar',
