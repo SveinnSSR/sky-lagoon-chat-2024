@@ -33,7 +33,19 @@ const SKY_LAGOON_GUIDELINES = {
         }
     },
     specialPhrases: {
-        // Hydration specific phrases
+        // NEW SECTION - Double Geothermal Prevention
+        'geothermal geothermal water': 'geothermal water',
+        'our geothermal geothermal': 'our geothermal',
+        'the geothermal geothermal': 'the geothermal',
+        'maintained geothermal geothermal': 'maintained geothermal',
+        'maintain geothermal geothermal': 'maintain geothermal',
+        'maintains geothermal geothermal': 'maintains geothermal',
+        'a geothermal geothermal': 'a geothermal',
+        'with geothermal geothermal': 'with geothermal',
+        'in geothermal geothermal': 'in geothermal',
+        'this geothermal geothermal': 'this geothermal',
+        
+        // Existing Hydration specific phrases
         'drink plenty of geothermal water': 'drink plenty of water',
         'drinking plenty of geothermal': 'drinking plenty of',
         'drinking plenty of geothermal water': 'drinking plenty of water',
