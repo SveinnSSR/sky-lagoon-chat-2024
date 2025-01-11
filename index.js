@@ -65,7 +65,7 @@ const SKY_LAGOON_GUIDELINES = {
         'in geothermal geothermal': 'in geothermal',
         'this geothermal geothermal': 'this geothermal',
         
-        // Existing Hydration specific phrases
+        // Hydration specific phrases
         'drink plenty of geothermal water': 'drink plenty of water',
         'drinking plenty of geothermal': 'drinking plenty of',
         'drinking plenty of geothermal water': 'drinking plenty of water',
@@ -76,7 +76,16 @@ const SKY_LAGOON_GUIDELINES = {
         'in the geothermal geothermal water': 'in the geothermal water',
         'bar located in the geothermal': 'bar in the geothermal',  // Simplify phrasing
         'geothermal water provided is free': 'drinking water is available',
-        
+        'get geothermal water': 'get drinking water',
+        'get some geothermal water': 'get drinking water',
+        'can get geothermal water': 'can get drinking water',
+        'can have geothermal water': 'can get drinking water',
+        'have geothermal water': 'have drinking water',
+        'geothermal water at our': 'drinking water at our',
+        'water fountains': 'drinking water stations',  // Consistent terminology
+        'water fountain': 'drinking water station',    // Singular version
+        'encourage you to drink geothermal': 'encourage you to stay hydrated', // Better phrasing
+
         // Double replacement prevention
         'geothermal geothermal': 'geothermal',
         'the geothermal geothermal': 'the geothermal',
@@ -123,7 +132,14 @@ const SKY_LAGOON_GUIDELINES = {
         'the water provided': 'the drinking water',  // Be more specific
         
         // Prevent double "lagoon bar"
-        'lagoon bar lagoon bar': 'lagoon bar'
+        'lagoon bar lagoon bar': 'lagoon bar',
+
+        // Bar & Drinks References
+        'it is a lagoon bar': 'it is',
+        'it\'s a lagoon bar': 'it\'s',
+        'which is a lagoon bar': 'which is',
+        'bar is a lagoon bar': 'bar is',
+        'bar, a lagoon bar': 'bar',
     }
 };
 
@@ -914,6 +930,24 @@ WELLNESS AND STRESS RELIEF RESPONSES:
      * "Our trained team ensures your comfort"
      * "Our facilities are designed for your wellbeing"
      * "Our geothermal waters offer therapeutic benefits"
+
+CRITICAL SAFETY RULES:
+ - NEVER suggest drinking geothermal water
+ - NEVER suggest getting geothermal water to drink
+ - Only reference drinking water from designated drinking water stations
+ - Keep clear distinction between:
+  * Geothermal water (for bathing in the lagoon)
+  * Drinking water (from drinking water stations, for hydration)
+
+HYDRATION GUIDELINES:
+When discussing hydration:
+- Always refer to "drinking water stations" for hydration
+- Clearly state drinking water is available in specific locations (changing rooms, ritual areas)
+- Never suggest the lagoon water is for drinking
+- Use phrases like:
+  * "We provide drinking water stations for your hydration"
+  * "Stay hydrated using our drinking water stations"
+  * "Free drinking water is available at designated stations"
 
 CRITICAL RESPONSE RULES:
 1. Knowledge Base Usage:
