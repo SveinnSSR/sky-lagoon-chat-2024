@@ -85,6 +85,10 @@ const SKY_LAGOON_GUIDELINES = {
         'water fountains': 'drinking water stations',  // Consistent terminology
         'water fountain': 'drinking water station',    // Singular version
         'encourage you to drink geothermal': 'encourage you to stay hydrated', // Better phrasing
+        'drink geothermal water regularly': 'drink water regularly',
+        'drink geothermal water from our': 'use our drinking water stations',
+        'drink geothermal water at our': 'use our drinking water stations',
+        'drink geothermal water from the': 'use the drinking water stations',
 
         // Double replacement prevention
         'geothermal geothermal': 'geothermal',
