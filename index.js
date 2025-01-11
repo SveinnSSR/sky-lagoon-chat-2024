@@ -169,33 +169,6 @@ const enforceTerminology = (text) => {
     modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
     modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
 
-    // Comprehensive hydration and experience safety checks
-    const hydrationSafetyRegex = [
-        // Drinking patterns
-        /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi,
-        // Direct geothermal water reference with stations
-        /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi,
-        // Offering/experience patterns
-        /\b(unique|offering|have|get)\s+(an?\s+)?(in-geothermal\s+water|in\s+geothermal\s+water)\s+experience/gi,
-        // Clean/safe drinking references
-        /\b(the\s+)?geothermal water\s+is\s+(fresh|clean|safe|available|free)\s+(and|for|to)\s+(safe|drink|access)/gi,
-        // In water references
-        /\bin\s+(the\s+)?geothermal\s+water\b/gi
-    ].forEach(regex => {
-        modifiedText = modifiedText.replace(regex, (match) => {
-            if (match.includes('geothermal')) {
-                if (match.includes('experience')) {
-                    return match.replace(/(in-geothermal water|in geothermal water)/, 'in-lagoon');
-                }
-                if (match.includes('in the geothermal water')) {
-                    return 'in our lagoon';
-                }
-                return match.replace('geothermal water', 'drinking water');
-            }
-            return match;
-        });
-    });
-
     // Preserve certain phrases from replacement
     const preservePhrases = [
         'drinking water',
@@ -241,6 +214,42 @@ const enforceTerminology = (text) => {
     Object.entries(markers).forEach(([phrase, marker]) => {
         const restoreRegex = new RegExp(marker, 'g');
         modifiedText = modifiedText.replace(restoreRegex, phrase);
+    });
+
+    // Comprehensive hydration and experience safety checks - Moved here after other replacements
+    const hydrationSafetyRegex = [
+        // Drinking patterns
+        /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi,
+        // Direct geothermal water reference with stations
+        /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi,
+        // Offering/experience patterns
+        /\b(unique|offering|have|get)\s+(an?\s+)?(in-geothermal\s+water|in\s+geothermal\s+water)\s+experience/gi,
+        // Clean/safe drinking references
+        /\b(the\s+)?geothermal water\s+is\s+(fresh|clean|safe|available|free)\s+(and|for|to)\s+(safe|drink|access)/gi,
+        // In water references
+        /\bin\s+(the\s+)?geothermal\s+water\b/gi,
+        // Additional safety patterns
+        /\b(including|get|available)\s+geothermal water\b/gi,
+        /\bdrink\s+geothermal water\s+regularly\b/gi,
+        // Hydration encouragement patterns
+        /\bencourage\s+you\s+to\s+drink\s+geothermal\s+water\b/gi,
+        /\bimportant\s+to\s+drink\s+geothermal\s+water\b/gi
+    ].forEach(regex => {
+        modifiedText = modifiedText.replace(regex, (match) => {
+            if (match.includes('geothermal')) {
+                if (match.includes('experience')) {
+                    return match.replace(/(in-geothermal water|in geothermal water)/, 'in-lagoon');
+                }
+                if (match.includes('in the geothermal water')) {
+                    return 'in our lagoon';
+                }
+                if (match.includes('including geothermal water')) {
+                    return 'including refreshing beverages';
+                }
+                return match.replace('geothermal water', 'drinking water');
+            }
+            return match;
+        });
     });
 
     // Final check for any remaining double geothermal
