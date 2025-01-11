@@ -34,6 +34,7 @@ const SKY_LAGOON_GUIDELINES = {
     },
     specialPhrases: {
         // Enhanced Bar-Related Phrases (Add these at the top)
+        'Gelmir lagoon bar is a lagoon bar': 'Gelmir lagoon bar is',
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
