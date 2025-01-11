@@ -117,12 +117,17 @@ const enforceTerminology = (text) => {
     // Log for debugging
     console.log('\n📝 Checking terminology for:', text);
 
+    // First handle double geothermal cases
+    const geothermalRegex = /\b(geothermal\s+){2,}/gi;
+    modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
+
     // Preserve certain phrases from replacement
     const preservePhrases = [
         'drinking water',
         'fresh water',
         'water stations',
-        'water fountain'
+        'water fountain',
+        'geothermal water'  // Add this to preserve
     ];
 
     // First preserve phrases we don't want modified
@@ -145,6 +150,9 @@ const enforceTerminology = (text) => {
         const restoreRegex = new RegExp(`__PRESERVE_${phrase.toUpperCase()}__`, 'g');
         modifiedText = modifiedText.replace(restoreRegex, phrase);
     });
+
+    // Final check for any remaining double geothermal
+    modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
 
     // Log any changes made
     if (modifiedText !== text) {
