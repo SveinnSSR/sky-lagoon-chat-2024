@@ -169,6 +169,15 @@ const enforceTerminology = (text) => {
     modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
     modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
 
+    // ADD NEW SECTION HERE - Comprehensive hydration safety check
+    const hydrationRegex = /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi;
+    modifiedText = modifiedText.replace(hydrationRegex, (match) => {
+        if (match.includes('geothermal')) {
+            return match.replace('geothermal water', 'drinking water');
+        }
+        return match;
+    });
+
     // Preserve certain phrases from replacement
     const preservePhrases = [
         'drinking water',
