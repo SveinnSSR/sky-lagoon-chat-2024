@@ -152,6 +152,9 @@ const SKY_LAGOON_GUIDELINES = {
         '. it': '. It',      // Also catch other common lowercase starts
         '. the': '. The',
         '.. our': '. Our',   // Catch any double periods too
+        ': our': ': Our',   // Colon followed by our
+        '- our': '- Our',   // Dash followed by our
+        'right lagoon\'s edge': 'at the lagoon\'s edge',  // Fix awkward phrasing
     }
 };
 
@@ -258,7 +261,7 @@ const enforceTerminology = (text) => {
                     return 'including refreshing beverages';
                 }
                 if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
-                    return 'lagoon\'s edge';
+                    return 'at the lagoon\'s edge';  // Add "at the" for better phrasing
                 }
                 return match.replace('geothermal water', 'drinking water');
             }
