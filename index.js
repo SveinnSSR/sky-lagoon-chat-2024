@@ -144,6 +144,14 @@ const SKY_LAGOON_GUIDELINES = {
         'which is a lagoon bar': 'which is',
         'bar is a lagoon bar': 'bar is',
         'bar, a lagoon bar': 'bar',
+
+        // Capitalization Fixes
+        '. our': '. Our',    // Period followed by our
+        '! our': '! Our',    // Exclamation followed by our
+        '? our': '? Our',    // Question followed by our
+        '. it': '. It',      // Also catch other common lowercase starts
+        '. the': '. The',
+        '.. our': '. Our',   // Catch any double periods too
     }
 };
 
@@ -233,7 +241,10 @@ const enforceTerminology = (text) => {
         /\bdrink\s+geothermal water\s+regularly\b/gi,
         // Hydration encouragement patterns
         /\bencourage\s+you\s+to\s+drink\s+geothermal\s+water\b/gi,
-        /\bimportant\s+to\s+drink\s+geothermal\s+water\b/gi
+        /\bimportant\s+to\s+drink\s+geothermal\s+water\b/gi,
+        // Water's edge patterns
+        /\b(at|by|near)\s+(the\s+)?geothermal\s+water['']?s?\s+edge\b/gi,
+        /\b(edge\s+of\s+the)\s+geothermal\s+water\b/gi
     ].forEach(regex => {
         modifiedText = modifiedText.replace(regex, (match) => {
             if (match.includes('geothermal')) {
@@ -245,6 +256,9 @@ const enforceTerminology = (text) => {
                 }
                 if (match.includes('including geothermal water')) {
                     return 'including refreshing beverages';
+                }
+                if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
+                    return 'lagoon\'s edge';
                 }
                 return match.replace('geothermal water', 'drinking water');
             }
