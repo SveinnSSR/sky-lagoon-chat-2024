@@ -34,7 +34,6 @@ const SKY_LAGOON_GUIDELINES = {
     },
     specialPhrases: {
         // Enhanced Bar-Related Phrases (Add these at the top)
-        'Gelmir lagoon bar is a lagoon bar': 'Gelmir lagoon bar is',
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
@@ -146,6 +145,10 @@ const enforceTerminology = (text) => {
     const geothermalRegex = /\b(geothermal\s+){2,}/gi;
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
 
+    // Handle redundant bar references first
+    modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
+    modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
+
     // Preserve certain phrases from replacement
     const preservePhrases = [
         'drinking water',
@@ -156,10 +159,17 @@ const enforceTerminology = (text) => {
         'Gelmir lagoon bar'  // Add this to preserve the correct form
     ];
 
-    // First preserve phrases we don't want modified
+    // Create unique markers for each phrase
+    const markers = {};
     preservePhrases.forEach(phrase => {
+        const marker = `__PRESERVE_${Math.random().toString(36).substring(7)}_${phrase.replace(/\s+/g, '_').toUpperCase()}__`;
+        markers[phrase] = marker;
+    });
+
+    // First preserve phrases we don't want modified
+    Object.entries(markers).forEach(([phrase, marker]) => {
         const preserveRegex = new RegExp(phrase, 'gi');
-        modifiedText = modifiedText.replace(preserveRegex, `__PRESERVE_${phrase.toUpperCase()}__`);
+        modifiedText = modifiedText.replace(preserveRegex, marker);
     });
 
     // Handle special phrases first
@@ -180,14 +190,17 @@ const enforceTerminology = (text) => {
         }
     });
 
-    // Restore preserved phrases
-    preservePhrases.forEach(phrase => {
-        const restoreRegex = new RegExp(`__PRESERVE_${phrase.toUpperCase()}__`, 'g');
+    // Restore preserved phrases using markers
+    Object.entries(markers).forEach(([phrase, marker]) => {
+        const restoreRegex = new RegExp(marker, 'g');
         modifiedText = modifiedText.replace(restoreRegex, phrase);
     });
 
     // Final check for any remaining double geothermal
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
+
+    // Final cleanup of any remaining preserve markers
+    modifiedText = modifiedText.replace(/__PRESERVE_[A-Z0-9_]+__/g, '');
 
     // Log any changes made
     if (modifiedText !== text) {
