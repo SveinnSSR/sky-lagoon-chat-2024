@@ -35,6 +35,8 @@ const SKY_LAGOON_GUIDELINES = {
     specialPhrases: {
         // Basic bar redundancy and positioning phrases
         'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,',
+        'beneath the canopy on the far edge, offering': 'offering',  // Remove redundant positioning
+        'Location: lagoon bar within': 'Location: bar within',  // Simplify location description
         'Nestled within the lagoon, our Gelmir lagoon bar': 'Nestled within the lagoon,',
         'Nestled on the far edge of the lagoon beneath a cave-wall canopy, our lagoon bar': 'Nestled on the far edge of the lagoon beneath a cave-wall canopy',
         'Nestled on the far edge of the lagoon, our lagoon bar': 'Nestled on the far edge of the lagoon',
@@ -45,6 +47,10 @@ const SKY_LAGOON_GUIDELINES = {
         ' our lagoon bar is': ' is',
         'within the lagoon, our lagoon bar': 'within the lagoon',
         'of our lagoon': 'of the lagoon',
+
+        // Near your other formatting fixes
+        '•- ': '• ',        // Fix menu formatting
+        '.. ': '. ',         // Fix double periods
         
         // Gelmir Bar location variations
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
@@ -150,8 +156,8 @@ const SKY_LAGOON_GUIDELINES = {
         'drinking plenty of geothermal water': 'drinking plenty of water',
         'geothermal water provided is free': 'drinking water is available',
         'the water provided': 'the drinking water',  // Be more specific
-        '•- ': '• ',        // Fix menu formatting
-        '.. ': '. ',         // Fix double periods
+        'This lagoon bar': 'It',                        // Simplify reference
+        'lagoon bar within the lagoon': 'bar in the lagoon',  // Remove redundancy
         
         // Prevent double "lagoon bar"
         'lagoon bar lagoon bar': 'lagoon bar',
