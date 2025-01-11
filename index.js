@@ -34,6 +34,12 @@ const SKY_LAGOON_GUIDELINES = {
     },
     specialPhrases: {
         // Enhanced Bar-Related Phrases (Add these at the top)
+        'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,', 
+        'Nestled within the lagoon, our Gelmir lagoon bar': 'Nestled within the lagoon,',
+        ', our lagoon bar is': ' is',  // More specific to catch the "is" variant
+        ', our lagoon bar offers': ' offers', 
+        'within the lagoon, our lagoon bar': 'within the lagoon',
+        'of our lagoon': 'of the lagoon',  // Prevent double "our" references
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
