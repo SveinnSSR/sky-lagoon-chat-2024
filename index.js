@@ -33,6 +33,26 @@ const SKY_LAGOON_GUIDELINES = {
         }
     },
     specialPhrases: {
+        // Enhanced Bar-Related Phrases (Add these at the top)
+        'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
+        'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
+        'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
+        'in geothermal water Gelmir bar': 'Gelmir lagoon bar',
+        'in-water Gelmir Bar': 'Gelmir lagoon bar',
+        'in-water Gelmir bar': 'Gelmir lagoon bar',
+        'in water Gelmir Bar': 'Gelmir lagoon bar',
+        'in water Gelmir bar': 'Gelmir lagoon bar',
+        'located in the geothermal water Gelmir Bar': 'Gelmir lagoon bar',
+        'located in the geothermal water Gelmir bar': 'Gelmir lagoon bar',
+        'in-geothermal Gelmir Bar': 'Gelmir lagoon bar',
+        'in-geothermal Gelmir bar': 'Gelmir lagoon bar',
+                
+        // Add variations with 'our'
+        'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
+        'our in-geothermal water Gelmir bar': 'our Gelmir lagoon bar',
+        'our Gelmir Bar': 'our Gelmir lagoon bar',
+        'our Gelmir bar': 'our Gelmir lagoon bar',
+        
         // NEW SECTION - Double Geothermal Prevention
         'geothermal geothermal water': 'geothermal water',
         'our geothermal geothermal': 'our geothermal',
@@ -117,7 +137,11 @@ const enforceTerminology = (text) => {
     // Log for debugging
     console.log('\n📝 Checking terminology for:', text);
 
-    // First handle double geothermal cases
+    // First handle Gelmir Bar variations with regex
+    const gelmirRegex = /\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi;
+    modifiedText = modifiedText.replace(gelmirRegex, 'Gelmir lagoon bar');
+
+    // Handle double geothermal cases
     const geothermalRegex = /\b(geothermal\s+){2,}/gi;
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
 
@@ -127,7 +151,8 @@ const enforceTerminology = (text) => {
         'fresh water',
         'water stations',
         'water fountain',
-        'geothermal water'  // Add this to preserve
+        'geothermal water',  // Add this to preserve
+        'Gelmir lagoon bar'  // Add this to preserve the correct form
     ];
 
     // First preserve phrases we don't want modified
@@ -137,6 +162,15 @@ const enforceTerminology = (text) => {
     });
 
     // Handle special phrases first
+    Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases).forEach(([phrase, replacement]) => {
+        const phraseRegex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        if (phraseRegex.test(modifiedText)) {
+            console.log(`📝 Replacing "${phrase}" with "${replacement}"`);
+            modifiedText = modifiedText.replace(phraseRegex, replacement);
+        }
+    });
+
+    // Handle preferred terminology
     Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred).forEach(([correct, incorrect]) => {
         const phraseRegex = new RegExp(`\\b${incorrect}\\b`, 'gi');
         if (phraseRegex.test(modifiedText)) {
