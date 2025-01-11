@@ -46,6 +46,9 @@ const SKY_LAGOON_GUIDELINES = {
         'located in the geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir bar': 'Gelmir lagoon bar',
+        ', our lagoon bar': '',  // Remove redundant mention
+        ', our Gelmir lagoon bar': '',  // More specific redundancy prevention
+        'within the lagoon, our lagoon bar': 'within the lagoon',
                 
         // Add variations with 'our'
         'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
@@ -134,6 +137,8 @@ const SKY_LAGOON_GUIDELINES = {
         'drinking plenty of geothermal water': 'drinking plenty of water',
         'geothermal water provided is free': 'drinking water is available',
         'the water provided': 'the drinking water',  // Be more specific
+        '•- ': '• ',        // Fix menu formatting
+        '.. ': '. ',         // Fix double periods
         
         // Prevent double "lagoon bar"
         'lagoon bar lagoon bar': 'lagoon bar',
@@ -155,6 +160,8 @@ const SKY_LAGOON_GUIDELINES = {
         ': our': ': Our',   // Colon followed by our
         '- our': '- Our',   // Dash followed by our
         'right lagoon\'s edge': 'at the lagoon\'s edge',  // Fix awkward phrasing
+        ': our': ': Our',    // Colon followed by our
+        '- our': '- Our',    // Dash followed by our
     }
 };
 
