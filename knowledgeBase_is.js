@@ -38,46 +38,18 @@ export const detectLanguage = (message) => {
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
 
-    // Check for package queries first
-    if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
-        // Enhanced English context detection for packages
-        const hasEnglishContext = 
-            // Starting patterns
-            lowercaseMessage.startsWith('i ') ||
-            lowercaseMessage.startsWith('can ') ||
-            lowercaseMessage.startsWith('what ') ||
-            lowercaseMessage.startsWith('how ') ||
-            lowercaseMessage.startsWith('could ') ||
-            lowercaseMessage.startsWith('would ') ||
-            lowercaseMessage.startsWith('do ') ||
-            lowercaseMessage.startsWith('does ') ||
-            lowercaseMessage.startsWith('tell ') ||
-            lowercaseMessage.startsWith('we ') ||
-            // Content patterns
-            lowercaseMessage.includes('like') ||
-            lowercaseMessage.includes('want') ||
-            lowercaseMessage.includes('tell') ||
-            lowercaseMessage.includes('more information') ||
-            lowercaseMessage.includes('information on') ||
-            lowercaseMessage.includes('information about') ||
+    // STRICT English package query check - do this first before anything else
+    if (lowercaseMessage.includes('sér') || lowercaseMessage.includes('ser')) {
+        if (lowercaseMessage.includes('like more information') ||
+            lowercaseMessage.includes('can i get') ||
+            lowercaseMessage.includes('id like') ||
+            lowercaseMessage.includes('i would like') ||
+            lowercaseMessage.includes('tell me about') ||
+            lowercaseMessage.includes('what is') ||
             lowercaseMessage.includes('difference between') ||
-            lowercaseMessage.includes('difference') ||
-            lowercaseMessage.includes('get') ||
-            lowercaseMessage.includes('book') ||
-            // Additional common English patterns
-            lowercaseMessage.includes('cost') ||
-            lowercaseMessage.includes('price') ||
-            lowercaseMessage.includes('explain') ||
-            lowercaseMessage.includes('know about') ||
-            lowercaseMessage.includes('learn about') ||
-            lowercaseMessage.includes('tell me') ||
-            lowercaseMessage.includes('help me') ||
-            lowercaseMessage.includes('interested in') ||
-            lowercaseMessage.includes('looking for') ||
-            lowercaseMessage.includes('need info');
-            
-        if (hasEnglishContext) {
-            return false;
+            (lowercaseMessage.includes('information') && lowercaseMessage.includes('on')) ||
+            (lowercaseMessage.startsWith('i') || lowercaseMessage.startsWith('we'))) {
+            return false;  // Definitely English
         }
     }
 
