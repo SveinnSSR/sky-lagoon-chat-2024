@@ -200,7 +200,7 @@ const enforceTerminology = (text) => {
 
     // First handle Gelmir Bar variations with regex
     const gelmirRegex = /\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi;
-    modifiedText = modifiedText.replace(gelmirRegex, 'Gelmir lagoon bar');
+    modifiedText = modifiedText.replace(gelmirRegex, 'our Gelmir lagoon bar');
 
     // Handle double geothermal cases
     const geothermalRegex = /\b(geothermal\s+){2,}/gi;
