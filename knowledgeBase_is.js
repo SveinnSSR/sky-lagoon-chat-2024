@@ -33,7 +33,7 @@ export const detectLanguage = (message) => {
     ];
 
     // Package-specific terms that could appear in either language
-    const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
+    const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky', 'email'];
 
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
