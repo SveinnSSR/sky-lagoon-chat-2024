@@ -269,6 +269,32 @@ export const knowledgeBase = {
                 "Special celebrations"
             ]
         },
+        legacy_names: {
+            important_note: "Important: Our package names have been updated. Previous gift cards are still valid.",
+            name_changes: {
+                pure_pass: {
+                    old_name: "Pure Pass (formerly Pure package)",
+                    current_name: "Saman Pass",
+                    booking_instructions: "Pure Pass gift cards can be used to book the Saman Pass online"
+                },
+                sky_pass: {
+                    old_name: "Sky Pass (formerly Sky package)",
+                    current_name: "Sér Pass",
+                    booking_instructions: "Sky Pass gift cards can be used to book the Sér Pass online"
+                },
+                pure_lite: {
+                    note: "The Pure Lite package (lagoon only, no ritual) has been discontinued. Only Saman and Sér passes are currently available, both including ritual access."
+                }
+            },
+            booking_process: {
+                steps: [
+                    "Choose your preferred date on our website",
+                    "Enter your gift card code in the booking process",
+                    "You'll receive a booking confirmation via email"
+                ],
+                assistance: "For help with old gift cards or package names, please contact reservations@skylagoon.is"
+            }
+        },
         options: {
             ser_gift: {
                 name: "Sér Gift Ticket",
