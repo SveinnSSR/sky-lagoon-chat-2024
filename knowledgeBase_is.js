@@ -38,17 +38,16 @@ export const detectLanguage = (message) => {
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
 
-    // Special handling for package-related queries - MOVED BEFORE OTHER CHECKS
+    // Special handling for package-related queries
     if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
-        // Check if the message contains English package-query words
+        // For package queries, ONLY look at the context of the message
         const hasEnglishPackageContext = messageWords.some(word => 
             ['what', 'which', 'how', 'included', 'includes', 'does', 'package', 'difference',
-             'information', 'info', 'tell', 'about', 'like', 'want', 'more', 'id'].includes(word.toLowerCase())
+             'information', 'info', 'tell', 'about', 'like', 'want', 'more', 'id', 'on', 'the'].includes(word.toLowerCase())
         );
         
-        if (hasEnglishPackageContext) {
-            return false; // Return English
-        }
+        // For package queries, ONLY use the context check to determine language
+        return !hasEnglishPackageContext;  // Return true for Icelandic, false for English
     }
 
     const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
