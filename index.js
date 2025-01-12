@@ -2768,13 +2768,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Enhanced language detection
         const languageCheck = {
+                // CRITICAL FIX: Check for English sentence structure FIRST
+            hasEnglishStructure: /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) || 
+                                userMessage.toLowerCase().includes('tell me about') ||
+                                userMessage.toLowerCase().includes('what is the') ||
+                                userMessage.toLowerCase().includes('difference between'),
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
             rawDetection: detectLanguage(userMessage),
             languageContext: getLanguageContext(userMessage)
         };
-        
-        // Declare isIcelandic BEFORE using it
-        const isIcelandic = languageCheck.rawDetection || languageCheck.hasIcelandicChars;
+
+        // CRITICAL FIX: Force English for English sentence structure
+        const isIcelandic = languageCheck.hasEnglishStructure ? false : 
+                            (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
 
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
@@ -2999,12 +3005,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Get relevant knowledge base content with better logging
-        const knowledgeBaseResults = isIcelandic ? 
-            getRelevantKnowledge_is(userMessage) : 
-            getRelevantKnowledge(userMessage);
+        const knowledgeBaseResults = languageCheck.hasEnglishStructure ?
+            getRelevantKnowledge(userMessage) :  // Force English for English structure
+            (isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage));
 
         console.log('\n📚 Knowledge Base Match:', {
-            language: isIcelandic ? 'Icelandic' : 'English',  // Add language info
+            language: languageCheck.hasEnglishStructure ? 'English (Forced)' : 
+                      (isIcelandic ? 'Icelandic' : 'English'),
             matches: knowledgeBaseResults.length,
             types: knowledgeBaseResults.map(k => k.type),
             details: JSON.stringify(knowledgeBaseResults, null, 2)
