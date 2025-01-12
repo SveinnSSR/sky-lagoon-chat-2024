@@ -62,29 +62,27 @@ export const detectLanguage = (message) => {
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
 
-    // Check for English sentence structure FIRST - New addition
-    const hasEnglishStructure = (
-        lowercaseMessage.startsWith('tell') ||
-        lowercaseMessage.startsWith('what') ||
-        lowercaseMessage.startsWith('how') ||
-        lowercaseMessage.startsWith('can') ||
-        lowercaseMessage.startsWith('does') ||
-        lowercaseMessage.startsWith('is') ||
-        lowercaseMessage.startsWith('are') ||
-        lowercaseMessage.startsWith('do') ||
-        lowercaseMessage.startsWith('i') ||
-        lowercaseMessage.startsWith('we') ||
-        lowercaseMessage.startsWith('when') ||
-        lowercaseMessage.startsWith('where') ||
-        lowercaseMessage.startsWith('why') ||
-        lowercaseMessage.includes('difference between') ||
+    // CRITICAL FIX: Check for English sentence structure FIRST - before any other checks
+    if (lowercaseMessage.startsWith('tell ') ||
+        lowercaseMessage.startsWith('what ') ||
+        lowercaseMessage.startsWith('how ') ||
+        lowercaseMessage.startsWith('can ') ||
+        lowercaseMessage.startsWith('is ') ||
+        lowercaseMessage.startsWith('are ') ||
+        lowercaseMessage.startsWith('do ') ||
+        lowercaseMessage.startsWith('does ') ||
+        lowercaseMessage.startsWith('where ') ||
+        lowercaseMessage.startsWith('when ') ||
+        lowercaseMessage.startsWith('why ') ||
+        lowercaseMessage.startsWith('could ') ||
+        lowercaseMessage.startsWith('i want') ||
+        lowercaseMessage.startsWith('i would') ||
+        lowercaseMessage.startsWith('please') ||
         lowercaseMessage.includes('tell me about') ||
-        lowercaseMessage.includes('what is the') ||
-        lowercaseMessage.includes('could you') ||
-        lowercaseMessage.includes('please tell')
-    );
-
-    if (hasEnglishStructure) return false;  // Definitely English
+        lowercaseMessage.includes('difference between') ||
+        lowercaseMessage.includes('what is the')) {
+        return false;  // Definitely English, ignore any Icelandic characters
+    }
     
     // First filter out international words from English word count
     const englishWordCount = messageWords.filter(word => 
@@ -155,22 +153,6 @@ export const detectLanguage = (message) => {
 
     // Then check for common Icelandic words
     const hasIcelandicWord = commonIcelandicWords.some(word => lowercaseMessage.includes(word));
-
-    // ADD THIS BLOCK BEFORE THE FINAL RETURN - Additional English pattern check
-    const hasEnglishPattern = (
-        lowercaseMessage.startsWith('is ') ||
-        lowercaseMessage.startsWith('are ') ||
-        lowercaseMessage.startsWith('do ') ||
-        lowercaseMessage.startsWith('does ') ||
-        lowercaseMessage.startsWith('can ') ||
-        lowercaseMessage.startsWith('what ') ||
-        lowercaseMessage.startsWith('when ') ||
-        lowercaseMessage.startsWith('where ') ||
-        lowercaseMessage.startsWith('how ') ||
-        lowercaseMessage.startsWith('why ')
-    );
-
-    if (hasEnglishPattern) return false;
     
     return hasIcelandicWord;
 };
