@@ -40,6 +40,7 @@ const SKY_LAGOON_GUIDELINES = {
         'by our our': 'by our',
         'with our our': 'with our',
         'to our our': 'to our',
+        'have our our': 'have our',
 
         // Bar Reference Cleanup - Primary patterns
         'our Gelmir lagoon bar is a haven': 'our Gelmir lagoon bar',
