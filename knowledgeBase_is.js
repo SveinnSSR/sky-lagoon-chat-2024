@@ -76,20 +76,26 @@ export const detectLanguage = (message) => {
            lowercaseMessage.startsWith('can') ||
            lowercaseMessage.startsWith('does') ||
            lowercaseMessage.startsWith('i') ||
-           lowercaseMessage.startsWith('we') ||
            lowercaseMessage.startsWith('is') ||
+           lowercaseMessage.startsWith('we') ||      // Add this
+           lowercaseMessage.startsWith('do') ||      // Add this
            lowercaseMessage.includes('tell me about') ||
            lowercaseMessage.includes('included in') ||
            lowercaseMessage.includes('cost') ||
            lowercaseMessage.includes('price') ||
            lowercaseMessage.includes('what is') ||
            lowercaseMessage.includes('what are') ||
+           lowercaseMessage.includes('whats') ||     // Add this
+           lowercaseMessage.includes('what\'s') ||   // Add this
            lowercaseMessage.includes('how much') ||
            lowercaseMessage.includes('like to know') ||
            lowercaseMessage.includes('include') ||
            lowercaseMessage.includes('different') ||
            lowercaseMessage.includes('explain') ||
            lowercaseMessage.includes('about the') ||
+           lowercaseMessage.includes('want to') ||   // Add this
+           lowercaseMessage.includes('package') ||   // Add this
+           (lowercaseMessage.includes('does') && lowercaseMessage.includes('include')) ||  // Add this
            lowercaseMessage.includes('difference between') ||
            (lowercaseMessage.includes('information') && lowercaseMessage.includes('about'))) {
            return false;  // Definitely English
