@@ -769,7 +769,20 @@ export const knowledgeBase_is = {
             "Hvar get ég keypt gjafabréf?",
             "Get ég keypt gjafabréf á netinu?",
             "Hvað kostar gjafabréf?",
-            "Langar að kaupa gjafabréf"
+            "Langar að kaupa gjafabréf",
+            // Add legacy gift card questions
+            "Er með pure gjafabréf",
+            "Er með pure pass",
+            "Er með pure leiðina",
+            "Er með sky pass",
+            "Er með sky gjafabréf",
+            "Pure pass á íslensku",
+            "Hvað heitir pure leiðin núna",
+            "Hvað heitir sky leiðin núna",
+            "Hvað heitir pure pass á íslensku",
+            "Hvað heitir sky pass á íslensku",
+            "Pure leiðin á íslensku",
+            "Sky leiðin á íslensku"
         ],
         marketing: {
             tagline: "Gjafakort frá Sky Lagoon",
@@ -781,15 +794,18 @@ export const knowledgeBase_is = {
                 pure_pass: {
                     old_name: "Pure Pass (áður Pure leiðin)",
                     current_name: "Saman Pass",
-                    booking_instructions: "Pure Pass gjafakort er hægt að nota til að bóka Saman Pass á netinu"
+                    booking_instructions: "Pure Pass gjafakort er hægt að nota til að bóka Saman Pass á netinu",
+                    response: "Pure leiðin heitir núna Saman leiðin. Þú getur notað Pure gjafakortið þitt til að bóka Saman Pass á netinu. Gjafakortið þitt er ennþá í fullu gildi."
                 },
                 sky_pass: {
                     old_name: "Sky Pass (áður Sky leiðin)",
                     current_name: "Sér Pass",
-                    booking_instructions: "Sky Pass gjafakort er hægt að nota til að bóka Sér Pass á netinu"
+                    booking_instructions: "Sky Pass gjafakort er hægt að nota til að bóka Sér Pass á netinu",
+                    response: "Sky leiðin heitir núna Sér leiðin. Þú getur notað Sky gjafakortið þitt til að bóka Sér Pass á netinu. Gjafakortið þitt er ennþá í fullu gildi."
                 },
                 pure_lite: {
-                    note: "Pure Lite pakkinn (aðeins aðgangur að lóni, ekki að ritúali) er ekki lengur í boði. Aðeins Saman og Sér passar eru í boði núna, báðir með aðgang að ritúalinu."
+                    note: "Pure Lite pakkinn (aðeins aðgangur að lóni, ekki að ritúali) er ekki lengur í boði. Aðeins Saman og Sér passar eru í boði núna, báðir með aðgang að ritúalinu.",
+                    response: "Pure Lite pakkinn er því miður ekki lengur í boði. Núna bjóðum við upp á Saman og Sér passa, sem báðir innihalda aðgang að ritúalinu."
                 }
             },
             booking_process: {
@@ -799,6 +815,11 @@ export const knowledgeBase_is = {
                     "Þú færð senda bókunarstaðfestingu í tölvupósti"
                 ],
                 assistance: "Fyrir aðstoð með eldri gjafakort eða pakkaskilgreiningar, vinsamlegast hafðu samband við reservations@skylagoon.is"
+            },
+            general_response: {
+                has_pure: "Pure leiðin heitir núna Saman leiðin. Þú getur notað Pure gjafakortið þitt til að bóka Saman Pass á netinu. Hér er hvernig þú bókar:",
+                has_sky: "Sky leiðin heitir núna Sér leiðin. Þú getur notað Sky gjafakortið þitt til að bóka Sér Pass á netinu. Hér er hvernig þú bókar:",
+                assistance: "Ef þú þarft aðstoð með eldri gjafakort eða bókun, ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma 527 6800."
             }
         },
         purchase_info: {
@@ -2266,12 +2287,42 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('gefandi') ||
         message.includes('gjöf') ||
         message.includes('kóði') ||
-        message.includes('kóða')) {
+        message.includes('kóða') ||
+        message.toLowerCase().includes('pure') ||
+        message.toLowerCase().includes('sky pass')) {
 
         console.log('\n🎁 Gift Card Match Found');
 
-        // First check for purchase-related queries
-        if (message.includes('kaupa') || 
+        // First check for legacy gift card queries
+        if (message.toLowerCase().includes('pure') || 
+            message.toLowerCase().includes('sky pass') ||
+            (message.toLowerCase().includes('gamla') && message.includes('gjafabréf')) ||
+            (message.toLowerCase().includes('eldra') && message.includes('gjafabréf'))) {
+            
+            console.log('\n🔄 Legacy Gift Card Query Found');
+            
+            let response = '';
+            
+            if (message.toLowerCase().includes('pure')) {
+                response = knowledgeBase_is.gift_cards.legacy_names.name_changes.pure_pass.response + '\n\n';
+            } else if (message.toLowerCase().includes('sky')) {
+                response = knowledgeBase_is.gift_cards.legacy_names.name_changes.sky_pass.response + '\n\n';
+            }
+
+            response += 'Bókunarferli:\n';
+            knowledgeBase_is.gift_cards.legacy_names.booking_process.steps.forEach((step, index) => {
+                response += `${index + 1}. ${step}\n`;
+            });
+            response += '\n' + knowledgeBase_is.gift_cards.legacy_names.general_response.assistance;
+
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'legacy',
+                content: response
+            });
+        }
+        // Then check for purchase-related queries
+        else if (message.includes('kaupa') || 
             message.includes('kaupi') || 
             message.includes('verð') || 
             message.includes('kostar') ||
