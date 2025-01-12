@@ -78,6 +78,12 @@ const SKY_LAGOON_GUIDELINES = {
         'our in-geothermal water Gelmir bar': 'our Gelmir lagoon bar',
         'our Gelmir Bar': 'our Gelmir lagoon bar',
         'our Gelmir bar': 'our Gelmir lagoon bar',
+
+        // GPT our handling
+        'our at our': 'at our',
+        'our in our': 'in our',
+        'our from our': 'from our',
+        'our by our': 'by our',
         
         // NEW SECTION - Double Geothermal Prevention
         'geothermal geothermal water': 'geothermal water',
