@@ -2896,13 +2896,64 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('fyrirfram') ||
         message.includes('staðfesta') ||
         message.includes('staðfesting') ||
+        message.includes('bóka fyrir einn') ||
+        (message.includes('bóka') && message.includes('einn')) ||
+        (message.includes('bóka') && message.includes('fyrir tvo')) ||
+        (message.includes('bóka') && message.includes('tvo')) ||
         (message.includes('er') && message.includes('svigrúm')) ||
         (message.includes('get') && message.includes('seinna')) ||
         (message.includes('ná') && message.includes('tíma'))) {
         
         console.log('\n📅 Booking Related Query Match Found');
 
-        // Determine specific booking query type
+        // Check for single person booking queries
+        if (message.includes('bóka fyrir einn') || 
+            (message.includes('bóka') && message.includes('einn'))) {
+            
+            console.log('\n👤 Single Booking Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'booking_single',
+                content: 'Já, þú getur bókað fyrir einn. Við bjóðum bæði upp á Saman og Sér aðgang sem hentar vel fyrir einstaklinga sem vilja njóta slökunar í lóninu. Þú getur bókað á vefsíðu okkar eða í móttökunni ef laust er.'
+            });
+        }
+
+        // Check for two person booking queries
+        if ((message.includes('bóka') && message.includes('fyrir tvo')) || 
+            (message.includes('bóka') && message.includes('tvo'))) {
+            
+            // Check if specifically asking about Date Night/Stefnumót
+            if (message.includes('stefnumót') || message.includes('date night')) {
+                console.log('\n💑 Date Night Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_date_night',
+                    content: knowledgeBase_is.packages.date_night
+                });
+            } else {
+                console.log('\n👥 Regular Two Person Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_two',
+                    content: 'Til að bóka fyrir tvo getur þú valið á milli tveggja aðgangsleiða:\n\n' +
+                            '**Sér aðgangur**\n' +
+                            '• Verð frá ISK 13,490 á mann\n' +
+                            '• Einkaklefi með sturtu\n' +
+                            '• Sky Lagoon hár- og húðvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            '**Saman aðgangur**\n' +
+                            '• Verð frá ISK 10,490 á mann\n' +
+                            '• Almenn búningsaðstaða\n' +
+                            '• Sky Lagoon hárvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            'Þú getur bókað á vefsíðu okkar skylagoon.is eða í móttökunni ef laust er. Við mælum eindregið með að bóka fyrirfram til að tryggja pláss.'
+                });
+            }
+        }
+
+        // Determine specific booking query type for other cases
         if (message.includes('seinn') || 
             message.includes('sein') || 
             message.includes('mæta') || 
