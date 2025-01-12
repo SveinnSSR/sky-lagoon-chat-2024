@@ -2470,46 +2470,78 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('gift validity') ||
         message.includes('gift expiry') ||
         message.includes('book with gift') ||
-        message.includes('use my gift')) {
+        message.includes('use my gift') ||
+        // Legacy gift card detection
+        message.toLowerCase().includes('pure') ||
+        message.toLowerCase().includes('sky')) {
 
-        relevantInfo.push({
-            type: 'gift_tickets',
-            content: knowledgeBase.gift_tickets
-        });
+        // First check for legacy gift card queries
+        if (message.toLowerCase().includes('pure') || 
+            message.toLowerCase().includes('sky') ||
+            (message.toLowerCase().includes('old') && message.includes('gift')) ||
+            (message.toLowerCase().includes('previous') && message.includes('gift'))) {
+            
+            console.log('\n🔄 Legacy Gift Card Query Found');
+            
+            let response = '';
+            
+            if (message.toLowerCase().includes('pure')) {
+                response = "Your Pure Pass (or Pure Package) gift card can be used to book our Saman Package. Simply select 'Saman Pass' when booking online. Your gift card is still fully valid.\n\n";
+            } else if (message.toLowerCase().includes('sky')) {
+                response = "Your Sky Pass (or Sky Package) gift card can be used to book our Sér Package. Simply select 'Sér Pass' when booking online. Your gift card is still fully valid.\n\n";
+            }
 
-        // If asking about booking with gift tickets, also include opening hours
-        if (message.includes('book') || 
-            message.includes('redeem') || 
-            message.includes('use') || 
-            message.includes('when can i')) {
-            relevantInfo.push({
-                type: 'opening_hours',
-                content: knowledgeBase.opening_hours
+            response += "Here's how to book:\n";
+            knowledgeBase.gift_tickets.redemption.steps.forEach((step, index) => {
+                response += `${index + 1}. ${step.description}\n`;
             });
-        }
+            response += "\nIf you need any assistance with legacy gift cards or booking, please don't hesitate to contact us at reservations@skylagoon.is or call us at 527 6800.";
 
-        // If asking about For Two packages, include dining info
-        if (message.includes('for two') || 
-            message.includes('couple') || 
-            message.includes('together') ||
-            message.includes('date night')) {
             relevantInfo.push({
-                type: 'dining',
-                content: knowledgeBase.dining
+                type: 'gift_tickets',
+                subtype: 'legacy',
+                content: response
             });
-        }
+        } else {
+            relevantInfo.push({
+                type: 'gift_tickets',
+                content: knowledgeBase.gift_tickets
+            });
 
-        // If asking about specific packages, include package info
-        if (message.includes('ser ') || 
-            message.includes('sér ') || 
-            message.includes('saman') || 
-            message.includes('premium') || 
-            message.includes('standard') ||
-            message.includes('classic')) {
-            relevantInfo.push({
-                type: 'packages',
-                content: knowledgeBase.packages
-            });
+            // If asking about booking with gift tickets, also include opening hours
+            if (message.includes('book') || 
+                message.includes('redeem') || 
+                message.includes('use') || 
+                message.includes('when can i')) {
+                relevantInfo.push({
+                    type: 'opening_hours',
+                    content: knowledgeBase.opening_hours
+                });
+            }
+
+            // If asking about For Two packages, include dining info
+            if (message.includes('for two') || 
+                message.includes('couple') || 
+                message.includes('together') ||
+                message.includes('date night')) {
+                relevantInfo.push({
+                    type: 'dining',
+                    content: knowledgeBase.dining
+                });
+            }
+
+            // If asking about specific packages, include package info
+            if (message.includes('ser ') || 
+                message.includes('sér ') || 
+                message.includes('saman') || 
+                message.includes('premium') || 
+                message.includes('standard') ||
+                message.includes('classic')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    content: knowledgeBase.packages
+                });
+            }
         }
     }
 
