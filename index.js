@@ -60,6 +60,7 @@ const SKY_LAGOON_GUIDELINES = {
         'in-geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir Bar': 'Gelmir lagoon bar',
         'in geothermal water Gelmir bar': 'Gelmir lagoon bar',
+        'in-geothermal water Gelmir lagoon bar': 'Gelmir lagoon bar',
         'in-water Gelmir Bar': 'Gelmir lagoon bar',
         'in-water Gelmir bar': 'Gelmir lagoon bar',
         'in water Gelmir Bar': 'Gelmir lagoon bar',
