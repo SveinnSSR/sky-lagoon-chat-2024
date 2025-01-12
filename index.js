@@ -41,13 +41,6 @@ const SKY_LAGOON_GUIDELINES = {
         'with our our': 'with our',
         'to our our': 'to our',
 
-        // Complete sentence patterns for drinks
-        'one drink at our in-geothermal water Gelmir lagoon bar': 'one drink at our Gelmir lagoon bar',
-        'treated to one drink at our in-geothermal water Gelmir lagoon bar': 'treated to one drink at our Gelmir lagoon bar',
-        'can enjoy one drink at our in-geothermal water Gelmir lagoon bar': 'can enjoy one drink at our Gelmir lagoon bar',
-        'receives one drink at our in-geothermal water Gelmir lagoon bar': 'receives one drink at our Gelmir lagoon bar',
-        'one drink at the in-geothermal water Gelmir lagoon bar': 'one drink at our Gelmir lagoon bar',
-
         // Bar Reference Cleanup - Primary patterns
         'our Gelmir lagoon bar is a haven': 'our Gelmir lagoon bar',
         'It\'s a unique lagoon bar': 'It\'s',
@@ -84,11 +77,6 @@ const SKY_LAGOON_GUIDELINES = {
         'located in the geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir bar': 'Gelmir lagoon bar',
-        // Add these new patterns
-        'an in-geothermal water experience': '',  // Remove this phrase entirely
-        'indeed an in-geothermal water': '',      // Remove this phrase entirely
-        'is in-geothermal water': 'is in our lagoon',  // Replace with simpler phrasing
-        'is an in-geothermal water': 'is in our lagoon',
         
         // Redundancy prevention
         ', our Gelmir lagoon bar': '',
