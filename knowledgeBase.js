@@ -1337,8 +1337,8 @@ export const knowledgeBase = {
         amenities: {
             tagline: "Experience the heart of Icelandic tradition at our oceanside geothermal lagoon",
             included: [
-                "Towels included free of charge in all changing rooms",  // Modified this line
-                "Changing rooms with direct access to lagoon",           // Added this line
+                "Complimentary towels provided in all changing rooms",
+                "Direct access from changing rooms to lagoon - no outdoor walking",
                 "Changing rooms designed for comfort and privacy",
                 "Secure lockers with electronic wristband access",
                 "Fresh drinking water stations",
@@ -1346,13 +1346,21 @@ export const knowledgeBase = {
                 "Keimur Café for light refreshments",
                 "Smakk Bar for Icelandic culinary experiences"
             ],
-            layout: {                                                    // Added this new section
-                description: "Our facility is thoughtfully designed for a seamless experience",
+            facility_design: {
+                description: "Our changing rooms lead directly to the lagoon - no flip flops needed",
                 features: [
-                    "Direct access from changing rooms to lagoon",
-                    "No outdoor walking required between changing and lagoon",
-                    "Indoor heated floors throughout changing areas",
-                    "Comfortable transition spaces"
+                    "Walk straight from changing room to lagoon",
+                    "No outdoor walking between changing and lagoon",
+                    "Heated indoor floors throughout",
+                    "Towels provided in all changing rooms",
+                    "Comfortable, seamless transition to water"
+                ],
+                common_questions: [
+                    "do I need flip flops",
+                    "are towels provided",
+                    "do I need to bring towels",
+                    "where do I get towels",
+                    "do you provide slippers"
                 ]
             },
             changing_facilities: {
