@@ -38,41 +38,47 @@ export const detectLanguage = (message) => {
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
 
-    // Special handling for package-related queries
+    // Check for package queries first
     if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
-        // First check for question/request indicators at the start
-        const startsWithEnglish = (
-            lowercaseMessage.startsWith('i') ||
-            lowercaseMessage.startsWith('can') ||
-            lowercaseMessage.startsWith('what') ||
-            lowercaseMessage.startsWith('how') ||
-            lowercaseMessage.startsWith('could') ||
-            lowercaseMessage.startsWith('would') ||
-            lowercaseMessage.startsWith('do') ||
-            lowercaseMessage.startsWith('does') ||
-            lowercaseMessage.startsWith('tell') ||
-            lowercaseMessage.startsWith('we') ||
-            lowercaseMessage.startsWith('is') ||
-            lowercaseMessage.startsWith('are')
-        );
-
-        // Then check for English phrases or patterns
-        const hasEnglishPhrasePattern = 
+        // Enhanced English context detection for packages
+        const hasEnglishContext = 
+            // Starting patterns
+            lowercaseMessage.startsWith('i ') ||
+            lowercaseMessage.startsWith('can ') ||
+            lowercaseMessage.startsWith('what ') ||
+            lowercaseMessage.startsWith('how ') ||
+            lowercaseMessage.startsWith('could ') ||
+            lowercaseMessage.startsWith('would ') ||
+            lowercaseMessage.startsWith('do ') ||
+            lowercaseMessage.startsWith('does ') ||
+            lowercaseMessage.startsWith('tell ') ||
+            lowercaseMessage.startsWith('we ') ||
+            // Content patterns
             lowercaseMessage.includes('like') ||
             lowercaseMessage.includes('want') ||
             lowercaseMessage.includes('tell') ||
-            lowercaseMessage.includes('get') ||
             lowercaseMessage.includes('more information') ||
+            lowercaseMessage.includes('information on') ||
+            lowercaseMessage.includes('information about') ||
             lowercaseMessage.includes('difference between') ||
+            lowercaseMessage.includes('difference') ||
+            lowercaseMessage.includes('get') ||
             lowercaseMessage.includes('book') ||
+            // Additional common English patterns
             lowercaseMessage.includes('cost') ||
             lowercaseMessage.includes('price') ||
             lowercaseMessage.includes('explain') ||
-            lowercaseMessage.includes('what') ||
-            lowercaseMessage.includes('how');
-
-        // Return false for English if either condition is met
-        return !(startsWithEnglish || hasEnglishPhrasePattern);
+            lowercaseMessage.includes('know about') ||
+            lowercaseMessage.includes('learn about') ||
+            lowercaseMessage.includes('tell me') ||
+            lowercaseMessage.includes('help me') ||
+            lowercaseMessage.includes('interested in') ||
+            lowercaseMessage.includes('looking for') ||
+            lowercaseMessage.includes('need info');
+            
+        if (hasEnglishContext) {
+            return false;
+        }
     }
 
     const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
@@ -115,31 +121,7 @@ export const detectLanguage = (message) => {
 
     // First check for any Icelandic special characters
     const hasIcelandicChars = icelandicIndicators.some(char => message.includes(char));
-    if (hasIcelandicChars) {
-        // Override for package queries in English context
-        const isPackageQuery = packageTerms.some(term => 
-            lowercaseMessage.includes(term.toLowerCase())
-        );
-        
-        // Check if query has clear English context
-        const hasEnglishContext = 
-            lowercaseMessage.includes('like') ||
-            lowercaseMessage.includes('want') ||
-            lowercaseMessage.includes('tell') ||
-            lowercaseMessage.includes('what') ||
-            lowercaseMessage.includes('information') ||
-            lowercaseMessage.includes('about') ||
-            lowercaseMessage.startsWith('i') ||
-            lowercaseMessage.startsWith('can') ||
-            lowercaseMessage.includes('does') ||
-            lowercaseMessage.includes('more');
-            
-        // Only return Icelandic if it's not an English package query
-        if (isPackageQuery && hasEnglishContext) {
-            return false;
-        }
-        return true;
-    }
+    if (hasIcelandicChars) return true;
 
     // Then check for common Icelandic words
     const hasIcelandicWord = commonIcelandicWords.some(word => lowercaseMessage.includes(word));
