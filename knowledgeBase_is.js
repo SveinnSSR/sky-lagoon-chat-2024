@@ -115,7 +115,31 @@ export const detectLanguage = (message) => {
 
     // First check for any Icelandic special characters
     const hasIcelandicChars = icelandicIndicators.some(char => message.includes(char));
-    if (hasIcelandicChars) return true;
+    if (hasIcelandicChars) {
+        // Override for package queries in English context
+        const isPackageQuery = packageTerms.some(term => 
+            lowercaseMessage.includes(term.toLowerCase())
+        );
+        
+        // Check if query has clear English context
+        const hasEnglishContext = 
+            lowercaseMessage.includes('like') ||
+            lowercaseMessage.includes('want') ||
+            lowercaseMessage.includes('tell') ||
+            lowercaseMessage.includes('what') ||
+            lowercaseMessage.includes('information') ||
+            lowercaseMessage.includes('about') ||
+            lowercaseMessage.startsWith('i') ||
+            lowercaseMessage.startsWith('can') ||
+            lowercaseMessage.includes('does') ||
+            lowercaseMessage.includes('more');
+            
+        // Only return Icelandic if it's not an English package query
+        if (isPackageQuery && hasEnglishContext) {
+            return false;
+        }
+        return true;
+    }
 
     // Then check for common Icelandic words
     const hasIcelandicWord = commonIcelandicWords.some(word => lowercaseMessage.includes(word));
