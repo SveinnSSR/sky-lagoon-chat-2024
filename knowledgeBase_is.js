@@ -24,7 +24,12 @@ export const detectLanguage = (message) => {
         'need', 'want', 'like', 'much', 'many', 'few', 'some',
         'any', 'which', 'for', 'bar', 'drink', 'food', 'eat',
         'booking', 'book', 'reservation', 'reserve', 'price',
-        'cost', 'expensive', 'cheap', 'open', 'closed', 'hours'
+        'cost', 'expensive', 'cheap', 'open', 'closed', 'hours',
+        // Add these new indicators:
+        'didn\'t', 'don\'t', 'won\'t', 'can\'t', 'not', 'never',
+        'get', 'got', 'receive', 'received', 'receiving',
+        'confirmation', 'email', 'booking', 'ticket', 'message',
+        'my', 'our', 'we', 'i', 'me', 'please'
     ];
 
     // Package-specific terms that could appear in either language
@@ -34,7 +39,7 @@ export const detectLanguage = (message) => {
 
     const messageWords = lowercaseMessage.split(/\s+/);
     const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
-    if (englishWordCount >= 2) return false;
+    if (englishWordCount >= 1) return false;
 
     // Special handling for package-related queries
     if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
