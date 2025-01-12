@@ -775,7 +775,32 @@ export const knowledgeBase_is = {
             tagline: "Gjafakort frá Sky Lagoon",
             description: "Gjafakort Sky Lagoon er fullkomið fyrir öll þau sem vilja gefa gjöf sem endurnærir bæði sál og líkama. Fátt er betra en að slaka á undir berum himni í heitu baðlóni í stórbrotnu umhverfi og anda að sér fersku sjávarlofti í amstri hversdagsins."
         },
-        // Add new purchase_info section here
+        legacy_names: {
+            important_note: "Mikilvægt: Heiti pakkanna okkar hafa verið uppfærð. Eldri gjafakort eru enn í gildi.",
+            name_changes: {
+                pure_pass: {
+                    old_name: "Pure Pass (áður Pure leiðin)",
+                    current_name: "Saman Pass",
+                    booking_instructions: "Pure Pass gjafakort er hægt að nota til að bóka Saman Pass á netinu"
+                },
+                sky_pass: {
+                    old_name: "Sky Pass (áður Sky leiðin)",
+                    current_name: "Sér Pass",
+                    booking_instructions: "Sky Pass gjafakort er hægt að nota til að bóka Sér Pass á netinu"
+                },
+                pure_lite: {
+                    note: "Pure Lite pakkinn (aðeins aðgangur að lóni, ekki að ritúali) er ekki lengur í boði. Aðeins Saman og Sér passar eru í boði núna, báðir með aðgang að ritúalinu."
+                }
+            },
+            booking_process: {
+                steps: [
+                    "Veldu dagsetningu á heimasíðunni",
+                    "Sláðu inn gjafakortskóðann í bókunarferlinu",
+                    "Þú færð senda bókunarstaðfestingu í tölvupósti"
+                ],
+                assistance: "Fyrir aðstoð með eldri gjafakort eða pakkaskilgreiningar, vinsamlegast hafðu samband við reservations@skylagoon.is"
+            }
+        },
         purchase_info: {
             methods: "Þú getur keypt gjafabréf beint á vefsíðu okkar skylagoon.is eða í móttökunni okkar.",
             options: "Við bjóðum upp á nokkrar gerðir af gjafabréfum:",
