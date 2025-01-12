@@ -2594,6 +2594,8 @@ const updateContext = (sessionId, message, response) => {
         messageCount: 0,
         lastTopic: null,
         lastResponse: null,
+        // Add this new property here 👇
+        icelandicTopics: [],  // Track topics discussed in Icelandic
         // Enhanced context tracking
         lastQuestion: null,
         lastAnswer: null,
@@ -2692,6 +2694,25 @@ const updateContext = (sessionId, message, response) => {
     // Increment message count
     context.messageCount++;
 
+    // Track topics discussed in specific languages
+    if (message) {
+        const currentTopic = detectTopic(message, 
+            context.language === 'is' ? 
+            getRelevantKnowledge_is(message) : 
+            getRelevantKnowledge(message)
+        ).topic;
+
+        if (currentTopic) {
+            if (context.language === 'is') {
+                context.icelandicTopics = [...new Set([
+                    ...(context.icelandicTopics || []),
+                    currentTopic
+                ])];
+                console.log('\n🌍 Updated Icelandic Topics:', context.icelandicTopics);
+            }
+        }
+    }
+
     // Track if a follow-up was offered
     if (response && response.toLowerCase().includes('would you like')) {
         context.offeredMoreInfo = true;
@@ -2775,6 +2796,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             messageCount: 0,
             lastTopic: null,
             lastResponse: null,
+            // Add this new property here 👇
+            icelandicTopics: [],  // Track topics discussed in Icelandic
             // Enhanced context tracking
             lastQuestion: null,
             lastAnswer: null,
