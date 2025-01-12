@@ -25,66 +25,70 @@ export const detectLanguage = (message) => {
         'any', 'which', 'for', 'bar', 'drink', 'food', 'eat',
         'booking', 'book', 'reservation', 'reserve', 'price',
         'cost', 'expensive', 'cheap', 'open', 'closed', 'hours',
-        // Add these new indicators:
         'didn\'t', 'don\'t', 'won\'t', 'can\'t', 'not', 'never',
         'get', 'got', 'receive', 'received', 'receiving',
-        'confirmation', 'email', 'booking', 'ticket', 'message',
         'my', 'our', 'we', 'i', 'me', 'please',
-            // Add these package-specific indicators:
+        // Package-specific indicators
         'about', 'included', 'includes', 'tell', 'explain', 'whats', "what's",
         'package', 'packages', 'details', 'information', 'more', 'price',
         'description', 'differences', 'benefits', 'features', 'options',
         'tell', 'explain', 'show', 'available', 'difference', 'between',
         'includes', 'included', 'including', 'contain', 'contains', 'offer',
         'offers', 'providing', 'access', 'admission', 'entry'
-    ];
-    
-    // Common international/technical words that shouldn't trigger English detection
-    const internationalWords = [
+     ];
+     
+     // Common international/technical words that shouldn't trigger English detection
+     const internationalWords = [
         'email', 'wifi', 'internet', 'ok', 'website',
         'booking', 'reference', 'code', 'paypal', 
         'visa', 'mastercard', 'online', 'pin',
         'instagram', 'facebook', 'app', 'mobile',
-        'confirmation', 'ticket', 'message', 'yay', 
+        'confirmation', 'ticket', 'message', 'yay',
         'whatsapp', 'messenger', 'tiktok', 'tik tok'
-    ];
-    
-    // Package-specific terms that could appear in either language
-    const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
-    
-    const lowercaseMessage = message.toLowerCase();
-    const messageWords = lowercaseMessage.split(/\s+/);
-    
-    // STRICT English package query check - do this first 
-    if (lowercaseMessage.includes('sér') || lowercaseMessage.includes('ser')) {
-        // Check if the message has clear English structure
-        if (messageWords.some(word => englishIndicators.includes(word)) || 
+     ];
+     
+     // Package-specific terms that could appear in either language
+     const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
+     
+     const lowercaseMessage = message.toLowerCase();
+     const messageWords = lowercaseMessage.split(/\s+/);
+     
+     // First filter out international words from English word count
+     const englishWordCount = messageWords.filter(word => 
+        englishIndicators.includes(word) && 
+        !internationalWords.includes(word)
+     ).length;
+     
+     // STRICT English package query check - do this AFTER word count
+     if (lowercaseMessage.includes('sér') || lowercaseMessage.includes('ser')) {
+        // Clear English structure check
+        if (englishWordCount >= 1 || 
             lowercaseMessage.startsWith('tell') ||
             lowercaseMessage.startsWith('what') ||
             lowercaseMessage.startsWith('how') ||
             lowercaseMessage.startsWith('can') ||
             lowercaseMessage.startsWith('i') ||
             lowercaseMessage.startsWith('is') ||
-            lowercaseMessage.startsWith('are') ||
-            // Additional package-specific patterns
+            lowercaseMessage.startsWith('what') ||
             lowercaseMessage.includes('tell me about') ||
+            lowercaseMessage.includes('included in') ||
+            lowercaseMessage.includes('cost') ||
+            lowercaseMessage.includes('price') ||
+            // Additional package-specific patterns
             lowercaseMessage.includes('what is') ||
             lowercaseMessage.includes('what are') ||
             lowercaseMessage.includes('how much') ||
             lowercaseMessage.includes('like to know') ||
             lowercaseMessage.includes('difference between') ||
-            (lowercaseMessage.includes('information') && lowercaseMessage.includes('about')) ||
-            lowercaseMessage.includes('included in')) {
+            (lowercaseMessage.includes('information') && lowercaseMessage.includes('about'))) {
             return false;  // Definitely English
         }
-    }
-    
-    // Filter out international words from English word count
-    const englishWordCount = messageWords.filter(word => 
-        englishIndicators.includes(word) && 
-        !internationalWords.includes(word)
-    ).length;
-    if (englishWordCount >= 1) return false;
+        // If no English indicators found and contains Sér, lean towards Icelandic
+        return true;
+     }
+     
+     // Only check general English count if we haven't already returned
+     if (englishWordCount >= 1) return false;
     
     // Special handling for English-specific queries
     if (lowercaseMessage.includes('package') || 
