@@ -2289,13 +2289,13 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('kóði') ||
         message.includes('kóða') ||
         message.toLowerCase().includes('pure') ||
-        message.toLowerCase().includes('sky pass')) {
+        message.toLowerCase().includes('sky')) {
 
         console.log('\n🎁 Gift Card Match Found');
 
         // First check for legacy gift card queries
         if (message.toLowerCase().includes('pure') || 
-            message.toLowerCase().includes('sky pass') ||
+            message.toLowerCase().includes('sky') ||
             (message.toLowerCase().includes('gamla') && message.includes('gjafabréf')) ||
             (message.toLowerCase().includes('eldra') && message.includes('gjafabréf'))) {
             
@@ -2304,16 +2304,16 @@ export const getRelevantKnowledge_is = (userMessage) => {
             let response = '';
             
             if (message.toLowerCase().includes('pure')) {
-                response = knowledgeBase_is.gift_cards.legacy_names.name_changes.pure_pass.response + '\n\n';
+                response = "Pure leiðin (eða Pure Pass) heitir núna Saman leiðin. Þú átt að velja 'Saman Pass' þegar þú bókar á netinu. Gjafakortið þitt er ennþá í fullu gildi.\n\n";
             } else if (message.toLowerCase().includes('sky')) {
-                response = knowledgeBase_is.gift_cards.legacy_names.name_changes.sky_pass.response + '\n\n';
+                response = "Sky leiðin (eða Sky Pass) heitir núna Sér leiðin. Þú átt að velja 'Sér Pass' þegar þú bókar á netinu. Gjafakortið þitt er ennþá í fullu gildi.\n\n";
             }
 
-            response += 'Bókunarferli:\n';
+            response += "Svona bókar þú:\n";
             knowledgeBase_is.gift_cards.legacy_names.booking_process.steps.forEach((step, index) => {
                 response += `${index + 1}. ${step}\n`;
             });
-            response += '\n' + knowledgeBase_is.gift_cards.legacy_names.general_response.assistance;
+            response += "\nEf þú þarft aðstoð með eldri gjafakort eða bókun, ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma 527 6800.";
 
             relevantInfo.push({
                 type: 'gift_cards',
