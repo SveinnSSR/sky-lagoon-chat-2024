@@ -33,10 +33,15 @@ const SKY_LAGOON_GUIDELINES = {
         }
     },
     specialPhrases: {
+        // Bar Reference Cleanup - Primary patterns
+        'our Gelmir lagoon bar is a haven': 'our Gelmir lagoon bar',
+        'Gelmir lagoon bar is a': 'Gelmir lagoon bar',
+        'inside the lagoon itself': 'within the lagoon',
+        'located inside the lagoon itself': 'within the lagoon',
+        'within the lagoon area': 'in the lagoon',
+        
         // Basic bar redundancy and positioning phrases
         'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,',
-        'beneath the canopy on the far edge, offering': 'offering',  // Remove redundant positioning
-        'Location: lagoon bar within': 'Location: bar within',  // Simplify location description
         'Nestled within the lagoon, our Gelmir lagoon bar': 'Nestled within the lagoon,',
         'Nestled on the far edge of the lagoon beneath a cave-wall canopy, our lagoon bar': 'Nestled on the far edge of the lagoon beneath a cave-wall canopy',
         'Nestled on the far edge of the lagoon, our lagoon bar': 'Nestled on the far edge of the lagoon',
@@ -46,11 +51,9 @@ const SKY_LAGOON_GUIDELINES = {
         ', our lagoon bar': '',
         ' our lagoon bar is': ' is',
         'within the lagoon, our lagoon bar': 'within the lagoon',
+        'beneath the canopy on the far edge, offering': 'offering',
+        'Location: lagoon bar within': 'Location: bar within',
         'of our lagoon': 'of the lagoon',
-
-        // Near your other formatting fixes
-        '•- ': '• ',        // Fix menu formatting
-        '.. ': '. ',         // Fix double periods
         
         // Gelmir Bar location variations
         'in-geothermal water Gelmir Bar': 'Gelmir lagoon bar',
@@ -68,6 +71,10 @@ const SKY_LAGOON_GUIDELINES = {
         
         // Redundancy prevention
         ', our Gelmir lagoon bar': '',
+
+        // Near your other formatting fixes
+        '•- ': '• ',        // Fix menu formatting
+        '.. ': '. ',         // Fix double periods
         
         // Variations with 'our'
         'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
@@ -255,22 +262,35 @@ const enforceTerminology = (text) => {
 
     // Comprehensive hydration and experience safety checks - Moved here after other replacements
     const hydrationSafetyRegex = [
+        // Bar and location specific patterns
+        /\bin\s+our\s+geothermal\s+waters\b/gi,
+        /\bwithin\s+the\s+lagoon\s+itself\b/gi,
+        /\binside\s+the\s+lagoon\s+itself\b/gi,
+        /\bwithin\s+the\s+lagoon\s+area\b/gi,
+
         // Drinking patterns
         /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi,
+        
         // Direct geothermal water reference with stations
         /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi,
+        
         // Offering/experience patterns
         /\b(unique|offering|have|get)\s+(an?\s+)?(in-geothermal\s+water|in\s+geothermal\s+water)\s+experience/gi,
+        
         // Clean/safe drinking references
         /\b(the\s+)?geothermal water\s+is\s+(fresh|clean|safe|available|free)\s+(and|for|to)\s+(safe|drink|access)/gi,
+        
         // In water references
         /\bin\s+(the\s+)?geothermal\s+water\b/gi,
+        
         // Additional safety patterns
         /\b(including|get|available)\s+geothermal water\b/gi,
         /\bdrink\s+geothermal water\s+regularly\b/gi,
+        
         // Hydration encouragement patterns
         /\bencourage\s+you\s+to\s+drink\s+geothermal\s+water\b/gi,
         /\bimportant\s+to\s+drink\s+geothermal\s+water\b/gi,
+        
         // Water's edge patterns
         /\b(at|by|near)\s+(the\s+)?geothermal\s+water['']?s?\s+edge\b/gi,
         /\b(edge\s+of\s+the)\s+geothermal\s+water\b/gi
@@ -287,7 +307,16 @@ const enforceTerminology = (text) => {
                     return 'including refreshing beverages';
                 }
                 if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
-                    return 'at the lagoon\'s edge';  // Add "at the" for better phrasing
+                    return 'at the lagoon\'s edge';
+                }
+                if (match.includes('in our geothermal waters')) {
+                    return 'in our lagoon';
+                }
+                if (match.match(/within\s+the\s+lagoon\s+(itself|area)/)) {
+                    return 'in the lagoon';
+                }
+                if (match.match(/inside\s+the\s+lagoon\s+itself/)) {
+                    return 'in the lagoon';
                 }
                 return match.replace('geothermal water', 'drinking water');
             }
