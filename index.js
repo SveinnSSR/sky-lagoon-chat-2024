@@ -451,12 +451,14 @@ const acknowledgmentPatterns = {
     },
     positive: {
         en: [
-            'great', 'helpful', 'good', 'comfortable', 'excellent',
-            'wonderful', 'fantastic', 'amazing'
+            'very helpful', 'so helpful', 'really helpful',
+            'really good', 'very good', 'so good',
+            'perfect', 'excellent', 'wonderful', 'fantastic', 'amazing',
+            'appreciate', 'thanks for', 'thank you for'
         ],
         is: [
             'frábært', 'hjálplegt', 'gott', 'þægilegt', 'æðislegt',
-            'dásamlegt', 'geggjað', 'ótrúlegt'
+            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk'
         ]
     },
     continuity: {
@@ -2700,10 +2702,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Greeting handling
         const greetings = [
-            // English greetings
-            'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+            // English greetings (expanded)
+            'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
+            'morning', 'afternoon', 'evening', 'greetings',
             // Icelandic greetings
-            'hæ', 'hæhæ','hææ', 'halló', 'hallo', 'sæl', 'sæl og blessuð', 'sælar', 'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
+            'hæ', 'hæhæ','hææ', 'halló', 'hallo', 'sæl', 'sæl og blessuð', 'sælar', 
+            'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
         ];
 
         if (greetings.includes(userMessage.toLowerCase().trim())) {
@@ -2783,8 +2787,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (!hasBookingPattern && !hasQuestionWord) {
                 // Check for simple acknowledgments (1-4 words)
                 if (userMessage.split(' ').length <= 4 && 
-                    (acknowledgmentPatterns.simple.en.some(word => msg.includes(word)) ||
-                     acknowledgmentPatterns.simple.is.some(word => msg.includes(word)))) {
+                    (acknowledgmentPatterns.simple.en.some(word => 
+                        msg.split(' ').some(msgWord => msgWord === word.toLowerCase())) ||
+                     acknowledgmentPatterns.simple.is.some(word => 
+                        msg.split(' ').some(msgWord => msgWord === word.toLowerCase())))) {
                         const response = isIcelandic ?
                             "Láttu mig vita ef þú hefur fleiri spurningar!" :
                             "Is there anything else you'd like to know about Sky Lagoon?";
