@@ -36,8 +36,17 @@ const SKY_LAGOON_GUIDELINES = {
         // Bar Reference Cleanup - Primary patterns
         'our Gelmir lagoon bar is a haven': 'our Gelmir lagoon bar',
         'Gelmir lagoon bar is a': 'Gelmir lagoon bar',
-        'inside the lagoon itself': 'within the lagoon',
-        'located inside the lagoon itself': 'within the lagoon',
+        'It\'s a unique lagoon bar': 'It\'s',
+        'a unique lagoon bar': '',
+        'located within the lagoon': 'in the lagoon',
+        'is located within': 'is in',
+        ', It': ', it',
+        'at our Gelmir lagoon bar': 'at the bar',  // For second mentions
+        'offerings at our Gelmir lagoon bar': 'offerings',
+        'the Gelmir lagoon bar closes': 'the bar closes',
+        'time at the bar': 'time',
+        'inside the lagoon itself': 'in the lagoon',
+        'located inside the lagoon itself': 'in the lagoon',
         'within the lagoon area': 'in the lagoon',
         
         // Basic bar redundancy and positioning phrases
@@ -74,7 +83,7 @@ const SKY_LAGOON_GUIDELINES = {
 
         // Near your other formatting fixes
         '•- ': '• ',        // Fix menu formatting
-        '.. ': '. ',         // Fix double periods
+        '.. ': '. ',        // Fix double periods
         
         // Variations with 'our'
         'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
@@ -267,6 +276,8 @@ const enforceTerminology = (text) => {
         /\bwithin\s+the\s+lagoon\s+itself\b/gi,
         /\binside\s+the\s+lagoon\s+itself\b/gi,
         /\bwithin\s+the\s+lagoon\s+area\b/gi,
+        /\bin\s+the\s+warmth\s+of\s+our\s+geothermal\s+waters\b/gi,
+        /\bwhile\s+immersed\s+in\s+our\s+geothermal\s+waters\b/gi,
 
         // Drinking patterns
         /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi,
@@ -316,6 +327,10 @@ const enforceTerminology = (text) => {
                     return 'in the lagoon';
                 }
                 if (match.match(/inside\s+the\s+lagoon\s+itself/)) {
+                    return 'in the lagoon';
+                }
+                if (match.includes('warmth of our geothermal waters') || 
+                    match.includes('immersed in our geothermal waters')) {
                     return 'in the lagoon';
                 }
                 return match.replace('geothermal water', 'drinking water');
