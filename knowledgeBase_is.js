@@ -40,14 +40,40 @@ export const detectLanguage = (message) => {
 
     // Special handling for package-related queries
     if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
-        // For package queries, ONLY look at the context of the message
-        const hasEnglishPackageContext = messageWords.some(word => 
+        // For package queries, check common English phrases first
+        const hasEnglishPhrasePattern = 
+            lowercaseMessage.includes('like more information') ||
+            lowercaseMessage.includes('tell me about') ||
+            lowercaseMessage.includes('what is') ||
+            lowercaseMessage.includes('does it include') ||
+            lowercaseMessage.includes('is it included') ||
+            lowercaseMessage.includes('tell me more') ||
+            lowercaseMessage.includes('can you tell') ||
+            lowercaseMessage.includes('how much') ||
+            lowercaseMessage.includes('what does') ||
+            lowercaseMessage.includes('want to know') ||
+            lowercaseMessage.includes('explain the') ||
+            lowercaseMessage.includes('learn more') ||
+            lowercaseMessage.includes('price for') ||
+            lowercaseMessage.includes('cost of') ||
+            lowercaseMessage.includes('details about') ||
+            lowercaseMessage.includes('information on') ||
+            lowercaseMessage.includes('difference between');
+
+        // Then check for individual English context words
+        const hasEnglishWordContext = messageWords.some(word => 
             ['what', 'which', 'how', 'included', 'includes', 'does', 'package', 'difference',
-             'information', 'info', 'tell', 'about', 'like', 'want', 'more', 'id', 'on', 'the'].includes(word.toLowerCase())
+             'information', 'info', 'tell', 'about', 'like', 'want', 'more', 'id', 'on', 'the',
+             'private', 'changing', 'rooms', 'facilities', 'access', 'price', 'cost', 'much',
+             'details', 'explain', 'learn', 'know', 'compare', 'versus', 'vs', 'or', 'features',
+             'amenities', 'include', 'comes', 'with', 'get', 'offer', 'provide', 'contain',
+             'difference', 'between', 'compare', 'comparison', 'better', 'best', 'recommended',
+             'should', 'would', 'could', 'can', 'available', 'booking', 'book', 'reserve',
+             'questions', 'ask', 'wondering', 'curious', 'interested', 'considering'].includes(word.toLowerCase())
         );
         
-        // For package queries, ONLY use the context check to determine language
-        return !hasEnglishPackageContext;  // Return true for Icelandic, false for English
+        // Return false (English) if either pattern matches
+        return !(hasEnglishPhrasePattern || hasEnglishWordContext);
     }
 
     const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
