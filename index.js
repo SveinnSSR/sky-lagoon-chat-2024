@@ -77,6 +77,11 @@ const SKY_LAGOON_GUIDELINES = {
         'located in the geothermal water Gelmir bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir Bar': 'Gelmir lagoon bar',
         'in-geothermal Gelmir bar': 'Gelmir lagoon bar',
+        // Add these new patterns
+        'an in-geothermal water experience': '',  // Remove this phrase entirely
+        'indeed an in-geothermal water': '',      // Remove this phrase entirely
+        'is in-geothermal water': 'is in our lagoon',  // Replace with simpler phrasing
+        'is an in-geothermal water': 'is in our lagoon',
         
         // Redundancy prevention
         ', our Gelmir lagoon bar': '',
