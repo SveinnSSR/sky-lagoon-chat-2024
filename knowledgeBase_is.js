@@ -36,22 +36,23 @@ export const detectLanguage = (message) => {
     const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
 
     const lowercaseMessage = message.toLowerCase();
-
     const messageWords = lowercaseMessage.split(/\s+/);
-    const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
-    if (englishWordCount >= 1) return false;
 
-    // Special handling for package-related queries
+    // Special handling for package-related queries - MOVED BEFORE OTHER CHECKS
     if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
         // Check if the message contains English package-query words
         const hasEnglishPackageContext = messageWords.some(word => 
-            ['what', 'which', 'how', 'included', 'includes', 'does', 'package', 'difference'].includes(word.toLowerCase())
+            ['what', 'which', 'how', 'included', 'includes', 'does', 'package', 'difference',
+             'information', 'info', 'tell', 'about', 'like', 'want', 'more', 'id'].includes(word.toLowerCase())
         );
         
         if (hasEnglishPackageContext) {
             return false; // Return English
         }
     }
+
+    const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
+    if (englishWordCount >= 1) return false;
     
     // Special handling for English-specific queries
     if (lowercaseMessage.includes('package') || 
