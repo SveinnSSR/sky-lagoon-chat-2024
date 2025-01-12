@@ -15,7 +15,6 @@ export const detectLanguage = (message) => {
         'aldur', 'aldurstakmark', 'takmark' // Age-related terms
     ];
 
-    // ADD THIS NEW ARRAY HERE - English detection
     const englishIndicators = [
         'the', 'is', 'are', 'what', 'where', 'when', 'how', 'who',
         'can', 'do', 'does', 'your', 'you', 'have', 'has', 'had',
@@ -28,13 +27,26 @@ export const detectLanguage = (message) => {
         'cost', 'expensive', 'cheap', 'open', 'closed', 'hours'
     ];
 
+    // Package-specific terms that could appear in either language
+    const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
+
     const lowercaseMessage = message.toLowerCase();
 
-    // ADD THESE THREE LINES HERE - English word count check
     const messageWords = lowercaseMessage.split(/\s+/);
     const englishWordCount = messageWords.filter(word => englishIndicators.includes(word)).length;
     if (englishWordCount >= 2) return false;
 
+    // Special handling for package-related queries
+    if (messageWords.some(word => packageTerms.includes(word.toLowerCase()))) {
+        // Check if the message contains English package-query words
+        const hasEnglishPackageContext = messageWords.some(word => 
+            ['what', 'which', 'how', 'included', 'includes', 'does', 'package', 'difference'].includes(word.toLowerCase())
+        );
+        
+        if (hasEnglishPackageContext) {
+            return false; // Return English
+        }
+    }
     
     // Special handling for English-specific queries
     if (lowercaseMessage.includes('package') || 
