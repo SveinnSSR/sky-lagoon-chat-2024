@@ -35,26 +35,17 @@ const SKY_LAGOON_GUIDELINES = {
     specialPhrases: {
         // Bar Reference Cleanup - Primary patterns
         'our Gelmir lagoon bar is a haven': 'our Gelmir lagoon bar',
-        'Gelmir lagoon bar is a': 'Gelmir lagoon bar',
         'It\'s a unique lagoon bar': 'It\'s',
-        'a unique lagoon bar': '',
-        'located within the lagoon': 'in the lagoon',
-        'is located within': 'is in',
-        ', It': ', it',
+        ', It': ', it',  // Fix capitalization
+        '•- ': '• ',    // Fix bullet formatting
         'at our Gelmir lagoon bar': 'at the bar',  // For second mentions
         'offerings at our Gelmir lagoon bar': 'offerings',
         'the Gelmir lagoon bar closes': 'the bar closes',
-        'time at the bar': 'time',
         'inside the lagoon itself': 'in the lagoon',
         'located inside the lagoon itself': 'in the lagoon',
         'within the lagoon area': 'in the lagoon',
         
         // Basic bar redundancy and positioning phrases
-        'Nestled within the lagoon, our lagoon bar': 'Nestled within the lagoon,',
-        'Nestled within the lagoon, our Gelmir lagoon bar': 'Nestled within the lagoon,',
-        'Nestled on the far edge of the lagoon beneath a cave-wall canopy, our lagoon bar': 'Nestled on the far edge of the lagoon beneath a cave-wall canopy',
-        'Nestled on the far edge of the lagoon, our lagoon bar': 'Nestled on the far edge of the lagoon',
-        ' beneath a cave-wall canopy, our lagoon bar': ' beneath a cave-wall canopy',
         ', our lagoon bar is': ' is',
         ', our lagoon bar offers': ' offers',
         ', our lagoon bar': '',
@@ -80,10 +71,6 @@ const SKY_LAGOON_GUIDELINES = {
         
         // Redundancy prevention
         ', our Gelmir lagoon bar': '',
-
-        // Near your other formatting fixes
-        '•- ': '• ',        // Fix menu formatting
-        '.. ': '. ',        // Fix double periods
         
         // Variations with 'our'
         'our in-geothermal water Gelmir Bar': 'our Gelmir lagoon bar',
