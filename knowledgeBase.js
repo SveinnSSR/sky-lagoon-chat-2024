@@ -1337,7 +1337,8 @@ export const knowledgeBase = {
         amenities: {
             tagline: "Experience the heart of Icelandic tradition at our oceanside geothermal lagoon",
             included: [
-                "Towels included free of charge",
+                "Towels included free of charge in all changing rooms",  // Modified this line
+                "Changing rooms with direct access to lagoon",           // Added this line
                 "Changing rooms designed for comfort and privacy",
                 "Secure lockers with electronic wristband access",
                 "Fresh drinking water stations",
@@ -1345,6 +1346,15 @@ export const knowledgeBase = {
                 "Keimur Café for light refreshments",
                 "Smakk Bar for Icelandic culinary experiences"
             ],
+            layout: {                                                    // Added this new section
+                description: "Our facility is thoughtfully designed for a seamless experience",
+                features: [
+                    "Direct access from changing rooms to lagoon",
+                    "No outdoor walking required between changing and lagoon",
+                    "Indoor heated floors throughout changing areas",
+                    "Comfortable transition spaces"
+                ]
+            },
             changing_facilities: {
                 public: {
                     name: "Saman facilities",
