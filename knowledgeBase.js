@@ -1363,6 +1363,23 @@ export const knowledgeBase = {
                     "do you provide slippers"
                 ]
             },
+            guest_amenities: {
+                towels: {
+                    description: "Complimentary towels are provided in all changing rooms",
+                    included: true
+                },
+                robes: {
+                    description: "Since you walk directly from the changing rooms to the lagoon, robes are not provided. You're welcome to bring your own if you'd like.",
+                    included: false,
+                    bring_own: true
+                },
+                common_questions: [
+                    "do you have robes",
+                    "are robes provided",
+                    "can I bring my own robe",
+                    "do you rent robes"
+                ]
+            },
             changing_facilities: {
                 public: {
                     name: "Saman facilities",
