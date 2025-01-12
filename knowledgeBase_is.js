@@ -35,9 +35,9 @@ export const detectLanguage = (message) => {
         'tell', 'explain', 'show', 'available', 'difference', 'between',
         'includes', 'included', 'including', 'contain', 'contains', 'offer',
         'offers', 'providing', 'access', 'admission', 'entry'
-     ];
+    ];
      
-     const internationalWords = [
+    const internationalWords = [
         // Basic international words
         'email', 'wifi', 'internet', 'ok', 'website',
         'booking', 'reference', 'code', 'paypal', 
@@ -54,7 +54,6 @@ export const detectLanguage = (message) => {
         'included', 'includes', 'towel', 'towels'
     ];
     
-    // Package-specific terms that could appear in either language
     const packageTerms = [
         'sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky',
         'skjól', 'skjol', 'ritual', 'ritúal'
@@ -62,6 +61,30 @@ export const detectLanguage = (message) => {
     
     const lowercaseMessage = message.toLowerCase();
     const messageWords = lowercaseMessage.split(/\s+/);
+
+    // Check for English sentence structure FIRST - New addition
+    const hasEnglishStructure = (
+        lowercaseMessage.startsWith('tell') ||
+        lowercaseMessage.startsWith('what') ||
+        lowercaseMessage.startsWith('how') ||
+        lowercaseMessage.startsWith('can') ||
+        lowercaseMessage.startsWith('does') ||
+        lowercaseMessage.startsWith('is') ||
+        lowercaseMessage.startsWith('are') ||
+        lowercaseMessage.startsWith('do') ||
+        lowercaseMessage.startsWith('i') ||
+        lowercaseMessage.startsWith('we') ||
+        lowercaseMessage.startsWith('when') ||
+        lowercaseMessage.startsWith('where') ||
+        lowercaseMessage.startsWith('why') ||
+        lowercaseMessage.includes('difference between') ||
+        lowercaseMessage.includes('tell me about') ||
+        lowercaseMessage.includes('what is the') ||
+        lowercaseMessage.includes('could you') ||
+        lowercaseMessage.includes('please tell')
+    );
+
+    if (hasEnglishStructure) return false;  // Definitely English
     
     // First filter out international words from English word count
     const englishWordCount = messageWords.filter(word => 
@@ -69,7 +92,7 @@ export const detectLanguage = (message) => {
         !internationalWords.includes(word)
     ).length;
     
-    // Check for English based on word count first
+    // Check for English based on word count
     if (englishWordCount >= 2) return false;  // Definitely English
     
     // Only then check for specific package queries if not already determined
@@ -77,21 +100,18 @@ export const detectLanguage = (message) => {
         lowercaseMessage.includes('ser') ||
         lowercaseMessage.includes('skjól') || 
         lowercaseMessage.includes('skjol')) {
-        // Check for clear English patterns in package queries
-        if (lowercaseMessage.startsWith('tell') ||
-            lowercaseMessage.startsWith('what') ||
-            lowercaseMessage.startsWith('how') ||
-            lowercaseMessage.startsWith('can') ||
-            lowercaseMessage.startsWith('does') ||
-            lowercaseMessage.startsWith('is') ||
-            lowercaseMessage.startsWith('are') ||
-            lowercaseMessage.startsWith('do') ||
-            lowercaseMessage.startsWith('i') ||
-            lowercaseMessage.startsWith('we')) {
-            return false;  // Definitely English
-        }
-        // If contains Sér/Skjól but no English patterns, likely Icelandic
-        return true;
+        // If it's just a package name without other Icelandic words, treat as English
+        let messageWithoutPackages = lowercaseMessage;
+        packageTerms.forEach(term => {
+            messageWithoutPackages = messageWithoutPackages.replace(term, '');
+        });
+        
+        // Check if the remaining message has Icelandic words
+        const hasOtherIcelandicWords = commonIcelandicWords.some(word => 
+            messageWithoutPackages.includes(word)
+        );
+        
+        return hasOtherIcelandicWords;
     }
     
     // Special handling for English-specific queries
