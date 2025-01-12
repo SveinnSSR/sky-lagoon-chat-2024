@@ -123,14 +123,14 @@ const SKY_LAGOON_GUIDELINES = {
         'geothermal geothermal water': 'geothermal water',
 
         // Complex water terms
-        'in-geothermal water Gelmir lagoon bar': 'Gelmir lagoon bar',
-        'in-water Gelmir lagoon bar': 'Gelmir lagoon bar',
-        'in geothermal water Gelmir lagoon bar': 'Gelmir lagoon bar',
-        'in-geothermal water Gelmir': 'Gelmir',
+        'in-geothermal water Gelmir lagoon bar': 'our Gelmir lagoon bar',
+        'in-water Gelmir lagoon bar': 'our Gelmir lagoon bar',
+        'in geothermal water Gelmir lagoon bar': 'our Gelmir lagoon bar',
+        'in-geothermal water Gelmir': 'our Gelmir',
         'the Gelmir lagoon bar located in': 'the Gelmir lagoon bar in',
-        'in-geothermal Gelmir': 'Gelmir',
-        'Access to the in-geothermal water Gelmir lagoon bar': 'Access to the Gelmir lagoon bar',
-        'Access to the in-geothermal Gelmir lagoon bar': 'Access to the Gelmir lagoon bar',
+        'in-geothermal Gelmir': 'our Gelmir',
+        'Access to the in-geothermal water Gelmir lagoon bar': 'Access to our Gelmir lagoon bar',
+        'Access to the in-geothermal Gelmir lagoon bar': 'Access to our Gelmir lagoon bar',
         
         // Basic replacements
         'The Sky Lagoon': 'Sky Lagoon',
