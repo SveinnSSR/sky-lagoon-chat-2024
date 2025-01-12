@@ -44,11 +44,15 @@ export const detectLanguage = (message) => {
         'visa', 'mastercard', 'online', 'pin',
         'instagram', 'facebook', 'app', 'mobile',
         'confirmation', 'ticket', 'message', 'yay',
-        'whatsapp', 'messenger', 'tiktok', 'tik tok'
+        'whatsapp', 'messenger', 'tiktok', 'tik tok',
+        'skjól', 'ritual', 'skjol'  // Add these
      ];
      
      // Package-specific terms that could appear in either language
-     const packageTerms = ['sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky'];
+     const packageTerms = [
+        'sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky',
+        'skjól', 'skjol', 'ritual', 'ritúal'  // Add these
+    ];
      
      const lowercaseMessage = message.toLowerCase();
      const messageWords = lowercaseMessage.split(/\s+/);
@@ -59,33 +63,40 @@ export const detectLanguage = (message) => {
         !internationalWords.includes(word)
      ).length;
      
-     // STRICT English package query check - do this AFTER word count
-     if (lowercaseMessage.includes('sér') || lowercaseMessage.includes('ser')) {
-        // Clear English structure check
-        if (englishWordCount >= 1 || 
-            lowercaseMessage.startsWith('tell') ||
-            lowercaseMessage.startsWith('what') ||
-            lowercaseMessage.startsWith('how') ||
-            lowercaseMessage.startsWith('can') ||
-            lowercaseMessage.startsWith('i') ||
-            lowercaseMessage.startsWith('is') ||
-            lowercaseMessage.startsWith('what') ||
-            lowercaseMessage.includes('tell me about') ||
-            lowercaseMessage.includes('included in') ||
-            lowercaseMessage.includes('cost') ||
-            lowercaseMessage.includes('price') ||
-            // Additional package-specific patterns
-            lowercaseMessage.includes('what is') ||
-            lowercaseMessage.includes('what are') ||
-            lowercaseMessage.includes('how much') ||
-            lowercaseMessage.includes('like to know') ||
-            lowercaseMessage.includes('difference between') ||
-            (lowercaseMessage.includes('information') && lowercaseMessage.includes('about'))) {
-            return false;  // Definitely English
-        }
-        // If no English indicators found and contains Sér, lean towards Icelandic
-        return true;
-     }
+// STRICT English package query check - do this AFTER word count
+   if (lowercaseMessage.includes('sér') || 
+       lowercaseMessage.includes('ser') ||
+       lowercaseMessage.includes('skjól') || 
+       lowercaseMessage.includes('skjol')) {
+       // Clear English structure check
+       if (englishWordCount >= 1 || 
+           lowercaseMessage.startsWith('tell') ||
+           lowercaseMessage.startsWith('what') ||
+           lowercaseMessage.startsWith('how') ||
+           lowercaseMessage.startsWith('can') ||
+           lowercaseMessage.startsWith('does') ||
+           lowercaseMessage.startsWith('i') ||
+           lowercaseMessage.startsWith('we') ||
+           lowercaseMessage.startsWith('is') ||
+           lowercaseMessage.includes('tell me about') ||
+           lowercaseMessage.includes('included in') ||
+           lowercaseMessage.includes('cost') ||
+           lowercaseMessage.includes('price') ||
+           lowercaseMessage.includes('what is') ||
+           lowercaseMessage.includes('what are') ||
+           lowercaseMessage.includes('how much') ||
+           lowercaseMessage.includes('like to know') ||
+           lowercaseMessage.includes('include') ||
+           lowercaseMessage.includes('different') ||
+           lowercaseMessage.includes('explain') ||
+           lowercaseMessage.includes('about the') ||
+           lowercaseMessage.includes('difference between') ||
+           (lowercaseMessage.includes('information') && lowercaseMessage.includes('about'))) {
+           return false;  // Definitely English
+       }
+       // If no English indicators found and contains Sér/Skjól, lean towards Icelandic
+       return true;
+   }
      
      // Only check general English count if we haven't already returned
      if (englishWordCount >= 1) return false;
