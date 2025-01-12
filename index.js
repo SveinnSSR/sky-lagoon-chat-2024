@@ -794,6 +794,48 @@ const ERROR_MESSAGES = {
     }
 };
 
+// Context tracking constants
+const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
+const MAX_CONTEXT_MESSAGES = 10; // Maximum messages to keep in history
+
+// Enhanced context tracking patterns
+const CONTEXT_PATTERNS = {
+    reference: {
+        en: [
+            'you mentioned',
+            'as discussed',
+            'like you said',
+            'about that',
+            'regarding',
+            'as for',
+            'speaking of'
+        ],
+        is: [
+            'þú nefndir',
+            'eins og við ræddum',
+            'varðandi það',
+            'um það',
+            'hvað varðar',
+            'talandi um'
+        ]
+    },
+    followUp: {
+        en: [
+            'what about',
+            'and then',
+            'what else',
+            'how about',
+            'tell me more about'
+        ],
+        is: [
+            'hvað með',
+            'og svo',
+            'hvað fleira',
+            'segðu mér meira um'
+        ]
+    }
+};
+
 // Add new code here
 const EMOJI_MAPPING = {
     greeting: '😊',
@@ -2552,6 +2594,13 @@ const updateContext = (sessionId, message, response) => {
         messageCount: 0,
         lastTopic: null,
         lastResponse: null,
+        // Enhanced context tracking
+        lastQuestion: null,
+        lastAnswer: null,
+        prevQuestions: [],
+        contextualReferences: [],
+        relatedTopics: [],
+        questionContext: null,
         // New properties for greetings and acknowledgments
         selectedGreeting: null,
         isFirstGreeting: true,
@@ -2602,6 +2651,44 @@ const updateContext = (sessionId, message, response) => {
         context.lateArrivalScenario = null;
     }
 
+    // Enhanced context tracking
+    if (message) {
+        // Store question and update history
+        context.lastQuestion = message;
+        context.prevQuestions = [
+            ...(context.prevQuestions || []).slice(-2),
+            message
+        ];
+
+        // Detect follow-up patterns
+        const patterns = CONTEXT_PATTERNS.followUp[context.language === 'is' ? 'is' : 'en'];
+        if (patterns.some(pattern => message.toLowerCase().includes(pattern))) {
+            context.questionContext = context.lastTopic;
+        }
+
+        // Track topic relationships
+        if (context.lastTopic) {
+            context.relatedTopics = [...new Set([
+                ...(context.relatedTopics || []),
+                context.lastTopic
+            ])];
+        }
+    }
+
+    if (response) {
+        // Store answer and track references
+        context.lastAnswer = response;
+        
+        // Detect references to previous content
+        const referencePatterns = CONTEXT_PATTERNS.reference[context.language === 'is' ? 'is' : 'en'];
+        if (referencePatterns.some(pattern => response.toLowerCase().includes(pattern))) {
+            context.contextualReferences.push({
+                topic: context.lastTopic,
+                timestamp: Date.now()
+            });
+        }
+    }
+
     // Increment message count
     context.messageCount++;
 
@@ -2611,18 +2698,22 @@ const updateContext = (sessionId, message, response) => {
     }
 
     // Update messages array
-    context.messages.push({
-        role: 'user',
-        content: message
-    });
-    context.messages.push({
-        role: 'assistant',
-        content: response
-    });
+    if (message) {
+        context.messages.push({
+            role: 'user',
+            content: message
+        });
+    }
+    if (response) {
+        context.messages.push({
+            role: 'assistant',
+            content: response
+        });
+    }
 
     // Maintain reasonable history size
-    if (context.messages.length > 10) {
-        context.messages = context.messages.slice(-10);
+    if (context.messages.length > MAX_CONTEXT_MESSAGES) {
+        context.messages = context.messages.slice(-MAX_CONTEXT_MESSAGES);
     }
 
     // Update last interaction time
@@ -2684,7 +2775,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             messageCount: 0,
             lastTopic: null,
             lastResponse: null,
-            // New properties for greetings and acknowledgments
+            // Enhanced context tracking
+            lastQuestion: null,
+            lastAnswer: null,
+            prevQuestions: [],
+            contextualReferences: [],
+            relatedTopics: [],
+            questionContext: null,
+            // Existing greeting and acknowledgment properties
             selectedGreeting: null,
             isFirstGreeting: true,
             selectedAcknowledgment: null,
