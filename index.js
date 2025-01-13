@@ -2733,14 +2733,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Standard English starts
                 /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
                 // Questions starting with conjunctions
-                /^(and|but|so)\s+(is|are|does|do|can|will|would|should|could|has|have)/i.test(userMessage.toLowerCase()) ||
+                /^(and|but|so|or)\s+(the|your|about|how|what|does|is|are|can|will|would|tell)/i.test(userMessage.toLowerCase()) ||
                 // "Does" appearing anywhere in question
                 /\bdoes\s+the\b|\bdoes\s+it\b|\bdoes\s+this\b/i.test(userMessage.toLowerCase()) ||
                 // Common English question patterns
                 userMessage.toLowerCase().includes('tell me about') ||
                 userMessage.toLowerCase().includes('what is the') ||
                 userMessage.toLowerCase().includes('difference between') ||
-                // Questions about packages
+                // Simple questions about branded items
+                /^(and|but|so|or)\s+(the|your)\s+(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase()) ||
+                // Questions about packages and ritual
                 /\b(about|include|explain|show|price of|cost of)\s+(the\s+)?(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase())
             ),
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
