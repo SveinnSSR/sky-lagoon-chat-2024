@@ -2728,11 +2728,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Enhanced language detection
         const languageCheck = {
-                // CRITICAL FIX: Check for English sentence structure FIRST
-            hasEnglishStructure: /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) || 
-                                userMessage.toLowerCase().includes('tell me about') ||
-                                userMessage.toLowerCase().includes('what is the') ||
-                                userMessage.toLowerCase().includes('difference between'),
+            // CRITICAL FIX: Check for English sentence structure FIRST, with expanded patterns
+            hasEnglishStructure: (
+                // Standard English starts
+                /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
+                // Questions starting with conjunctions
+                /^(and|but|so)\s+(is|are|does|do|can|will|would|should|could|has|have)/i.test(userMessage.toLowerCase()) ||
+                // "Does" appearing anywhere in question
+                /\bdoes\s+the\b|\bdoes\s+it\b|\bdoes\s+this\b/i.test(userMessage.toLowerCase()) ||
+                // Common English question patterns
+                userMessage.toLowerCase().includes('tell me about') ||
+                userMessage.toLowerCase().includes('what is the') ||
+                userMessage.toLowerCase().includes('difference between') ||
+                // Questions about packages
+                /\b(about|include|explain|show|price of|cost of)\s+(the\s+)?(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase())
+            ),
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
             rawDetection: detectLanguage(userMessage),
             languageContext: getLanguageContext(userMessage)
@@ -2740,7 +2750,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // CRITICAL FIX: Force English for English sentence structure
         const isIcelandic = languageCheck.hasEnglishStructure ? false : 
-                            (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
+                           (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
 
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
