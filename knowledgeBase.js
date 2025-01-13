@@ -172,6 +172,19 @@ export const knowledgeBase = {
                     days: "Friday-Sunday"
                 }
             },
+            youth_pricing: {
+                description: "Special pricing for guests aged 12-14 years",
+                note: "Children who turn 12 within the calendar year are eligible for youth pricing",
+                requirements: "Must be accompanied by a guardian (18 years or older)",
+                weekday: {
+                    price: "6,495 ISK",
+                    days: "Monday-Thursday"
+                },
+                weekend: {
+                    price: "7,495 ISK",
+                    days: "Friday-Sunday"
+                }
+            },
             booking_info: {
                 how_to_book: "Book directly through our website or at reception",
                 availability: "Subject to capacity",
@@ -213,6 +226,28 @@ export const knowledgeBase = {
                 weekend: {
                     range: "15,490 - 15,990 ISK",
                     days: "Friday-Sunday"
+                }
+            },
+            youth_pricing: {
+                description: "Special pricing for guests aged 12-14 years",
+                note: "Children who turn 12 within the calendar year are eligible for youth pricing",
+                requirements: "Must be accompanied by a guardian (18 years or older)",
+                weekday: {
+                    price: "7,995 ISK",
+                    days: "Monday-Thursday"
+                },
+                weekend: {
+                    price: "8,995 ISK",
+                    days: "Friday-Sunday"
+                }
+            },
+            booking_info: {
+                how_to_book: "Book directly through our website or at reception",
+                availability: "Subject to capacity",
+                recommended: "Advance booking recommended",
+                modifications: {
+                    deadline: "24 hours notice required",
+                    contact: "reservations@skylagoon.is"
                 }
             },
             features: "Well-appointed private changing rooms with enhanced comfort and premium amenities"
@@ -2345,6 +2380,17 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('together') ||  // Added from website language
         message.includes('share') ||     // Added from website language
         message.includes('partner') ||   // Added from website language
+        message.includes('youth') ||
+        message.includes('child') ||
+        message.includes('children') ||
+        message.includes('kid') ||
+        message.includes('kids') ||
+        (message.includes('12') && message.includes('year')) ||
+        (message.includes('13') && message.includes('year')) ||
+        (message.includes('14') && message.includes('year')) ||
+        message.includes('teenage') ||
+        message.includes('teen') ||
+        message.includes('young') ||
         message.includes('booking') ||
         message.includes('book') ||
         message.includes('purchase') ||
@@ -2388,14 +2434,68 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('access') ||
         message.includes('included') ||
         message.includes('value')) {
-        relevantInfo.push({
-            type: 'policies',
-            content: knowledgeBase.policies
-        });
-        relevantInfo.push({
-            type: 'packages',
-            content: knowledgeBase.packages
-        });
+
+        // Check for youth-specific queries first
+        if (message.includes('youth') ||
+            message.includes('child') ||
+            message.includes('children') ||
+            message.includes('kid') ||
+            message.includes('kids') ||
+            (message.includes('12') && message.includes('year')) ||
+            (message.includes('13') && message.includes('year')) ||
+            (message.includes('14') && message.includes('year')) ||
+            message.includes('teenage') ||
+            message.includes('teen') ||
+            message.includes('young')) {
+            
+            // If asking specifically about Sér youth pricing
+            if (message.includes('ser') || message.includes('sér') || 
+                message.includes('premium') || message.includes('private')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_ser',
+                    content: {
+                        youth_pricing: knowledgeBase.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+            // If asking specifically about Saman youth pricing
+            else if (message.includes('saman') || message.includes('standard') || 
+                     message.includes('regular') || message.includes('basic')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_saman',
+                    content: {
+                        youth_pricing: knowledgeBase.packages.saman.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+            // For general youth pricing queries
+            else {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_all',
+                    content: {
+                        saman: knowledgeBase.packages.saman.youth_pricing,
+                        ser: knowledgeBase.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+        }
+        // Original package logic for non-youth queries
+        else {
+            relevantInfo.push({
+                type: 'policies',
+                content: knowledgeBase.policies
+            });
+            relevantInfo.push({
+                type: 'packages',
+                content: knowledgeBase.packages
+            });
+        }
 
         // Add dining info if they ask about food-related aspects
         if (message.includes('platter') ||
