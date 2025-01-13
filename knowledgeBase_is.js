@@ -690,6 +690,19 @@ export const knowledgeBase_is = {
                     days: "Föstudaga til sunnudaga"
                 }
             },
+            youth_pricing: {
+                description: "Sérstakt verð fyrir gesti á aldrinum 12-14 ára",
+                note: "Börn sem verða 12 ára á almanaksárinu geta keypt unglingamiða",
+                requirements: "Verða að vera í fylgd forráðamanna (18 ára eða eldri)",
+                weekday: {
+                    price: "6.495 ISK",
+                    days: "Mánudaga til fimmtudaga"
+                },
+                weekend: {
+                    price: "7.495 ISK",
+                    days: "Föstudaga til sunnudaga"
+                }
+            },
             includes: [
                 "Aðgangur að Sky Lagoon",
                 "Eitt ferðalag í gegnum sjö skrefa Skjól Ritúalið",
@@ -709,6 +722,19 @@ export const knowledgeBase_is = {
                 },
                 weekend: {
                     range: "15.490 - 15.990 ISK",
+                    days: "Föstudaga til sunnudaga"
+                }
+            },
+            youth_pricing: {
+                description: "Sérstakt verð fyrir gesti á aldrinum 12-14 ára",
+                note: "Börn sem verða 12 ára á almanaksárinu geta keypt unglingamiða",
+                requirements: "Verða að vera í fylgd forráðamanna (18 ára eða eldri)",
+                weekday: {
+                    price: "7.995 ISK",
+                    days: "Mánudaga til fimmtudaga"
+                },
+                weekend: {
+                    price: "8.995 ISK",
                     days: "Föstudaga til sunnudaga"
                 }
             },
@@ -2227,58 +2253,111 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('saman') ||
         message.includes('sér') ||
         message.includes('mun') ||
-    // Stefnumót related
+        // Youth pricing patterns
+        message.includes('ungling') ||
+        message.includes('unglingaverð') ||
+        message.includes('barna') ||
+        message.includes('barnaverð') ||
+        message.includes('barnagjald') ||
+        (message.includes('12') && message.includes('14')) ||
+        (message.includes('börn') && message.includes('verð')) ||
+        // Stefnumót related
         message.includes('stefnumót') ||
         message.includes('fyrir tvo') ||
         message.includes('tveir') ||
         message.includes('sælkeraplatt') ||
         message.includes('drykk') ||
-    // Price related
+        // Price related
         message.includes('króna') ||
         message.includes('kr') ||
         message.includes('ISK') ||
-    // Question words with package context
+        // Question words with package context
         (message.includes('hvað') && (
         message.includes('innifalið') ||
         message.includes('fylgir') ||
         message.includes('kostar')
     ))) {
     
-    console.log('\n📦 Package Match Found');
-    
-    // Determine which package info to return
-    if (message.includes('stefnumót') || 
-        message.includes('fyrir tvo') ||
-        message.includes('tveir')) {
+        console.log('\n📦 Package Match Found');
         
-        console.log('\n💑 Date Package Match Found');
-        relevantInfo.push({
-            type: 'packages',
-            subtype: 'stefnumot',
-            content: knowledgeBase_is.packages.stefnumot
-        });
-    } else if (message.includes('sér')) {
-        console.log('\n🌟 Sér Package Match Found');
-        relevantInfo.push({
-            type: 'packages',
-            subtype: 'ser',
-            content: knowledgeBase_is.packages.ser
-        });
-    } else if (message.includes('saman')) {
-        console.log('\n👥 Saman Package Match Found');
-        relevantInfo.push({
-            type: 'packages',
-            subtype: 'saman',
-            content: knowledgeBase_is.packages.saman
-        });
-    } else {
-        // Return all package info
-        relevantInfo.push({
-            type: 'packages',
-            content: knowledgeBase_is.packages
-        });
+        // Check for youth pricing queries first
+        if (message.includes('ungling') ||
+            message.includes('unglingaverð') ||
+            message.includes('barna') ||
+            message.includes('barnaverð') ||
+            message.includes('barnagjald') ||
+            (message.includes('12') && message.includes('14')) ||
+            (message.includes('börn') && message.includes('verð'))) {
+            
+            // Check if asking about specific package type
+            if (message.includes('sér')) {
+                console.log('\n👶 Youth Sér Package Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_ser',
+                    content: {
+                        youth_pricing: knowledgeBase_is.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules
+                    }
+                });
+            } else if (message.includes('saman')) {
+                console.log('\n👶 Youth Saman Package Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_saman',
+                    content: {
+                        youth_pricing: knowledgeBase_is.packages.saman.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules
+                    }
+                });
+            } else {
+                // General youth pricing query
+                console.log('\n👶 General Youth Pricing Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_all',
+                    content: {
+                        saman: knowledgeBase_is.packages.saman.youth_pricing,
+                        ser: knowledgeBase_is.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules
+                    }
+                });
+            }
+        }
+        // Keep existing package logic for non-youth queries
+        else if (message.includes('stefnumót') || 
+            message.includes('fyrir tvo') ||
+            message.includes('tveir')) {
+            
+            console.log('\n💑 Date Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'stefnumot',
+                content: knowledgeBase_is.packages.stefnumot
+            });
+        } else if (message.includes('sér')) {
+            console.log('\n🌟 Sér Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'ser',
+                content: knowledgeBase_is.packages.ser
+            });
+        } else if (message.includes('saman')) {
+            console.log('\n👥 Saman Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'saman',
+                content: knowledgeBase_is.packages.saman
+            });
+        } else {
+            // Return all package info
+            relevantInfo.push({
+                type: 'packages',
+                content: knowledgeBase_is.packages
+            });
+        }
     }
-    }
+    
     // Multi-Pass function
     if (message.includes('multi') ||
         message.includes('multipass') ||
