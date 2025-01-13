@@ -2743,14 +2743,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Simple questions about branded items
                 /^(and|but|so|or)\s+(the|your)\s+(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase()) ||
                 // Questions about packages and ritual
-                /\b(about|include|explain|show|price of|cost of)\s+(the\s+)?(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase())
+                /\b(about|include|explain|show|price of|cost of)\s+(the\s+)?(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase()) ||
+                // Package questions with dashes or other punctuation
+                /\b(sér|ser|skjól|skjol)\s*(-|\.|\?|\s)\s*(package|ritual)/i.test(userMessage.toLowerCase()) ||
+                // Just package mentions
+                /(^|\s)(sér|ser|skjól|skjol)\s+(package|ritual)($|\s|\?)/i.test(userMessage.toLowerCase()) ||
+                /\b(package|ritual)\b/i.test(userMessage.toLowerCase())
             ),
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
             rawDetection: detectLanguage(userMessage),
             languageContext: getLanguageContext(userMessage)
         };
 
-        // CRITICAL FIX: Force English for English sentence structure
+        // CRITICAL FIX: Force English for English structure
         const isIcelandic = languageCheck.hasEnglishStructure ? false : 
                            (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
 
