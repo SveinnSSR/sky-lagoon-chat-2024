@@ -2557,6 +2557,17 @@ const updateContext = (sessionId, message, response) => {
         lastResponse: null,
         // Add this new property here 👇
         icelandicTopics: [],  // Track topics discussed in Icelandic
+        // Add timeContext here 👇
+            timeContext: {
+                bookingTime: null,
+                activityDuration: {
+                    ritual: 45,     // 45 minutes for ritual
+                    dining: 60,     // 1 hour for dining
+                    bar: 30         // 30 minutes for bar
+                },
+                sequence: [],
+                lastDiscussedTime: null
+        },
         // Enhanced context tracking
         lastQuestion: null,
         lastAnswer: null,
@@ -2673,6 +2684,52 @@ const updateContext = (sessionId, message, response) => {
         }
     }
 
+    // ADD NEW TIME TRACKING CODE HERE 👇
+    // Check for time-related queries
+    if (message) {
+        const timePatterns = {
+            duration: /how long|hversu lengi|what time|hvað tekur/i,
+            booking: /book for|bóka fyrir|at|kl\./i,
+            specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i
+        };
+
+        // Track if message is asking about duration
+        if (timePatterns.duration.test(message)) {
+            if (context.lastTopic) {
+                context.timeContext.lastDiscussedTime = {
+                    topic: context.lastTopic,
+                    type: 'duration',
+                    timestamp: Date.now()
+                };
+            }
+        }
+
+        // Track specific times mentioned
+        const timeMatch = message.match(timePatterns.specific);
+        if (timeMatch) {
+            const time = timeMatch[0];
+            context.timeContext.lastDiscussedTime = {
+                time: time,
+                type: 'specific',
+                timestamp: Date.now()
+            };
+            
+            // If booking-related, update booking time
+            if (timePatterns.booking.test(message)) {
+                context.timeContext.bookingTime = time;
+            }
+        }
+
+        // Log time context updates
+        if (context.timeContext.lastDiscussedTime) {
+            console.log('\n⏰ Time Context Updated:', {
+                lastDiscussed: context.timeContext.lastDiscussedTime,
+                bookingTime: context.timeContext.bookingTime,
+                sequence: context.timeContext.sequence
+            });
+        }
+    }
+
     // Track if a follow-up was offered
     if (response && response.toLowerCase().includes('would you like')) {
         context.offeredMoreInfo = true;
@@ -2781,6 +2838,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             lastResponse: null,
             // Add this new property here 👇
             icelandicTopics: [],  // Track topics discussed in Icelandic
+            // Add timeContext here 👇
+            timeContext: {
+                bookingTime: null,
+                activityDuration: {
+                    ritual: 45,     // 45 minutes for ritual
+                    dining: 60,     // 1 hour for dining
+                    bar: 30         // 30 minutes for bar
+                },
+                sequence: [],
+                lastDiscussedTime: null
+            },
             // Enhanced context tracking
             lastQuestion: null,
             lastAnswer: null,
