@@ -3006,7 +3006,25 @@ export const getRelevantKnowledge = (userMessage) => {
         message.toLowerCase().includes('family') ||
         message.toLowerCase().includes('under 12') ||
         message.toLowerCase().includes('12 years') ||
-        message.toLowerCase().includes('14 years')) {
+        message.toLowerCase().includes('14 years') ||
+        // Month-specific patterns
+        (message.toLowerCase().includes('august') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('january') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('february') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('march') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('april') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('may') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('june') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('july') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('september') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('october') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('november') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('december') && message.toLowerCase().includes('12')) ||
+        // Future birthday patterns
+        (message.toLowerCase().includes('until') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('turning') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('become') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('will be') && message.toLowerCase().includes('12'))) {
         
         console.log('\n👶 Age Policy Match Found');
         relevantInfo.push({
