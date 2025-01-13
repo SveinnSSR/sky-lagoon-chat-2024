@@ -379,28 +379,6 @@ const GREETING_RESPONSES = [
     "Hi! I'm here to help with any questions about Sky Lagoon. Would you like to know about our experiences, packages, or how to reach us?"
 ];
 
-// Conversation Enhancement Arrays from original index.js
-const TRANSITION_PHRASES = {
-    general: [
-        "Let me tell you about that...",
-        "I'd be happy to explain...",
-        "Here's what you need to know...",
-        "Let me share the details..."
-    ],
-    adding_info: [
-        "You might also be interested to know...",
-        "It's worth mentioning that...",
-        "Additionally...",
-        "Something else that guests often appreciate..."
-    ],
-    topic_switch: [
-        "Speaking of that...",
-        "On a related note...",
-        "That reminds me...",
-        "This connects well with..."
-    ]
-};
-
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -1685,13 +1663,6 @@ IF user says "yes" to more information:
 `;
     }
 
-    // Check for active transition
-    if (context && context.activeTransition) {
-        basePrompt += `
-USE THIS TRANSITION: "${context.activeTransition}"
-`;
-    }
-
     if (relevantKnowledge.length > 0) {
         basePrompt += '\n\nKNOWLEDGE BASE DATA:';
         relevantKnowledge.forEach(info => {
@@ -2624,7 +2595,6 @@ const updateContext = (sessionId, message, response) => {
         },
         currentSeason: null,
         referenceContext: null,
-        activeTransition: null,
         lateArrivalScenario: null,
         soldOutStatus: false,
         lastTransition: null,
@@ -2832,7 +2802,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             },
             currentSeason: null,
             referenceContext: null,
-            activeTransition: null,
             lateArrivalScenario: null,
             soldOutStatus: false,
             lastTransition: null,
@@ -3127,9 +3096,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.operatingHours = seasonInfo;
         }
 
-        // Get transition for response
-        const transition = topicResult.transition || (topicResult.topic ? getRandomResponse(TRANSITION_PHRASES.general) : '');
-
         // Enhanced system prompt with all context
         let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage);
 
@@ -3150,11 +3116,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             Please include these specific times in your response.`;
         }
-
-        if (transition) {
-            systemPrompt += `\n\nUSE THIS TRANSITION: "${transition}"`;
-        }
-
+        
         // Prepare messages array
         const messages = [
             { 
@@ -3187,13 +3149,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
-            
-            User Question: ${userMessage}
-            
-            Please provide a natural, conversational response using ONLY the information from the knowledge base. 
-            Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-            ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}
-            ${transition ? `Start with: "${transition}"` : ''}`  // Added closing backtick here
+                
+                User Question: ${userMessage}
+                
+                Please provide a natural, conversational response using ONLY the information from the knowledge base. 
+                Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
+                ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}`  // Added closing backtick here
         });
 
         // Make GPT-4 request with retries
@@ -3341,7 +3302,7 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
         context.lastTopic = topic;
     }
     
-    return { topic, transition };
+    return { topic };
 };
 
 // Cleanup old contexts and cache
