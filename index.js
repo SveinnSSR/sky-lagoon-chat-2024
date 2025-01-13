@@ -2688,19 +2688,23 @@ const updateContext = (sessionId, message, response) => {
     // Check for time-related queries
     if (message) {
         const timePatterns = {
-            duration: /how long|hversu lengi|what time|hvað tekur/i,
-            booking: /book for|bóka fyrir|at|kl\./i,
-            specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i
+            duration: /how long|hversu lengi|what time|hvað tekur|hvað langan tíma|hve lengi|hversu langan/i,
+            booking: /book for|bóka fyrir|at|kl\.|klukkan|time slot|tíma|mæta/i,
+            specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i,
+            dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar/i,
+            closing: /close|closing|lok|loka|lokar|lokun/i
         };
 
         // Track if message is asking about duration
-        if (timePatterns.duration.test(message)) {
+        if (timePatterns.duration.test(message) || timePatterns.dining.test(message)) {
             if (context.lastTopic) {
                 context.timeContext.lastDiscussedTime = {
                     topic: context.lastTopic,
                     type: 'duration',
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    activity: timePatterns.dining.test(message) ? 'dining' : context.lastTopic
                 };
+                console.log('\n⏰ Duration Question Detected:', message);
             }
         }
 
@@ -2717,15 +2721,17 @@ const updateContext = (sessionId, message, response) => {
             // If booking-related, update booking time
             if (timePatterns.booking.test(message)) {
                 context.timeContext.bookingTime = time;
+                console.log('\n⏰ Booking Time Updated:', time);
             }
         }
 
-        // Log time context updates
+        // Enhanced logging
         if (context.timeContext.lastDiscussedTime) {
             console.log('\n⏰ Time Context Updated:', {
                 lastDiscussed: context.timeContext.lastDiscussedTime,
                 bookingTime: context.timeContext.bookingTime,
-                sequence: context.timeContext.sequence
+                sequence: context.timeContext.sequence,
+                message: message // Add the triggering message for debugging
             });
         }
     }
