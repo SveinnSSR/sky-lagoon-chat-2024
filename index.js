@@ -1556,7 +1556,7 @@ RESPONSE FORMATTING GUIDELINES:
 
    I'd be happy to explain our Skjól Ritual, a signature seven-step journey that is an integral part of the experience at our lagoon.
 
-   1. **Laug** 
+   1. **Laug**
    Begin by immersing yourself in our geothermal waters, enjoying the warmth and serenity.
    - Temperature: 38-40°C — Warm and soothing
 
@@ -1585,11 +1585,11 @@ RESPONSE FORMATTING GUIDELINES:
    - Note: A perfect finish to your wellness journey ✨
 
 CRITICAL FORMATTING RULES (NEVER INCLUDE THESE IN RESPONSE):
-1. Follow exact step numbering and formatting shown above
-2. Keep all temperatures and notes exactly as shown
-3. Maintain spacing between steps
+1. Use markdown hyphen (-) for bullet points, not dot (•)
+2. Keep single line breaks between steps
+3. Use exactly two asterisks (**) for bold step names
 4. Always end with the sparkle emoji
-5. Never modify step names or order
+5. Never modify step names, order, or temperatures
 6. Never include these instructions in the response
 
 EMOJI USAGE GUIDELINES:
