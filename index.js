@@ -2691,20 +2691,32 @@ const updateContext = (sessionId, message, response) => {
             duration: /how long|hversu lengi|what time|hvað tekur|hvað langan tíma|hve lengi|hversu langan/i,
             booking: /book for|bóka fyrir|at|kl\.|klukkan|time slot|tíma|mæta/i,
             specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i,
-            dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar/i,
+            dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar|eat|dining/i,
+            activities: /ritual|dinner|food|mat|borða|ritúal/i,
             closing: /close|closing|lok|loka|lokar|lokun/i
         };
 
         // Track if message is asking about duration
-        if (timePatterns.duration.test(message) || timePatterns.dining.test(message)) {
+        if (timePatterns.duration.test(message)) {
             if (context.lastTopic) {
                 context.timeContext.lastDiscussedTime = {
                     topic: context.lastTopic,
                     type: 'duration',
                     timestamp: Date.now(),
-                    activity: timePatterns.dining.test(message) ? 'dining' : context.lastTopic
+                    activity: context.lastTopic
                 };
                 console.log('\n⏰ Duration Question Detected:', message);
+            }
+        }
+
+        // Track activities mentioned together
+        if (timePatterns.activities.test(message)) {
+            const activities = [];
+            if (message.match(/ritual|ritúal/i)) activities.push('ritual');
+            if (message.match(/dinner|food|mat|borða|dining/i)) activities.push('dining');
+            if (activities.length > 0) {
+                context.timeContext.sequence = activities;
+                console.log('\n🔄 Activity Sequence Updated:', activities);
             }
         }
 
@@ -2726,12 +2738,14 @@ const updateContext = (sessionId, message, response) => {
         }
 
         // Enhanced logging
-        if (context.timeContext.lastDiscussedTime) {
+        if (context.timeContext.lastDiscussedTime || context.timeContext.sequence.length > 0) {
             console.log('\n⏰ Time Context Updated:', {
                 lastDiscussed: context.timeContext.lastDiscussedTime,
                 bookingTime: context.timeContext.bookingTime,
                 sequence: context.timeContext.sequence,
-                message: message // Add the triggering message for debugging
+                message: message,
+                totalDuration: context.timeContext.sequence.reduce((total, activity) => 
+                    total + (context.timeContext.activityDuration[activity] || 0), 0)
             });
         }
     }
