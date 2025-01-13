@@ -2195,6 +2195,26 @@ export const knowledgeBase = {
             }
         }
     },
+    age_policy: {
+        general_rules: {
+            minimum_age: 12,
+            supervision: "Ages 12-14 must be accompanied by a guardian (18 years or older)",
+            id_verification: {
+                requirement: "Valid ID may be requested to confirm child's date of birth",
+                right_of_refusal: "Sky Lagoon team members reserve the right to refuse access if ID cannot be provided"
+            }
+        },
+        explanation: {
+            reason: "12-year age limit is a policy that Sky Lagoon has implemented to ensure quality of experience for all guests. The experience is designed for adult individuals to provide relaxation and rejuvenation.",
+            additional_factors: "Alcohol service in the lagoon area is also a factor in this decision.",
+            birth_year: "Birth year counts for age limit - children turning 12 within the calendar year may visit Sky Lagoon"
+        },
+        recommendations: {
+            changing_rooms: "We recommend that families with children aged 12-14 use the Sér Pass' premium changing rooms for space and privacy",
+            supervision: "Guardian must be 18 years or older",
+            group_size: "One guardian can supervise multiple children aged 12-14"
+        }
+    },
 };
 
 // Enhanced getRelevantKnowledge function
@@ -2775,7 +2795,7 @@ export const getRelevantKnowledge = (userMessage) => {
         }
     }
 
-    // Policy related queries
+    // Policy related queries (// including age terms since they may relate to other policies)
     if (message.includes('policy') || 
         message.includes('policies') ||
         message.includes('rule') ||
@@ -2964,6 +2984,35 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: knowledgeBase.dining
             });
         }
+    }
+
+    // Age policy specific queries
+    if (message.toLowerCase().includes('age') || 
+        message.toLowerCase().includes('old') ||
+        message.toLowerCase().includes('child') ||
+        message.toLowerCase().includes('children') ||
+        message.toLowerCase().includes('teenager') ||
+        message.toLowerCase().includes('teen') ||
+        message.toLowerCase().includes('kid') ||
+        message.toLowerCase().includes('young') ||
+        message.toLowerCase().includes('adult') ||
+        message.toLowerCase().includes('guardian') ||
+        message.toLowerCase().includes('parent') ||
+        message.toLowerCase().includes('supervise') ||
+        message.toLowerCase().includes('supervision') ||
+        message.toLowerCase().includes('minimum age') ||
+        message.toLowerCase().includes('age limit') ||
+        message.toLowerCase().includes('bring my child') ||
+        message.toLowerCase().includes('family') ||
+        message.toLowerCase().includes('under 12') ||
+        message.toLowerCase().includes('12 years') ||
+        message.toLowerCase().includes('14 years')) {
+        
+        console.log('\n👶 Age Policy Match Found');
+        relevantInfo.push({
+            type: 'age_policy',
+            content: knowledgeBase.age_policy
+        });
     }
 
     // Facility specific
