@@ -503,10 +503,6 @@ const getContextualResponse = (type, previousResponses = []) => {
     return availableResponses[Math.floor(Math.random() * availableResponses.length)];
 };
 
-const getContextualTransition = (prevTopic, newTopic) => {
-    return getRandomResponse(TRANSITION_PHRASES.topic_switch);
-};
-
 // Late Arrival and Booking Constants
 const LATE_ARRIVAL_THRESHOLDS = {
     GRACE_PERIOD: 30,
@@ -3089,8 +3085,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Force hours topic if it's an hours query
         if (isHoursQuery) {
             topicResult = {
-                topic: 'hours',
-                transition: getRandomResponse(TRANSITION_PHRASES.general)
+                topic: 'hours'
             };
             const seasonInfo = getCurrentSeason();
             context.operatingHours = seasonInfo;
