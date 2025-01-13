@@ -2739,22 +2739,22 @@ const updateContext = (sessionId, message, response) => {
     // Check for time-related queries
     if (message) {
         const timePatterns = {
-            duration: /how long|hversu lengi|what time|hvað tekur|hvað langan tíma|hve lengi|hversu langan|takes how long|how much time/i,
+            duration: /how long|hversu lengi|what time|hvað tekur|hvað langan tíma|hve lengi|hversu langan|takes how long|how much time|does it take/i,  // Added "does it take"
             booking: /book for|bóka fyrir|at|kl\.|klukkan|time slot|tíma|mæta|coming at|arrive at/i,
             specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i,
             dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar|eat|dining/i,
-            activities: /ritual|dinner|food|mat|borða|ritúal/i,
+            activities: /ritual|ritúal|dinner|food|mat|borða/i,  // Moved ritual first
             closing: /close|closing|lok|loka|lokar|lokun/i
         };
     
         // Track if message is asking about duration
         if (timePatterns.duration.test(message)) {
-            if (context.lastTopic) {
+            if (context.lastTopic || message.toLowerCase().includes('ritual')) {
                 context.timeContext.lastDiscussedTime = {
-                    topic: context.lastTopic,
+                    topic: message.toLowerCase().includes('ritual') ? 'ritual' : context.lastTopic,
                     type: 'duration',
                     timestamp: Date.now(),
-                    activity: context.lastTopic
+                    activity: message.toLowerCase().includes('ritual') ? 'ritual' : context.lastTopic
                 };
                 console.log('\n⏰ Duration Question Detected:', message);
             }
