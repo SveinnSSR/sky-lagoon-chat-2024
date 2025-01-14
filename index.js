@@ -907,13 +907,18 @@ const detectLateArrivalScenario = (message) => {
         };
     }
 
-    // Check for specific time mentions
+    // Enhanced time patterns to catch more variations
     const timePatterns = [
         /(\d+)\s(?:minute|min|minutes|mins?)\slate/i,
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
         /(\d+)\s(?:minute|min|minutes|mins?)\s*delay/i,
+        /around\s(\d+)\s(?:minute|min|minutes|mins?)/i,  // Added for "around X minutes"
+        /about\s(\d+)\s(?:minute|min|minutes|mins?)/i,   // Added for "about X minutes"
+        /perhaps\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,  // Added for "perhaps around X minutes"
+        /maybe\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,    // Added for "maybe around X minutes"
         /(\d+)\s(?:hour|hr|hours|hrs?)\slate/i,
-        /(\d+)\s(?:hour|hr|hours|hrs?)\s*delay/i
+        /(\d+)\s(?:hour|hr|hours|hrs?)\s*delay/i,
+        /(?:minute|min|minutes|mins?)\s*(\d+)/i  // Added for "minutes 30" format
     ];
 
     let minutes = null;
@@ -929,6 +934,14 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
+    // For vague "late" mentions without specific time
+    if (!minutes && (lowerMessage.includes('late') || lowerMessage.includes('delay'))) {
+        return {
+            type: 'unspecified_delay',
+            minutes: null
+        };
+    }
+
     // If we have specific minutes, categorize based on that
     if (minutes !== null) {
         return {
@@ -936,14 +949,6 @@ const detectLateArrivalScenario = (message) => {
                   minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
                   'significant_delay',
             minutes: minutes
-        };
-    }
-
-    // For vague "late" mentions without specific time
-    if (lowerMessage.includes('late') || lowerMessage.includes('delay')) {
-        return {
-            type: 'unspecified_delay',
-            minutes: null
         };
     }
 
