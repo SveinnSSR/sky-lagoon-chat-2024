@@ -3178,32 +3178,62 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const getRelevantContent = (userMessage, isIcelandic) => {
             // Check for late arrival first
             const lateScenario = detectLateArrivalScenario(userMessage);
-            if (lateScenario) {
+            
+            // Also check if this is a follow-up about lateness
+            const isLateFollowUp = 
+                (context.lastTopic === 'late_arrival' && 
+                (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about/i) ||
+                 userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr)/i)));
+
+            if (lateScenario || isLateFollowUp) {
                 // Update context with late arrival info
                 context.lateArrivalContext = {
                     ...context.lateArrivalContext,
                     isLate: true,
-                    type: lateScenario.type,
-                    minutes: lateScenario.minutes,
+                    type: lateScenario?.type || context.lateArrivalContext?.type,
+                    minutes: lateScenario?.minutes || context.lateArrivalContext?.minutes,
                     lastUpdate: Date.now()
                 };
                 context.lastTopic = 'late_arrival';
 
                 let response;
-                if (lateScenario.type === 'flight_delay') {
+                if (lateScenario?.type === 'flight_delay') {
                     response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-                } else if (lateScenario.type === 'unspecified_delay') {
+                } else if (lateScenario?.type === 'unspecified_delay') {
                     response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-                } else if (lateScenario.type === 'within_grace') {
+                } else if (lateScenario?.type === 'within_grace') {
                     response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-                } else if (lateScenario.type === 'moderate_delay') {
+                } else if (lateScenario?.type === 'moderate_delay') {
                     response = getRandomResponse(context.soldOutStatus ? 
                         BOOKING_RESPONSES.moderate_delay.sold_out : 
                         BOOKING_RESPONSES.moderate_delay.normal);
-                } else if (lateScenario.type === 'significant_delay') {
+                } else if (lateScenario?.type === 'significant_delay') {
                     response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
                 }
 
+                // If we got a response, return it appropriately formatted
+                if (response) {
+                    return [{
+                        type: 'late_arrival',
+                        content: {
+                            answer: response
+                        },
+                        forceCustomResponse: true
+                    }];
+                }
+            }
+
+            // Force English if we detect obvious English patterns
+            const hasEnglishStructure = /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
+                                      userMessage.toLowerCase().includes('sorry') ||
+                                      userMessage.toLowerCase().includes('thanks') ||
+                                      userMessage.toLowerCase().includes('thank you');
+
+            if (hasEnglishStructure) {
+                isIcelandic = false;
+            }
+
+            if (response) {
                 return [{
                     type: 'late_arrival',
                     content: {
@@ -3212,6 +3242,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     forceCustomResponse: true
                 }];
             }
+        }
 
             // Check for context-dependent words (follow-up questions)
             const contextWords = /it|that|this|these|those|they|there/i;
