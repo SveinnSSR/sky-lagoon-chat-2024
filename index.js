@@ -2903,20 +2903,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 rawDetection: languageCheck.rawDetection
             }
         });
-        
-        // Add the new code RIGHT HERE 👇
-        // Maintain topic context
-        if (userMessage.toLowerCase().includes('ritual') || 
-            (context && context.lastTopic === 'ritual' && 
-             userMessage.toLowerCase().match(/how long|take|duration|time/i))) {
-            context.lastTopic = 'ritual';
-            context.timeContext = context.timeContext || {};
-            context.timeContext.activityDuration = context.timeContext.activityDuration || {
-                ritual: 45,
-                dining: 60,
-                bar: 30
-            };
-        }
 
         // Initialize context before any usage
         context = conversationContext.get(sessionId) || {
@@ -2979,6 +2965,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 originalTime: null
             }
         };
+
+        // MOVE TOPIC CONTEXT CODE HERE - after context initialization
+        if (userMessage.toLowerCase().includes('ritual') || 
+            (context.lastTopic === 'ritual' && 
+             userMessage.toLowerCase().match(/how long|take|duration|time/i))) {
+            context.lastTopic = 'ritual';
+            context.timeContext = context.timeContext || {};
+            context.timeContext.activityDuration = context.timeContext.activityDuration || {
+                ritual: 45,
+                dining: 60,
+                bar: 30
+            };
+        }
 
         // Update context with the current message
         context = updateContext(sessionId, userMessage, null);        
