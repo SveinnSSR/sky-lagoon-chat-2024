@@ -510,6 +510,10 @@ const LATE_ARRIVAL_THRESHOLDS = {
 };
 
 const BOOKING_RESPONSES = {
+    unspecified_delay: [
+        "Could you let us know approximately how late you'll be? This will help us assist you better. For delays up to 30 minutes, you can proceed directly to reception. For longer delays, we'll help you find a better time.",
+        "To help you best, could you tell us roughly how late you expect to be? We have a 30-minute grace period, but for longer delays we'll need to find you a more suitable time."
+    ],
     flight_delay: [
         "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you.",
         "Due to your flight delay situation, let's help you arrange a better time. Please call +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we're experienced in handling flight delays and will find the best solution for your visit."
@@ -885,11 +889,13 @@ const detectLateArrivalScenario = (message) => {
         };
     }
 
-    // Original time pattern detection
+    // Check for specific time mentions
     const timePatterns = [
         /(\d+)\s(?:minute|min|minutes|mins?)\slate/i,
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
-        /(\d+)\s(?:minute|min|minutes|mins?)\s*delay/i
+        /(\d+)\s(?:minute|min|minutes|mins?)\s*delay/i,
+        /(\d+)\s(?:hour|hr|hours|hrs?)\slate/i,
+        /(\d+)\s(?:hour|hr|hours|hrs?)\s*delay/i
     ];
 
     let minutes = null;
@@ -897,18 +903,33 @@ const detectLateArrivalScenario = (message) => {
         const match = message.match(pattern);
         if (match) {
             minutes = parseInt(match[1]);
+            // Convert hours to minutes if the pattern contains 'hour'
+            if (pattern.toString().includes('hour')) {
+                minutes *= 60;
+            }
             break;
         }
     }
 
-    if (!minutes) return null;
+    // If we have specific minutes, categorize based on that
+    if (minutes !== null) {
+        return {
+            type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                  minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                  'significant_delay',
+            minutes: minutes
+        };
+    }
 
-    return {
-        type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-              minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-              'significant_delay',
-        minutes: minutes
-    };
+    // For vague "late" mentions without specific time
+    if (lowerMessage.includes('late') || lowerMessage.includes('delay')) {
+        return {
+            type: 'unspecified_delay',
+            minutes: null
+        };
+    }
+
+    return null;
 };
 
 const seasonInfo = getCurrentSeason();
@@ -3297,6 +3318,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
            let response;
            if (lateScenario.type === 'flight_delay') {
                response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+           } else if (lateScenario.type === 'unspecified_delay') {
+               response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
            } else if (lateScenario.type === 'within_grace') {
                response = getRandomResponse(BOOKING_RESPONSES.within_grace);
            } else if (lateScenario.type === 'moderate_delay') {
