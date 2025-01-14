@@ -870,16 +870,34 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
     
-    // First check for flight delay indicators
+    // First check for flight delay indicators with more comprehensive patterns
     const flightDelayIndicators = [
         'flight delayed',
         'flight delay',
         'still at airport',
         'still on runway',
+        'on runway',         // Added for cases like "sat on the runway"
+        'runway in',         // Added for "runway in Manchester" etc
         'waiting for flight',
         'flight is late',
-        'waiting for flybys'
+        'waiting for flybys',
+        'flight',            // Generic flight mention with delay context
+        'plane delayed',
+        'plane delay',
+        'aircraft'
     ];
+
+        // If it's a flight delay and there's context about delay/lateness
+        if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator)) &&
+        (lowerMessage.includes('late') || 
+         lowerMessage.includes('delay') || 
+         lowerMessage.includes('still') ||
+         lowerMessage.includes('waiting'))) {
+        return {
+            type: 'flight_delay',
+            minutes: null
+        };
+    }
 
     // If it's a flight delay, return special type
     if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator))) {
