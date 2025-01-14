@@ -3014,6 +3014,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             hasEnglishStructure: (
                 // Standard English starts
                 /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
+                // Add these new patterns 👇
+                /^(i|we|they|actually|perhaps|maybe|about|around|thanks)/i.test(userMessage.toLowerCase()) ||
+                /\b(sorry|thanks|thank you|late|delayed|minutes|mins)\b/i.test(userMessage.toLowerCase()) ||
+                // More casual English indicators
+                userMessage.toLowerCase().includes("i'll") ||
+                userMessage.toLowerCase().includes("i'm") ||
+                userMessage.toLowerCase().includes("i think") ||
+                userMessage.toLowerCase().includes("i might") ||
                 // Questions starting with conjunctions
                 /^(and|but|so|or)\s+(the|your|about|how|what|does|is|are|can|will|would|tell)/i.test(userMessage.toLowerCase()) ||
                 // "Does" appearing anywhere in question
