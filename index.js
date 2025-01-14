@@ -2606,6 +2606,22 @@ const updateContext = (sessionId, message, response) => {
         messageCount: 0,
         lastTopic: null,
         lastResponse: null,
+        // Add the new conversationMemory property here 👇
+        conversationMemory: {
+            topics: [],
+            lastResponse: null,
+            contextualQuestions: {},
+            addTopic: function(topic, details) {
+                this.topics.unshift({ topic, details, timestamp: Date.now() });
+                if (this.topics.length > 5) this.topics.pop();
+            },
+            getLastTopic: function() {
+                return this.topics[0]?.topic || null;
+            },
+            getTopicDetails: function(topic) {
+                return this.topics.find(t => t.topic === topic)?.details || null;
+            }
+        },
         // Add this new property here 👇
         icelandicTopics: [],  // Track topics discussed in Icelandic
         // Add timeContext here 👇
@@ -2915,6 +2931,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             messageCount: 0,
             lastTopic: null,
             lastResponse: null,
+            // Add these new properties RIGHT HERE 👇
+            conversationMemory: {
+                topics: [],
+                lastResponse: null,
+                contextualQuestions: {},
+                addTopic: function(topic, details) {
+                    this.topics.unshift({ topic, details, timestamp: Date.now() });
+                    if (this.topics.length > 5) this.topics.pop();
+                },
+                getLastTopic: function() {
+                    return this.topics[0]?.topic || null;
+                },
+                getTopicDetails: function(topic) {
+                    return this.topics.find(t => t.topic === topic)?.details || null;
+                }
+            },
             // Add this new property here 👇
             icelandicTopics: [],  // Track topics discussed in Icelandic
             // Add timeContext here 👇
@@ -3009,26 +3041,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     
                     // For duration questions
                     if (isDurationQuestion) {
-                        if (k.type === 'ritual') {
+                        // Get topic from conversationMemory
+                        const lastTopic = context.conversationMemory.getLastTopic();
+                        
+                        if (lastTopic === 'ritual') {
                             console.log('\n⏱️ Ritual Duration Question');
-                            // Create focused duration response
-                            k.durationResponse = {
-                                answer: "Our Skjól ritual typically takes 45 minutes, though you're welcome to take your time and fully enjoy each step at your own pace. ✨",
-                                duration: 45
+                            return {
+                                type: 'ritual',
+                                content: {
+                                    duration: {
+                                        answer: "Our Skjól ritual typically takes 45 minutes. You're welcome to take your time and fully enjoy each step at your own pace. ✨"
+                                    }
+                                }
                             };
-                            k.forceCustomResponse = true;
-                            return true;
                         }
                         
-                        if (k.type === 'packages') {
+                        if (lastTopic === 'packages') {
                             console.log('\n⏱️ Package Duration Question');
-                            // Create focused duration response
-                            k.durationResponse = {
-                                answer: "A typical visit takes 1.5-2 hours to fully enjoy all our facilities, including the 45-minute Skjól ritual. You're welcome to stay longer and relax in our lagoon. ✨",
-                                duration: 120
+                            return {
+                                type: 'packages',
+                                content: {
+                                    duration: {
+                                        answer: "A typical visit takes 1.5-2 hours, which includes the 45-minute ritual. You're welcome to stay longer and relax in our lagoon. ✨"
+                                    }
+                                }
                             };
-                            k.forceCustomResponse = true;
-                            return true;
                         }
                     }
                     
@@ -3052,6 +3089,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Use the smart context function instead of direct knowledge base calls
         const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
+
+        // Update conversation memory with current topic
+        if (knowledgeBaseResults.length > 0) {
+            const mainTopic = knowledgeBaseResults[0].type;
+            context.conversationMemory.addTopic(mainTopic, {
+                query: userMessage,
+                response: knowledgeBaseResults[0].content
+            });
+        }
 
         // Update context with the current message
         context = updateContext(sessionId, userMessage, null);        
