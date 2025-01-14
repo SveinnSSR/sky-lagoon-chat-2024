@@ -2357,7 +2357,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             });
         }
     }
-    
+
     // Multi-Pass function
     if (message.includes('multi') ||
         message.includes('multipass') ||
