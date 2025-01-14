@@ -3007,31 +3007,32 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     if (userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i)) {
                         // Check if we have duration content in any form
                         if (k.type === context.lastTopic) {
-                            const hasDuration = (
-                                k.duration?.answer || 
-                                k.duration?.recommended || 
-                                k.experience?.duration || 
-                                k.duration ||
-                                (k.type === 'ritual' && k.steps) ||  // Ritual always has 45-min duration
-                                (k.type === 'packages' && k.experience)  // Packages have duration info
-                            );
-
-                            if (hasDuration) {
+                            // If this is a duration-specific question, only return duration info
+                            if (k.duration?.answer || k.duration?.recommended) {
                                 console.log('\n⏱️ Found Duration Content:', {
                                     topic: k.type,
-                                    durationPath: k.duration?.answer ? 'duration.answer' : 
-                                                k.duration?.recommended ? 'duration.recommended' :
-                                                k.experience?.duration ? 'experience.duration' : 
-                                                k.duration ? 'duration' :
-                                                k.type === 'ritual' ? 'ritual_default' :
-                                                'package_default'
+                                    durationType: 'specific'
                                 });
+                                // Only return duration-specific content
+                                return true;
+                            }
+
+                            // For ritual, always give ritual duration
+                            if (k.type === 'ritual') {
+                                console.log('\n⏱️ Found Ritual Duration Content');
+                                return true;
+                            }
+
+                            // For packages, only add full package info if it's a general timing question
+                            if (k.type === 'packages' &&
+                                userMessage.toLowerCase().match(/how much time|set aside|plan for/i)) {
+                                console.log('\n⏱️ Found Package Duration Content');
                                 return true;
                             }
                         }
                     }
-                    // Otherwise just match the topic
-                    return k.type === context.lastTopic;
+                    // For non-duration questions, just match the topic
+                    return k.type === context.lastTopic && !userMessage.toLowerCase().match(/how long|take|duration|time/i);
                 });
                 
                 // If we found contextual results, use them
