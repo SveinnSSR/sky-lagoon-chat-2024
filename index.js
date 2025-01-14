@@ -2846,19 +2846,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const userMessage = req.body.message;
 
-        // Get existing sessionId from cache or create new one
-        const sessionId = req.body.sessionId || req.sessionId || conversationContext.get('currentSession') || `session_${Date.now()}`;
-        // Store current session
-        if (!conversationContext.get('currentSession')) {
+        // Get the conversation ID from the stored session or create a new one
+        let currentSession = conversationContext.get('currentSession');
+        const sessionId = currentSession || `session_${Date.now()}`;
+        
+        // If this is a new session, store it
+        if (!currentSession) {
             conversationContext.set('currentSession', sessionId);
+            console.log('\n🆕 New Session Created:', sessionId);
         }
 
         console.log('\n🔍 Session ID:', {
             sessionId,
-            isPresent: !!sessionId,
-            reqSessionId: req.sessionId,
+            isNewSession: !currentSession,
             currentSession: conversationContext.get('currentSession')
-        });                
+        });                      
 
         // Enhanced language detection
         const languageCheck = {
@@ -2902,6 +2904,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
         
+        // Add the new code RIGHT HERE 👇
+        // Maintain topic context
+        if (userMessage.toLowerCase().includes('ritual') || 
+            (context && context.lastTopic === 'ritual' && 
+             userMessage.toLowerCase().match(/how long|take|duration|time/i))) {
+            context.lastTopic = 'ritual';
+            context.timeContext = context.timeContext || {};
+            context.timeContext.activityDuration = context.timeContext.activityDuration || {
+                ritual: 45,
+                dining: 60,
+                bar: 30
+            };
+        }
+
         // Initialize context before any usage
         context = conversationContext.get(sessionId) || {
             messages: [],
