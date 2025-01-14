@@ -876,8 +876,8 @@ const detectLateArrivalScenario = (message) => {
 
     if (!lateArrivalQuery) return null;
 
-    // Check for flight/travel delay indicators
-    const significantDelayIndicators = [
+    // Check for flight/travel delay indicators that suggest significant uncertainty
+    const flightDelayIndicators = [
         'flight delayed',
         'flight delay',
         'still at airport',
@@ -891,7 +891,9 @@ const detectLateArrivalScenario = (message) => {
         'might not make it',
         'not arrived',
         'still in',  // catches "still in Manchester", etc.
-        'waiting for flybys'
+        'waiting for flybys',
+        'runway in',  // catches "runway in Manchester", etc.
+        'runway at'   // alternative phrasing
     ];
 
     // Check for specific time mentions
@@ -901,7 +903,18 @@ const detectLateArrivalScenario = (message) => {
         /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
     ];
 
-    // First check for specific time mentions
+    // First check for flight delay scenarios
+    for (const indicator of flightDelayIndicators) {
+        if (lowerMessage.includes(indicator)) {
+            return {
+                type: 'flight_delay',
+                minutes: null,
+                isFlightDelay: true
+            };
+        }
+    }
+
+    // Then check for specific time mentions
     let minutes = null;
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
@@ -922,17 +935,6 @@ const detectLateArrivalScenario = (message) => {
         };
     }
 
-    // Check for significant delay indicators
-    for (const indicator of significantDelayIndicators) {
-        if (lowerMessage.includes(indicator)) {
-            return {
-                type: 'significant_delay',
-                minutes: null,
-                isFlightDelay: true
-            };
-        }
-    }
-
     // If we have a late arrival query but no specific indicators
     return {
         type: 'moderate_delay',
@@ -945,8 +947,8 @@ const detectLateArrivalScenario = (message) => {
 const generateLateArrivalResponse = (scenario) => {
     if (!scenario) return null;
 
-    if (scenario.isFlightDelay) {
-        return "Since you're experiencing flight delays, we recommend contacting us to discuss your options. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is. We understand travel delays happen and we'll do our best to accommodate you or help reschedule for a time that works better.";
+    if (scenario.type === 'flight_delay') {
+        return "I understand you're experiencing flight delays. Since your arrival time is uncertain, I recommend contacting our team to discuss your options - we're very familiar with flight delay situations and will help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is, and our team will assist with rescheduling or finding the best option for your situation.";
     }
 
     switch (scenario.type) {
