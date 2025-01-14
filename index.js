@@ -2846,13 +2846,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const userMessage = req.body.message;
 
-        // Add this before the cache check
-        const sessionId = req.sessionId || `session_${Date.now()}`;
+        // Get existing sessionId from cache or create new one
+        const sessionId = req.body.sessionId || req.sessionId || conversationContext.get('currentSession') || `session_${Date.now()}`;
+        // Store current session
+        if (!conversationContext.get('currentSession')) {
+            conversationContext.set('currentSession', sessionId);
+        }
+
         console.log('\n🔍 Session ID:', {
             sessionId,
             isPresent: !!sessionId,
-            reqSessionId: req.sessionId
-        });        
+            reqSessionId: req.sessionId,
+            currentSession: conversationContext.get('currentSession')
+        });                
 
         // Enhanced language detection
         const languageCheck = {
