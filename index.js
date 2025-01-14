@@ -862,15 +862,22 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
     
-    // Check for specific time mentions
-    const timePatterns = [
-        /(\d+)\s*(?:minute|min|minutes|mins?)\s*late/i,
-        /late\s*(?:by\s*)?(\d+)\s*(?:minute|min|minutes|mins?)/i,
-        /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
-    ];
+    // First check if it's a late arrival or delay query
+    const lateArrivalQuery = [
+        'late',
+        'delayed',
+        'delay',
+        'may not meet',
+        'might not make',
+        'running behind',
+        'stuck',
+        'waiting'
+    ].some(term => lowerMessage.includes(term));
+
+    if (!lateArrivalQuery) return null;
 
     // Check for flight/travel delay indicators
-    const delayIndicators = [
+    const significantDelayIndicators = [
         'flight delayed',
         'flight delay',
         'still at airport',
@@ -881,7 +888,17 @@ const detectLateArrivalScenario = (message) => {
         'delayed flight',
         'stuck at airport',
         'may not meet the time',
-        'might not make it'
+        'might not make it',
+        'not arrived',
+        'still in',  // catches "still in Manchester", etc.
+        'waiting for flybys'
+    ];
+
+    // Check for specific time mentions
+    const timePatterns = [
+        /(\d+)\s*(?:minute|min|minutes|mins?)\s*late/i,
+        /late\s*(?:by\s*)?(\d+)\s*(?:minute|min|minutes|mins?)/i,
+        /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
     ];
 
     // First check for specific time mentions
@@ -900,22 +917,48 @@ const detectLateArrivalScenario = (message) => {
             type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
                   minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
                   'significant_delay',
-            minutes: minutes
+            minutes: minutes,
+            isFlightDelay: false
         };
     }
 
-    // If no specific minutes mentioned, check for delay indicators
-    for (const indicator of delayIndicators) {
+    // Check for significant delay indicators
+    for (const indicator of significantDelayIndicators) {
         if (lowerMessage.includes(indicator)) {
             return {
-                type: 'moderate_delay',
-                minutes: null
+                type: 'significant_delay',
+                minutes: null,
+                isFlightDelay: true
             };
         }
     }
 
-    // If no clear indicators found
-    return null;
+    // If we have a late arrival query but no specific indicators
+    return {
+        type: 'moderate_delay',
+        minutes: null,
+        isFlightDelay: false
+    };
+};
+
+// Add this new helper function
+const generateLateArrivalResponse = (scenario) => {
+    if (!scenario) return null;
+
+    if (scenario.isFlightDelay) {
+        return "Since you're experiencing flight delays, we recommend contacting us to discuss your options. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is. We understand travel delays happen and we'll do our best to accommodate you or help reschedule for a time that works better.";
+    }
+
+    switch (scenario.type) {
+        case 'within_grace':
+            return "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you.";
+        case 'moderate_delay':
+            return "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is.";
+        case 'significant_delay':
+            return "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at reservations@skylagoon.is.";
+        default:
+            return null;
+    }
 };
 
 const seasonInfo = getCurrentSeason();
