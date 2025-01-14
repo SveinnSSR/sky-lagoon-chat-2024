@@ -2989,13 +2989,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isDurationQuestion = userMessage.toLowerCase().match(timeWords);
             
             // If we have context and it's a follow-up question
-            if (context.lastTopic && (isContextQuestion || isDurationQuestion)) {
+            if (context.lastTopic) {
                 console.log('\n🧠 Using Context:', {
                     lastTopic: context.lastTopic,
                     previousTopic: context.prevQuestions,
                     question: userMessage,
-                    timeContext: context.timeContext,
-                    isDurationQuestion: isDurationQuestion
+                    isDuration: isDurationQuestion
                 });
                 
                 // Get relevant knowledge base results
@@ -3005,45 +3004,42 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
-                    // Only look at content matching our current topic
+                    // Only process content matching our current topic
                     if (k.type !== context.lastTopic) return false;
                     
-                    // If it's a duration question
+                    // For duration questions
                     if (isDurationQuestion) {
                         if (k.type === 'ritual') {
-                            // For ritual, only return duration information
-                            console.log('\n⏱️ Found Ritual Duration:', {
-                                type: 'ritual',
+                            console.log('\n⏱️ Ritual Duration Question');
+                            // Create focused duration response
+                            k.durationResponse = {
+                                answer: "Our Skjól ritual typically takes 45 minutes, though you're welcome to take your time and fully enjoy each step at your own pace. ✨",
                                 duration: 45
-                            });
-                            // Force duration response for ritual
-                            k.forceDuration = true;
+                            };
+                            k.forceCustomResponse = true;
                             return true;
                         }
                         
                         if (k.type === 'packages') {
-                            // For packages, check if we're asking about timing
-                            const isTimingQuestion = userMessage.toLowerCase().match(/how much time|set aside|plan for/i);
-                            if (isTimingQuestion) {
-                                console.log('\n⌚ Found Package Timing Info');
-                                return true;
-                            } else {
-                                console.log('\n⏱️ Found Package Duration');
-                                k.forceDuration = true;
-                                return true;
-                            }
+                            console.log('\n⏱️ Package Duration Question');
+                            // Create focused duration response
+                            k.durationResponse = {
+                                answer: "A typical visit takes 1.5-2 hours to fully enjoy all our facilities, including the 45-minute Skjól ritual. You're welcome to stay longer and relax in our lagoon. ✨",
+                                duration: 120
+                            };
+                            k.forceCustomResponse = true;
+                            return true;
                         }
                     }
                     
-                    // For non-duration questions, return topic match
+                    // For non-duration questions
                     return true;
                 });
                 
                 if (contextualResults.length > 0) {
-                    // If we're forcing duration response, ensure we don't use cache
-                    if (contextualResults.some(r => r.forceDuration)) {
-                        console.log('\n🚫 Bypassing cache for duration response');
-                        // Add flag to prevent caching
+                    // If we have a custom response, prevent caching
+                    if (contextualResults.some(r => r.forceCustomResponse)) {
+                        console.log('\n🚫 Using custom response - bypassing cache');
                         contextualResults.forEach(r => r.bypassCache = true);
                     }
                     return contextualResults;
