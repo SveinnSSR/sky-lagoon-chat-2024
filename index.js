@@ -3020,6 +3020,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
             const isDurationQuestion = userMessage.toLowerCase().match(timeWords);
             
+            // Add more question type detection
+            const isPriceQuestion = userMessage.toLowerCase().match(/how much|cost|price|expensive/i);
+            const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
+            const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
+            
+            // Log detected question types
+            console.log('\n❓ Question Types:', {
+                isDuration: !!isDurationQuestion,
+                isPrice: !!isPriceQuestion,
+                isLocation: !!isLocationQuestion,
+                isComparison: !!isComparisonQuestion
+            });
+            
             // If we have context and it's a follow-up question
             if (context.lastTopic) {
                 console.log('\n🧠 Using Context:', {
