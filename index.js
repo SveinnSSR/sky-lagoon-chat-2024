@@ -3001,7 +3001,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     getRelevantKnowledge_is(userMessage) :
                     getRelevantKnowledge(userMessage);
                     
-                const contextualResults = results.filter(k => k.type === context.lastTopic);
+                // Enhanced contextual results filtering
+                const contextualResults = results.filter(k => {
+                    // If asking about duration
+                    if (userMessage.toLowerCase().match(/how long|take|duration|time/i)) {
+                        // First check for duration-specific content
+                        if (k.type === context.lastTopic && k.duration) {
+                            console.log('\n⏱️ Found Duration Content:', {
+                                topic: k.type,
+                                duration: k.duration
+                            });
+                            return true;
+                        }
+                    }
+                    // Otherwise just match the topic
+                    return k.type === context.lastTopic;
+                });
                 
                 // If we found contextual results, use them
                 if (contextualResults.length > 0) {
