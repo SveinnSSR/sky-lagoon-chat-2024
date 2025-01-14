@@ -53,7 +53,7 @@ export const detectLanguage = (message) => {
         'package', 'packages', 'access', 'admission',
         'included', 'includes', 'towel', 'towels'
     ];
-    
+
     const packageTerms = [
         'sér', 'ser', 'saman', 'sky lagoon', 'pure', 'sky',
         'skjól', 'skjol', 'ritual', 'ritúal'
@@ -649,6 +649,17 @@ export const knowledgeBase_is = {
                 title: "Lífgaðu upp á bragðlaukana",
                 description: "Njóttu krækiberjasafts okkar sem er unnið úr íslenskum berjum. Finndu kraftinn úr náttúrunni sem leikur við skynfærin og fullkomnar ritúalið, kraftinn sem hefur fylgt þjóðinni frá örófi alda."
             }
+        },
+        duration: {
+            questions: [
+                "Hvað tekur ritúalið langan tíma?",
+                "Hversu lengi tekur ritúalið?",
+                "Hve langan tíma á ég að gefa mér?",
+                "Hvað þarf að gefa langan tíma fyrir ritúalið?"
+            ],
+            answer: "Ritúalið tekur venjulega um 45 mínútur, en þú getur tekið lengri tíma ef þú vilt njóta hvers skrefs til fulls. Við mælum með að gefa því að minnsta kosti þennan tíma til að upplifa okkar Skjól ritúal í rólegheitum. ✨",
+            recommended: 45,
+            note: "Taktu þér góðan tíma til að njóta hvers skrefs"
         },
         allergies: {
             questions: [
