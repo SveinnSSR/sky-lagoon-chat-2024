@@ -862,41 +862,16 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
     
-    // First check if it's a late arrival or delay query
-    const lateArrivalQuery = [
-        'late',
-        'delayed',
-        'delay',
-        'may not meet',
-        'might not make',
-        'running behind',
-        'stuck',
-        'waiting'
-    ].some(term => lowerMessage.includes(term));
-
-    if (!lateArrivalQuery) return null;
-
-    // Flight delay specific keywords
-    const flightDelayIndicators = [
-        'flight',
-        'runway',
-        'airport',
-        'plane',
-        'flybys'
-    ];
-
-    // Check if any flight-related terms are present
-    const isFlightRelated = flightDelayIndicators.some(term => 
-        lowerMessage.includes(term)
-    );
-
-    // If flight-related delay is detected
-    if (isFlightRelated) {
+    // Check for flight delay indicators first
+    if (lowerMessage.includes('flight delay') || 
+        lowerMessage.includes('flight delayed') ||
+        lowerMessage.includes('runway') ||
+        lowerMessage.includes('airport') ||
+        (lowerMessage.includes('flight') && lowerMessage.includes('late'))) {
+        
         return {
             type: 'flight_delay',
-            minutes: null,
-            isFlightDelay: true,
-            message: "I understand you're experiencing flight delays. Since your arrival time is uncertain, please contact our team to discuss your options - we frequently help guests with flight delays and will find the best solution for you. Call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
+            response: "I understand you're experiencing flight delays. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is, and our team will help find the best solution for your situation."
         };
     }
 
@@ -917,31 +892,31 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
-    // If specific minutes mentioned
     if (minutes !== null) {
-        const type = minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-                    minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-                    'significant_delay';
-        
+        if (minutes <= 30) {
+            return {
+                type: 'within_grace',
+                response: "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you."
+            };
+        } else {
+            return {
+                type: 'significant_delay',
+                response: "Since you'll be delayed, please contact our team to find a time that works better. Call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
+            };
+        }
+    }
+
+    // If there's any mention of being late without specifics
+    if (lowerMessage.includes('late') || 
+        lowerMessage.includes('delay') || 
+        lowerMessage.includes('delayed')) {
         return {
-            type: type,
-            minutes: minutes,
-            isFlightDelay: false,
-            message: type === 'within_grace' ?
-                "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you." :
-                type === 'moderate_delay' ?
-                "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is." :
-                "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at reservations@skylagoon.is."
+            type: 'moderate_delay',
+            response: "Please contact our team to discuss your arrival time. Call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
         };
     }
 
-    // Default to moderate delay if no specific info
-    return {
-        type: 'moderate_delay',
-        minutes: null,
-        isFlightDelay: false,
-        message: "Since you'll be delayed, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
-    };
+    return null;
 };
 
 // Removed the separate generateLateArrivalResponse function and use the message directly from the scenario object
