@@ -3006,15 +3006,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // If asking about duration
                     if (userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i)) {
                         // Check if we have duration content in any form
-                        if (k.type === context.lastTopic && 
-                            (k.duration?.answer || k.experience?.duration || k.duration)) {
-                            console.log('\n⏱️ Found Duration Content:', {
-                                topic: k.type,
-                                durationPath: k.duration?.answer ? 'duration.answer' : 
-                                            k.experience?.duration ? 'experience.duration' : 
-                                            'duration'
-                            });
-                            return true;
+                        if (k.type === context.lastTopic) {
+                            const hasDuration = (
+                                k.duration?.answer || 
+                                k.duration?.recommended || 
+                                k.experience?.duration || 
+                                k.duration ||
+                                (k.type === 'ritual' && k.steps) ||  // Ritual always has 45-min duration
+                                (k.type === 'packages' && k.experience)  // Packages have duration info
+                            );
+
+                            if (hasDuration) {
+                                console.log('\n⏱️ Found Duration Content:', {
+                                    topic: k.type,
+                                    durationPath: k.duration?.answer ? 'duration.answer' : 
+                                                k.duration?.recommended ? 'duration.recommended' :
+                                                k.experience?.duration ? 'experience.duration' : 
+                                                k.duration ? 'duration' :
+                                                k.type === 'ritual' ? 'ritual_default' :
+                                                'package_default'
+                                });
+                                return true;
+                            }
                         }
                     }
                     // Otherwise just match the topic
