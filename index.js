@@ -860,12 +860,31 @@ const getAppropriateSuffix = (message) => {
 
 // Helper function for late arrival detection
 const detectLateArrivalScenario = (message) => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Check for specific time mentions
     const timePatterns = [
         /(\d+)\s*(?:minute|min|minutes|mins?)\s*late/i,
         /late\s*(?:by\s*)?(\d+)\s*(?:minute|min|minutes|mins?)/i,
         /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
     ];
 
+    // Check for flight/travel delay indicators
+    const delayIndicators = [
+        'flight delayed',
+        'flight delay',
+        'still at airport',
+        'still on runway',
+        'waiting for flight',
+        'flight is late',
+        'plane is late',
+        'delayed flight',
+        'stuck at airport',
+        'may not meet the time',
+        'might not make it'
+    ];
+
+    // First check for specific time mentions
     let minutes = null;
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
@@ -875,14 +894,28 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
-    if (!minutes) return null;
+    // If we have specific minutes, categorize based on that
+    if (minutes !== null) {
+        return {
+            type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                  minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                  'significant_delay',
+            minutes: minutes
+        };
+    }
 
-    return {
-        type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-              minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-              'significant_delay',
-        minutes: minutes
-    };
+    // If no specific minutes mentioned, check for delay indicators
+    for (const indicator of delayIndicators) {
+        if (lowerMessage.includes(indicator)) {
+            return {
+                type: 'moderate_delay',
+                minutes: null
+            };
+        }
+    }
+
+    // If no clear indicators found
+    return null;
 };
 
 const seasonInfo = getCurrentSeason();
