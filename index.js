@@ -3233,21 +3233,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 isIcelandic = false;
             }
 
-            if (response) {
-                return [{
-                    type: 'late_arrival',
-                    content: {
-                        answer: response
-                    },
-                    forceCustomResponse: true
-                }];
-            }
-        }
-
             // Check for context-dependent words (follow-up questions)
             const contextWords = /it|that|this|these|those|they|there/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords);
-            
+
             // More specific question type detection
             const isDurationQuestion = userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i) || 
                                      userMessage.toLowerCase().match(/how much time/i);
