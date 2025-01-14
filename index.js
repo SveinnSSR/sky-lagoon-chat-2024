@@ -2984,7 +2984,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const getRelevantContent = (userMessage, isIcelandic) => {
             // Check for context-dependent words
             const contextWords = /it|that|this|these|those|they|there/i;
-            const timeWords = /how long|take|duration|time/i;
+            const timeWords = /how long|take|duration|time|hvað tekur|hversu lengi/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
             
             // If we have context and it's a follow-up question
@@ -3016,15 +3016,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 // Only return duration-specific content
                                 return true;
                             }
-
+                            
                             // For ritual, always give ritual duration
                             if (k.type === 'ritual') {
                                 console.log('\n⏱️ Found Ritual Duration Content');
                                 return true;
                             }
-
+                            
                             // For packages, only add full package info if it's a general timing question
-                            if (k.type === 'packages' &&
+                            if (k.type === 'packages' && 
                                 userMessage.toLowerCase().match(/how much time|set aside|plan for/i)) {
                                 console.log('\n⏱️ Found Package Duration Content');
                                 return true;
@@ -3054,6 +3054,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Use the smart context function instead of direct knowledge base calls
         const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
+
 
         // Update context with the current message
         context = updateContext(sessionId, userMessage, null);        
