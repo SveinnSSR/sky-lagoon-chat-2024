@@ -876,25 +876,29 @@ const detectLateArrivalScenario = (message) => {
 
     if (!lateArrivalQuery) return null;
 
-    // Check for flight/travel delay indicators that suggest significant uncertainty
+    // Flight delay specific keywords
     const flightDelayIndicators = [
-        'flight delayed',
-        'flight delay',
-        'still at airport',
-        'still on runway',
-        'waiting for flight',
-        'flight is late',
-        'plane is late',
-        'delayed flight',
-        'stuck at airport',
-        'may not meet the time',
-        'might not make it',
-        'not arrived',
-        'still in',  // catches "still in Manchester", etc.
-        'waiting for flybys',
-        'runway in',  // catches "runway in Manchester", etc.
-        'runway at'   // alternative phrasing
+        'flight',
+        'runway',
+        'airport',
+        'plane',
+        'flybys'
     ];
+
+    // Check if any flight-related terms are present
+    const isFlightRelated = flightDelayIndicators.some(term => 
+        lowerMessage.includes(term)
+    );
+
+    // If flight-related delay is detected
+    if (isFlightRelated) {
+        return {
+            type: 'flight_delay',
+            minutes: null,
+            isFlightDelay: true,
+            message: "I understand you're experiencing flight delays. Since your arrival time is uncertain, please contact our team to discuss your options - we frequently help guests with flight delays and will find the best solution for you. Call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
+        };
+    }
 
     // Check for specific time mentions
     const timePatterns = [
@@ -903,18 +907,7 @@ const detectLateArrivalScenario = (message) => {
         /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
     ];
 
-    // First check for flight delay scenarios
-    for (const indicator of flightDelayIndicators) {
-        if (lowerMessage.includes(indicator)) {
-            return {
-                type: 'flight_delay',
-                minutes: null,
-                isFlightDelay: true
-            };
-        }
-    }
-
-    // Then check for specific time mentions
+    // Check for specific minutes
     let minutes = null;
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
@@ -924,44 +917,34 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
-    // If we have specific minutes, categorize based on that
+    // If specific minutes mentioned
     if (minutes !== null) {
+        const type = minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                    minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                    'significant_delay';
+        
         return {
-            type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-                  minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-                  'significant_delay',
+            type: type,
             minutes: minutes,
-            isFlightDelay: false
+            isFlightDelay: false,
+            message: type === 'within_grace' ?
+                "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you." :
+                type === 'moderate_delay' ?
+                "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is." :
+                "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at reservations@skylagoon.is."
         };
     }
 
-    // If we have a late arrival query but no specific indicators
+    // Default to moderate delay if no specific info
     return {
         type: 'moderate_delay',
         minutes: null,
-        isFlightDelay: false
+        isFlightDelay: false,
+        message: "Since you'll be delayed, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
     };
 };
 
-// Add this new helper function
-const generateLateArrivalResponse = (scenario) => {
-    if (!scenario) return null;
-
-    if (scenario.type === 'flight_delay') {
-        return "I understand you're experiencing flight delays. Since your arrival time is uncertain, I recommend contacting our team to discuss your options - we're very familiar with flight delay situations and will help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is, and our team will assist with rescheduling or finding the best option for your situation.";
-    }
-
-    switch (scenario.type) {
-        case 'within_grace':
-            return "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you.";
-        case 'moderate_delay':
-            return "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is.";
-        case 'significant_delay':
-            return "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at reservations@skylagoon.is.";
-        default:
-            return null;
-    }
-};
+// Removed the separate generateLateArrivalResponse function and use the message directly from the scenario object
 
 const seasonInfo = getCurrentSeason();
 
