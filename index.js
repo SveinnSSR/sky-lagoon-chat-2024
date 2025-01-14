@@ -860,12 +860,48 @@ const getAppropriateSuffix = (message) => {
 
 // Helper function for late arrival detection
 const detectLateArrivalScenario = (message) => {
-    const timePatterns = [
-        /(\d+)\s(?:minute|min|minutes|mins?)\slate/i,
-        /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
-        /(\d+)\s(?:minute|min|minutes|mins?)\s*delay/i
+    const lowerMessage = message.toLowerCase();
+    
+    // First check if it's a late arrival or delay query
+    const lateArrivalQuery = [
+        'late',
+        'delayed',
+        'delay',
+        'may not meet',
+        'might not make',
+        'running behind',
+        'stuck',
+        'waiting'
+    ].some(term => lowerMessage.includes(term));
+
+    if (!lateArrivalQuery) return null;
+
+    // Check for flight/travel delay indicators
+    const significantDelayIndicators = [
+        'flight delayed',
+        'flight delay',
+        'still at airport',
+        'still on runway',
+        'waiting for flight',
+        'flight is late',
+        'plane is late',
+        'delayed flight',
+        'stuck at airport',
+        'may not meet the time',
+        'might not make it',
+        'not arrived',
+        'still in',  // catches "still in Manchester", etc.
+        'waiting for flybys'
     ];
 
+    // Check for specific time mentions
+    const timePatterns = [
+        /(\d+)\s*(?:minute|min|minutes|mins?)\s*late/i,
+        /late\s*(?:by\s*)?(\d+)\s*(?:minute|min|minutes|mins?)/i,
+        /(\d+)\s*(?:minute|min|minutes|mins?)\s*delay/i
+    ];
+
+    // First check for specific time mentions
     let minutes = null;
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
@@ -875,13 +911,33 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
-    if (!minutes) return null;
+    // If we have specific minutes, categorize based on that
+    if (minutes !== null) {
+        return {
+            type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                  minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                  'significant_delay',
+            minutes: minutes,
+            isFlightDelay: false
+        };
+    }
 
+    // Check for significant delay indicators
+    for (const indicator of significantDelayIndicators) {
+        if (lowerMessage.includes(indicator)) {
+            return {
+                type: 'significant_delay',
+                minutes: null,
+                isFlightDelay: true
+            };
+        }
+    }
+
+    // If we have a late arrival query but no specific indicators
     return {
-        type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-              minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-              'significant_delay',
-        minutes: minutes
+        type: 'moderate_delay',
+        minutes: null,
+        isFlightDelay: false
     };
 };
 
