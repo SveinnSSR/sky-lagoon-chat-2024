@@ -3014,10 +3014,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // ADD NEW SMART CONTEXT CODE HERE 👇
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
-            // Check for context-dependent words
+            // Check for context-dependent words (follow-up questions)
             const contextWords = /it|that|this|these|those|they|there/i;
-            const timeWords = /how long|take|duration|time|hvað tekur|hversu lengi/i;
-            const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
+            const isContextQuestion = userMessage.toLowerCase().match(contextWords);
             
             // More specific question type detection
             const isDurationQuestion = userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i) || 
@@ -3025,13 +3024,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isPriceQuestion = userMessage.toLowerCase().match(/how much (?!time)|cost|price|expensive/i);
             const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
             const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
-            
-            // Log detected question types
-            console.log('\n❓ Question Types:', {
+
+            // Log detected types including context
+            console.log('\n❓ Question Analysis:', {
                 isDuration: !!isDurationQuestion,
                 isPrice: !!isPriceQuestion,
                 isLocation: !!isLocationQuestion,
-                isComparison: !!isComparisonQuestion
+                isComparison: !!isComparisonQuestion,
+                isFollowUp: !!isContextQuestion,
+                lastTopic: context.lastTopic || null
             });
             
             // If we have context and it's a follow-up question
