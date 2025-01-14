@@ -2986,75 +2986,76 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const contextWords = /it|that|this|these|those|they|there/i;
             const timeWords = /how long|take|duration|time|hvað tekur|hversu lengi/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
+            const isDurationQuestion = userMessage.toLowerCase().match(timeWords);
             
             // If we have context and it's a follow-up question
-            if (context.lastTopic && isContextQuestion) {
+            if (context.lastTopic && (isContextQuestion || isDurationQuestion)) {
                 console.log('\n🧠 Using Context:', {
                     lastTopic: context.lastTopic,
                     previousTopic: context.prevQuestions,
                     question: userMessage,
-                    timeContext: context.timeContext
+                    timeContext: context.timeContext,
+                    isDurationQuestion: isDurationQuestion
                 });
                 
-                // First try exact topic match
+                // Get relevant knowledge base results
                 const results = isIcelandic ? 
                     getRelevantKnowledge_is(userMessage) :
                     getRelevantKnowledge(userMessage);
                     
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
-                    // If asking about duration
-                    if (userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i)) {
-                        // Check if we have duration content in any form
-                        if (k.type === context.lastTopic) {
-                            // If this is a duration-specific question, only return duration info
-                            if (k.duration?.answer || k.duration?.recommended) {
-                                console.log('\n⏱️ Found Duration Content:', {
-                                    topic: k.type,
-                                    durationType: 'specific'
-                                });
-                                // Only return duration-specific content
+                    // Only look at content matching our current topic
+                    if (k.type !== context.lastTopic) return false;
+                    
+                    // If it's a duration question
+                    if (isDurationQuestion) {
+                        if (k.type === 'ritual') {
+                            // For ritual, only return duration information
+                            console.log('\n⏱️ Found Ritual Duration:', {
+                                type: 'ritual',
+                                duration: 45
+                            });
+                            // Force duration response for ritual
+                            k.forceDuration = true;
+                            return true;
+                        }
+                        
+                        if (k.type === 'packages') {
+                            // For packages, check if we're asking about timing
+                            const isTimingQuestion = userMessage.toLowerCase().match(/how much time|set aside|plan for/i);
+                            if (isTimingQuestion) {
+                                console.log('\n⌚ Found Package Timing Info');
                                 return true;
-                            }
-                            
-                            // For ritual, always give ritual duration
-                            if (k.type === 'ritual') {
-                                console.log('\n⏱️ Found Ritual Duration Content');
-                                return true;
-                            }
-                            
-                            // For packages, only add full package info if it's a general timing question
-                            if (k.type === 'packages' && 
-                                userMessage.toLowerCase().match(/how much time|set aside|plan for/i)) {
-                                console.log('\n⏱️ Found Package Duration Content');
+                            } else {
+                                console.log('\n⏱️ Found Package Duration');
+                                k.forceDuration = true;
                                 return true;
                             }
                         }
                     }
-                    // For non-duration questions, just match the topic
-                    return k.type === context.lastTopic && !userMessage.toLowerCase().match(/how long|take|duration|time/i);
+                    
+                    // For non-duration questions, return topic match
+                    return true;
                 });
                 
-                // If we found contextual results, use them
                 if (contextualResults.length > 0) {
+                    // If we're forcing duration response, ensure we don't use cache
+                    if (contextualResults.some(r => r.forceDuration)) {
+                        console.log('\n🚫 Bypassing cache for duration response');
+                        // Add flag to prevent caching
+                        contextualResults.forEach(r => r.bypassCache = true);
+                    }
                     return contextualResults;
-                }
-                
-                // Otherwise look for related topics
-                if (context.timeContext && context.timeContext.sequence.length > 0) {
-                    return results.filter(k => 
-                        context.timeContext.sequence.includes(k.type)
-                    );
                 }
             }
             
-            // Otherwise use normal knowledge base search
+            // Default search
             return isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage);
         };
 
         // Use the smart context function instead of direct knowledge base calls
         const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
-
 
         // Update context with the current message
         context = updateContext(sessionId, userMessage, null);        
