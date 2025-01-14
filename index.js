@@ -3018,10 +3018,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const contextWords = /it|that|this|these|those|they|there/i;
             const timeWords = /how long|take|duration|time|hvað tekur|hversu lengi/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
-            const isDurationQuestion = userMessage.toLowerCase().match(timeWords);
             
-            // Add more question type detection
-            const isPriceQuestion = userMessage.toLowerCase().match(/how much|cost|price|expensive/i);
+            // More specific question type detection
+            const isDurationQuestion = userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i) || 
+                                     userMessage.toLowerCase().match(/how much time/i);
+            const isPriceQuestion = userMessage.toLowerCase().match(/how much (?!time)|cost|price|expensive/i);
             const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
             const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
             
