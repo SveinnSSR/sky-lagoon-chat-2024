@@ -3004,12 +3004,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
                     // If asking about duration
-                    if (userMessage.toLowerCase().match(/how long|take|duration|time/i)) {
-                        // First check for duration-specific content
-                        if (k.type === context.lastTopic && k.duration) {
+                    if (userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i)) {
+                        // Check if we have duration content in any form
+                        if (k.type === context.lastTopic && 
+                            (k.duration?.answer || k.experience?.duration || k.duration)) {
                             console.log('\n⏱️ Found Duration Content:', {
                                 topic: k.type,
-                                duration: k.duration
+                                durationPath: k.duration?.answer ? 'duration.answer' : 
+                                            k.experience?.duration ? 'experience.duration' : 
+                                            'duration'
                             });
                             return true;
                         }
