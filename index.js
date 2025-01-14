@@ -2696,6 +2696,25 @@ const updateContext = (sessionId, message, response) => {
                 return this.topics.find(t => t.topic === topic)?.details || null;
             }
         },
+        // Enhanced late arrival context
+        lateArrivalContext: {
+            isLate: false,
+            type: null,  // 'flight_delay', 'unspecified_delay', 'within_grace', 'moderate_delay', 'significant_delay'
+            minutes: null,
+            lastUpdate: null,
+            previousResponses: [],
+            addResponse: function(response) {
+                this.previousResponses.unshift({
+                    response,
+                    timestamp: Date.now()
+                });
+                if (this.previousResponses.length > 3) this.previousResponses.pop();
+            },
+            hasRecentInteraction: function() {
+                return this.lastUpdate && 
+                       (Date.now() - this.lastUpdate) < 5 * 60 * 1000; // 5 minutes
+            }
+        },
         // Add this new property here 👇
         icelandicTopics: [],  // Track topics discussed in Icelandic
         // Add timeContext here 👇
@@ -2752,17 +2771,49 @@ const updateContext = (sessionId, message, response) => {
         message.toLowerCase().includes('change') || 
         message.toLowerCase().includes('modify')) {
         // Reset late arrival context when explicitly asking about booking changes
-        context.lateArrivalScenario = null;
+        context.lateArrivalContext = {
+            ...context.lateArrivalContext,
+            isLate: false,
+            type: null,
+            minutes: null
+        };
         // Reset sold out status unless explicitly mentioned in current message
         if (!message.toLowerCase().includes('sold out')) {
             context.soldOutStatus = false;
         }
     }
 
-    // Clear late arrival scenario if not talking about lateness
+    // Clear late arrival context if conversation moves to a different topic
     if (!message.toLowerCase().includes('late') && 
-        !message.toLowerCase().includes('delay')) {
-        context.lateArrivalScenario = null;
+        !message.toLowerCase().includes('delay') &&
+        !message.toLowerCase().includes('flight') &&
+        context.lastTopic === 'late_arrival') {
+        const arrivalCheck = detectLateArrivalScenario(message);
+        if (!arrivalCheck && !message.match(/it|that|this|these|those|they|there/i)) {
+            context.lateArrivalContext = {
+                ...context.lateArrivalContext,
+                isLate: false,
+                type: null,
+                minutes: null
+            };
+            // Only clear lastTopic if we're sure we're moving to a different subject
+            if (!message.toLowerCase().includes('book')) {
+                context.lastTopic = null;
+            }
+        }
+    }
+
+    // Update late arrival context if detected
+    const arrivalCheck = detectLateArrivalScenario(message);
+    if (arrivalCheck) {
+        context.lateArrivalContext = {
+            ...context.lateArrivalContext,
+            isLate: true,
+            type: arrivalCheck.type,
+            minutes: arrivalCheck.minutes,
+            lastUpdate: Date.now()
+        };
+        context.lastTopic = 'late_arrival';
     }
 
     // Enhanced context tracking
@@ -3021,6 +3072,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     return this.topics.find(t => t.topic === topic)?.details || null;
                 }
             },
+            // Enhanced late arrival handling 👇
+            lateArrivalContext: {
+                isLate: false,
+                type: null,  // 'flight_delay', 'unspecified_delay', 'within_grace', 'moderate_delay', 'significant_delay'
+                minutes: null,
+                lastUpdate: null,
+                previousResponses: [],
+                addResponse: function(response) {
+                    this.previousResponses.unshift({
+                        response,
+                        timestamp: Date.now()
+                    });
+                    if (this.previousResponses.length > 3) this.previousResponses.pop();
+                },
+                hasRecentInteraction: function() {
+                    return this.lastUpdate && 
+                           (Date.now() - this.lastUpdate) < 5 * 60 * 1000; // 5 minutes
+                }
+            },
             // Add this new property here 👇
             icelandicTopics: [],  // Track topics discussed in Icelandic
             // Add timeContext here 👇
@@ -3085,9 +3155,59 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             };
         }
 
+        // Add late arrival context tracking
+        const arrivalCheck = detectLateArrivalScenario(userMessage);
+        if (arrivalCheck) {
+            context.lastTopic = 'late_arrival';
+            context.lateArrivalContext = {
+                ...context.lateArrivalContext,
+                isLate: true,
+                type: arrivalCheck.type,
+                minutes: arrivalCheck.minutes,
+                lastUpdate: Date.now()
+            };
+        }
+
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
+            // Check for late arrival first
+            const lateScenario = detectLateArrivalScenario(userMessage);
+            if (lateScenario) {
+                // Update context with late arrival info
+                context.lateArrivalContext = {
+                    ...context.lateArrivalContext,
+                    isLate: true,
+                    type: lateScenario.type,
+                    minutes: lateScenario.minutes,
+                    lastUpdate: Date.now()
+                };
+                context.lastTopic = 'late_arrival';
+
+                let response;
+                if (lateScenario.type === 'flight_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+                } else if (lateScenario.type === 'unspecified_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
+                } else if (lateScenario.type === 'within_grace') {
+                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+                } else if (lateScenario.type === 'moderate_delay') {
+                    response = getRandomResponse(context.soldOutStatus ? 
+                        BOOKING_RESPONSES.moderate_delay.sold_out : 
+                        BOOKING_RESPONSES.moderate_delay.normal);
+                } else if (lateScenario.type === 'significant_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+                }
+
+                return [{
+                    type: 'late_arrival',
+                    content: {
+                        answer: response
+                    },
+                    forceCustomResponse: true
+                }];
+            }
+
             // Check for context-dependent words (follow-up questions)
             const contextWords = /it|that|this|these|those|they|there/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords);
@@ -3099,14 +3219,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
             const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
 
-            // Log detected types including context
+            // Log detected types including context and late arrival
             console.log('\n❓ Question Analysis:', {
                 isDuration: !!isDurationQuestion,
                 isPrice: !!isPriceQuestion,
                 isLocation: !!isLocationQuestion,
                 isComparison: !!isComparisonQuestion,
                 isFollowUp: !!isContextQuestion,
-                lastTopic: context.lastTopic || null
+                lastTopic: context.lastTopic || null,
+                isLateArrival: !!lateScenario,
+                lateArrivalType: lateScenario?.type || null
             });
             
             // If we have context and it's a follow-up question
@@ -3115,9 +3237,41 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     lastTopic: context.lastTopic,
                     previousTopic: context.prevQuestions,
                     question: userMessage,
-                    isDuration: isDurationQuestion
+                    isDuration: isDurationQuestion,
+                    isLateArrival: context.lastTopic === 'late_arrival'
                 });
                 
+                // Handle follow-up for late arrival
+                if (context.lastTopic === 'late_arrival' && context.lateArrivalContext?.isLate) {
+                    const lateScenario = detectLateArrivalScenario(userMessage);
+                    if (lateScenario || isContextQuestion) {
+                        let response;
+                        if (lateScenario?.type === 'flight_delay') {
+                            response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+                        } else if (lateScenario?.type === 'unspecified_delay') {
+                            response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
+                        } else if (lateScenario?.type === 'within_grace') {
+                            response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+                        } else if (lateScenario?.type === 'moderate_delay') {
+                            response = getRandomResponse(context.soldOutStatus ? 
+                                BOOKING_RESPONSES.moderate_delay.sold_out : 
+                                BOOKING_RESPONSES.moderate_delay.normal);
+                        } else if (lateScenario?.type === 'significant_delay') {
+                            response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+                        }
+
+                        if (response) {
+                            return [{
+                                type: 'late_arrival',
+                                content: {
+                                    answer: response
+                                },
+                                forceCustomResponse: true
+                            }];
+                        }
+                    }
+                }
+
                 // Get relevant knowledge base results
                 const results = isIcelandic ? 
                     getRelevantKnowledge_is(userMessage) :
