@@ -510,6 +510,10 @@ const LATE_ARRIVAL_THRESHOLDS = {
 };
 
 const BOOKING_RESPONSES = {
+    flight_delay: [
+        "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you.",
+        "Due to your flight delay situation, let's help you arrange a better time. Please call +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we're experienced in handling flight delays and will find the best solution for your visit."
+    ],
     within_grace: [
         "Don't worry - we have a 30-minute grace period for all bookings. You can proceed directly to our reception when you arrive. You might experience a brief wait during busy periods, but our reception team will accommodate you.",
         "Thank you for letting us know. Since you're within our 30-minute grace period, you can proceed directly to reception when you arrive. You might experience a brief wait during busy periods, but our reception team will accommodate you.",
@@ -860,6 +864,28 @@ const getAppropriateSuffix = (message) => {
 
 // Helper function for late arrival detection
 const detectLateArrivalScenario = (message) => {
+    const lowerMessage = message.toLowerCase();
+    
+    // First check for flight delay indicators
+    const flightDelayIndicators = [
+        'flight delayed',
+        'flight delay',
+        'still at airport',
+        'still on runway',
+        'waiting for flight',
+        'flight is late',
+        'waiting for flybys'
+    ];
+
+    // If it's a flight delay, return special type
+    if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator))) {
+        return {
+            type: 'flight_delay',
+            minutes: null
+        };
+    }
+
+    // Original time pattern detection
     const timePatterns = [
         /(\d+)\s(?:minute|min|minutes|mins?)\slate/i,
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
@@ -1388,6 +1414,8 @@ CRITICAL RESPONSE RULES:
     
 20. For Late Arrivals and Booking Changes:
     - IF context.lateArrivalScenario exists:
+      - FOR 'flight_delay' type:
+        RESPOND WITH: "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you."
       - FOR 'within_grace' type:
         RESPOND WITH: "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you."
       - FOR 'moderate_delay' type:
@@ -1419,6 +1447,13 @@ CRITICAL RESPONSE RULES:
     - PHONE SUPPORT HOURS:
       - ALWAYS mention "9 AM - 7 PM" when providing phone number
       - Outside these hours, emphasize email support first
+
+    - FLIGHT DELAY HANDLING:
+      - When flight delays are detected, prioritize this response over time-based responses
+      - Acknowledge the flight delay situation explicitly
+      - Emphasize our experience with handling flight delays
+      - Provide both phone and email contact options
+      - Never assume they can make it within grace period
 
 21. For Food and Drink Queries:
     - IF asked about adding to packages:
@@ -3256,24 +3291,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Late arrival handling
-        const lateScenario = detectLateArrivalScenario(userMessage);
-        if (lateScenario) {
-            let response;
-            if (lateScenario.type === 'within_grace') {
-                response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-            } else if (lateScenario.type === 'moderate_delay') {
-                response = getRandomResponse(context.soldOutStatus ? 
-                    BOOKING_RESPONSES.moderate_delay.sold_out : 
-                    BOOKING_RESPONSES.moderate_delay.normal);
-            } else {
-                response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-            }
-            return res.status(200).json({
-                message: response,
-                lateArrivalHandled: true
-            });
-        }
+       // Late arrival handling
+       const lateScenario = detectLateArrivalScenario(userMessage);
+       if (lateScenario) {
+           let response;
+           if (lateScenario.type === 'flight_delay') {
+               response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+           } else if (lateScenario.type === 'within_grace') {
+               response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+           } else if (lateScenario.type === 'moderate_delay') {
+               response = getRandomResponse(context.soldOutStatus ? 
+                   BOOKING_RESPONSES.moderate_delay.sold_out : 
+                   BOOKING_RESPONSES.moderate_delay.normal);
+           } else if (lateScenario.type === 'significant_delay') {
+               response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+           } else {
+               response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
+           }
+           return res.status(200).json({
+               message: response,
+               lateArrivalHandled: true,
+               lateScenarioType: lateScenario.type // Optional: useful for debugging
+           });
+       }
 
         // Get relevant knowledge base content with better logging
         // This line is now handled by the smart context function above
