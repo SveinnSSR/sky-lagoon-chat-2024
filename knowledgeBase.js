@@ -580,6 +580,12 @@ export const knowledgeBase = {
                 "Connection to Icelandic heritage",
                 "Complete mind and body wellness"
             ]
+        },
+        duration: {
+            answer: "Our ritual typically takes 45 minutes, while you're welcome to take more time if you wish to fully immerse yourself in each step. We recommend allowing at least this amount of time to experience our Skjól ritual in a relaxed manner. ✨",
+            guidance: "Self-paced and flexible",
+            recommended: 45,
+            note: "Take your time to enjoy each step fully"
         },    
         important_notes: [
             "Essential part of Sky Lagoon experience",
