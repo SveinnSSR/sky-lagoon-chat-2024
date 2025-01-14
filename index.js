@@ -3085,7 +3085,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             };
         }
 
-        // ADD NEW SMART CONTEXT CODE HERE 👇
+        // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
             // Check for context-dependent words (follow-up questions)
