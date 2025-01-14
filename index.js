@@ -2979,6 +2979,50 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             };
         }
 
+        // ADD NEW SMART CONTEXT CODE HERE 👇
+        // Smart context-aware knowledge base selection
+        const getRelevantContent = (userMessage, isIcelandic) => {
+            // Check for context-dependent words
+            const contextWords = /it|that|this|these|those|they|there/i;
+            const timeWords = /how long|take|duration|time/i;
+            const isContextQuestion = userMessage.toLowerCase().match(contextWords) || userMessage.toLowerCase().match(timeWords);
+            
+            // If we have context and it's a follow-up question
+            if (context.lastTopic && isContextQuestion) {
+                console.log('\n🧠 Using Context:', {
+                    lastTopic: context.lastTopic,
+                    previousTopic: context.prevQuestions,
+                    question: userMessage,
+                    timeContext: context.timeContext
+                });
+                
+                // First try exact topic match
+                const results = isIcelandic ? 
+                    getRelevantKnowledge_is(userMessage) :
+                    getRelevantKnowledge(userMessage);
+                    
+                const contextualResults = results.filter(k => k.type === context.lastTopic);
+                
+                // If we found contextual results, use them
+                if (contextualResults.length > 0) {
+                    return contextualResults;
+                }
+                
+                // Otherwise look for related topics
+                if (context.timeContext && context.timeContext.sequence.length > 0) {
+                    return results.filter(k => 
+                        context.timeContext.sequence.includes(k.type)
+                    );
+                }
+            }
+            
+            // Otherwise use normal knowledge base search
+            return isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage);
+        };
+
+        // Use the smart context function instead of direct knowledge base calls
+        const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
+
         // Update context with the current message
         context = updateContext(sessionId, userMessage, null);        
 
@@ -3141,9 +3185,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Get relevant knowledge base content with better logging
-        const knowledgeBaseResults = languageCheck.hasEnglishStructure ?
-            getRelevantKnowledge(userMessage) :  // Force English for English structure
-            (isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage));
+        // This line is now handled by the smart context function above
+        // const knowledgeBaseResults = languageCheck.hasEnglishStructure ?
+        //    getRelevantKnowledge(userMessage) :  // Force English for English structure
+        //    (isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage));
 
         console.log('\n📚 Knowledge Base Match:', {
             language: languageCheck.hasEnglishStructure ? 'English (Forced)' : 
