@@ -961,11 +961,15 @@ const detectLateArrivalScenario = (message) => {
         /(\d+)\s*and\s+(?:a\s+)?half\s+hours?/i,           // "2 and a half hours"
         /quarter\s+(?:of\s+)?(?:an?\s+)?hour/i,            // "quarter of an hour"
         /(?:an?\s+)?hour\s+and\s+(?:a\s+)?quarter/i,       // "hour and a quarter"
+        /(?:a|an?\s+)?hour\s+and\s+(?:a\s+)?half/i,        // Added "a hour" variant
+        /(?:a|an?\s+)?hour\s+and\s+(?:a\s+)?quarter/i,     // Added "a hour" variant
         
         // Mixed time formats
-        /(\d+)\s*(?:hour|hr|h)(?:\s*and\s*)?(\d+)?\s*(?:minute|min|minutes|mins?)?/i,
-        /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)/i,
-        /hour\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)/i,
+        /(\d+)\s*(?:hour|hr|h)(?:\s*and\s*)?(\d+)?\s*(?:minute|min|minutes|mins?)?(?:late|delay)?/i,
+        /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
+        /(?:a|an?)?\s*hour\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
+        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?half\s*(?:late|delay)?/i,
+        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?quarter\s*(?:late|delay)?/i,
         
         // Relative time patterns
         /until\s*(\d+)(?::(\d+))?\s*(?:pm|am)?/i,
@@ -997,18 +1001,27 @@ const detectLateArrivalScenario = (message) => {
                 }
             } else if (pattern.toString().includes('hour')) {
                 // Handle hour-based patterns using TIME_CONVERSIONS
-                if (match[1] === undefined && pattern.toString().includes('an|one')) {
+                if (match[1] === undefined && pattern.toString().includes('an|one|a')) {
                     minutes = TIME_CONVERSIONS.hour;  // "an hour late"
                 } else {
                     minutes = parseInt(match[1]) * TIME_CONVERSIONS.hour;
                     // Add minutes if present (e.g., "1 hour and 30 minutes")
                     if (match[2]) {
-                        minutes += parseInt(match[2]) * TIME_CONVERSIONS.minute;
+                        minutes += parseInt(match[2]);  // Already in minutes for complex patterns
                     }
                 }
             } else {
                 minutes = parseInt(match[1]) * TIME_CONVERSIONS.minute;
             }
+
+            // Debug log to verify time conversion
+            console.log('\n⏰ Time Conversion:', {
+                pattern: pattern.toString(),
+                input: message,
+                minutes: minutes,
+                match: match
+            });
+
             break;
         }
     }
