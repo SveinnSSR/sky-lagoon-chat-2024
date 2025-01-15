@@ -3896,6 +3896,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
         console.log('\n✨ Enhanced Response:', enhancedResponse);
 
+        // Remove any non-approved emojis
+        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+        const filteredResponse = enhancedResponse.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
+            return approvedEmojis.includes(match) ? match : '';
+        });
+
+        console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
+
         // Cache the response with language
         responseCache.set(cacheKey, {
             response: {
