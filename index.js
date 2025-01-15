@@ -3803,10 +3803,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Add context awareness
         if (context.messages && context.messages.length > 0) {
-            messages.push(...context.messages.slice(-5).map(msg => ({
-                ...msg,
-                content: msg.content + (isIcelandic ? ' [IS]' : ' [EN]')
-            })));
+            messages.push(...context.messages.slice(-5));
         }
 
         if (context?.lateArrivalScenario || context?.bookingModification?.requested) {
