@@ -3631,9 +3631,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const relevantKnowledge = getRelevantKnowledge_is(userMessage);
             const groupBookingInfo = relevantKnowledge.find(k => k.type === 'group_bookings');
             if (groupBookingInfo) {
-                // Use proper response or fall back to unknown query handler
-                const response = groupBookingInfo.content?.booking_info?.contact?.message || 
-                    getRandomResponse(UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS);
+                const response = "Fyrir hópabókanir mælum við með að hafa samband beint til að fá nákvæmari upplýsingar og tilboð sem hentar ykkar þörfum. Þú getur sent tölvupóst á reservations@skylagoon.is eða hringt í síma 527 6800. Láttu mig vita ef þú hefur fleiri spurningar!";
                 return res.status(200).json({
                     message: response,
                     language: {
@@ -3641,16 +3639,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         confidence: 'high'
                     }
                 });
-            } else {
-                // Fall back to unknown query handler if no group booking info found
-                return res.status(200).json({
-                    message: getRandomResponse(UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS),
-                    language: {
-                        detected: 'Icelandic',
-                        confidence: 'high'
-                    }
-                });
             }
+        }
+
+        // Also add handling for contact info questions
+        if (isIcelandic && (
+            userMessage.toLowerCase().includes('hvert') || 
+            userMessage.toLowerCase().includes('hafa samband') ||
+            userMessage.toLowerCase().includes('senda') ||
+            userMessage.toLowerCase().includes('netfang'))) {
+            return res.status(200).json({
+                message: "Þú getur sent tölvupóst á reservations@skylagoon.is eða hringt í síma 527 6800. Láttu mig vita ef þú hefur fleiri spurningar!",
+                language: {
+                    detected: 'Icelandic',
+                    confidence: 'high'
+                }
+            });
         }
 
        // Late arrival handling
