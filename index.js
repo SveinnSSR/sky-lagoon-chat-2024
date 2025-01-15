@@ -415,6 +415,13 @@ const SMALL_TALK_RESPONSES = {
             "Wonderful! I can tell you all about Sky Lagoon - what interests you most?",
             "Excellent! I'd be happy to share what makes Sky Lagoon special.",
             "Perfect! How can I help you plan your Sky Lagoon visit?"
+        ],
+        // For "nice to meet you" responses
+        greeting: [
+            "Nice to meet you too! I'd be happy to tell you about our unique geothermal lagoon experience. What would you like to know?",
+            "Lovely to meet you as well! Would you like to learn about our experiences at Sky Lagoon?",
+            "Great to meet you too! I'm here to help you learn about Sky Lagoon. What interests you most?",
+            "Wonderful to meet you! I'd love to tell you about what makes Sky Lagoon special. What would you like to know?"
         ]
     },
     is: {
@@ -431,6 +438,13 @@ const SMALL_TALK_RESPONSES = {
             "Geggjað! Get ég sagt þér frá því sem Sky Lagoon hefur upp á að bjóða?",
             "Flott! Hverju langar þig að vita meira um?",
             "Æði! Hvernig get ég aðstoðað þig?"
+        ],
+        // For "gaman að hitta þig" responses
+        greeting: [
+            "Gaman að hitta þig líka! Get ég sagt þér frá einstakri upplifun í lóninu okkar?",
+            "Sömuleiðis! Langar þig að fræðast um það sem Sky Lagoon hefur upp á að bjóða?",
+            "Gaman að kynnast þér líka! Hvernig get ég aðstoðað þig?",
+            "Sömuleiðis! Get ég sagt þér frá því sem gerir Sky Lagoon sérstakt?"
         ]
     }
 };
@@ -457,7 +471,15 @@ const smallTalkPatterns = [
     'what do you do',
     'tell me about yourself',
     'your name',
-    'who made you'
+    'who made you',
+    'nice to meet you',
+    'good to meet you',
+    'pleased to meet you',
+    'great to meet you',
+    'gaman að hitta þig',
+    'gaman að kynnast þér',
+    'gott að hitta þig',
+    'gaman að sjá þig'
 ];
 
 const acknowledgmentPatterns = {
@@ -2689,8 +2711,14 @@ const getMaxTokens = (userMessage) => {
 const handleCasualChat = (message, isIcelandic) => {
     const msg = message.toLowerCase();
     
-    // For responses to "how are you" type questions
+    // For "nice to meet you" type responses
     if (isIcelandic) {
+        if (msg.includes('gaman að hitta') || 
+            msg.includes('gaman að kynnast') || 
+            msg.includes('gott að hitta')) {
+            return SMALL_TALK_RESPONSES.is.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.greeting.length)];
+        }
+        // For responses to "how are you" type questions
         if (msg.includes('hvað segir') || 
             msg.includes('hvernig hefur') || 
             msg.includes('allt gott')) {
@@ -2704,6 +2732,12 @@ const handleCasualChat = (message, isIcelandic) => {
             return SMALL_TALK_RESPONSES.is.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.positive.length)];
         }
     } else {
+        if (msg.includes('nice to meet') || 
+            msg.includes('good to meet') || 
+            msg.includes('pleased to meet') || 
+            msg.includes('great to meet')) {
+            return SMALL_TALK_RESPONSES.en.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.greeting.length)];
+        }
         if (msg.includes('how are you') || 
             msg.includes('how do you do') || 
             msg.includes('how\'s it going')) {
