@@ -983,43 +983,45 @@ const detectLateArrivalScenario = (message) => {
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
         if (match) {
+            // Add debug log at start of match
+            console.log('\n🕐 Time Match Found:', {
+                pattern: pattern.toString(),
+                match: match
+            });
+
             if (pattern.toString().includes('half')) {
                 if (match[1]) {
-                    // "2 and a half hours"
                     minutes = (parseInt(match[1]) * TIME_CONVERSIONS.hour) + TIME_CONVERSIONS.half;
                 } else {
-                    // "hour and a half" or "one and a half hours"
                     minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.half;
                 }
             } else if (pattern.toString().includes('quarter')) {
                 if (pattern.toString().includes('hour and')) {
-                    // "hour and a quarter"
                     minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.quarter;
                 } else {
-                    // "quarter of an hour"
                     minutes = TIME_CONVERSIONS.quarter;
                 }
             } else if (pattern.toString().includes('hour')) {
-                // Handle hour-based patterns using TIME_CONVERSIONS
                 if (match[1] === undefined && pattern.toString().includes('an|one|a')) {
-                    minutes = TIME_CONVERSIONS.hour;  // "an hour late"
+                    minutes = TIME_CONVERSIONS.hour;
                 } else {
+                    // Fix for "2 hours and 15 minutes" case
                     minutes = parseInt(match[1]) * TIME_CONVERSIONS.hour;
-                    // Add minutes if present (e.g., "1 hour and 30 minutes")
                     if (match[2]) {
-                        minutes += parseInt(match[2]);  // Already in minutes for complex patterns
+                        // Explicitly parse minutes with TIME_CONVERSIONS
+                        minutes += parseInt(match[2]) * TIME_CONVERSIONS.minute;
                     }
                 }
             } else {
                 minutes = parseInt(match[1]) * TIME_CONVERSIONS.minute;
             }
 
-            // Debug log to verify time conversion
-            console.log('\n⏰ Time Conversion:', {
-                pattern: pattern.toString(),
+            // Debug log after calculation
+            console.log('\n⏰ Time Calculation:', {
                 input: message,
-                minutes: minutes,
-                match: match
+                hours: Math.floor(minutes / 60),
+                minutes: minutes % 60,
+                totalMinutes: minutes
             });
 
             break;
