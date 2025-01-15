@@ -1488,8 +1488,32 @@ export const knowledgeBase_is = {
             "Er svigrúm með mætingartíma?",
             "Get ég endurbókað?",
             "Hvað geri ég ef veðrið er slæmt?",
-            "Get ég frestað komu minni?"
+            "Get ég frestað komu minni?",
+            "Get ég breytt bókuninni minni?",
+            "Get ég breytt tímanum mínum?"
         ],
+        booking_changes: {
+            info: {
+                policy: "Þú getur breytt bókun með 24 klst fyrirvara fyrir einstaklinga (1-9 gestir).",
+                instructions: "Til að breyta bókun þinni getur þú:",
+                methods: {
+                    phone: {
+                        text: "Hringt í okkur í síma +354 527 6800 (opið 9:00-19:00)",
+                        number: "+354 527 6800",
+                        hours: "9:00 - 19:00"
+                    },
+                    email: {
+                        text: "Sent tölvupóst á reservations@skylagoon.is",
+                        address: "reservations@skylagoon.is"
+                    }
+                },
+                requirements: "Vinsamlegast láttu fylgja með í tölvupósti:",
+                details: [
+                    "Bókunarnúmer",
+                    "Hvort þú viljir breyta dagsetningu eða fá endurgreiðslu"
+                ]
+            }
+        },
         late_arrival: {
             grace_period: {
                 main: "Þú hefur alltaf 30 mín til að mæta (t.d. fyrir bókun kl. 12:00 er mætingartími 12:00-12:30).",
@@ -3040,9 +3064,38 @@ export const getRelevantKnowledge_is = (userMessage) => {
         (message.includes('bóka') && message.includes('tvo')) ||
         (message.includes('er') && message.includes('svigrúm')) ||
         (message.includes('get') && message.includes('seinna')) ||
-        (message.includes('ná') && message.includes('tíma'))) {
+        (message.includes('ná') && message.includes('tíma')) ||
+        message.includes('breytt') ||
+        message.includes('bókuninni') ||
+        message.includes('tímanum')) {
         
         console.log('\n📅 Booking Related Query Match Found');
+
+        // Check for booking changes first
+        if (message.includes('breyta') || 
+            message.includes('breytt') ||
+            message.includes('bókuninni') || 
+            message.includes('tímanum') ||
+            message.includes('endurbóka') ||
+            message.includes('fresta') ||
+            message.includes('færa')) {
+            
+            console.log('\n🔄 Booking Change Query Match Found');
+            const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
+            const response = `${bookingChangeInfo.policy}\n\n` +
+                           `${bookingChangeInfo.instructions}\n` +
+                           `1. ${bookingChangeInfo.methods.phone.text}\n` +
+                           `2. ${bookingChangeInfo.methods.email.text}\n\n` +
+                           `${bookingChangeInfo.requirements}\n` +
+                           bookingChangeInfo.details.map(detail => `• ${detail}`).join('\n');
+            
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'booking_changes',
+                content: response
+            });
+            return relevantInfo;  // Return immediately for booking changes
+        }
 
         // Check for single person booking queries
         if (message.includes('bóka fyrir einn') || 
@@ -3130,13 +3183,8 @@ export const getRelevantKnowledge_is = (userMessage) => {
             });
         }
 
-        // If no specific subtype was matched or for general booking queries
-        if (!relevantInfo.length || 
-            message.includes('endurbóka') || 
-            message.includes('fresta') || 
-            message.includes('breyta') || 
-            message.includes('færa')) {
-            
+        // If no specific subtype was matched, return general booking info
+        if (!relevantInfo.length) {
             console.log('\n📝 General Booking Information Match Found');
             relevantInfo.push({
                 type: 'booking',
