@@ -509,14 +509,34 @@ const LATE_ARRIVAL_THRESHOLDS = {
     MODIFICATION_RECOMMENDED: 60
 };
 
+// Enhanced time and delay qualifiers
 const LATE_QUALIFIERS = [
     'very late',
     'really late',
     'quite late',
     'so late',
     'too late',
-    'pretty late'
+    'pretty late',
+    'an hour late',
+    'one hour late',
+    'hour late',
+    'much later',
+    'way later',
+    'significantly late',
+    'way too late',
+    'extremely late',
+    'super late'
 ];
+
+// Add new time conversion helpers
+const TIME_CONVERSIONS = {
+    hour: 60,
+    hr: 60,
+    h: 60,
+    minute: 1,
+    min: 1,
+    mins: 1
+};
 
 const BOOKING_RESPONSES = {
     unspecified_delay: [
@@ -927,28 +947,39 @@ const detectLateArrivalScenario = (message) => {
         /maybe\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,    // Added for "maybe around X minutes"
         /(\d+)\s(?:hour|hr|hours|hrs?)\slate/i,
         /(\d+)\s(?:hour|hr|hours|hrs?)\s*delay/i,
-        /(?:minute|min|minutes|mins?)\s*(\d+)/i  // Added for "minutes 30" format
+        /(?:minute|min|minutes|mins?)\s*(\d+)/i,  // Added for "minutes 30" format
+        // New hour patterns
+        /(\d+)\s*(?:hour|hr|h)\s*(?:late|delay)/i,
+        /(?:an|one)\s*(?:hour|hr|h)\s*(?:late|delay)/i,
+        // Mixed time formats
+        /(\d+)\s*(?:hour|hr|h)(?:\s*and\s*)?(\d+)?\s*(?:minute|min|minutes|mins?)?/i,
+        // Relative time patterns
+        /until\s*(\d+)(?::(\d+))?\s*(?:pm|am)?/i,
+        /after\s*(\d+)(?::(\d+))?\s*(?:pm|am)?/i,
+        // General time mentions
+        /(?:minute|min|minutes|mins?)\s*(\d+)/i
     ];
 
     let minutes = null;
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
         if (match) {
-            minutes = parseInt(match[1]);
-            // Convert hours to minutes if the pattern contains 'hour'
             if (pattern.toString().includes('hour')) {
-                minutes *= 60;
+                // Handle hour-based patterns using TIME_CONVERSIONS
+                if (match[1] === undefined && pattern.toString().includes('an|one')) {
+                    minutes = TIME_CONVERSIONS.hour;  // "an hour late"
+                } else {
+                    minutes = parseInt(match[1]) * TIME_CONVERSIONS.hour;
+                    // Add minutes if present (e.g., "1 hour and 30 minutes")
+                    if (match[2]) {
+                        minutes += parseInt(match[2]) * TIME_CONVERSIONS.minute;
+                    }
+                }
+            } else {
+                minutes = parseInt(match[1]) * TIME_CONVERSIONS.minute;
             }
             break;
         }
-    }
-
-    // For vague "late" mentions without specific time
-    if (!minutes && (lowerMessage.includes('late') || lowerMessage.includes('delay'))) {
-        return {
-            type: 'unspecified_delay',
-            minutes: null
-        };
     }
 
     // If we have specific minutes, categorize based on that
@@ -965,6 +996,14 @@ const detectLateArrivalScenario = (message) => {
     if (LATE_QUALIFIERS.some(indicator => lowerMessage.includes(indicator))) {
         return {
             type: 'significant_delay',
+            minutes: null
+        };
+    }
+
+    // For vague "late" mentions without specific time
+    if (lowerMessage.includes('late') || lowerMessage.includes('delay')) {
+        return {
+            type: 'unspecified_delay',
             minutes: null
         };
     }
@@ -3204,21 +3243,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Check for late arrival first
             const lateScenario = detectLateArrivalScenario(userMessage);
             
-            // Also check if this is a follow-up about lateness
+            // Enhanced follow-up detection for late arrivals
             const isLateFollowUp = 
-            (context.lastTopic === 'late_arrival' && 
-            (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about/i) ||
-             userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr)/i) ||
-             LATE_QUALIFIERS.some(indicator => userMessage.toLowerCase().includes(indicator))));
-    
+                (context.lastTopic === 'late_arrival' && 
+                (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about|later|arrive|come/i) ||
+                 userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr|h)/i) ||
+                 userMessage.toLowerCase().match(/(?:an|one)\s*(?:hour|hr|h)/i) ||
+                 LATE_QUALIFIERS.some(indicator => userMessage.toLowerCase().includes(indicator)) ||
+                 userMessage.toLowerCase().includes('instead') ||
+                 userMessage.toLowerCase().includes('rather')));
+
+            // Enhanced context awareness for late arrivals
             if (lateScenario || isLateFollowUp) {
-                // Update context with late arrival info
+                // Update context with late arrival info, preserving previous info if relevant
+                const previousMinutes = context.lateArrivalContext?.minutes;
                 context.lateArrivalContext = {
                     ...context.lateArrivalContext,
                     isLate: true,
                     type: lateScenario?.type || context.lateArrivalContext?.type,
-                    minutes: lateScenario?.minutes || context.lateArrivalContext?.minutes,
-                    lastUpdate: Date.now()
+                    minutes: lateScenario?.minutes || previousMinutes,
+                    lastUpdate: Date.now(),
+                    previousDelays: [
+                        ...(context.lateArrivalContext?.previousDelays || []),
+                        previousMinutes
+                    ].filter(Boolean).slice(-3)  // Keep last 3 mentioned delays
                 };
                 context.lastTopic = 'late_arrival';
 
