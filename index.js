@@ -3631,8 +3631,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const relevantKnowledge = getRelevantKnowledge_is(userMessage);
             const groupBookingInfo = relevantKnowledge.find(k => k.type === 'group_bookings');
             if (groupBookingInfo) {
+                // Use proper response or fall back to unknown query handler
+                const response = groupBookingInfo.content?.booking_info?.contact?.message || 
+                    getRandomResponse(UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS);
                 return res.status(200).json({
-                    message: groupBookingInfo.content.intro.description,
+                    message: response,
+                    language: {
+                        detected: 'Icelandic',
+                        confidence: 'high'
+                    }
+                });
+            } else {
+                // Fall back to unknown query handler if no group booking info found
+                return res.status(200).json({
+                    message: getRandomResponse(UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS),
                     language: {
                         detected: 'Icelandic',
                         confidence: 'high'
