@@ -535,7 +535,9 @@ const TIME_CONVERSIONS = {
     h: 60,
     minute: 1,
     min: 1,
-    mins: 1
+    mins: 1,
+    half: 30,      // For "hour and a half"
+    quarter: 15,   // For "quarter of an hour"
 };
 
 const BOOKING_RESPONSES = {
@@ -938,24 +940,37 @@ const detectLateArrivalScenario = (message) => {
 
     // Enhanced time patterns to catch more variations
     const timePatterns = [
+        // Basic minute patterns
         /(\d+)\s(?:minute|min|minutes|mins?)\slate/i,
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
         /(\d+)\s(?:minute|min|minutes|mins?)\s*delay/i,
-        /around\s(\d+)\s(?:minute|min|minutes|mins?)/i,  // Added for "around X minutes"
-        /about\s(\d+)\s(?:minute|min|minutes|mins?)/i,   // Added for "about X minutes"
-        /perhaps\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,  // Added for "perhaps around X minutes"
-        /maybe\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,    // Added for "maybe around X minutes"
+        /around\s(\d+)\s(?:minute|min|minutes|mins?)/i,
+        /about\s(\d+)\s(?:minute|min|minutes|mins?)/i,
+        /perhaps\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
+        /maybe\s(?:around\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
+        
+        // Hour patterns
         /(\d+)\s(?:hour|hr|hours|hrs?)\slate/i,
         /(\d+)\s(?:hour|hr|hours|hrs?)\s*delay/i,
-        /(?:minute|min|minutes|mins?)\s*(\d+)/i,  // Added for "minutes 30" format
-        // New hour patterns
         /(\d+)\s*(?:hour|hr|h)\s*(?:late|delay)/i,
         /(?:an|one)\s*(?:hour|hr|h)\s*(?:late|delay)/i,
+        
+        // Complex hour expressions
+        /(?:an?\s+)?hour\s+and\s+(?:a\s+)?half/i,          // "hour and a half"
+        /one\s+and\s+(?:a\s+)?half\s+hours?/i,             // "one and a half hours"
+        /(\d+)\s*and\s+(?:a\s+)?half\s+hours?/i,           // "2 and a half hours"
+        /quarter\s+(?:of\s+)?(?:an?\s+)?hour/i,            // "quarter of an hour"
+        /(?:an?\s+)?hour\s+and\s+(?:a\s+)?quarter/i,       // "hour and a quarter"
+        
         // Mixed time formats
         /(\d+)\s*(?:hour|hr|h)(?:\s*and\s*)?(\d+)?\s*(?:minute|min|minutes|mins?)?/i,
+        /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)/i,
+        /hour\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)/i,
+        
         // Relative time patterns
         /until\s*(\d+)(?::(\d+))?\s*(?:pm|am)?/i,
         /after\s*(\d+)(?::(\d+))?\s*(?:pm|am)?/i,
+        
         // General time mentions
         /(?:minute|min|minutes|mins?)\s*(\d+)/i
     ];
@@ -964,7 +979,23 @@ const detectLateArrivalScenario = (message) => {
     for (const pattern of timePatterns) {
         const match = message.match(pattern);
         if (match) {
-            if (pattern.toString().includes('hour')) {
+            if (pattern.toString().includes('half')) {
+                if (match[1]) {
+                    // "2 and a half hours"
+                    minutes = (parseInt(match[1]) * TIME_CONVERSIONS.hour) + TIME_CONVERSIONS.half;
+                } else {
+                    // "hour and a half" or "one and a half hours"
+                    minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.half;
+                }
+            } else if (pattern.toString().includes('quarter')) {
+                if (pattern.toString().includes('hour and')) {
+                    // "hour and a quarter"
+                    minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.quarter;
+                } else {
+                    // "quarter of an hour"
+                    minutes = TIME_CONVERSIONS.quarter;
+                }
+            } else if (pattern.toString().includes('hour')) {
                 // Handle hour-based patterns using TIME_CONVERSIONS
                 if (match[1] === undefined && pattern.toString().includes('an|one')) {
                     minutes = TIME_CONVERSIONS.hour;  // "an hour late"
