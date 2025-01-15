@@ -1621,7 +1621,7 @@ CRITICAL RESPONSE RULES:
          * "tranquility"
          * "enhanced comfort"
          * "premium package"
-         * "serenity"
+         * "elevated experience"
       - Structure as:
         1. "Our [Package 1]:"
            - List inclusions
