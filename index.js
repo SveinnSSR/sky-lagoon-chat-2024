@@ -404,10 +404,10 @@ const SMALL_TALK_RESPONSES = {
     en: {
         // General chat responses
         casual: [
-            "I'm doing great and ready to help! What would you like to know about Sky Lagoon?",
-            "I'm wonderful, thank you for asking! How can I help you learn about Sky Lagoon?",
-            "Doing well! I'd love to tell you about our unique experiences at Sky Lagoon.",
-            "Great! I can help you discover what makes Sky Lagoon special."
+            "I'm doing great! I'd love to tell you about our experiences at Sky Lagoon. What interests you most?",
+            "I'm wonderful, thank you! Would you like to learn about our unique experiences at Sky Lagoon?",
+            "Doing well! Let me tell you what makes Sky Lagoon special. What would you like to know?",
+            "Great, thanks for asking! I'd be happy to share what makes Sky Lagoon unique. What interests you?"
         ],
         // For when they say "good" or similar
         positive: [
@@ -443,9 +443,15 @@ const CONFIRMATION_RESPONSES = [
     "I understand! "
 ];
 
-// Detection Patterns
+// Add these new patterns to your smallTalkPatterns array
 const smallTalkPatterns = [
     'how are you',
+    'how\'s it going',
+    'how do you do',
+    'how are things',
+    'what\'s up',
+    'hows it going',
+    'how you doing',
     'who are you',
     'what can you do',
     'what do you do',
