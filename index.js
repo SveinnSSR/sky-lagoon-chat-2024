@@ -3711,6 +3711,32 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Continue to normal flow to let GPT handle with knowledge base content
         }
 
+        // ADD NEW CODE HERE - Check if this is a completely unrelated query first
+        const isKnownBusinessTopic = userMessage.toLowerCase().includes('lagoon') ||
+                                  userMessage.toLowerCase().includes('ritual') ||
+                                  userMessage.toLowerCase().includes('package') ||
+                                  userMessage.toLowerCase().includes('booking') ||
+                                  userMessage.toLowerCase().includes('bóka') ||
+                                  userMessage.toLowerCase().includes('panta') ||
+                                  userMessage.toLowerCase().includes('pakk') ||
+                                  userMessage.toLowerCase().includes('ritúal');
+
+        // If message has no relation to our business and no knowledge base matches
+        if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
+            const unknownResponse = isIcelandic ? 
+                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
+                    Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
+                ] :
+                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
+                    Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
+                ];
+                
+            return res.status(200).json({
+                message: unknownResponse,
+                language: isIcelandic ? 'is' : 'en'
+            });
+        }
+
        // Late arrival handling
        const lateScenario = detectLateArrivalScenario(userMessage);
        if (lateScenario) {
