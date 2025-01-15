@@ -443,20 +443,23 @@ export const knowledgeBase = {
         policy: {
             standard: {
                 allowed: true,
-                conditions: [
-                    "Booking date/time has not passed",
-                    "Availability exists for requested new time"
-                ],
-                contact_options: {
+                description: "Yes, you can change your booking with 24 hours notice for individual bookings (1-9 guests).",
+                instructions: "To modify your booking, you can:",
+                methods: {
                     phone: {
-                        hours: "09:00 - 19:00",
-                        description: "Preferred method for same-day changes"
+                        text: "Call us at +354 527 6800 (open 9 AM - 7 PM)",
+                        note: "Best option for same-day changes"
                     },
                     email: {
-                        address: "reservations@skylagoon.is",
-                        description: "For future date modifications"
+                        text: "Email us at reservations@skylagoon.is",
+                        note: "For future date changes"
                     }
-                }
+                },
+                requirements: "When emailing, please include:",
+                details: [
+                    "Your booking reference number",
+                    "Whether you want to change the date or request a refund"
+                ]
             },
             late_arrival: {
                 grace_period: "30 minutes",
