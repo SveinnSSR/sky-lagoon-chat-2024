@@ -1707,28 +1707,254 @@ export const knowledgeBase = {
                 pickup_service: {
                     available: true,
                     timing: "Starts 30 minutes before your selected time",
+                    finding_bus_stop: {
+                        methods: [
+                            "Check re.is website for official bus stop list",
+                            "Contact Reykjavík Excursions at +354 580 5400 for guidance",
+                            "Select the designated bus stop nearest to your accommodation"
+                        ],
+                        main_bus_stops: [
+                            "Bus stop 1. Ráðhúsið - City Hall",
+                            "Bus stop 2. Tjörnin - The Pond",
+                            "Bus stop 3. Lækjargata",
+                            "Bus Stop 4. Miðbakki Harbour",
+                            "Bus stop 5. Harpa",
+                            "Bus stop 6. The Culture House / Safnahusid",
+                            "Bus stop 8. Hallgrímskirkja",
+                            "Bus stop 9. Snorrabraut",
+                            "Bus stop 11. Austurbær",
+                            "Bus stop 12. Höfðatorg",
+                            "Bus stop 13. Rauðarárstígur",
+                            "Bus stop 14. Skúlagata",
+                            "Bus stop 15. Vesturbugt",
+                            "BSÍ Bus Terminal - City center"
+                        ]
+                    },
                     important_notes: [
                         "Be ready and visible at designated bus stop or outside hotel",
                         "Call +354 580 5400 if pickup hasn't arrived 20 minutes after start time",
                         "If pickup is missed, must reach BSÍ at own cost before departure time"
                     ],
-                    restrictions: "Drop-off may be limited due to street closures and city centre bus restrictions"
+                    restrictions: "Some hotels require going to nearby bus stops due to street access restrictions"
                 }
             },
             return_service: {
                 departure_point: "Sky Lagoon",
-                destination: "BSÍ bus terminal",
+                destination: "Same bus stop as pickup location",
                 departure_times: [
                     "14:30", "15:30", "16:30", "17:30", 
                     "18:30", "19:30", "20:30", "21:30"
-                ]
+                ],
+                notes: "Return service will drop you off at your original pickup location"
             },
             booking: {
                 methods: [
                     "Book with Sky Lagoon ticket purchase",
                     "Book separately through www.re.is"
                 ],
-                modifications: "Contact Reykjavík Excursions directly for changes"
+                modifications: "Contact Reykjavík Excursions directly for changes",
+                support: {
+                    phone: "+354 580 5400",
+                    website: "www.re.is",
+                    help: "Contact for assistance finding nearest bus stop to your accommodation"
+                }
+            }
+        },
+        hotel_bus_stops: {
+            description: "Hotel to bus stop mapping for Reykjavík Excursions pickup service",
+            note: "Pick-up starts 30 minutes before departure",
+            timing: "Be ready and visible at designated bus stop at least 30 minutes before your booked departure time",
+            bus_stops: {
+                "Bus stop 1. Ráðhúsið - City Hall": [
+                    "3 Sisters Guesthouse",
+                    "Centerhotel Plaza",
+                    "Chez Monique",
+                    "Embassy Luxury Apartments",
+                    "Gallery Central Guesthouse",
+                    "Guesthouse Álfhóll",
+                    "Guesthouse Butterfly",
+                    "Hótel Hilda",
+                    "Hótel Metropolitan",
+                    "Hótel Reykjavík Centrum",
+                    "House of Spirits",
+                    "Iceland Parliament Hotel",
+                    "Kvosin Hotel",
+                    "Lighthouse Apartments",
+                    "Planet Apartments",
+                    "Reykjavik Downtown Hostel",
+                    "What´s On"
+                ],
+                "Bus stop 2. Tjörnin – The Pond": [
+                    "Castle House Luxury Apartments",
+                    "Central Guesthouse",
+                    "Hotel Reykjavík Saga",
+                    "Luna Hotel Apartments - Amtmannsstígur 5",
+                    "Luna Hotel Apartments - Laufásvegur 17",
+                    "Luna Hotel Apartments - Spítalastígur 1"
+                ],
+                "Bus stop 3. Lækjargata": [
+                    "1912 Guesthouse",
+                    "Apartment K - Bergstaðarstræti 12",
+                    "Apartment K - Bergstaðarstræti 3",
+                    "Apartment K - Skólastræti 1",
+                    "Apartment K - Þingholtsstræti 2-4",
+                    "Apotek Hotel",
+                    "Black Pearl Hotel",
+                    "Centerhotel Þingholt",
+                    "Central Apartments",
+                    "City Center Hotel",
+                    "Downtown Guesthouse Reykjavik",
+                    "Hótel Borg",
+                    "Loft Hostel",
+                    "Ocean Comfort Apartments",
+                    "Radisson Blu Hótel 1919",
+                    "Reykjavík Konsúlat Hótel"
+                ],
+                "Bus Stop 4. Miðbakki Harbour": [
+                    "Elding Whale Watching",
+                    "Local 101"
+                ],
+                "Bus stop 5. Harpa": [
+                    "Centerhotel Arnarhvoll",
+                    "The Reykjavik EDITION"
+                ],
+                "Bus stop 6. The Culture House / Safnahusid": [
+                    "101 Hótel",
+                    "Apartment K - Hverfisgata 14",
+                    "Apartment K - Ingólfsstræti 1a",
+                    "Canopy Reykjavík | City Centre",
+                    "Hótel Frón"
+                ],
+                "Bus stop 8. Hallgrímskirkja": [
+                    "Baron's Hostel",
+                    "Eric The Red Guesthouse",
+                    "Forsæla Apartmenthouse",
+                    "Freyja Guesthouse",
+                    "Gest Inn",
+                    "Hostel B47",
+                    "Hótel Leifur Eiríksson",
+                    "Hótel Óðinsvé",
+                    "Inga's New Guest Apartments",
+                    "Loki 101 Guesthouse",
+                    "Luna Hotel Apartments - Baldursgata 39",
+                    "Luna Hotel Apartments - Bergþórugata 23",
+                    "Mengi Apartments",
+                    "Our House Guesthouse",
+                    "Reykjavik Downtown Guesthouse - Egilsgata 1",
+                    "SUNNA Guesthouse",
+                    "Villa Guesthouse"
+                ],
+                "Bus Stop 9. Snorrabraut": [
+                    "100 Iceland Hotel",
+                    "101 Guesthouse",
+                    "4th Floor Hotel",
+                    "Alda Hotel Reykjavik",
+                    "Alfred's Apartments",
+                    "Apartment K – Laugavegur 74",
+                    "Apartment K – Laugavegur 85-86",
+                    "Centerhotel Laugavegur",
+                    "City Comfort Apartments",
+                    "Guesthouse Von",
+                    "Heida's Home",
+                    "Hlemmur Apartments",
+                    "Luna Hotel Apartments - Laugavegur 86",
+                    "OK Hotel",
+                    "Reykjavik4you Apartments - Laugavegi 85",
+                    "Skuggi Hótel",
+                    "Stay Apartments Laugavegur",
+                    "Von Guldsmeden Hotel"
+                ],
+                "Bus stop 11. Austurbær": [
+                    "Grettisborg Apartments",
+                    "Guesthouse Snorri",
+                    "Luna Hotel Apartments - Grettisgata 53b",
+                    "Reykjavik Hostel Village",
+                    "Stay Apartments Grettisgata"
+                ],
+                "Bus stop 12. Höfðatorg": [
+                    "Fosshótel Reykjavík",
+                    "Tower Suites"
+                ],
+                "Bus stop 13. Rauðarárstígur": [
+                    "Centerhotel Miðgarður",
+                    "Downtown Reykjavik Apartments",
+                    "Fosshótel Lind",
+                    "Fosshótel Rauðará",
+                    "Guesthouse Pávi",
+                    "Stay Apartments Einholt"
+                ],
+                "Bus stop 14. Skúlagata": [
+                    "101 Skuggi Guesthouse",
+                    "41 – A Townhouse Hotel",
+                    "Alfred's Studios",
+                    "Apartment 37",
+                    "Apartment K - Lindargata 60",
+                    "Apartment K – Hverfisgata 37",
+                    "Apartment K – Laugavegur 46",
+                    "Apartments Aurora",
+                    "Black Tower",
+                    "Centerhotel Klöpp",
+                    "Centerhotel Skjaldbreið",
+                    "Domus Guesthouse",
+                    "Gray Tower",
+                    "Guesthouse Odinn",
+                    "Guesthouse Turninn",
+                    "ION City Hotel",
+                    "Island Apartments",
+                    "KEX Hostel",
+                    "Luna Hotel Apartments - Laugavegur 37",
+                    "Old Charm Reykjavik Apartments",
+                    "Rey Apartments",
+                    "Reykjavik Residence Hotel",
+                    "Reykjavik Residence Suites",
+                    "Reykjavik4you Apartments",
+                    "Room With A View",
+                    "Sand Hotel",
+                    "The Swan House Reykjavík Apartments"
+                ],
+                "Bus stop 15. Vesturbugt": [
+                    "Grandi by Centerhotels",
+                    "Reykjavik Marina"
+                ]
+            },
+            direct_pickup_locations: [
+                "201 Hotel - Hlíðarsmári 5",
+                "22 Hill Hotel - Brautarholt 22-24",
+                "Arctic Comfort Hótel - Síðumúli 19",
+                "BSÍ Bus Terminal - City center",
+                "Cabin Hótel - Borgartún 32",
+                "Dalur HI Hostel - Sundlaugavegur 34",
+                "Eyja Guldsmeden Hotel - Brautarholt 10-14",
+                "Farfuglaheimilið - Sundlaugavegur 34",
+                "Fosshótel Barón - Barónstígur 2-4",
+                "Grand Hótel Reykjavík - Sigtún 28",
+                "Guesthouse Baldursbrá - Laufásvegi 41",
+                "Guesthouse Baldursbrá - Tjarnargötu 46",
+                "Hilton Reykjavík Nordica - Suðurlandsbraut 2",
+                "Hótel Holt",
+                "Hótel Ísland - Ármúli 9",
+                "Hótel Ísland Comfort - Hlíðasmári 13 - Kópavogur",
+                "Hotel Múli - Hallarmúli 1",
+                "Hótel Örkin - Brautarholt 29",
+                "Hotel Viking - Strandgötu 51",
+                "Klettur Hótel - Mjölnisholt 12-14",
+                "Lækur Hostel - Laugarnesvegur 74a",
+                "Northern Comfort Apartments - Skipholti 15",
+                "Oddsson Downtown Hotel - Háteigsvegur 1",
+                "Oddsson Hotel - Grensásvegur 16a",
+                "R13 - A Townhouse Hotel - Ármúli 13a",
+                "Reykjavik Campsite - Sundlaugavegur 32",
+                "Reykjavik Domestic Airport",
+                "Reykjavik Lights Hotel - Suðurlandsbraut 12",
+                "Reykjavik Natura - v/Hlíðarfót",
+                "Skarfabakki Harbour - Terminal 312 pick-up point",
+                "Stay Apartments Bolholt - Bolholt 6",
+                "Storm Hotel"
+            ],
+            support_info: {
+                contact: "+354 580 5400",
+                website: "www.re.is",
+                note: "Call for assistance finding nearest bus stop to your accommodation"
             }
         },
         public_transport: {
@@ -3339,7 +3565,7 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('area') ||
         message.includes('neighbourhood') ||
         message.includes('near') ||
-        // Adding website specific terms
+        // Website specific terms
         message.includes('kópavogur') ||
         message.includes('kopavogur') ||
         message.includes('vesturvör') ||
@@ -3375,6 +3601,66 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('shuttle schedule') ||
         message.includes('return shuttle') ||
         message.includes('bus terminal') ||
+        // Hotel and Bus Stop specifics
+        message.includes('hotel') ||
+        message.includes('guesthouse') ||
+        message.includes('hostel') ||
+        message.includes('apartment') ||
+        message.includes('accommodation') ||
+        message.includes('staying at') ||
+        message.includes('bus stop') ||
+        message.includes('bus stops') ||
+        message.includes('pickup point') ||
+        message.includes('pick up point') ||
+        message.includes('pick-up point') ||
+        message.includes('nearest stop') ||
+        message.includes('closest stop') ||
+        message.includes('which stop') ||
+        message.includes('go to stop') ||
+        message.includes('find bus stop') ||
+        message.includes('drop off') ||
+        message.includes('drop-off') ||
+        message.includes('dropoff') ||
+        // Bus stop numbers
+        message.includes('stop 1') ||
+        message.includes('stop 2') ||
+        message.includes('stop 3') ||
+        message.includes('stop 4') ||
+        message.includes('stop 5') ||
+        message.includes('stop 6') ||
+        message.includes('stop 8') ||
+        message.includes('stop 9') ||
+        message.includes('stop 11') ||
+        message.includes('stop 12') ||
+        message.includes('stop 13') ||
+        message.includes('stop 14') ||
+        message.includes('stop 15') ||
+        // Common bus stop names
+        message.includes('ráðhúsið') ||
+        message.includes('radhusid') ||
+        message.includes('city hall') ||
+        message.includes('tjörnin') ||
+        message.includes('tjornin') ||
+        message.includes('the pond') ||
+        message.includes('lækjargata') ||
+        message.includes('laekjargata') ||
+        message.includes('miðbakki') ||
+        message.includes('midbakki') ||
+        message.includes('harpa') ||
+        message.includes('safnahusid') ||
+        message.includes('culture house') ||
+        message.includes('hallgrímskirkja') ||
+        message.includes('hallgrimskirkja') ||
+        message.includes('snorrabraut') ||
+        message.includes('austurbær') ||
+        message.includes('austurbaer') ||
+        message.includes('höfðatorg') ||
+        message.includes('hofdatorg') ||
+        message.includes('rauðarárstígur') ||
+        message.includes('raudararstigur') ||
+        message.includes('skúlagata') ||
+        message.includes('skulagata') ||
+        message.includes('vesturbugt') ||
         // Eco transport options
         message.includes('walking path') ||
         message.includes('cycle') ||
@@ -3421,16 +3707,91 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('baggage storage') ||
         message.includes('store luggage') ||
         message.includes('store bags')) {
-        
-        // Include both location and full transportation info
+
+        // First push basic location info
         relevantInfo.push({
             type: 'location',
             content: knowledgeBase.transportation.location
         });
-        relevantInfo.push({
-            type: 'transportation',
-            content: knowledgeBase.transportation
-        });
+
+        // If specifically asking about shuttle/bus service or hotel pickups
+        if (message.includes('shuttle') || 
+            message.includes('bus') || 
+            message.includes('pickup') || 
+            message.includes('pick up') ||
+            message.includes('pick-up') ||
+            message.includes('hotel') ||
+            message.includes('guesthouse') ||
+            message.includes('hostel') ||
+            message.includes('bus stop') ||
+            message.includes('reykjavik excursions')) {
+            relevantInfo.push({
+                type: 'shuttle_service',
+                content: knowledgeBase.transportation.shuttle_service
+            });
+            relevantInfo.push({
+                type: 'hotel_bus_stops',
+                content: knowledgeBase.transportation.hotel_bus_stops
+            });
+        }
+
+        // If asking about public transport
+        if (message.includes('public transport') || 
+            message.includes('strætó') ||
+            message.includes('straeto') ||
+            message.includes('bus 4') ||
+            message.includes('bus 35')) {
+            relevantInfo.push({
+                type: 'public_transport',
+                content: knowledgeBase.transportation.public_transport
+            });
+        }
+
+        // If asking about parking
+        if (message.includes('park') || 
+            message.includes('parking') || 
+            message.includes('car') ||
+            message.includes('electric')) {
+            relevantInfo.push({
+                type: 'parking',
+                content: knowledgeBase.transportation.parking
+            });
+        }
+
+        // If asking about airport transfer
+        if (message.includes('airport') || 
+            message.includes('keflavik') || 
+            message.includes('kef') ||
+            message.includes('flybus')) {
+            relevantInfo.push({
+                type: 'airport_transfer',
+                content: knowledgeBase.transportation.airport_transfer
+            });
+        }
+
+        // If asking about luggage
+        if (message.includes('luggage') || 
+            message.includes('suitcase') || 
+            message.includes('bags') ||
+            message.includes('baggage')) {
+            relevantInfo.push({
+                type: 'luggage',
+                content: knowledgeBase.transportation.airport_transfer.luggage
+            });
+        }
+
+        // If asking about eco-friendly options
+        if (message.includes('walk') || 
+            message.includes('cycle') || 
+            message.includes('bike') ||
+            message.includes('cycling') ||
+            message.includes('biking') ||
+            message.includes('electric')) {
+            relevantInfo.push({
+                type: 'eco_friendly',
+                content: knowledgeBase.transportation.eco_friendly_options
+            });
+        }
     }
 
     // Group booking related queries
