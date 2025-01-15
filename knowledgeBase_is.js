@@ -3048,6 +3048,8 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('fresta') ||
         message.includes('breyta') ||
         message.includes('færa') ||
+        message.includes('fært') ||  // Added
+        message.includes('færa tímann') ||  // Added
         message.includes('afbóka') ||
         message.includes('hætta við') ||
         message.includes('veður') ||
@@ -3078,7 +3080,9 @@ export const getRelevantKnowledge_is = (userMessage) => {
             message.includes('tímanum') ||
             message.includes('endurbóka') ||
             message.includes('fresta') ||
-            message.includes('færa')) {
+            message.includes('færa') ||
+            message.includes('fært') ||  // Added this pattern
+            message.includes('færa tímann')) {  // Added this pattern too for good measure
             
             console.log('\n🔄 Booking Change Query Match Found');
             const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
