@@ -509,6 +509,15 @@ const LATE_ARRIVAL_THRESHOLDS = {
     MODIFICATION_RECOMMENDED: 60
 };
 
+const LATE_QUALIFIERS = [
+    'very late',
+    'really late',
+    'quite late',
+    'so late',
+    'too late',
+    'pretty late'
+];
+
 const BOOKING_RESPONSES = {
     unspecified_delay: [
         "Could you let us know approximately how late you'll be? This will help us assist you better. For delays up to 30 minutes, you can proceed directly to reception. For longer delays, we'll help you find a better time.",
@@ -949,6 +958,14 @@ const detectLateArrivalScenario = (message) => {
                   minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
                   'significant_delay',
             minutes: minutes
+        };
+    }
+
+    // Check for qualitative time indicators
+    if (LATE_QUALIFIERS.some(indicator => lowerMessage.includes(indicator))) {
+        return {
+            type: 'significant_delay',
+            minutes: null
         };
     }
 
@@ -3189,10 +3206,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             // Also check if this is a follow-up about lateness
             const isLateFollowUp = 
-                (context.lastTopic === 'late_arrival' && 
-                (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about/i) ||
-                 userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr)/i)));
-
+            (context.lastTopic === 'late_arrival' && 
+            (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about/i) ||
+             userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr)/i) ||
+             LATE_QUALIFIERS.some(indicator => userMessage.toLowerCase().includes(indicator))));
+    
             if (lateScenario || isLateFollowUp) {
                 // Update context with late arrival info
                 context.lateArrivalContext = {
