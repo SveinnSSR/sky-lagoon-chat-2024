@@ -3622,6 +3622,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 message: response
             });
         }
+        
+        // Check for group booking queries first
+        if (isIcelandic && (
+            userMessage.toLowerCase().includes('hóp') || 
+            userMessage.toLowerCase().includes('manna') ||
+            userMessage.toLowerCase().includes('hópabókun'))) {
+            const relevantKnowledge = getRelevantKnowledge_is(userMessage);
+            const groupBookingInfo = relevantKnowledge.find(k => k.type === 'group_bookings');
+            if (groupBookingInfo) {
+                return res.status(200).json({
+                    message: groupBookingInfo.content.intro.description,
+                    language: {
+                        detected: 'Icelandic',
+                        confidence: 'high'
+                    }
+                });
+            }
+        }
 
        // Late arrival handling
        const lateScenario = detectLateArrivalScenario(userMessage);
