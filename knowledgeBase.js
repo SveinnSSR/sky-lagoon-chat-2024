@@ -1764,6 +1764,137 @@ export const knowledgeBase = {
             description: "Hotel to bus stop mapping for Reykjavík Excursions pickup service",
             note: "Pick-up starts 30 minutes before departure",
             timing: "Be ready and visible at designated bus stop at least 30 minutes before your booked departure time",
+            bus_stop_locations: {
+                "Bus stop 1. Ráðhúsið - City Hall": {
+                    location: "Located at Reykjavík City Hall (Ráðhúsið)",
+                    area: "City Center",
+                    landmarks: ["Next to City Hall", "By the city pond"],
+                    address: "Tjarnargata 11"
+                },
+                "Bus stop 2. Tjörnin – The Pond": {
+                    location: "By the city pond (Tjörnin)",
+                    area: "City Center",
+                    landmarks: ["Near Fríkirkjan Church", "Along the pond's east side"],
+                    address: "Vonarstræti"
+                },
+                "Bus stop 3. Lækjargata": {
+                    location: "On Lækjargata street",
+                    area: "Downtown",
+                    landmarks: ["Near Lækjartorg square", "Close to Austurstræti"],
+                    address: "Lækjargata"
+                },
+                "Bus Stop 4. Miðbakki Harbour": {
+                    location: "At the old harbour area",
+                    area: "Harbour",
+                    landmarks: ["By the harbour", "Near Whale Watching tours"],
+                    address: "Miðbakki"
+                },
+                "Bus stop 5. Harpa": {
+                    location: "Outside Harpa Concert Hall",
+                    area: "Harbour/Downtown",
+                    landmarks: ["By Harpa Concert Hall", "Near the waterfront"],
+                    address: "Austurbakki 2"
+                },
+                "Bus stop 6. The Culture House / Safnahusid": {
+                    location: "By the Culture House (Safnahúsið)",
+                    area: "Downtown",
+                    landmarks: ["Next to The Culture House", "Near Hverfisgata"],
+                    address: "Hverfisgata 15"
+                },
+                "Bus stop 8. Hallgrímskirkja": {
+                    location: "Near Hallgrímskirkja church",
+                    area: "City Center",
+                    landmarks: ["By Hallgrímskirkja church", "Near Skólavörðustígur"],
+                    address: "Skólavörðustígur"
+                },
+                "Bus Stop 9. Snorrabraut": {
+                    location: "On Snorrabraut street",
+                    area: "Hlemmur area",
+                    landmarks: ["Near Hlemmur Square", "Close to Laugavegur"],
+                    address: "Snorrabraut"
+                },
+                "Bus stop 11. Austurbær": {
+                    location: "In the Austurbær district",
+                    area: "East City Center",
+                    landmarks: ["Near Austurbæjarskóli", "Close to Vitastígur"],
+                    address: "Vitastígur"
+                },
+                "Bus stop 12. Höfðatorg": {
+                    location: "At Höfðatorg area",
+                    area: "Business District",
+                    landmarks: ["Near Höfðatorg tower", "By Borgartún"],
+                    address: "Höfðatorg"
+                },
+                "Bus stop 13. Rauðarárstígur": {
+                    location: "On Rauðarárstígur street",
+                    area: "Hlemmur area",
+                    landmarks: ["Near Hlemmur Food Hall", "Close to Laugavegur"],
+                    address: "Rauðarárstígur"
+                },
+                "Bus stop 14. Skúlagata": {
+                    location: "On Skúlagata street",
+                    area: "Downtown",
+                    landmarks: ["Near the harbor area", "Close to Sæbraut"],
+                    address: "Skúlagata"
+                },
+                "Bus stop 15. Vesturbugt": {
+                    location: "In the Vesturbugt area",
+                    area: "Harbor Area",
+                    landmarks: ["Near the Maritime Museum", "By the old harbor"],
+                    address: "Vesturbugt"
+                }
+            },
+            transfer_details: {
+                round_trip: {
+                    included: true,
+                    description: "All transfers include both pick-up and return service",
+                    return_info: "Return drop-off will be at the same location as pick-up",
+                    timing: {
+                        pickup: "30 minutes before booked time",
+                        return: "Regular return shuttles available throughout the day"
+                    }
+                },
+                identification: {
+                    bus_marking: "Reykjavík Excursions shuttle to Sky Lagoon",
+                    bus_signs: ["Sky Lagoon", "Reykjavík Excursions"],
+                    contact: "If unsure, call +354 580 5400 for assistance",
+                    what_to_look_for: [
+                        "Look for Reykjavík Excursions branded bus",
+                        "Bus will have Sky Lagoon signage",
+                        "Driver will have passenger list"
+                    ]
+                },
+                important_notes: [
+                    "Be visible at your stop 30 minutes before departure",
+                    "Have your booking confirmation ready",
+                    "Contact +354 580 5400 if pickup is more than 20 minutes late",
+                    "Return service drops off at original pickup location only"
+                ]
+            },
+            customer_support: {
+                phone: "+354 580 5400",
+                website: "www.re.is",
+                email: "reservations@skylagoon.is",
+                assistance_available: [
+                    "Finding nearest bus stop",
+                    "Locating the bus",
+                    "Schedule information",
+                    "Last-minute changes",
+                    "Delay notifications"
+                ],
+                when_to_contact: {
+                    before_trip: [
+                        "Help finding nearest stop",
+                        "Schedule confirmation",
+                        "Special requirements"
+                    ],
+                    during_trip: [
+                        "Bus not arrived within 20 minutes of pickup time",
+                        "Cannot locate bus",
+                        "Last-minute changes needed"
+                    ]
+                }
+            },
             bus_stops: {
                 "Bus stop 1. Ráðhúsið - City Hall": [
                     "3 Sisters Guesthouse",
@@ -3714,25 +3845,108 @@ export const getRelevantKnowledge = (userMessage) => {
             content: knowledgeBase.transportation.location
         });
 
-        // If specifically asking about shuttle/bus service or hotel pickups
+        // Enhanced shuttle/bus stop detection with more specific info types
         if (message.includes('shuttle') || 
             message.includes('bus') || 
             message.includes('pickup') || 
             message.includes('pick up') ||
             message.includes('pick-up') ||
-            message.includes('hotel') ||
-            message.includes('guesthouse') ||
-            message.includes('hostel') ||
-            message.includes('bus stop') ||
-            message.includes('reykjavik excursions')) {
-            relevantInfo.push({
-                type: 'shuttle_service',
-                content: knowledgeBase.transportation.shuttle_service
-            });
-            relevantInfo.push({
-                type: 'hotel_bus_stops',
-                content: knowledgeBase.transportation.hotel_bus_stops
-            });
+            message.includes('transfer')) {
+
+            // If asking specifically about bus identification
+            if (message.includes('which bus') || 
+                message.includes('how will i know') || 
+                message.includes('how to identify') || 
+                message.includes('find the bus')) {
+                relevantInfo.push({
+                    type: 'bus_identification',
+                    content: knowledgeBase.transportation.hotel_bus_stops.transfer_details.identification
+                });
+            }
+
+            // If asking about round-trip/return journey
+            if (message.includes('return') || 
+                message.includes('back') || 
+                message.includes('two way') || 
+                message.includes('both way') ||
+                message.includes('drop off') ||
+                message.includes('drop-off') ||
+                message.includes('getting back')) {
+                relevantInfo.push({
+                    type: 'return_journey',
+                    content: knowledgeBase.transportation.hotel_bus_stops.transfer_details.round_trip
+                });
+            }
+
+            // If asking about specific hotel or bus stop
+            if (message.includes('hotel') || 
+                message.includes('hostel') || 
+                message.includes('guesthouse') || 
+                message.includes('bus stop') || 
+                message.includes('pickup point')) {
+
+                // Check for specific hotel mentions first
+                let foundDirectPickup = false;
+                for (let location of knowledgeBase.transportation.hotel_bus_stops.direct_pickup_locations) {
+                    if (message.toLowerCase().includes(location.toLowerCase())) {
+                        relevantInfo.push({
+                            type: 'direct_pickup',
+                            content: {
+                                location: location,
+                                details: knowledgeBase.transportation.hotel_bus_stops.transfer_details
+                            }
+                        });
+                        foundDirectPickup = true;
+                        break;
+                    }
+                }
+
+                // If not a direct pickup location, check bus stops
+                if (!foundDirectPickup) {
+                    for (let [stopName, hotels] of Object.entries(knowledgeBase.transportation.hotel_bus_stops.bus_stops)) {
+                        // Check if message includes bus stop name or any of its hotels
+                        if (message.toLowerCase().includes(stopName.toLowerCase()) ||
+                            hotels.some(hotel => message.toLowerCase().includes(hotel.toLowerCase()))) {
+                            relevantInfo.push({
+                                type: 'bus_stop_info',
+                                content: {
+                                    stop_name: stopName,
+                                    location_details: knowledgeBase.transportation.hotel_bus_stops.bus_stop_locations[stopName],
+                                    hotels: hotels,
+                                    transfer_details: knowledgeBase.transportation.hotel_bus_stops.transfer_details
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                // If no specific hotel or bus stop found, provide general shuttle service info
+                if (!foundDirectPickup && relevantInfo.length <= 1) {
+                    relevantInfo.push({
+                        type: 'shuttle_service',
+                        content: knowledgeBase.transportation.shuttle_service
+                    });
+                    relevantInfo.push({
+                        type: 'hotel_bus_stops',
+                        content: knowledgeBase.transportation.hotel_bus_stops
+                    });
+                }
+            }
+
+            // If asking about timing
+            if (message.includes('when') || 
+                message.includes('time') || 
+                message.includes('early') || 
+                message.includes('how long before')) {
+                relevantInfo.push({
+                    type: 'pickup_timing',
+                    content: {
+                        timing: knowledgeBase.transportation.hotel_bus_stops.timing,
+                        details: knowledgeBase.transportation.hotel_bus_stops.transfer_details.timing
+                    }
+                });
+            }
         }
 
         // If asking about public transport
