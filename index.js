@@ -3623,38 +3623,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
         
-        // Check for group booking queries first
+        // Check if it's a group booking query but DON'T return immediately
         if (isIcelandic && (
             userMessage.toLowerCase().includes('hóp') || 
             userMessage.toLowerCase().includes('manna') ||
             userMessage.toLowerCase().includes('hópabókun'))) {
-            const relevantKnowledge = getRelevantKnowledge_is(userMessage);
-            const groupBookingInfo = relevantKnowledge.find(k => k.type === 'group_bookings');
-            if (groupBookingInfo) {
-                const response = "Fyrir hópabókanir mælum við með að hafa samband beint til að fá nákvæmari upplýsingar og tilboð sem hentar ykkar þörfum. Þú getur sent tölvupóst á reservations@skylagoon.is eða hringt í síma 527 6800. Láttu mig vita ef þú hefur fleiri spurningar!";
-                return res.status(200).json({
-                    message: response,
-                    language: {
-                        detected: 'Icelandic',
-                        confidence: 'high'
-                    }
-                });
-            }
-        }
-
-        // Also add handling for contact info questions
-        if (isIcelandic && (
-            userMessage.toLowerCase().includes('hvert') || 
-            userMessage.toLowerCase().includes('hafa samband') ||
-            userMessage.toLowerCase().includes('senda') ||
-            userMessage.toLowerCase().includes('netfang'))) {
-            return res.status(200).json({
-                message: "Þú getur sent tölvupóst á reservations@skylagoon.is eða hringt í síma 527 6800. Láttu mig vita ef þú hefur fleiri spurningar!",
-                language: {
-                    detected: 'Icelandic',
-                    confidence: 'high'
-                }
+            
+            // Just set the context topic
+            context.lastTopic = 'group_bookings';
+            
+            // Log that we detected a group booking
+            console.log('\n👥 Group Booking Query Detected:', {
+                message: userMessage,
+                isIcelandic: true
             });
+            
+            // Continue to normal flow to let GPT handle with knowledge base content
         }
 
        // Late arrival handling
