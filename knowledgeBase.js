@@ -3878,12 +3878,75 @@ export const getRelevantKnowledge = (userMessage) => {
                 });
             }
 
+            // Enhanced general shuttle service info
+            if (message.includes('tell me about') || 
+                message.includes('how does') || 
+                message.includes('explain') || 
+                message.includes('shuttle service')) {
+                relevantInfo.push({
+                    type: 'shuttle_service_detailed',
+                    content: {
+                        basic_info: knowledgeBase.transportation.shuttle_service,
+                        identification: knowledgeBase.transportation.hotel_bus_stops.transfer_details.identification,
+                        timing: knowledgeBase.transportation.hotel_bus_stops.transfer_details.timing,
+                        important_notes: knowledgeBase.transportation.hotel_bus_stops.transfer_details.important_notes,
+                        contact: knowledgeBase.transportation.hotel_bus_stops.customer_support
+                    }
+                });
+            }
+            
+            // Add specific missed pickup handling
+            if (message.includes('miss') || 
+                message.includes('late') || 
+                message.includes('missed')) {
+                relevantInfo.push({
+                    type: 'missed_pickup',
+                    content: {
+                        instructions: [
+                            "If pickup hasn't arrived within 20 minutes, call +354 580 5400",
+                            "If you miss your pickup, you must reach BSÍ at own cost",
+                            "Contact Reykjavík Excursions for assistance with rescheduling"
+                        ],
+                        contact: {
+                            phone: "+354 580 5400",
+                            email: "reservations@skylagoon.is"
+                        },
+                        bsi_info: {
+                            location: "BSÍ Bus Terminal - City center",
+                            schedule: "Buses depart on the hour of your booking"
+                        }
+                    }
+                });
+            }            
+
             // If asking about specific hotel or bus stop
             if (message.includes('hotel') || 
                 message.includes('hostel') || 
                 message.includes('guesthouse') || 
                 message.includes('bus stop') || 
                 message.includes('pickup point')) {
+
+                // Check if asking specifically about bus stop location
+                if (message.includes('where is') || 
+                    message.includes('where can i find') || 
+                    message.includes('location of') || 
+                    message.includes('how to get to bus stop')) {
+                    for (let [stopName, location] of Object.entries(knowledgeBase.transportation.hotel_bus_stops.bus_stop_locations)) {
+                        if (message.toLowerCase().includes(stopName.toLowerCase())) {
+                            relevantInfo.push({
+                                type: 'bus_stop_location',
+                                content: {
+                                    stop_name: stopName,
+                                    location_details: location,
+                                    area: location.area,
+                                    landmarks: location.landmarks,
+                                    address: location.address
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
 
                 // Check for specific hotel mentions first
                 let foundDirectPickup = false;
@@ -3949,16 +4012,33 @@ export const getRelevantKnowledge = (userMessage) => {
             }
         }
 
-        // If asking about public transport
+        // Enhanced public transport detection
         if (message.includes('public transport') || 
             message.includes('strætó') ||
             message.includes('straeto') ||
+            message.includes('bus number') ||
+            message.includes('bus #') ||
             message.includes('bus 4') ||
             message.includes('bus 35')) {
-            relevantInfo.push({
-                type: 'public_transport',
-                content: knowledgeBase.transportation.public_transport
-            });
+            
+            // If asking about airport route specifically
+            if (message.includes('airport') || 
+                message.includes('keflavik') || 
+                message.includes('kef')) {
+                relevantInfo.push({
+                    type: 'airport_public_transport',
+                    content: knowledgeBase.transportation.airport_transfer.bus_option
+                });
+            } else {
+                // Standard public transport route
+                relevantInfo.push({
+                    type: 'public_transport',
+                    content: {
+                        route: knowledgeBase.transportation.public_transport,
+                        schedule_info: "Visit straeto.is for current timings"
+                    }
+                });
+            }
         }
 
         // If asking about parking
