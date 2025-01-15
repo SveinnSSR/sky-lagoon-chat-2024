@@ -487,6 +487,13 @@ export const knowledgeBase = {
             }
         }
     },
+    weather_policy: {
+        rebooking: "We understand Icelandic weather can be unpredictable, so guests are welcome to rebook up to 24 hours before their scheduled time by emailing reservations@skylagoon.is.",
+        recommendations: {
+            weather_gear: "If you'd like to experience the lagoon in true Icelandic weather, we recommend bringing a hat.",
+            available_items: "We also sell hats at reception and at Gelmir Bar."
+        }
+    },
 
     ritual: {
         marketing: {
@@ -2385,7 +2392,22 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('miss') ||
         message.includes('missed') ||
         message.includes('different time') ||
-        message.includes('different date')) {
+        message.includes('different date') ||
+        message.includes('cancel') ||
+        message.includes('refund') ||
+        message.includes('change booking') ||
+        message.includes('modify booking') ||
+        message.includes('change date') ||
+        message.includes('money back') ||
+        message.includes('cancellation') ||
+        message.includes('rebook') ||
+        message.includes('update booking') ||
+        message.includes('move booking') ||
+        message.includes('switch time') ||
+        message.includes('switch date') ||
+        (message.includes('book') && message.includes('another day'))) {
+        
+        console.log('\n🔄 Booking Modification Query Match Found');
         relevantInfo.push({
             type: 'booking_modifications',
             content: knowledgeBase.booking_modifications
