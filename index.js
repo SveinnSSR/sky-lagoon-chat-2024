@@ -400,12 +400,40 @@ const ACKNOWLEDGMENT_RESPONSES = [
     "Shall we explore another aspect of Sky Lagoon?"
 ];
 
-const SMALL_TALK_RESPONSES = [
-    "I'm here to help you learn all about Sky Lagoon. What would you like to know?",
-    "I'd be happy to tell you about our unique experiences at Sky Lagoon.",
-    "I can help you discover what makes Sky Lagoon special. What interests you most?",
-    "Let me share information about Sky Lagoon with you. What would you like to know?"
-];
+const SMALL_TALK_RESPONSES = {
+    en: {
+        // General chat responses
+        casual: [
+            "I'm doing great and ready to help! What would you like to know about Sky Lagoon?",
+            "I'm wonderful, thank you for asking! How can I help you learn about Sky Lagoon?",
+            "Doing well! I'd love to tell you about our unique experiences at Sky Lagoon.",
+            "Great! I can help you discover what makes Sky Lagoon special."
+        ],
+        // For when they say "good" or similar
+        positive: [
+            "That's great to hear! Would you like to learn about our experiences at Sky Lagoon?",
+            "Wonderful! I can tell you all about Sky Lagoon - what interests you most?",
+            "Excellent! I'd be happy to share what makes Sky Lagoon special.",
+            "Perfect! How can I help you plan your Sky Lagoon visit?"
+        ]
+    },
+    is: {
+        // Icelandic casual responses
+        casual: [
+            "Allt gott, takk fyrir að spyrja! Hvernig get ég aðstoðað þig?",
+            "Mér líður vel, takk fyrir! Get ég sagt þér frá Sky Lagoon?",
+            "Allt frábært! Hverju langar þig að vita um Sky Lagoon?",
+            "Bara gott! Get ég hjálpað þér að skipuleggja heimsókn í Sky Lagoon?"
+        ],
+        // For when they say "gott" or similar
+        positive: [
+            "Frábært að heyra! Langar þig að fræðast um upplifunina hjá okkur?",
+            "Geggjað! Get ég sagt þér frá því sem Sky Lagoon hefur upp á að bjóða?",
+            "Flott! Hverju langar þig að vita meira um?",
+            "Æði! Hvernig get ég aðstoðað þig?"
+        ]
+    }
+};
 
 const CONFIRMATION_RESPONSES = [
     "Great! ",
@@ -2651,6 +2679,42 @@ const getMaxTokens = (userMessage) => {
     return 500;  // Default token count
 };
 
+// Helper function for casual chat responses
+const handleCasualChat = (message, isIcelandic) => {
+    const msg = message.toLowerCase();
+    
+    // For responses to "how are you" type questions
+    if (isIcelandic) {
+        if (msg.includes('hvað segir') || 
+            msg.includes('hvernig hefur') || 
+            msg.includes('allt gott')) {
+            return SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)];
+        }
+        // For responses to "gott", "frábært", etc.
+        if (msg === 'gott' || 
+            msg === 'frábært' || 
+            msg === 'geggjað' || 
+            msg === 'flott') {
+            return SMALL_TALK_RESPONSES.is.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.positive.length)];
+        }
+    } else {
+        if (msg.includes('how are you') || 
+            msg.includes('how do you do') || 
+            msg.includes('how\'s it going')) {
+            return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
+        }
+        // For responses to "good", "great", etc.
+        if (msg === 'good' || 
+            msg === 'great' || 
+            msg === 'fine' || 
+            msg === 'ok' || 
+            msg === 'okay') {
+            return SMALL_TALK_RESPONSES.en.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.positive.length)];
+        }
+    }
+    return null;
+};
+
 console.log('Environment Check:');
 console.log('PORT:', process.env.PORT);
 console.log('API_KEY set:', !!process.env.API_KEY);
@@ -3517,16 +3581,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Small talk handling
-        const msg = userMessage.toLowerCase();  // Define msg once here
-        if (smallTalkPatterns.some(pattern => msg.includes(pattern))) {
+        // Enhanced small talk handling
+        const msg = userMessage.toLowerCase();
+        const casualResponse = handleCasualChat(msg, isIcelandic);
+        if (casualResponse || smallTalkPatterns.some(pattern => msg.includes(pattern))) {
             context.lastTopic = 'small_talk';
             context.conversationStarted = true;
             
-            // Add language-aware response
-            const response = isIcelandic ?
-                "Ég er hér til að hjálpa þér að kynnast Sky Lagoon betur. Hverju langar þig að vita meira um?" :
-                getContextualResponse('small_talk', context.messages.map(m => m.content));
+            const response = casualResponse || (isIcelandic ?
+                SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
+                SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
 
             return res.status(200).json({
                 message: response,
