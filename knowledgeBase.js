@@ -163,12 +163,12 @@ export const knowledgeBase = {
             },
             pricing: {
                 weekday: {
-                    range: "10,490 - 11,990 ISK",
+                    range: "12,990 ISK",
                     days: "Monday-Thursday",
-                    best_value: "Evening visits (7:30 PM - 8:30 PM)"
+                    // best_value: "Evening visits (7:30 PM - 8:30 PM)"
                 },
                 weekend: {
-                    range: "11,490 - 12,990 ISK",
+                    range: "14,990 ISK",
                     days: "Friday-Sunday"
                 }
             },
@@ -219,12 +219,12 @@ export const knowledgeBase = {
             },
             pricing: {
                 weekday: {
-                    range: "13,490 - 14,990 ISK",
+                    range: "15,990 ISK",
                     days: "Monday-Thursday",
-                    best_value: "Evening visits (7:30 PM - 8:30 PM)"
+                    // best_value: "Evening visits (7:30 PM - 8:30 PM)"
                 },
                 weekend: {
-                    range: "15,490 - 15,990 ISK",
+                    range: "17,990 ISK",
                     days: "Friday-Sunday"
                 }
             },

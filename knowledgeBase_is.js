@@ -1566,11 +1566,11 @@ export const knowledgeBase_is = {
                 description: "Veitir aðgang að almennri búningsaðstöðu og sjö skrefa Skjól Ritúal meðferðinni.",
                 pricing: {
                     weekday: {
-                        range: "10.490 - 11.990 ISK",
+                        range: "12.990 ISK",
                         note: "Verð á virkum dögum"
                     },
                     weekend: {
-                        range: "11.490 - 12.990 ISK",
+                        range: "14.990 ISK",
                         note: "Verð um helgar"
                     }
                 }
@@ -1580,11 +1580,11 @@ export const knowledgeBase_is = {
                 description: "Býður upp á aukið næði með aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
                 pricing: {
                     weekday: {
-                        range: "13.490 - 14.990 ISK",
+                        range: "15.990 ISK",
                         note: "Verð á virkum dögum"
                     },
                     weekend: {
-                        range: "15.490 - 15.990 ISK",
+                        range: "17.990 ISK",
                         note: "Verð um helgar"
                     }
                 }
