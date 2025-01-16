@@ -692,12 +692,12 @@ export const knowledgeBase_is = {
             description: "Vinsælasta leiðin okkar. Hún veitir aðgang að almennri búningsaðstöðu ásamt sjö skrefa Skjól Ritúal meðferðinni.",
             pricing: {
                 weekday: {
-                    range: "10.490 - 11.990 ISK",
+                    range: "12.990 ISK",
                     days: "Mánudaga til fimmtudaga",
-                    best_value: "Kvöldbókanir (19:30 - 20:30)"
+                    // best_value: "Kvöldbókanir (19:30 - 20:30)"
                 },
                 weekend: {
-                    range: "11.490 - 12.990 ISK",
+                    range: "14.990 ISK",
                     days: "Föstudaga til sunnudaga"
                 }
             },
@@ -727,12 +727,12 @@ export const knowledgeBase_is = {
             description: "Viltu aukið næði og meiri þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
             pricing: {
                 weekday: {
-                    range: "13.490 - 14.990 ISK",
+                    range: "15.990 ISK",
                     days: "Mánudaga til fimmtudaga",
-                    best_value: "Kvöldbókanir (19:30 - 20:30)"
+                    // best_value: "Kvöldbókanir (19:30 - 20:30)"
                 },
                 weekend: {
-                    range: "15.490 - 15.990 ISK",
+                    range: "17.990 ISK",
                     days: "Föstudaga til sunnudaga"
                 }
             },
