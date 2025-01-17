@@ -4238,16 +4238,38 @@ const server = app.listen(PORT, () => {
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
 });
 
+// Add initialization logging
+console.log('\n🚀 Initializing WebSocket server...');
+
 // Initialize WebSocket server with explicit path and error handling
 const wss = new WebSocketServer({ 
     server,
-    path: '/ws'  // Add explicit WebSocket path for better routing
+    path: '/ws',  // Add explicit WebSocket path for better routing
+    clientTracking: true  // Enable built-in client tracking
 });
 
-// Add server-level error handling
-wss.on('error', (error) => {
-    console.error('\n❌ WebSocket Server Error:', error);
+console.log('\n✅ WebSocket server initialized:', {
+    path: wss.options.path,
+    clientTracking: wss.options.clientTracking
 });
+
+// Add server-level error handling with more detail
+wss.on('error', (error) => {
+    console.error('\n❌ WebSocket Server Error:', {
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Add heartbeat check
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+setInterval(() => {
+    console.log('\n💓 WebSocket Server Status:', {
+        clients: wss.clients.size,
+        timestamp: new Date().toISOString()
+    });
+}, HEARTBEAT_INTERVAL);
 
 // Enhanced WebSocket connection handler
 wss.on('connection', (ws) => {
@@ -4257,7 +4279,8 @@ wss.on('connection', (ws) => {
     console.log('\n🔌 New WebSocket connection:', {
         id: connectionId,
         clientsCount: activeConnections.size,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        path: wss.options.path
     });
 
     // Add connection-level error handling
@@ -4288,13 +4311,17 @@ wss.on('connection', (ws) => {
                     handleConversationUpdate(message.data);
                     break;
                 default:
-                    console.log(`\n❓ Unknown message type: ${message.type}`);
+                    console.log(`\n❓ Unknown message type: ${message.type}`, {
+                        connectionId,
+                        timestamp: new Date().toISOString()
+                    });
             }
         } catch (error) {
             console.error('\n❌ Error processing WebSocket message:', {
                 connectionId,
                 error: error.message,
-                data: String(data).slice(0, 100) // Log first 100 chars of invalid message
+                data: String(data).slice(0, 100), // Log first 100 chars of invalid message
+                timestamp: new Date().toISOString()
             });
         }
     });
@@ -4315,9 +4342,29 @@ wss.on('connection', (ws) => {
         data: {
             connectionId,
             timestamp: new Date().toISOString(),
-            activeConnections: activeConnections.size
+            activeConnections: activeConnections.size,
+            serverInfo: {
+                path: wss.options.path,
+                clientsCount: wss.clients.size
+            }
         }
     }));
+
+    // Add connection-specific heartbeat
+    const pingInterval = setInterval(() => {
+        if (ws.readyState === ws.OPEN) {
+            ws.ping();
+            console.log('\n💓 Client heartbeat:', {
+                connectionId,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }, 30000);
+
+    // Clear interval on close
+    ws.on('close', () => {
+        clearInterval(pingInterval);
+    });
 });
 
 // Enhanced error handling for server startup
