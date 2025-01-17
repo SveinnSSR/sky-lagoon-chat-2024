@@ -4034,7 +4034,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 botResponse: completion.choices[0].message.content,
                 language: isIcelandic ? 'is' : 'en',
                 sessionId: sessionId,
-                topic: context.lastTopic || 'general'
+                topic: context.lastTopic || 'general',
+                type: 'chat',  // Added to help clients filter messages
+                stats: {
+                    totalConnections: activeConnections.size
+                }
             };
 
             // Use existing handleConversationUpdate function
