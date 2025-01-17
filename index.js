@@ -6,6 +6,9 @@ import rateLimit from 'express-rate-limit';
 import OpenAI from 'openai';
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './knowledgeBase_is.js';
+// Add these imports at the top of your index.js with your other imports
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
 
 // Cache and state management
 const responseCache = new Map();
@@ -862,6 +865,10 @@ const ERROR_MESSAGES = {
         connectionError: "Ég er að lenda í vandræðum með tengingu. Vinsamlegast reyndu aftur eftir smá stund."
     }
 };
+
+// ADD THE NEW CONSTANTS HERE 👇
+const activeConnections = new Map();  // Track active WebSocket connections
+const conversationBuffer = new Map(); // Buffer recent conversations
 
 // Context tracking constants
 const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
@@ -4018,6 +4025,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
+        // Broadcast the conversation update through WebSocket
+        if (completion) {
+            const conversationData = {
+                id: uuidv4(),
+                timestamp: new Date().toISOString(),
+                userMessage: req.body.message,
+                botResponse: completion.choices[0].message.content,
+                language: isIcelandic ? 'is' : 'en',
+                sessionId: sessionId,
+                topic: context.lastTopic || 'general'
+            };
+
+            // Use existing handleConversationUpdate function
+            handleConversationUpdate(conversationData);
+        }
+
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
 
@@ -4078,6 +4101,61 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         });
     }
 });
+
+// WebSocket helper functions
+function handleSubscription(ws, message) {
+    // Validate subscription request
+    if (!message.filters) {
+        console.log('\n⚠️ No filters provided in subscription');
+        return;
+    }
+
+    // Send recent conversations that match filters
+    const recentConversations = getFilteredConversations(message.filters);
+    ws.send(JSON.stringify({
+        type: 'initial_data',
+        conversations: recentConversations
+    }));
+}
+
+function handleConversationUpdate(conversationData) {
+    // Add to buffer
+    const conversationId = conversationData.id;
+    conversationBuffer.set(conversationId, {
+        ...conversationData,
+        timestamp: Date.now()
+    });
+
+    // Broadcast to all connected clients
+    broadcastConversation(conversationData);
+}
+
+function broadcastConversation(conversation) {
+    activeConnections.forEach((ws, connectionId) => {
+        if (ws.readyState === 1) { // WebSocket.OPEN
+            ws.send(JSON.stringify({
+                type: 'conversation_update',
+                data: conversation
+            }));
+        }
+    });
+}
+
+function getFilteredConversations(filters) {
+    const conversations = Array.from(conversationBuffer.values());
+    // Add your existing filtering logic here
+    return conversations;
+}
+
+// Add buffer cleanup interval
+setInterval(() => {
+    const oneHourAgo = Date.now() - 3600000; // 1 hour
+    for (const [id, conversation] of conversationBuffer) {
+        if (conversation.timestamp < oneHourAgo) {
+            conversationBuffer.delete(id);
+        }
+    }
+}, 300000); // Clean every 5 minutes
 
 // Helper function to detect topic from message and knowledge base results
 const detectTopic = (message, knowledgeBaseResults, context) => {
@@ -4158,6 +4236,51 @@ const server = app.listen(PORT, () => {
     console.log('\n🔒 Security:');
     console.log('CORS origins:', corsOptions.origin);
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
+});
+
+// Initialize WebSocket server
+const wss = new WebSocketServer({ server });
+
+// WebSocket connection handler
+wss.on('connection', (ws) => {
+    const connectionId = uuidv4();
+    activeConnections.set(connectionId, ws);
+
+    console.log(`\n🔌 New WebSocket connection: ${connectionId}`);
+
+    // Handle incoming messages
+    ws.on('message', (data) => {
+        try {
+            const message = JSON.parse(data);
+            console.log('\n📥 WebSocket message received:', message);
+
+            // Handle different message types
+            switch (message.type) {
+                case 'subscribe':
+                    handleSubscription(ws, message);
+                    break;
+                case 'conversation_update':
+                    handleConversationUpdate(message.data);
+                    break;
+                default:
+                    console.log(`\n❓ Unknown message type: ${message.type}`);
+            }
+        } catch (error) {
+            console.error('\n❌ Error processing WebSocket message:', error);
+        }
+    });
+
+    // Handle client disconnection
+    ws.on('close', () => {
+        activeConnections.delete(connectionId);
+        console.log(`\n🔌 Client disconnected: ${connectionId}`);
+    });
+
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({
+        type: 'connection_established',
+        connectionId
+    }));
 });
 
 // Enhanced error handling for server startup
