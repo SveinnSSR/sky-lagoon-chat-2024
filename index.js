@@ -2797,8 +2797,16 @@ const corsOptions = {
         'https://skylagoon-chat-demo.vercel.app', // your new frontend URL
         'https://chatbot-analytics-beta.vercel.app' // your dashboard URL
     ],
-    methods: ['POST', 'OPTIONS', 'GET', 'HEAD'],
-    allowedHeaders: ['Content-Type', 'x-api-key', 'webhook-headers'],
+    methods: ['GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: [
+        'Content-Type', 
+        'x-api-key', 
+        'webhook-headers',
+        'Upgrade',
+        'Connection',
+        'Sec-WebSocket-Key',
+        'Sec-WebSocket-Version'
+    ],
     credentials: true
 };
 
