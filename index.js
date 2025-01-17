@@ -4261,11 +4261,10 @@ console.log('\n🚀 Initializing WebSocket server with configuration:', {
 // Initialize WebSocket server with enhanced configuration
 const wss = new WebSocketServer({ 
     server,
-    path: '/ws',                    // Explicit WebSocket path
-    perMessageDeflate: false,       // Disable compression for better compatibility
-    clientTracking: true,           // Enable built-in client tracking
+    path: '/ws',                    
+    perMessageDeflate: false,       
+    clientTracking: true,           
     verifyClient: (info, callback) => {
-        // Allow all origins for WebSocket connections
         const origin = info.req.headers.origin;
         
         console.log('\n🔎 WebSocket connection attempt:', {
@@ -4275,34 +4274,16 @@ const wss = new WebSocketServer({
             timestamp: new Date().toISOString()
         });
 
-        // Accept all connections in production
-        if (process.env.NODE_ENV === 'production') {
-            callback(true);
-            return;
-        }
-
-        // In development, still check CORS
-        const isAllowed = corsOptions.origin.includes(origin);
-        if (isAllowed) {
-            callback(true);
-        } else {
-            console.log('\n⚠️ Rejected WebSocket connection from unauthorized origin:', origin);
-            callback(false, 403, 'Unauthorized origin');
-        }
+        // Accept all connections unconditionally
+        callback(true);
     }
 });
 
-// Add WebSocket-specific headers
+// Single unified headers handler
 wss.on('headers', (headers, request) => {
     headers.push('Access-Control-Allow-Origin: *');
     headers.push('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    headers.push('Access-Control-Allow-Headers: Content-Type');
-});
-
-// Add this right after wss initialization
-wss.on('headers', (headers, request) => {
-    headers.push('Access-Control-Allow-Origin: *');
-    headers.push('Access-Control-Allow-Headers: Content-Type');
+    headers.push('Access-Control-Allow-Headers: Content-Type, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version');
     headers.push('Access-Control-Allow-Credentials: true');
 });
 
