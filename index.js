@@ -4242,22 +4242,7 @@ const server = app.listen(PORT, () => {
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
 });
 
-// Add this right after your WebSocket initialization
-console.log('\n💓 Initial WebSocket Status:', {
-    clients: wss.clients.size,
-    timestamp: new Date().toISOString(),
-    initialized: !!wss,
-    path: wss.options.path
-});
-These changes will:
-
-Add more robust checking
-Give us an initial status right after startup
-Track how many heartbeats have occurred
-Ensure proper cleanup
-
-Would you like me to show you where exactly to place these changes in your code? CopyRetrySShow should the full part i shared with you look then with these enhancements? and correct indentation, leaving nothing outEditHere's the complete enhanced version with all changes integrated and proper indentation:
-javascriptCopy// Add this logging before WebSocket initialization
+// Initial server configuration logging
 console.log('\n🚀 Initializing WebSocket server with configuration:', {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
@@ -4267,9 +4252,9 @@ console.log('\n🚀 Initializing WebSocket server with configuration:', {
 // Initialize WebSocket server with enhanced configuration
 const wss = new WebSocketServer({ 
     server,
-    path: '/ws',
-    perMessageDeflate: false, // Disable compression for better compatibility
-    clientTracking: true,
+    path: '/ws',                    // Explicit WebSocket path
+    perMessageDeflate: false,       // Disable compression for better compatibility
+    clientTracking: true,           // Enable built-in client tracking
     verifyClient: (info, callback) => {
         console.log('\n🔎 WebSocket connection attempt:', {
             path: info.req.url,
@@ -4281,13 +4266,13 @@ const wss = new WebSocketServer({
     }
 });
 
+// Log successful initialization and initial status
 console.log('\n✅ WebSocket server initialized:', {
     path: wss.options.path,
     clientTracking: wss.options.clientTracking,
     timestamp: new Date().toISOString()
 });
 
-// Add immediate status check
 console.log('\n💓 Initial WebSocket Status:', {
     clients: wss.clients.size,
     timestamp: new Date().toISOString(),
@@ -4295,7 +4280,7 @@ console.log('\n💓 Initial WebSocket Status:', {
     path: wss.options.path
 });
 
-// Enhanced error handling
+// Set up server-wide error handling
 wss.on('error', (error) => {
     console.error('\n❌ WebSocket Server Error:', {
         message: error.message,
@@ -4304,10 +4289,10 @@ wss.on('error', (error) => {
     });
 });
 
-// Add enhanced heartbeat check
+// Set up periodic heartbeat checking
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 const heartbeatCheck = setInterval(() => {
-    if (wss && wss.clients) {  // Add existence check
+    if (wss && wss.clients) {
         console.log('\n💓 WebSocket Server Status:', {
             clients: wss.clients.size,
             activeConnections: activeConnections.size,
@@ -4320,11 +4305,13 @@ const heartbeatCheck = setInterval(() => {
     }
 }, HEARTBEAT_INTERVAL);
 
-// Enhanced WebSocket connection handler
+// Handle new WebSocket connections
 wss.on('connection', (ws, req) => {
+    // Generate unique ID and track connection
     const connectionId = uuidv4();
     activeConnections.set(connectionId, ws);
 
+    // Log new connection
     console.log('\n🔌 New WebSocket connection:', {
         id: connectionId,
         path: req.url,
@@ -4332,7 +4319,7 @@ wss.on('connection', (ws, req) => {
         timestamp: new Date().toISOString()
     });
 
-    // Handle connection-level errors
+    // Set up connection-level error handling
     ws.on('error', (error) => {
         console.error('\n❌ WebSocket Connection Error:', {
             connectionId,
@@ -4341,7 +4328,7 @@ wss.on('connection', (ws, req) => {
         });
     });
 
-    // Add client-specific ping/pong
+    // Set up ping/pong for connection health monitoring
     ws.isAlive = true;
     ws.on('pong', () => {
         ws.isAlive = true;
@@ -4357,7 +4344,7 @@ wss.on('connection', (ws, req) => {
                 timestamp: new Date().toISOString()
             });
 
-            // Handle different message types
+            // Route messages based on type
             switch (message.type) {
                 case 'subscribe':
                     handleSubscription(ws, message);
@@ -4372,12 +4359,12 @@ wss.on('connection', (ws, req) => {
             console.error('\n❌ Error processing WebSocket message:', {
                 connectionId,
                 error: error.message,
-                data: String(data).slice(0, 100) // Log first 100 chars of invalid message
+                data: String(data).slice(0, 100) // First 100 chars of invalid message
             });
         }
     });
 
-    // Enhanced disconnection handling
+    // Handle client disconnection
     ws.on('close', () => {
         activeConnections.delete(connectionId);
         console.log('\n🔌 Client disconnected:', {
@@ -4387,7 +4374,7 @@ wss.on('connection', (ws, req) => {
         });
     });
 
-    // Send enhanced initial connection confirmation
+    // Send initial connection confirmation
     ws.send(JSON.stringify({
         type: 'connection_established',
         data: {
@@ -4403,7 +4390,7 @@ wss.on('connection', (ws, req) => {
     }));
 });
 
-// Add connection cleanup interval
+// Set up periodic connection cleanup
 const connectionCleanup = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (!ws.isAlive) {
@@ -4416,10 +4403,10 @@ const connectionCleanup = setInterval(() => {
     });
 }, 30000);
 
-// Enhanced cleanup on server close
+// Clean up intervals when server closes
 wss.on('close', () => {
-    clearInterval(heartbeatCheck);  // Clear the heartbeat interval
-    clearInterval(connectionCleanup);  // Clear the existing cleanup interval
+    clearInterval(heartbeatCheck);
+    clearInterval(connectionCleanup);
 });
 
 // Enhanced error handling for server startup
