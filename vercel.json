@@ -16,10 +16,11 @@
             "dest": "index.js",
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key, Upgrade, Connection",
                 "Access-Control-Allow-Credentials": "true"
-            }
+            },
+            "continue": true
         },
         {
             "src": "/chat",
