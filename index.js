@@ -4242,7 +4242,22 @@ const server = app.listen(PORT, () => {
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
 });
 
-// Add this logging before WebSocket initialization
+// Add this right after your WebSocket initialization
+console.log('\n💓 Initial WebSocket Status:', {
+    clients: wss.clients.size,
+    timestamp: new Date().toISOString(),
+    initialized: !!wss,
+    path: wss.options.path
+});
+These changes will:
+
+Add more robust checking
+Give us an initial status right after startup
+Track how many heartbeats have occurred
+Ensure proper cleanup
+
+Would you like me to show you where exactly to place these changes in your code? CopyRetrySShow should the full part i shared with you look then with these enhancements? and correct indentation, leaving nothing outEditHere's the complete enhanced version with all changes integrated and proper indentation:
+javascriptCopy// Add this logging before WebSocket initialization
 console.log('\n🚀 Initializing WebSocket server with configuration:', {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
@@ -4272,6 +4287,14 @@ console.log('\n✅ WebSocket server initialized:', {
     timestamp: new Date().toISOString()
 });
 
+// Add immediate status check
+console.log('\n💓 Initial WebSocket Status:', {
+    clients: wss.clients.size,
+    timestamp: new Date().toISOString(),
+    initialized: !!wss,
+    path: wss.options.path
+});
+
 // Enhanced error handling
 wss.on('error', (error) => {
     console.error('\n❌ WebSocket Server Error:', {
@@ -4281,14 +4304,20 @@ wss.on('error', (error) => {
     });
 });
 
-// Add heartbeat check
+// Add enhanced heartbeat check
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-setInterval(() => {
-    console.log('\n💓 WebSocket Server Status:', {
-        clients: wss.clients.size,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-    });
+const heartbeatCheck = setInterval(() => {
+    if (wss && wss.clients) {  // Add existence check
+        console.log('\n💓 WebSocket Server Status:', {
+            clients: wss.clients.size,
+            activeConnections: activeConnections.size,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+            heartbeatCount: Math.floor(process.uptime() / (HEARTBEAT_INTERVAL/1000))
+        });
+    } else {
+        console.log('\n⚠️ WebSocket server not initialized in heartbeat check');
+    }
 }, HEARTBEAT_INTERVAL);
 
 // Enhanced WebSocket connection handler
@@ -4318,7 +4347,7 @@ wss.on('connection', (ws, req) => {
         ws.isAlive = true;
     });
 
-    // Rest of your existing connection handler code...
+    // Handle incoming messages
     ws.on('message', (data) => {
         try {
             const message = JSON.parse(data);
@@ -4387,9 +4416,10 @@ const connectionCleanup = setInterval(() => {
     });
 }, 30000);
 
-// Cleanup on server close
+// Enhanced cleanup on server close
 wss.on('close', () => {
-    clearInterval(connectionCleanup);
+    clearInterval(heartbeatCheck);  // Clear the heartbeat interval
+    clearInterval(connectionCleanup);  // Clear the existing cleanup interval
 });
 
 // Enhanced error handling for server startup
