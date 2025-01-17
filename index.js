@@ -4238,21 +4238,46 @@ const server = app.listen(PORT, () => {
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
 });
 
-// Initialize WebSocket server
-const wss = new WebSocketServer({ server });
+// Initialize WebSocket server with explicit path and error handling
+const wss = new WebSocketServer({ 
+    server,
+    path: '/ws'  // Add explicit WebSocket path for better routing
+});
 
-// WebSocket connection handler
+// Add server-level error handling
+wss.on('error', (error) => {
+    console.error('\n❌ WebSocket Server Error:', error);
+});
+
+// Enhanced WebSocket connection handler
 wss.on('connection', (ws) => {
     const connectionId = uuidv4();
     activeConnections.set(connectionId, ws);
 
-    console.log(`\n🔌 New WebSocket connection: ${connectionId}`);
+    console.log('\n🔌 New WebSocket connection:', {
+        id: connectionId,
+        clientsCount: activeConnections.size,
+        timestamp: new Date().toISOString()
+    });
+
+    // Add connection-level error handling
+    ws.on('error', (error) => {
+        console.error('\n❌ WebSocket Connection Error:', {
+            connectionId,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    });
 
     // Handle incoming messages
     ws.on('message', (data) => {
         try {
             const message = JSON.parse(data);
-            console.log('\n📥 WebSocket message received:', message);
+            console.log('\n📥 WebSocket message received:', {
+                type: message.type,
+                connectionId,
+                timestamp: new Date().toISOString()
+            });
 
             // Handle different message types
             switch (message.type) {
@@ -4266,20 +4291,32 @@ wss.on('connection', (ws) => {
                     console.log(`\n❓ Unknown message type: ${message.type}`);
             }
         } catch (error) {
-            console.error('\n❌ Error processing WebSocket message:', error);
+            console.error('\n❌ Error processing WebSocket message:', {
+                connectionId,
+                error: error.message,
+                data: String(data).slice(0, 100) // Log first 100 chars of invalid message
+            });
         }
     });
 
     // Handle client disconnection
     ws.on('close', () => {
         activeConnections.delete(connectionId);
-        console.log(`\n🔌 Client disconnected: ${connectionId}`);
+        console.log('\n🔌 Client disconnected:', {
+            id: connectionId,
+            remainingClients: activeConnections.size,
+            timestamp: new Date().toISOString()
+        });
     });
 
-    // Send initial connection confirmation
+    // Send initial connection confirmation with enhanced data
     ws.send(JSON.stringify({
         type: 'connection_established',
-        connectionId
+        data: {
+            connectionId,
+            timestamp: new Date().toISOString(),
+            activeConnections: activeConnections.size
+        }
     }));
 });
 
