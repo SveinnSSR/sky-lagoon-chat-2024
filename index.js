@@ -4035,11 +4035,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 language: isIcelandic ? 'is' : 'en',
                 sessionId: sessionId,
                 topic: context.lastTopic || 'general'
-                messageType: 'chat',  // Add this line
-                stats: {              // Add this section
-                    totalConversations: conversationBuffer.size,
-                    activeClients: wss.clients.size
-                }        
             };
 
             // Use existing handleConversationUpdate function
