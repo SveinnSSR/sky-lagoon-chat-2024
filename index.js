@@ -2794,9 +2794,10 @@ const corsOptions = {
         'https://sky-lagoon-chat-2024-git-main-svorum-straxs-projects.vercel.app', // secondary Vercel URL (if any)
         'https://sky-lagoon-chat-2024-rayuxftbk-svorum-straxs-projects.vercel.app', // another Vercel URL
         'https://sky-lagoon-chatbot-server.vercel.app',
-        'https://skylagoon-chat-demo.vercel.app' // your new frontend URL
+        'https://skylagoon-chat-demo.vercel.app', // your new frontend URL
+        'https://chatbot-analytics-beta.vercel.app' // your dashboard URL
     ],
-    methods: ['POST', 'OPTIONS', 'GET'],
+    methods: ['POST', 'OPTIONS', 'GET', 'HEAD'],
     allowedHeaders: ['Content-Type', 'x-api-key', 'webhook-headers'],
     credentials: true
 };
@@ -4256,14 +4257,31 @@ const wss = new WebSocketServer({
     perMessageDeflate: false,       // Disable compression for better compatibility
     clientTracking: true,           // Enable built-in client tracking
     verifyClient: (info, callback) => {
+        const origin = info.req.headers.origin;
+        const isAllowed = corsOptions.origin.includes(origin);
+        
         console.log('\n🔎 WebSocket connection attempt:', {
             path: info.req.url,
-            origin: info.req.headers.origin,
-            timestamp: new Date().toISOString()
+            origin: origin,
+            allowed: isAllowed,
+            timestamp: new Date().toISOString(),
+            headers: info.req.headers
         });
-        // Accept all connections for now
-        callback(true);
+
+        if (isAllowed) {
+            callback(true);
+        } else {
+            console.log('\n⚠️ Rejected WebSocket connection from unauthorized origin:', origin);
+            callback(false, 403, 'Unauthorized origin');
+        }
     }
+});
+
+// Add this right after wss initialization
+wss.on('headers', (headers, request) => {
+    headers.push('Access-Control-Allow-Origin: *');
+    headers.push('Access-Control-Allow-Headers: Content-Type');
+    headers.push('Access-Control-Allow-Credentials: true');
 });
 
 // Log successful initialization and initial status
