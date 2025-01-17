@@ -12,6 +12,15 @@
     ],
     "routes": [
         {
+            "src": "/ws",
+            "dest": "index.js",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With,content-type,x-api-key"
+            }
+        },
+        {
             "src": "/chat",
             "dest": "index.js"
         },
