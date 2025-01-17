@@ -4265,17 +4265,24 @@ const wss = new WebSocketServer({
     perMessageDeflate: false,       // Disable compression for better compatibility
     clientTracking: true,           // Enable built-in client tracking
     verifyClient: (info, callback) => {
+        // Allow all origins for WebSocket connections
         const origin = info.req.headers.origin;
-        const isAllowed = corsOptions.origin.includes(origin);
         
         console.log('\n🔎 WebSocket connection attempt:', {
             path: info.req.url,
             origin: origin,
-            allowed: isAllowed,
-            timestamp: new Date().toISOString(),
-            headers: info.req.headers
+            headers: info.req.headers,
+            timestamp: new Date().toISOString()
         });
 
+        // Accept all connections in production
+        if (process.env.NODE_ENV === 'production') {
+            callback(true);
+            return;
+        }
+
+        // In development, still check CORS
+        const isAllowed = corsOptions.origin.includes(origin);
         if (isAllowed) {
             callback(true);
         } else {
@@ -4283,6 +4290,13 @@ const wss = new WebSocketServer({
             callback(false, 403, 'Unauthorized origin');
         }
     }
+});
+
+// Add WebSocket-specific headers
+wss.on('headers', (headers, request) => {
+    headers.push('Access-Control-Allow-Origin: *');
+    headers.push('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    headers.push('Access-Control-Allow-Headers: Content-Type');
 });
 
 // Add this right after wss initialization
