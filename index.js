@@ -9,6 +9,17 @@ import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './k
 // Add these imports at the top of your index.js with your other imports
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
+// Add Pusher import
+import Pusher from 'pusher';
+
+// Initialize Pusher
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true
+});
 
 // Cache and state management
 const responseCache = new Map();
@@ -4034,7 +4045,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
-        // Broadcast the conversation update through WebSocket
+        // Broadcast the conversation update
         if (completion) {
             const conversationData = {
                 id: uuidv4(),
@@ -4044,13 +4055,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 language: isIcelandic ? 'is' : 'en',
                 sessionId: sessionId,
                 topic: context.lastTopic || 'general',
-                type: 'chat',  // Added to help clients filter messages
-                stats: {
-                    totalConnections: activeConnections.size
-                }
+                type: 'chat'
+                // Removed totalConnections since we're not using WebSocket anymore
             };
-
-            // Use existing handleConversationUpdate function
+        
+            // Use handleConversationUpdate to broadcast via Pusher
             handleConversationUpdate(conversationData);
         }
 
@@ -4115,60 +4124,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     }
 });
 
-// WebSocket helper functions
-function handleSubscription(ws, message) {
-    // Validate subscription request
-    if (!message.filters) {
-        console.log('\n⚠️ No filters provided in subscription');
-        return;
-    }
-
-    // Send recent conversations that match filters
-    const recentConversations = getFilteredConversations(message.filters);
-    ws.send(JSON.stringify({
-        type: 'initial_data',
-        conversations: recentConversations
-    }));
-}
-
+// Pusher broadcast function
 function handleConversationUpdate(conversationData) {
-    // Add to buffer
-    const conversationId = conversationData.id;
-    conversationBuffer.set(conversationId, {
-        ...conversationData,
-        timestamp: Date.now()
+    console.log('🚀 Broadcasting conversation via Pusher:', {
+        event: 'conversation-update',
+        channel: 'chat-channel',
+        timestamp: new Date().toISOString()
     });
-
-    // Broadcast to all connected clients
-    broadcastConversation(conversationData);
+    
+    pusher.trigger('chat-channel', 'conversation-update', conversationData)
+        .then(() => console.log('✅ Pusher message sent successfully'))
+        .catch(error => console.error('❌ Pusher error:', error));
 }
-
-function broadcastConversation(conversation) {
-    activeConnections.forEach((ws, connectionId) => {
-        if (ws.readyState === 1) { // WebSocket.OPEN
-            ws.send(JSON.stringify({
-                type: 'conversation_update',
-                data: conversation
-            }));
-        }
-    });
-}
-
-function getFilteredConversations(filters) {
-    const conversations = Array.from(conversationBuffer.values());
-    // Add your existing filtering logic here
-    return conversations;
-}
-
-// Add buffer cleanup interval
-setInterval(() => {
-    const oneHourAgo = Date.now() - 3600000; // 1 hour
-    for (const [id, conversation] of conversationBuffer) {
-        if (conversation.timestamp < oneHourAgo) {
-            conversationBuffer.delete(id);
-        }
-    }
-}, 300000); // Clean every 5 minutes
 
 // Helper function to detect topic from message and knowledge base results
 const detectTopic = (message, knowledgeBaseResults, context) => {
@@ -4249,185 +4216,6 @@ const server = app.listen(PORT, () => {
     console.log('\n🔒 Security:');
     console.log('CORS origins:', corsOptions.origin);
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
-});
-
-// Initial server configuration logging
-console.log('\n🚀 Initializing WebSocket server with configuration:', {
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT
-});
-
-// Initialize WebSocket server with enhanced configuration
-const wss = new WebSocketServer({ 
-    server,
-    path: '/ws',                    
-    perMessageDeflate: false,       
-    clientTracking: true,           
-    verifyClient: (info, callback) => {
-        const origin = info.req.headers.origin;
-        
-        console.log('\n🔎 WebSocket connection attempt:', {
-            path: info.req.url,
-            origin: origin,
-            headers: info.req.headers,
-            timestamp: new Date().toISOString()
-        });
-
-        // Accept all connections unconditionally
-        callback(true);
-    }
-});
-
-// Single unified headers handler
-wss.on('headers', (headers, request) => {
-    headers.push('Access-Control-Allow-Origin: *');
-    headers.push('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    headers.push('Access-Control-Allow-Headers: Content-Type, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version');
-    headers.push('Access-Control-Allow-Credentials: true');
-});
-
-// Log successful initialization and initial status
-console.log('\n✅ WebSocket server initialized:', {
-    path: wss.options.path,
-    clientTracking: wss.options.clientTracking,
-    timestamp: new Date().toISOString()
-});
-
-console.log('\n💓 Initial WebSocket Status:', {
-    clients: wss.clients.size,
-    timestamp: new Date().toISOString(),
-    initialized: !!wss,
-    path: wss.options.path
-});
-
-// Set up server-wide error handling
-wss.on('error', (error) => {
-    console.error('\n❌ WebSocket Server Error:', {
-        message: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Set up periodic heartbeat checking
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-const heartbeatCheck = setInterval(() => {
-    if (wss && wss.clients) {
-        console.log('\n💓 WebSocket Server Status:', {
-            clients: wss.clients.size,
-            activeConnections: activeConnections.size,
-            uptime: process.uptime(),
-            timestamp: new Date().toISOString(),
-            heartbeatCount: Math.floor(process.uptime() / (HEARTBEAT_INTERVAL/1000))
-        });
-    } else {
-        console.log('\n⚠️ WebSocket server not initialized in heartbeat check');
-    }
-}, HEARTBEAT_INTERVAL);
-
-// Handle new WebSocket connections
-wss.on('connection', (ws, req) => {
-    // Generate unique ID and track connection
-    const connectionId = uuidv4();
-    activeConnections.set(connectionId, ws);
-
-    // Log new connection
-    console.log('\n🔌 New WebSocket connection:', {
-        id: connectionId,
-        path: req.url,
-        clientsCount: activeConnections.size,
-        timestamp: new Date().toISOString()
-    });
-
-    // Set up connection-level error handling
-    ws.on('error', (error) => {
-        console.error('\n❌ WebSocket Connection Error:', {
-            connectionId,
-            error: error.message,
-            timestamp: new Date().toISOString()
-        });
-    });
-
-    // Set up ping/pong for connection health monitoring
-    ws.isAlive = true;
-    ws.on('pong', () => {
-        ws.isAlive = true;
-    });
-
-    // Handle incoming messages
-    ws.on('message', (data) => {
-        try {
-            const message = JSON.parse(data);
-            console.log('\n📥 WebSocket message received:', {
-                type: message.type,
-                connectionId,
-                timestamp: new Date().toISOString()
-            });
-
-            // Route messages based on type
-            switch (message.type) {
-                case 'subscribe':
-                    handleSubscription(ws, message);
-                    break;
-                case 'conversation_update':
-                    handleConversationUpdate(message.data);
-                    break;
-                default:
-                    console.log(`\n❓ Unknown message type: ${message.type}`);
-            }
-        } catch (error) {
-            console.error('\n❌ Error processing WebSocket message:', {
-                connectionId,
-                error: error.message,
-                data: String(data).slice(0, 100) // First 100 chars of invalid message
-            });
-        }
-    });
-
-    // Handle client disconnection
-    ws.on('close', () => {
-        activeConnections.delete(connectionId);
-        console.log('\n🔌 Client disconnected:', {
-            id: connectionId,
-            remainingClients: activeConnections.size,
-            timestamp: new Date().toISOString()
-        });
-    });
-
-    // Send initial connection confirmation
-    ws.send(JSON.stringify({
-        type: 'connection_established',
-        data: {
-            connectionId,
-            timestamp: new Date().toISOString(),
-            activeConnections: activeConnections.size,
-            serverInfo: {
-                path: wss.options.path,
-                clientsCount: wss.clients.size,
-                environment: process.env.NODE_ENV || 'development'
-            }
-        }
-    }));
-});
-
-// Set up periodic connection cleanup
-const connectionCleanup = setInterval(() => {
-    wss.clients.forEach((ws) => {
-        if (!ws.isAlive) {
-            console.log('\n🧹 Terminating inactive connection');
-            return ws.terminate();
-        }
-        
-        ws.isAlive = false;
-        ws.ping();
-    });
-}, 30000);
-
-// Clean up intervals when server closes
-wss.on('close', () => {
-    clearInterval(heartbeatCheck);
-    clearInterval(connectionCleanup);
 });
 
 // Enhanced error handling for server startup
