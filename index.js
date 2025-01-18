@@ -10,10 +10,9 @@ import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './k
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 // Add Pusher import
-import pkg from 'pusher';
-const { Pusher } = pkg;
+import Pusher from 'pusher';
 
-// Initialize Pusher
+// Initialize Pusher with your credentials
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
