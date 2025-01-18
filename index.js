@@ -4133,11 +4133,17 @@ function handleConversationUpdate(conversationData) {
         console.log('🚀 Broadcasting conversation via Pusher:', {
             event: 'conversation-update',
             channel: 'chat-channel',
-            data: conversationData,  // Add the actual data to the log
+            data: conversationData,
             timestamp: new Date().toISOString()
         });
         
-        return pusher.trigger('chat-channel', 'conversation-update', conversationData)
+        // Add an options object with the Pusher key
+        const options = {
+            key: process.env.PUSHER_KEY,
+            cluster: process.env.PUSHER_CLUSTER
+        };
+        
+        return pusher.trigger('chat-channel', 'conversation-update', conversationData, options)
             .then(() => {
                 console.log('✅ Pusher message sent successfully from handler');
                 return true;
