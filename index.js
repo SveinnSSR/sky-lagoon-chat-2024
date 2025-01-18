@@ -14,11 +14,11 @@ import Pusher from 'pusher';
 
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: process.env.PUSHER_KEY,
-  secret: process.env.PUSHER_SECRET,
-  cluster: process.env.PUSHER_CLUSTER,
-  useTLS: true
+    appId: process.env.PUSHER_APP_ID,
+    key: process.env.PUSHER_KEY,
+    secret: process.env.PUSHER_SECRET,
+    cluster: process.env.PUSHER_CLUSTER,
+    useTLS: true
 });
 
 // Cache and state management
@@ -4137,24 +4137,25 @@ function handleConversationUpdate(conversationData) {
             timestamp: new Date().toISOString()
         });
         
-        // Add an options object with the Pusher key
-        const options = {
-            key: process.env.PUSHER_KEY,
-            cluster: process.env.PUSHER_CLUSTER
-        };
-        
-        return pusher.trigger('chat-channel', 'conversation-update', conversationData, options)
+        // Trigger without additional options
+        return pusher.trigger('chat-channel', 'conversation-update', conversationData)
             .then(() => {
-                console.log('✅ Pusher message sent successfully from handler');
+                console.log('✅ Pusher message sent successfully');
                 return true;
             })
             .catch(error => {
-                console.error('❌ Pusher error in handler:', error);
+                console.error('❌ Pusher error:', error);
+                // Log environment variables (but mask sensitive values)
+                console.log('Environment check:', {
+                    hasAppId: !!process.env.PUSHER_APP_ID,
+                    hasKey: !!process.env.PUSHER_KEY,
+                    hasSecret: !!process.env.PUSHER_SECRET,
+                    hasCluster: !!process.env.PUSHER_CLUSTER
+                });
                 throw error;
             });
     } catch (error) {
         console.error('❌ Error in handleConversationUpdate:', error);
-        // Don't throw the error to prevent server crash
         return Promise.resolve();
     }
 }
