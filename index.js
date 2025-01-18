@@ -10,7 +10,8 @@ import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './k
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 // Add Pusher import
-import Pusher from 'pusher';
+import pkg from 'pusher';
+const { Pusher } = pkg;
 
 // Initialize Pusher
 const pusher = new Pusher({
@@ -4045,22 +4046,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
-        // Broadcast the conversation update
-        if (completion) {
+        // Broadcast the conversation update through Pusher
+        if (completion && req.body.message) {
             const conversationData = {
                 id: uuidv4(),
                 timestamp: new Date().toISOString(),
                 userMessage: req.body.message,
                 botResponse: completion.choices[0].message.content,
                 language: isIcelandic ? 'is' : 'en',
-                sessionId: sessionId,
-                topic: context.lastTopic || 'general',
+                topic: context?.lastTopic || 'general',
                 type: 'chat'
-                // Removed totalConnections since we're not using WebSocket anymore
             };
-        
-            // Use handleConversationUpdate to broadcast via Pusher
-            handleConversationUpdate(conversationData);
+
+            // Handle the Pusher broadcast
+            await handleConversationUpdate(conversationData)
+                .catch(error => console.error('Failed to broadcast:', error));
         }
 
         const response = completion.choices[0].message.content;
@@ -4126,15 +4126,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
 // Pusher broadcast function
 function handleConversationUpdate(conversationData) {
-    console.log('🚀 Broadcasting conversation via Pusher:', {
-        event: 'conversation-update',
-        channel: 'chat-channel',
-        timestamp: new Date().toISOString()
-    });
-    
-    pusher.trigger('chat-channel', 'conversation-update', conversationData)
-        .then(() => console.log('✅ Pusher message sent successfully'))
-        .catch(error => console.error('❌ Pusher error:', error));
+    try {
+        console.log('🚀 Broadcasting conversation via Pusher:', {
+            event: 'conversation-update',
+            channel: 'chat-channel',
+            timestamp: new Date().toISOString()
+        });
+        
+        return pusher.trigger('chat-channel', 'conversation-update', conversationData)
+            .then(() => console.log('✅ Pusher message sent successfully'))
+            .catch(error => {
+                console.error('❌ Pusher error:', error);
+                throw error;
+            });
+    } catch (error) {
+        console.error('❌ Error in handleConversationUpdate:', error);
+        // Don't throw the error to prevent server crash
+        return Promise.resolve();
+    }
 }
 
 // Helper function to detect topic from message and knowledge base results
