@@ -4057,9 +4057,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 type: 'chat'
             };
 
+            // Add debug log before broadcast
+            console.log('🚀 Attempting to broadcast:', conversationData);
+
             // Handle the Pusher broadcast
             await handleConversationUpdate(conversationData)
-                .catch(error => console.error('Failed to broadcast:', error));
+                .then(() => console.log('✅ Broadcast succeeded in endpoint'))
+                .catch(error => console.error('❌ Failed to broadcast in endpoint:', error));
         }
 
         const response = completion.choices[0].message.content;
@@ -4129,13 +4133,17 @@ function handleConversationUpdate(conversationData) {
         console.log('🚀 Broadcasting conversation via Pusher:', {
             event: 'conversation-update',
             channel: 'chat-channel',
+            data: conversationData,  // Add the actual data to the log
             timestamp: new Date().toISOString()
         });
         
         return pusher.trigger('chat-channel', 'conversation-update', conversationData)
-            .then(() => console.log('✅ Pusher message sent successfully'))
+            .then(() => {
+                console.log('✅ Pusher message sent successfully from handler');
+                return true;
+            })
             .catch(error => {
-                console.error('❌ Pusher error:', error);
+                console.error('❌ Pusher error in handler:', error);
                 throw error;
             });
     } catch (error) {
