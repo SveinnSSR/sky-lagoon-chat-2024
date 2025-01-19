@@ -21,16 +21,11 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Add the new broadcast function here 👇
+// Add this right after your Pusher initialization
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
     try {
-        // Get current session or create new one
-        const currentSession = conversationContext.get('currentSession');
-        const sessionId = currentSession || `session_${Date.now()}`;
-
         const conversationData = {
             id: uuidv4(),
-            sessionId,           // Add sessionId
             timestamp: new Date().toISOString(),
             userMessage,
             botResponse,
@@ -38,6 +33,13 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             topic,
             type
         };
+
+        // Add debug log before broadcast
+        console.log('\n🎙️ Broadcasting conversation:', {
+            messageType: type,
+            topic,
+            language
+        });
 
         return await handleConversationUpdate(conversationData);
     } catch (error) {
