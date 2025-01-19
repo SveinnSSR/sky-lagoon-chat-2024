@@ -21,6 +21,33 @@ const pusher = new Pusher({
     useTLS: true
 });
 
+// Add the new broadcast function here 👇
+const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
+    try {
+        const conversationData = {
+            id: uuidv4(),
+            timestamp: new Date().toISOString(),
+            userMessage,
+            botResponse,
+            language,
+            topic,
+            type
+        };
+
+        // Add debug log before broadcast
+        console.log('\n🎙️ Broadcasting conversation:', {
+            messageType: type,
+            topic,
+            language
+        });
+
+        return await handleConversationUpdate(conversationData);
+    } catch (error) {
+        console.error('❌ Error in broadcastConversation:', error);
+        return false;
+    }
+};
+
 // Cache and state management
 const responseCache = new Map();
 const conversationContext = new Map();
@@ -3642,6 +3669,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.language = isIcelandic ? 'is' : 'en';
             context.conversationStarted = true;
 
+            // Broadcast the greeting conversation
+            await broadcastConversation(
+                userMessage,
+                greeting,
+                context.language,
+                'greeting',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: greeting,
                 language: isIcelandic ? 'is' : 'en'
@@ -3658,6 +3694,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const response = casualResponse || (isIcelandic ?
                 SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
                 SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
+
+            // Broadcast the small talk conversation
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'small_talk',
+                'direct_response'
+            );    
 
             return res.status(200).json({
                 message: response,
@@ -3717,6 +3762,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         const response = isIcelandic ?
                             "Láttu mig vita ef þú hefur fleiri spurningar!" :
                             "Is there anything else you'd like to know about Sky Lagoon?";
+
+                        // Add this broadcast 👇
+                        await broadcastConversation(
+                            userMessage,
+                            response,
+                            isIcelandic ? 'is' : 'en',
+                            'acknowledgment',
+                            'direct_response'
+                        );                        
+
                         return res.status(200).json({
                             message: response,
                             language: {
@@ -3817,6 +3872,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
            } else {
                response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
            }
+                   // Add this broadcast before the return 👇
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'late_arrival',
+                'direct_response'
+            );
            return res.status(200).json({
                message: response,
                lateArrivalHandled: true,
@@ -4047,23 +4110,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Broadcast the conversation update through Pusher
         if (completion && req.body.message) {
-            const conversationData = {
-                id: uuidv4(),
-                timestamp: new Date().toISOString(),
-                userMessage: req.body.message,
-                botResponse: completion.choices[0].message.content,
-                language: isIcelandic ? 'is' : 'en',
-                topic: context?.lastTopic || 'general',
-                type: 'chat'
-            };
-
-            // Add debug log before broadcast
-            console.log('🚀 Attempting to broadcast:', conversationData);
-
-            // Handle the Pusher broadcast
-            await handleConversationUpdate(conversationData)
-                .then(() => console.log('✅ Broadcast succeeded in endpoint'))
-                .catch(error => console.error('❌ Failed to broadcast in endpoint:', error));
+            await broadcastConversation(
+                req.body.message,
+                completion.choices[0].message.content,
+                isIcelandic ? 'is' : 'en',
+                context?.lastTopic || 'general',
+                'gpt_response'
+            );
         }
 
         const response = completion.choices[0].message.content;
