@@ -3787,7 +3787,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const response = isIcelandic ?
                 context.lastTopic ?
                     `Gott að geta hjálpað! Ef þú hefur fleiri spurningar um ${context.lastTopic}, eða eitthvað annað, ekki hika við að spyrja.` :
-                    `Gott að geta hjálpað! Hverju langar þig að vita meira um?` :
+                    `Gott að geta hjálpað! Láttu mig vita ef þú hefur fleiri spurningar!` :
                 context.lastTopic ?
                     `I'm glad I could help! If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
                     `I'm glad I could help! What else would you like to know about Sky Lagoon?`;
