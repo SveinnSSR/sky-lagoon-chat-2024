@@ -501,7 +501,7 @@ const CONFIRMATION_RESPONSES = [
 
 // Simple greeting detection constants
 const simpleEnglishGreetings = ['hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening'];
-const simpleIcelandicGreetings = ['hæ', 'halló', 'sæl', 'góðan', 'góða', 'gott', 'morgunn', 'daginn', 'kvöld'];
+const simpleIcelandicGreetings = ['hæ', 'halló', 'sæl', 'blessuð','góðan', 'góða', 'gott', 'morgunn', 'daginn', 'kvöld'];
 
 // Helper function for greeting detection
 const isSimpleGreeting = message => {
@@ -614,28 +614,37 @@ const getContextualResponse = (type, previousResponses = []) => {
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message) => {
-    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'flott', 'næs'];
+    // Define strict responses we're 100% sure about
+    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'flott', 'næs'];
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
-    const greetings = ['hi', 'hello', 'hey', 'howdy'];
+    
+    // Enhanced greetings mapping
+    const greetings = {
+        en: ['hi', 'hello', 'hey', 'howdy', 'hi there'],  // Added 'hi there'
+        is: ['hæ', 'halló', 'sæl', 'blessuð', 'góðan', 'góða']  // Added 'blessuð'
+    };
     
     const msg = message.toLowerCase().trim();
     
-    // Check for greetings first
-    if (greetings.some(g => msg.includes(g))) {
+    // Check for greetings first (prevent early)
+    if (greetings.en.some(g => msg.includes(g))) {
         return 'en_greeting';
     }
+    if (greetings.is.some(g => msg.includes(g))) {
+        return 'is_greeting';
+    }
     
-    // Skip special phrases that should go to main handler
+    // Skip phrases that should be handled by acknowledgment system
     if (msg === 'gott að vita') return null;
     
-    // Handle 'ok' prefixed messages by checking what follows
+    // Handle 'ok' prefixes by checking what follows
     if (msg.startsWith('ok ')) {
         const afterOk = msg.slice(3);
         if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
-    // Basic responses
+    // Handle basic responses without 'ok'
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
     if (strictEnglishResponses.some(word => msg === word)) return 'en';
     
