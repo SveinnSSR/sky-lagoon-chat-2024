@@ -24,6 +24,14 @@ const pusher = new Pusher({
 // Add this right after your Pusher initialization
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
     try {
+        // Log incoming message for debugging
+        console.log('\n📨 Processing message:', {
+            userMessage,
+            language,
+            type,
+            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
+        });
+
         const conversationData = {
             id: uuidv4(),
             timestamp: new Date().toISOString(),
@@ -33,13 +41,6 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             topic,
             type
         };
-
-        // Add debug log before broadcast
-        console.log('\n🎙️ Broadcasting conversation:', {
-            messageType: type,
-            topic,
-            language
-        });
 
         return await handleConversationUpdate(conversationData);
     } catch (error) {
