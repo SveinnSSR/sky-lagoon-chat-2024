@@ -471,22 +471,22 @@ const SMALL_TALK_RESPONSES = {
         casual: [
             "Allt gott, takk fyrir að spyrja! Hvernig get ég aðstoðað þig?",
             "Mér líður vel, takk fyrir! Get ég sagt þér frá Sky Lagoon?",
-            "Allt frábært! Hverju langar þig að vita um Sky Lagoon?",
+            "Allt frábært! Hvernig get ég hjálpað þér?",
             "Bara gott! Get ég hjálpað þér að skipuleggja heimsókn í Sky Lagoon?"
         ],
         // For when they say "gott" or similar
         positive: [
             "Frábært að heyra! Langar þig að fræðast um upplifunina hjá okkur?",
-            "Geggjað! Get ég sagt þér frá því sem Sky Lagoon hefur upp á að bjóða?",
-            "Flott! Hverju langar þig að vita meira um?",
+            "Minnsta málið! Ef þú hefur fleiri spurningar eða þarft aðstoð, láttu mig vita.",
+            "Flott! Get ég aðstoðað þig meira?",
             "Æði! Hvernig get ég aðstoðað þig?"
         ],
         // For "gaman að hitta þig" responses
         greeting: [
             "Gaman að hitta þig líka! Langar þig að heyra meira um upplifunina í lóninu okkar?",
-            "Sömuleiðis! Langar þig að fræðast um það sem Sky Lagoon hefur upp á að bjóða?",
+            "Sömuleiðis! Hvernig get ég aðstoðað þig?",
             "Gaman að kynnast þér líka! Hvernig get ég aðstoðað þig?",
-            "Sömuleiðis! Get ég sagt þér frá því sem gerir Sky Lagoon sérstakt?"
+            "Sömuleiðis! Hvernig get ég aðstoðað þig?"
         ]
     }
 };
