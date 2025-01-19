@@ -24,8 +24,13 @@ const pusher = new Pusher({
 // Add the new broadcast function here 👇
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
     try {
+        // Get current session or create new one
+        const currentSession = conversationContext.get('currentSession');
+        const sessionId = currentSession || `session_${Date.now()}`;
+
         const conversationData = {
             id: uuidv4(),
+            sessionId,           // Add sessionId
             timestamp: new Date().toISOString(),
             userMessage,
             botResponse,
@@ -33,13 +38,6 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             topic,
             type
         };
-
-        // Add debug log before broadcast
-        console.log('\n🎙️ Broadcasting conversation:', {
-            messageType: type,
-            topic,
-            language
-        });
 
         return await handleConversationUpdate(conversationData);
     } catch (error) {
@@ -3665,11 +3663,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 "Hæ! Hvernig get ég aðstoðað þig í dag?" :
                 GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
 
-            // Update context with proper language
+            // Get or create session ID
+            const currentSession = conversationContext.get('currentSession');
+            const sessionId = currentSession || `session_${Date.now()}`;
+            
+            // Update context
             context.language = isIcelandic ? 'is' : 'en';
             context.conversationStarted = true;
 
-            // Broadcast the greeting conversation
+            // Store session if new
+            if (!currentSession) {
+                conversationContext.set('currentSession', sessionId);
+            }
+
             await broadcastConversation(
                 userMessage,
                 greeting,
