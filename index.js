@@ -614,30 +614,16 @@ const getContextualResponse = (type, previousResponses = []) => {
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message) => {
-    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'flott', 'næs'];
-    const strictEnglishResponses = ['perfect', 'great', 'alright'];
-    const greetings = {
-        en: ['hi', 'hello', 'hey', 'howdy'],
-        is: ['hæ', 'halló', 'sæl']
-    };
+    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'flott', 'næs'];
+    const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
     const msg = message.toLowerCase().trim();
-
-    // Handle greetings first
-    if (greetings.en.some(g => msg.includes(g))) return 'en_greeting';
-    if (greetings.is.some(g => msg.includes(g))) return 'is_greeting';
     
-    // Special handling for 'ok' - respect current language context
-    if (msg === 'ok') {
-        const currentSession = conversationContext.get('currentSession');
-        if (currentSession) {
-            const context = conversationContext.get(currentSession);
-            return context?.language || 'en';  // Default to English if no context
-        }
-        return 'en';  // Default to English for new sessions
-    }
-
-    return null;  // Let acknowledgment system handle the rest
+    // Only handle responses we're 100% sure about
+    if (strictIcelandicResponses.some(word => msg === word)) return 'is';
+    if (strictEnglishResponses.some(word => msg === word)) return 'en';
+    
+    return null;
 };
 
 // Late Arrival and Booking Constants
