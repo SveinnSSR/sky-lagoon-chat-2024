@@ -3323,6 +3323,44 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 rawDetection: languageCheck.rawDetection
             }
         });
+                // ADD NEW CODE HERE 👇
+        // Language consistency enforcement
+        const enforceLanguageConsistency = (message, context) => {
+            // If we have no context yet, don't enforce
+            if (!context || !context.language) return null;
+            
+            // Simple check - just prevent language switching on simple responses
+            const simpleMessages = {
+                en: ['ok', 'perfect', 'great', 'good', 'thanks', 'thank you', 'alright'],
+                is: ['allt í lagi', 'frábært', 'takk', 'gott', 'flott', 'næs']
+            };
+            
+            const msg = message.toLowerCase().trim();
+            
+            // If it's a simple message, enforce existing language
+            if (simpleMessages.en.some(word => msg === word) || 
+                simpleMessages.is.some(word => msg === word)) {
+                console.log('\n🔒 Enforcing language consistency:', {
+                    message: msg,
+                    enforcedLanguage: context.language
+                });
+                return context.language;
+            }
+            
+            // For non-simple messages, allow language detection to work normally
+            return null;
+        };
+
+        // Get current context before initializing new one
+        const currentContext = conversationContext.get(sessionId);
+        let enforcedLanguage = null;
+        if (currentContext) {
+            enforcedLanguage = enforceLanguageConsistency(userMessage, currentContext);
+            if (enforcedLanguage) {
+                isIcelandic = enforcedLanguage === 'is';
+            }
+        }
+        // END NEW CODE
 
         // Initialize context before any usage
         context = conversationContext.get(sessionId) || {
@@ -3420,39 +3458,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 originalTime: null
             }
         };
-
-        // Language consistency enforcement - ADD THIS ENTIRE BLOCK HERE 👇
-        const enforceLanguageConsistency = (message, context) => {
-            // If we have no context yet, don't enforce
-            if (!context || !context.language) return null;
-            
-            // Simple check - just prevent language switching on simple responses
-            const simpleMessages = {
-                en: ['ok', 'perfect', 'great', 'good', 'thanks', 'thank you', 'alright'],
-                is: ['allt í lagi', 'frábært', 'takk', 'gott', 'flott', 'næs']
-            };
-            
-            const msg = message.toLowerCase().trim();
-            
-            // If it's a simple message, enforce existing language
-            if (simpleMessages.en.some(word => msg === word) || 
-                simpleMessages.is.some(word => msg === word)) {
-                console.log('\n🔒 Enforcing language consistency:', {
-                    message: msg,
-                    enforcedLanguage: context.language
-                });
-                return context.language;
-            }
-            
-            // For non-simple messages, allow language detection to work normally
-            return null;
-        };
-
-        let enforcedLanguage = enforceLanguageConsistency(userMessage, context);
-        if (enforcedLanguage) {
-            isIcelandic = enforcedLanguage === 'is';
-            context.language = enforcedLanguage;
-        }
 
         // MOVE TOPIC CONTEXT CODE HERE - after context initialization
         if (userMessage.toLowerCase().includes('ritual') || 
