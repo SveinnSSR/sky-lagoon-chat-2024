@@ -483,7 +483,7 @@ const SMALL_TALK_RESPONSES = {
         ],
         // For "gaman að hitta þig" responses
         greeting: [
-            "Gaman að hitta þig líka! Get ég sagt þér frá einstakri upplifun í lóninu okkar?",
+            "Gaman að hitta þig líka! Langar þig að heyra meira um upplifunina í lóninu okkar?",
             "Sömuleiðis! Langar þig að fræðast um það sem Sky Lagoon hefur upp á að bjóða?",
             "Gaman að kynnast þér líka! Hvernig get ég aðstoðað þig?",
             "Sömuleiðis! Get ég sagt þér frá því sem gerir Sky Lagoon sérstakt?"
@@ -498,6 +498,17 @@ const CONFIRMATION_RESPONSES = [
     "Wonderful! ",
     "I understand! "
 ];
+
+// Simple greeting detection constants
+const simpleEnglishGreetings = ['hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening'];
+const simpleIcelandicGreetings = ['hæ', 'halló', 'sæl', 'góðan', 'góða', 'gott', 'morgunn', 'daginn', 'kvöld'];
+
+// Helper function for greeting detection
+const isSimpleGreeting = message => {
+    const msg = message.toLowerCase().trim();
+    return simpleEnglishGreetings.some(g => msg.startsWith(g)) || 
+           simpleIcelandicGreetings.some(g => msg.startsWith(g));
+};
 
 // Add these new patterns to your smallTalkPatterns array
 const smallTalkPatterns = [
@@ -3652,26 +3663,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Greeting handling
-        const greetings = [
-            // English greetings (expanded)
-            'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
-            'morning', 'afternoon', 'evening', 'greetings',
-            // Icelandic greetings
-            'hæ', 'hæhæ','hææ', 'halló', 'hallo', 'sæl', 'sæl og blessuð', 'sælar', 
-            'góðan dag', 'góðan daginn', 'gott kvöld', 'góða kvöldið'
-        ];
-
-        if (greetings.includes(userMessage.toLowerCase().trim())) {
-            const greeting = isIcelandic ? 
-                "Hæ! Hvernig get ég aðstoðað þig í dag?" :
-                GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
+        if (isSimpleGreeting(userMessage)) {
+            // Force language based on exact greeting used
+            const msg = userMessage.toLowerCase().trim();
+            const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
+            const greeting = isEnglishGreeting ? 
+                GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)] :
+                "Hæ! Hvernig get ég aðstoðað þig í dag?";
 
             // Get or create session ID
             const currentSession = conversationContext.get('currentSession');
             const sessionId = currentSession || `session_${Date.now()}`;
             
-            // Update context
-            context.language = isIcelandic ? 'is' : 'en';
+            // Update context with forced language based on greeting
+            context.language = isEnglishGreeting ? 'en' : 'is';
             context.conversationStarted = true;
 
             // Store session if new
@@ -3689,7 +3694,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
             return res.status(200).json({
                 message: greeting,
-                language: isIcelandic ? 'is' : 'en'
+                language: isEnglishGreeting ? 'en' : 'is'
             });
         }
 
