@@ -555,7 +555,7 @@ const acknowledgmentPatterns = {
         ],
         is: [
             'frábært', 'hjálplegt', 'gott', 'þægilegt', 'æðislegt',
-            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk'
+            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk', 'gott að vita'
         ]
     },
     continuity: {
@@ -616,10 +616,26 @@ const getContextualResponse = (type, previousResponses = []) => {
 const checkSimpleResponse = (message) => {
     const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'flott', 'næs'];
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
+    const greetings = ['hi', 'hello', 'hey', 'howdy'];
     
     const msg = message.toLowerCase().trim();
     
-    // Only handle responses we're 100% sure about
+    // Check for greetings first
+    if (greetings.some(g => msg.includes(g))) {
+        return 'en_greeting';
+    }
+    
+    // Skip special phrases that should go to main handler
+    if (msg === 'gott að vita') return null;
+    
+    // Handle 'ok' prefixed messages by checking what follows
+    if (msg.startsWith('ok ')) {
+        const afterOk = msg.slice(3);
+        if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
+        if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
+    }
+    
+    // Basic responses
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
     if (strictEnglishResponses.some(word => msg === word)) return 'en';
     
