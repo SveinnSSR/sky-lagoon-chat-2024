@@ -500,7 +500,7 @@ const CONFIRMATION_RESPONSES = [
 ];
 
 // Simple greeting detection constants
-const simpleEnglishGreetings = ['hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening'];
+const simpleEnglishGreetings = ['hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening', 'howdy', 'hi there'];
 const simpleIcelandicGreetings = ['hæ', 'halló', 'sæl', 'blessuð','góðan', 'góða', 'gott', 'morgunn', 'daginn', 'kvöld'];
 
 // Helper function for greeting detection
@@ -3282,6 +3282,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const userMessage = req.body.message;
 
+        // Early greeting check - ADD THIS BLOCK HERE 👇
+        if (isSimpleGreeting(userMessage)) {
+            // Get or create session ID first
+            let currentSession = conversationContext.get('currentSession');
+            const sessionId = currentSession || `session_${Date.now()}`;
+            
+            // Force language based on exact greeting
+            const msg = userMessage.toLowerCase().trim();
+            const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
+            const greeting = isEnglishGreeting ? 
+                GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)] :
+                "Hæ! Hvernig get ég aðstoðað þig í dag?";
+
+            // Initialize minimal context for greeting
+            context = conversationContext.get(sessionId) || {
+                language: isEnglishGreeting ? 'en' : 'is',
+                conversationStarted: true
+            };
+
+            // Store session if new
+            if (!currentSession) {
+                conversationContext.set('currentSession', sessionId);
+            }
+
+            // Broadcast the greeting
+            await broadcastConversation(
+                userMessage,
+                greeting,
+                context.language,
+                'greeting',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: greeting,
+                language: isEnglishGreeting ? 'en' : 'is'
+            });
+        }
+
         // ADD THIS EARLY CHECK HERE 👇
         // Early check for simple responses
         const simpleResponseLanguage = checkSimpleResponse(userMessage);
@@ -3698,42 +3737,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
             console.log('\n📦 Using cached response');
             return res.json(cached.response);
-        }
-
-        // Greeting handling
-        if (isSimpleGreeting(userMessage)) {
-            // Force language based on exact greeting used
-            const msg = userMessage.toLowerCase().trim();
-            const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
-            const greeting = isEnglishGreeting ? 
-                GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)] :
-                "Hæ! Hvernig get ég aðstoðað þig í dag?";
-
-            // Get or create session ID
-            const currentSession = conversationContext.get('currentSession');
-            const sessionId = currentSession || `session_${Date.now()}`;
-            
-            // Update context with forced language based on greeting
-            context.language = isEnglishGreeting ? 'en' : 'is';
-            context.conversationStarted = true;
-
-            // Store session if new
-            if (!currentSession) {
-                conversationContext.set('currentSession', sessionId);
-            }
-
-            await broadcastConversation(
-                userMessage,
-                greeting,
-                context.language,
-                'greeting',
-                'direct_response'
-            );
-
-            return res.status(200).json({
-                message: greeting,
-                language: isEnglishGreeting ? 'en' : 'is'
-            });
         }
 
         // Enhanced small talk handling
