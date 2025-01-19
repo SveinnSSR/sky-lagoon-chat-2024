@@ -618,16 +618,31 @@ const checkSimpleResponse = (message) => {
         en: ['ok', 'perfect', 'great', 'good', 'thanks', 'thank you', 'alright'],
         is: ['allt í lagi', 'frábært', 'takk', 'gott', 'flott', 'næs']
     };
+
+    const greetings = {
+        en: ['hi', 'hello', 'hey', 'howdy', 'good morning', 'good afternoon', 'good evening'],
+        is: ['hæ', 'halló', 'sæl', 'góðan', 'góða', 'gott kvöld']
+    };
     
     const msg = message.toLowerCase().trim();
     
+    // Check if it's a greeting first
+    if (greetings.en.some(g => msg.includes(g))) return 'en_greeting';
+    if (greetings.is.some(g => msg.includes(g))) return 'is_greeting';
+
+    // Remove 'ok' prefix for Icelandic check
+    const withoutOk = msg.startsWith('ok ') ? msg.slice(3) : msg;
+    
+    // Don't treat "gott að vita" as simple response
+    if (msg === 'gott að vita') return null;
+
     // Check English simple messages
     if (simpleMessages.en.some(word => msg === word)) {
         return 'en';
     }
     
-    // Check Icelandic simple messages
-    if (simpleMessages.is.some(word => msg === word)) {
+    // Check Icelandic simple messages with and without 'ok'
+    if (simpleMessages.is.some(word => msg === word || withoutOk === word)) {
         return 'is';
     }
     
@@ -3284,13 +3299,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early check for simple responses
         const simpleResponseLanguage = checkSimpleResponse(userMessage);
         if (simpleResponseLanguage) {
-            const response = simpleResponseLanguage === 'is' ? 
-                "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                "Is there anything else you'd like to know about Sky Lagoon?";
+            let response;
+            if (simpleResponseLanguage === 'en_greeting') {
+                response = GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
+            } else if (simpleResponseLanguage === 'is_greeting') {
+                response = "Hæ! Hvernig get ég aðstoðað þig í dag?";
+            } else {
+                response = simpleResponseLanguage === 'is' ? 
+                    "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                    "Is there anything else you'd like to know about Sky Lagoon?";
+            }
                 
             return res.status(200).json({
                 message: response,
-                language: simpleResponseLanguage
+                language: simpleResponseLanguage.replace('_greeting', '')
             });
         }
 
