@@ -612,6 +612,28 @@ const getContextualResponse = (type, previousResponses = []) => {
     return availableResponses[Math.floor(Math.random() * availableResponses.length)];
 };
 
+// Add this with your other constants/helper functions, before the chat endpoint
+const checkSimpleResponse = (message) => {
+    const simpleMessages = {
+        en: ['ok', 'perfect', 'great', 'good', 'thanks', 'thank you', 'alright'],
+        is: ['allt í lagi', 'frábært', 'takk', 'gott', 'flott', 'næs']
+    };
+    
+    const msg = message.toLowerCase().trim();
+    
+    // Check English simple messages
+    if (simpleMessages.en.some(word => msg === word)) {
+        return 'en';
+    }
+    
+    // Check Icelandic simple messages
+    if (simpleMessages.is.some(word => msg === word)) {
+        return 'is';
+    }
+    
+    return null;
+};
+
 // Late Arrival and Booking Constants
 const LATE_ARRIVAL_THRESHOLDS = {
     GRACE_PERIOD: 30,
@@ -3257,6 +3279,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         console.log('\n📥 Incoming Message:', req.body.message);
 
         const userMessage = req.body.message;
+
+        // ADD THIS EARLY CHECK HERE 👇
+        // Early check for simple responses
+        const simpleResponseLanguage = checkSimpleResponse(userMessage);
+        if (simpleResponseLanguage) {
+            const response = simpleResponseLanguage === 'is' ? 
+                "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                "Is there anything else you'd like to know about Sky Lagoon?";
+                
+            return res.status(200).json({
+                message: response,
+                language: simpleResponseLanguage
+            });
+        }
 
         // Get the conversation ID from the stored session or create a new one
         let currentSession = conversationContext.get('currentSession');
