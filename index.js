@@ -640,20 +640,23 @@ const getContextualResponse = (type, previousResponses = []) => {
 const checkSimpleResponse = (message) => {
     const strictIcelandicResponses = [
         // Basic responses
-        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 
+        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg',  // Added æðisleg
         // Thank you variations
         'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
         'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
         'okei takk', 'oki takk', 'ókei takk',
         // Positive feedback
-        'mjög gott', 'algjör snilld', 'gott að heyra',  // Removed 'gott að vita'
+        'mjög gott', 'algjör snilld', 'gott að heyra',
         'það er frábært', 'glæsilegt', 'snilld', 'snillingur',
         // Additional variations
         'flott er', 'flott takk'
     ];
-    const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
+    const strictEnglishResponses = [
+        'perfect', 'great', 'thanks', 'thank you', 'alright',
+        "that's it", "that's all", "that's all thanks", "that's it thanks"  // Added these
+    ];
     
-    const msg = message.toLowerCase().trim();
+    const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
     // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
@@ -680,7 +683,7 @@ const checkSimpleResponse = (message) => {
     }
     
     // Handle standalone oki/okei variations
-    if (msg === 'oki' || msg === 'okei' || msg === 'óki') return 'is';
+    if (msg === 'oki' || msg === 'okei' || msg === 'óki' || msg === 'ókei') return 'is';
     
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
