@@ -638,7 +638,19 @@ const getContextualResponse = (type, previousResponses = []) => {
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message) => {
-    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'takk fyrir', 'takk kærlega', 'kærar þakkir', 'flott', 'næs'];
+    const strictIcelandicResponses = [
+        // Basic responses
+        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt',
+        // Thank you variations
+        'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
+        'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
+        'okei takk', 'oki takk',  // Added these
+        // Positive feedback
+        'mjög gott', 'algjör snilld', 'gott að vita', 'gott að heyra',
+        'það er frábært', 'glæsilegt', 'snilld', 'snillingur',
+        // Additional variations
+        'flott er', 'flott takk'
+    ];
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
     const msg = message.toLowerCase().trim();
@@ -646,15 +658,23 @@ const checkSimpleResponse = (message) => {
     // Skip special phrases that should go to main handler
     if (msg === 'gott að vita') return null;
     
-    // Handle 'ok' prefixed messages by checking what follows
-    if (msg.startsWith('ok ')) {
-        const afterOk = msg.slice(3);
+    // Enhanced ok/oki/okei handling
+    if (msg.startsWith('ok ') || msg.startsWith('ók ') || 
+        msg.startsWith('oki ') || msg.startsWith('okei ')) {  // Added these checks
+        const afterOk = msg.slice(msg.indexOf(' ') + 1);  // Get everything after the space
         if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
+    // Also handle standalone oki/okei
+    if (msg === 'oki' || msg === 'okei') return 'is';  // Added this line
+    
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
+    
+    // Check if message contains certain Icelandic positive phrases
+    const icelandicPhrases = ['snilld', 'frábært', 'gott', 'æðislegt', 'glæsilegt'];
+    if (icelandicPhrases.some(phrase => msg.includes(phrase))) return 'is';
     
     // Basic exact matches
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
