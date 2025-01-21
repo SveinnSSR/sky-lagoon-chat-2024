@@ -654,6 +654,18 @@ const checkSimpleResponse = (message) => {
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
     const msg = message.toLowerCase().trim();
+
+    // NEW: Check for Icelandic characters FIRST
+    if (/[þæðöáíúéó]/i.test(msg)) {
+        // If it has Icelandic characters, we know it's Icelandic
+        // Either return 'is' for known phrases or null for unknown ones
+        // but DON'T let it reach English responses
+        if (strictIcelandicResponses.some(word => msg.includes(word)) ||
+            icelandicPhrases.some(phrase => msg.includes(phrase))) {
+            return 'is';
+        }
+        return null;  // Let main system handle unknown Icelandic phrases
+    }
     
     // Skip special phrases that should go to main handler
     if (msg === 'gott að vita') return null;
