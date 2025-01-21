@@ -656,22 +656,20 @@ const checkSimpleResponse = (message) => {
     
     const msg = message.toLowerCase().trim();
     
-    // Handle 'gott að vita' specifically - moved to top and changed logic
+    // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
-        return 'is';  // Return Icelandic instead of null
+        return 'is';
     }
     
-    // Enhanced ok/oki/okei handling
-    if (msg.startsWith('ok ') || msg.startsWith('ók ') || 
-        msg.startsWith('oki ') || msg.startsWith('okei ') || 
-        msg.startsWith('ókei ')) {
-        const afterOk = msg.slice(msg.indexOf(' ') + 1);
+    // Enhanced ok/oki/okei handling - KEEPING THE ORIGINAL WORKING VERSION
+    if (msg.startsWith('ok ')) {
+        const afterOk = msg.slice(3);
         if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
-    // Handle standalone variants
-    if (msg === 'oki' || msg === 'okei' || msg === 'ókei') return 'is';
+    // Handle standalone oki/okei
+    if (msg === 'oki' || msg === 'okei') return 'is';
     
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
