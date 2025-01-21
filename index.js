@@ -638,7 +638,7 @@ const getContextualResponse = (type, previousResponses = []) => {
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message) => {
-    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'flott', 'næs'];
+    const strictIcelandicResponses = ['allt í lagi', 'frábært', 'takk', 'takk fyrir', 'takk kærlega', 'kærar þakkir', 'flott', 'næs'];
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
     const msg = message.toLowerCase().trim();
@@ -653,7 +653,10 @@ const checkSimpleResponse = (message) => {
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
-    // Basic responses
+    // Check if message starts with any Icelandic responses
+    if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
+    
+    // Basic exact matches
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
     if (strictEnglishResponses.some(word => msg === word)) return 'en';
     
