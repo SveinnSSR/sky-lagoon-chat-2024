@@ -638,10 +638,12 @@ const getContextualResponse = (type, previousResponses = []) => {
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message) => {
+    // Icelandic greetings with variations - MOVED TO TOP
+    const greetingVariations = ['hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'blessuð'];
+
     const strictIcelandicResponses = [
         // Basic responses
         'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 
-        'hæ', 'hæhæ', 'hææ',
         // Thank you variations
         'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
         'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
@@ -655,6 +657,11 @@ const checkSimpleResponse = (message) => {
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
     const msg = message.toLowerCase().trim();
+    
+    // Check for greetings first
+    if (greetingVariations.some(g => msg === g || msg.startsWith(g))) {
+        return 'is_greeting';
+    }
     
     // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
