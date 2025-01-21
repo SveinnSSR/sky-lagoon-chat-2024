@@ -661,6 +661,18 @@ const checkSimpleResponse = (message) => {
         return 'is';
     }
     
+    // Handle standalone 'ok' based on context
+    if (msg === 'ok') {
+        const currentSession = conversationContext.get('currentSession');
+        if (currentSession) {
+            const context = conversationContext.get(currentSession);
+            if (context?.language === 'is') {
+                return 'is';
+            }
+        }
+        return 'en';
+    }
+    
     // Enhanced ok/oki/okei handling - KEEPING THE ORIGINAL WORKING VERSION
     if (msg.startsWith('ok ')) {
         const afterOk = msg.slice(3);
