@@ -641,13 +641,13 @@ const checkSimpleResponse = (message) => {
     const strictIcelandicResponses = [
         // Basic responses
         'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 
-        'hæ', 'hæhæ', 'hææ',  // Added greeting variations
+        'hæ', 'hæhæ', 'hææ',
         // Thank you variations
         'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
         'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
-        'okei takk', 'oki takk', 'ókei takk',  // Added ókei variation
+        'okei takk', 'oki takk', 'ókei takk',
         // Positive feedback
-        'mjög gott', 'algjör snilld', 'gott að vita', 'gott að heyra',
+        'mjög gott', 'algjör snilld', 'gott að heyra',  // Removed 'gott að vita'
         'það er frábært', 'glæsilegt', 'snilld', 'snillingur',
         // Additional variations
         'flott er', 'flott takk'
@@ -656,8 +656,10 @@ const checkSimpleResponse = (message) => {
     
     const msg = message.toLowerCase().trim();
     
-    // Skip special phrases that should go to main handler
-    if (msg === 'gott að vita') return null;
+    // Handle 'gott að vita' specifically - moved to top and changed logic
+    if (msg === 'gott að vita') {
+        return 'is';  // Return Icelandic instead of null
+    }
     
     // Enhanced ok/oki/okei handling
     if (msg.startsWith('ok ') || msg.startsWith('ók ') || 
