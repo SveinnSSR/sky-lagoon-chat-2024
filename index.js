@@ -644,7 +644,7 @@ const checkSimpleResponse = (message) => {
         // Thank you variations
         'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
         'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
-        'okei takk', 'oki takk',  // Added these
+        'okei takk', 'oki takk', 'hæhæ',  // Added hæhæ here
         // Positive feedback
         'mjög gott', 'algjör snilld', 'gott að vita', 'gott að heyra',
         'það er frábært', 'glæsilegt', 'snilld', 'snillingur',
@@ -653,13 +653,17 @@ const checkSimpleResponse = (message) => {
     ];
     const strictEnglishResponses = ['perfect', 'great', 'thanks', 'thank you', 'alright'];
     
+    // Define icelandicPhrases BEFORE using it
+    const icelandicPhrases = ['snilld', 'frábært', 'gott', 'æðislegt', 'glæsilegt'];
+    
     const msg = message.toLowerCase().trim();
-
-    // NEW: Check for Icelandic characters FIRST
+    
+    // Skip special phrases that should go to main handler
+    if (msg === 'gott að vita') return null;
+    
+    // Check for Icelandic characters FIRST
     if (/[þæðöáíúéó]/i.test(msg)) {
-        // If it has Icelandic characters, we know it's Icelandic
-        // Either return 'is' for known phrases or null for unknown ones
-        // but DON'T let it reach English responses
+        // If it has Icelandic characters and contains any known phrases, handle in Icelandic
         if (strictIcelandicResponses.some(word => msg.includes(word)) ||
             icelandicPhrases.some(phrase => msg.includes(phrase))) {
             return 'is';
@@ -667,26 +671,19 @@ const checkSimpleResponse = (message) => {
         return null;  // Let main system handle unknown Icelandic phrases
     }
     
-    // Skip special phrases that should go to main handler
-    if (msg === 'gott að vita') return null;
-    
-    // Enhanced ok/oki/okei handling
+    // Handle 'ok/oki/okei' prefixed messages
     if (msg.startsWith('ok ') || msg.startsWith('ók ') || 
-        msg.startsWith('oki ') || msg.startsWith('okei ')) {  // Added these checks
-        const afterOk = msg.slice(msg.indexOf(' ') + 1);  // Get everything after the space
+        msg.startsWith('oki ') || msg.startsWith('okei ')) {
+        const afterOk = msg.slice(msg.indexOf(' ') + 1);
         if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
-    // Also handle standalone oki/okei
-    if (msg === 'oki' || msg === 'okei') return 'is';  // Added this line
+    // Handle standalone oki/okei
+    if (msg === 'oki' || msg === 'okei') return 'is';
     
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
-    
-    // Check if message contains certain Icelandic positive phrases
-    const icelandicPhrases = ['snilld', 'frábært', 'gott', 'æðislegt', 'glæsilegt'];
-    if (icelandicPhrases.some(phrase => msg.includes(phrase))) return 'is';
     
     // Basic exact matches
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
