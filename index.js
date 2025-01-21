@@ -679,8 +679,8 @@ const checkSimpleResponse = (message) => {
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
     
-    // Handle standalone oki/okei
-    if (msg === 'oki' || msg === 'okei') return 'is';
+    // Handle standalone oki/okei variations
+    if (msg === 'oki' || msg === 'okei' || msg === 'óki') return 'is';
     
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
