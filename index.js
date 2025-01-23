@@ -1097,7 +1097,7 @@ const getAppropriateSuffix = (message) => {
     return "";
 };
 
-// Helper function for late arrival detection
+// Helper function for late arrival detection.
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
     
