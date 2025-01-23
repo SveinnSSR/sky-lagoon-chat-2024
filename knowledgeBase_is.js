@@ -1,6 +1,6 @@
 // knowledgeBase_is.js
 
-// Initial language detection functions (keeping these as they are crucial)
+// Initial language detection functions (keeping these as they are crucial).
 export const detectLanguage = (message) => {
     // Special characters
     const icelandicIndicators = ['ð', 'þ', 'æ', 'ö', 'á', 'í', 'ú', 'é', 'ó'];
