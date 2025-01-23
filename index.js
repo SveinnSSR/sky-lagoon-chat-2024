@@ -3433,8 +3433,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         });                      
 
         // Enhanced language detection
-        const languageCheck = {
-            // CRITICAL FIX: Check for English sentence structure FIRST, with expanded patterns
+        const languageCheck = {            
+            // CRITICAL FIX: Check for clear Icelandic sentence structure FIRST
+            hasIcelandicStructure: (
+                /^(góðan dag|sæl|halló|hæ|verið velkomin)/i.test(userMessage.toLowerCase()) ||
+                // Question structures
+                /^(er |get |má |hvernig |hver |hvenær |af hverju |hvers vegna )/i.test(userMessage.toLowerCase()) ||
+                // Common Icelandic sentence patterns
+                /(ég er|ég vil|ég ætla|við erum|þú ert)\b/i.test(userMessage.toLowerCase()) ||
+                // Multiple Icelandic words indicate definite Icelandic
+                (/\bað\b/.test(userMessage.toLowerCase()) && /\bog\b/.test(userMessage.toLowerCase())) ||
+                (/\bmeð\b/.test(userMessage.toLowerCase()) && /\bað\b/.test(userMessage.toLowerCase()))
+            ),
+            
+            // CRITICAL FIX: Check for English sentence structure AFTER Icelandic check
             hasEnglishStructure: (
                 // Standard English starts
                 /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
@@ -3469,13 +3481,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             languageContext: getLanguageContext(userMessage)
         };
 
-        // CRITICAL FIX: Force English for English structure
-        const isIcelandic = languageCheck.hasEnglishStructure ? false : 
+        // CRITICAL FIX: Check Icelandic structure FIRST, then English
+        const isIcelandic = languageCheck.hasIcelandicStructure ? true :
+                           languageCheck.hasEnglishStructure ? false :
                            (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
 
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
-            isIcelandic,  // Now we can use it here
+            isIcelandic,
             detectionMethod: {
                 hasIcelandicChars: languageCheck.hasIcelandicChars,
                 rawDetection: languageCheck.rawDetection
