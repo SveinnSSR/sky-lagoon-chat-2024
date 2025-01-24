@@ -492,6 +492,31 @@ const SMALL_TALK_RESPONSES = {
     }
 };
 
+// Follow-up greeting detection and responses
+const isFollowUpGreeting = message => {
+    const msg = message.toLowerCase().trim();
+    return (
+        // Check if it's a greeting with Rán's name
+        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && msg.includes('rán')) ||
+        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && msg.includes('rán'))
+    );
+};
+
+const FOLLOWUP_RESPONSES = {
+    en: [
+        "How can I help you today?",
+        "What would you like to know about Sky Lagoon?",
+        "I'd be happy to help you plan your visit. What interests you most?",
+        "What can I tell you about Sky Lagoon?"
+    ],
+    is: [
+        "Hvernig get ég aðstoðað þig?",
+        "Hvað viltu vita um Sky Lagoon?",
+        "Ég get hjálpað þér að skipuleggja heimsóknina. Hvað langar þig að vita?",
+        "Hvað má segja þér um Sky Lagoon?"
+    ]
+};
+
 const CONFIRMATION_RESPONSES = [
     "Great! ",
     "Excellent! ",
@@ -3444,6 +3469,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Force language based on exact greeting
                 const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
                 const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
+                
+                // Check if this is a follow-up greeting with Rán's name
+                if (isFollowUpGreeting(userMessage)) {
+                    const response = isEnglishGreeting ? 
+                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
+                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
+                        
+                    // Broadcast the follow-up greeting
+                    await broadcastConversation(
+                        userMessage,
+                        response,
+                        isEnglishGreeting ? 'en' : 'is',
+                        'greeting',
+                        'direct_response'
+                    );
+                    
+                    return res.status(200).json({
+                        message: response,
+                        language: isEnglishGreeting ? 'en' : 'is'
+                    });
+                }
+                
+                // Original greeting handling for first greeting
                 const greeting = isEnglishGreeting ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0];
