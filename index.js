@@ -501,8 +501,12 @@ const CONFIRMATION_RESPONSES = [
 ];
 
 // Simple greeting detection constants
-const simpleEnglishGreetings = ['hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening', 'howdy', 'hi there'];
-const simpleIcelandicGreetings = ['hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'góðan', 'góða', 'morgunn', 'daginn', 'kvöld'];
+const simpleEnglishGreetings = [
+    'hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening', 'howdy', 'hi there'];
+const simpleIcelandicGreetings = [
+    'hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'góðan', 'góða', 'morgunn', 
+    'daginn', 'kvöld', 'góðan daginn', 'góðan dag'  // Added these variations
+];
 
 // Helper function for greeting detection
 const isSimpleGreeting = message => {
