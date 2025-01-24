@@ -3619,15 +3619,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // ADD THE NEW CODE RIGHT HERE 👇
-            // Enhanced booking detection - Add this BEFORE late arrival check
+            // Add timestamp for performance tracking
+            const startTime = Date.now();
+
+            // Add logging before check
+            console.log('\n🔍 Processing Query:', {
+                message: userMessage,
+                isIcelandic,
+                timestamp: new Date().toISOString()
+            });        
+        
+            // Enhanced booking detection/Simplified for better performance - Add this BEFORE late arrival check
             const isAvailabilityQuery = isIcelandic && (
                 userMessage.toLowerCase().includes('eigið laust') ||
                 userMessage.toLowerCase().includes('laust pláss') ||
-                userMessage.toLowerCase().match(/laust.+fyrir/) ||
                 userMessage.toLowerCase().includes('hægt að bóka') ||
-                (userMessage.toLowerCase().includes('á morgun') && 
-                 userMessage.toLowerCase().includes('fyrir'))
+                userMessage.toLowerCase().includes('á morgun') ||
+                userMessage.toLowerCase().includes('laust fyrir')  // Add this simple check instead of regex
             );
+
+            // Add logging after check
+            console.log('\n✅ Availability Check:', {
+                isAvailabilityQuery,
+                message: userMessage,
+                processingTime: Date.now() - startTime
+            });
 
             // Only check for late arrival if it's not an availability query
             const lateScenario = !isAvailabilityQuery ? 
