@@ -513,7 +513,9 @@ const isSimpleGreeting = message => {
     // First clean the message
     const msg = message.toLowerCase().trim()
         .replace(/[!.,]+$/, '')  // Remove ending punctuation
-        .replace(/\s+/g, ' ');   // Normalize spaces
+        .replace(/\s+/g, ' ')    // Normalize spaces
+        .replace(/\brán\b/gi, '')  // Remove Rán's name (case insensitive)
+        .trim();                 // Trim again after removing name
     
     // Early length checks
     if (!msg || msg.split(' ').length > 5) return false;
@@ -550,6 +552,7 @@ const isSimpleGreeting = message => {
     // Icelandic composite greetings
     const compositeIcelandicGreetings = [
         'góðan dag',
+        'góðan daginn',
         'gott kvöld',
         'góða kvöldið',
         'sæll og blessaður',
@@ -3439,12 +3442,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const sessionId = currentSession || `session_${Date.now()}`;
                 
                 // Force language based on exact greeting
-                const msg = userMessage.toLowerCase().trim();
+                const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
                 const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
                 const greeting = isEnglishGreeting ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0];
-        
+                    
                 // Initialize minimal context for greeting
                 context = conversationContext.get(sessionId) || {
                     language: isEnglishGreeting ? 'en' : 'is',
