@@ -1269,7 +1269,7 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage) => {
     
     console.log('\n📚 Knowledge Base Match:', JSON.stringify(relevantKnowledge, null, 2));
 
-    let basePrompt = `You are SkyBot, Sky Lagoon's virtual assistant. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
+    let basePrompt = `You are Rán, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
 
 CRITICAL RESPONSE RULES:
 1. NEVER mention "knowledge base", "database", or that you are "checking information"
