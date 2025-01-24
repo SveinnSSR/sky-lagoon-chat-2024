@@ -3621,62 +3621,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
-            // Check for late arrival first
-            const lateScenario = detectLateArrivalScenario(userMessage);
-            
-            // Enhanced follow-up detection for late arrivals
-            const isLateFollowUp = 
-                (context.lastTopic === 'late_arrival' && 
-                (userMessage.toLowerCase().match(/it|that|this|these|those|they|there|late|delay|around|about|later|arrive|come/i) ||
-                 userMessage.toLowerCase().match(/\d+\s*(?:min|minute|hour|hr|h)/i) ||
-                 userMessage.toLowerCase().match(/(?:an|one)\s*(?:hour|hr|h)/i) ||
-                 LATE_QUALIFIERS.some(indicator => userMessage.toLowerCase().includes(indicator)) ||
-                 userMessage.toLowerCase().includes('instead') ||
-                 userMessage.toLowerCase().includes('rather')));
-
-            // Enhanced context awareness for late arrivals
-            if (lateScenario || isLateFollowUp) {
-                // Update context with late arrival info, preserving previous info if relevant
-                const previousMinutes = context.lateArrivalContext?.minutes;
-                context.lateArrivalContext = {
-                    ...context.lateArrivalContext,
-                    isLate: true,
-                    type: lateScenario?.type || context.lateArrivalContext?.type,
-                    minutes: lateScenario?.minutes || previousMinutes,
-                    lastUpdate: Date.now(),
-                    previousDelays: [
-                        ...(context.lateArrivalContext?.previousDelays || []),
-                        previousMinutes
-                    ].filter(Boolean).slice(-3)  // Keep last 3 mentioned delays
-                };
-                context.lastTopic = 'late_arrival';
-
-                let response;
-                if (lateScenario?.type === 'flight_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-                } else if (lateScenario?.type === 'unspecified_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-                } else if (lateScenario?.type === 'within_grace') {
-                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-                } else if (lateScenario?.type === 'moderate_delay') {
-                    response = getRandomResponse(context.soldOutStatus ? 
-                        BOOKING_RESPONSES.moderate_delay.sold_out : 
-                        BOOKING_RESPONSES.moderate_delay.normal);
-                } else if (lateScenario?.type === 'significant_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-                }
-
-                // If we got a response, return it appropriately formatted
-                if (response) {
-                    return [{
-                        type: 'late_arrival',
-                        content: {
-                            answer: response
-                        },
-                        forceCustomResponse: true
-                    }];
-                }
-            }
 
             // Force English if we detect obvious English patterns
             const hasEnglishStructure = /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
@@ -3721,37 +3665,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     isLateArrival: context.lastTopic === 'late_arrival'
                 });
                 
-                // Handle follow-up for late arrival
-                if (context.lastTopic === 'late_arrival' && context.lateArrivalContext?.isLate) {
-                    const lateScenario = detectLateArrivalScenario(userMessage);
-                    if (lateScenario || isContextQuestion) {
-                        let response;
-                        if (lateScenario?.type === 'flight_delay') {
-                            response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-                        } else if (lateScenario?.type === 'unspecified_delay') {
-                            response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-                        } else if (lateScenario?.type === 'within_grace') {
-                            response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-                        } else if (lateScenario?.type === 'moderate_delay') {
-                            response = getRandomResponse(context.soldOutStatus ? 
-                                BOOKING_RESPONSES.moderate_delay.sold_out : 
-                                BOOKING_RESPONSES.moderate_delay.normal);
-                        } else if (lateScenario?.type === 'significant_delay') {
-                            response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-                        }
-
-                        if (response) {
-                            return [{
-                                type: 'late_arrival',
-                                content: {
-                                    answer: response
-                                },
-                                forceCustomResponse: true
-                            }];
-                        }
-                    }
-                }
-
                 // Get relevant knowledge base results
                 const results = isIcelandic ? 
                     getRelevantKnowledge_is(userMessage) :
@@ -3957,7 +3870,57 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 message: response
             });
         }
-        
+
+        // ADD THE NEW CODE RIGHT HERE 👇
+            // Enhanced booking detection - Add this BEFORE late arrival check
+            const isAvailabilityQuery = isIcelandic && (
+                userMessage.toLowerCase().includes('eigið laust') ||
+                userMessage.toLowerCase().includes('laust pláss') ||
+                userMessage.toLowerCase().match(/laust.+fyrir/) ||
+                userMessage.toLowerCase().includes('hægt að bóka') ||
+                (userMessage.toLowerCase().includes('á morgun') && 
+                 userMessage.toLowerCase().includes('fyrir'))
+            );
+
+            // Only check for late arrival if it's not an availability query
+            const lateScenario = !isAvailabilityQuery ? 
+                detectLateArrivalScenario(userMessage) : 
+                null;
+
+            if (lateScenario) {
+                let response;
+                if (lateScenario.type === 'flight_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+                } else if (lateScenario.type === 'unspecified_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
+                } else if (lateScenario.type === 'within_grace') {
+                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+                } else if (lateScenario.type === 'moderate_delay') {
+                    response = getRandomResponse(context.soldOutStatus ? 
+                        BOOKING_RESPONSES.moderate_delay.sold_out : 
+                        BOOKING_RESPONSES.moderate_delay.normal);
+                } else if (lateScenario.type === 'significant_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+                } else {
+                    response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
+                }
+
+                // Add this broadcast before the return
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    isIcelandic ? 'is' : 'en',
+                    'late_arrival',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: response,
+                    lateArrivalHandled: true,
+                    lateScenarioType: lateScenario.type // Optional: useful for debugging
+                });
+            }
+
         // Check if it's a group booking query but DON'T return immediately
         if (isIcelandic && (
             userMessage.toLowerCase().includes('hóp') || 
@@ -4001,40 +3964,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 language: isIcelandic ? 'is' : 'en'
             });
         }
-
-       // Late arrival handling
-       const lateScenario = detectLateArrivalScenario(userMessage);
-       if (lateScenario) {
-           let response;
-           if (lateScenario.type === 'flight_delay') {
-               response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-           } else if (lateScenario.type === 'unspecified_delay') {
-               response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-           } else if (lateScenario.type === 'within_grace') {
-               response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-           } else if (lateScenario.type === 'moderate_delay') {
-               response = getRandomResponse(context.soldOutStatus ? 
-                   BOOKING_RESPONSES.moderate_delay.sold_out : 
-                   BOOKING_RESPONSES.moderate_delay.normal);
-           } else if (lateScenario.type === 'significant_delay') {
-               response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-           } else {
-               response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
-           }
-                   // Add this broadcast before the return 👇
-            await broadcastConversation(
-                userMessage,
-                response,
-                isIcelandic ? 'is' : 'en',
-                'late_arrival',
-                'direct_response'
-            );
-           return res.status(200).json({
-               message: response,
-               lateArrivalHandled: true,
-               lateScenarioType: lateScenario.type // Optional: useful for debugging
-           });
-       }
 
         // Get relevant knowledge base content with better logging
         // This line is now handled by the smart context function above
