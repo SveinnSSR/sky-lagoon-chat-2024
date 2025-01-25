@@ -3503,25 +3503,26 @@ const getContext = (sessionId) => conversationContext.get(sessionId);
 
 // Enhanced chat endpoint with GPT-4 optimization
 app.post('/chat', verifyApiKey, async (req, res) => {
-    // Declare context at the top level of the function
-    let context;
-    // Get the conversation ID first
-    let currentSession = conversationContext.get('currentSession');
-    const sessionId = currentSession || `session_${Date.now()}`;
-            
-    // Store new session if needed
-    if (!currentSession) {
-        conversationContext.set('currentSession', sessionId);
-        console.log('\n🆕 New Session Created:', sessionId);
-    }
+    // Declare all variables at the top level of the function
+    let context, currentSession, sessionId;
     
     try {
         console.log('\n🔍 Full request body:', req.body);
         console.log('\n📥 Incoming Message:', req.body.message);
 
+        // Initialize session first, using let declarations from above
+        currentSession = conversationContext.get('currentSession');
+        sessionId = currentSession || `session_${Date.now()}`;
+        
+        // Store new session if needed
+        if (!currentSession) {
+            conversationContext.set('currentSession', sessionId);
+            console.log('\n🆕 New Session Created:', sessionId);
+        }
+
         const userMessage = req.body.message;
 
-        // Early greeting check - ADD THIS BLOCK HERE 👇
+        // Early greeting check
         if (isSimpleGreeting(userMessage)) {
             // Get existing context or create new one
             context = conversationContext.get(sessionId) || {
