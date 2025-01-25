@@ -527,7 +527,7 @@ const CONFIRMATION_RESPONSES = [
 
 // Simple greeting detection constants
 const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey',  
+    'hi', 'hello', 'hey', 
     'howdy', 'hi there',
     'greetings', 'hey there', 'hiya', 'hullo', 'yo',
     'welcome', 'hi hi', 'hello there', 'heya', 'hi folks'
@@ -547,10 +547,17 @@ const simpleIcelandicGreetings = [
 const isSimpleGreeting = message => {
     // First clean the message
     const msg = message.toLowerCase().trim()
-        .replace(/[!.,]+$/, '')  // Remove ending punctuation
-        .replace(/\s+/g, ' ')    // Normalize spaces
-        .replace(/\brán\b/gi, '')  // Remove Rán's name (case insensitive)
-        .trim();                 // Trim again after removing name
+        .replace(/[!.,]+$/, '')  
+        .replace(/\s+/g, ' ')    
+        .replace(/\brán\b/gi, '') 
+        .trim();                 
+
+    console.log('\n👋 Greeting Check:', {
+        original: message,
+        cleaned: msg,
+        inTimeBasedGreetings: timeBasedGreetings.some(g => msg === g || msg === g + '!'),
+        inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
+    });
     
     // Early length checks
     if (!msg || msg.split(' ').length > 5) return false;
@@ -567,9 +574,6 @@ const isSimpleGreeting = message => {
         'good afternoon',
         'good evening',
         'good day',
-        'morning',
-        'afternoon',
-        'evening'
     ];
     if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
     
