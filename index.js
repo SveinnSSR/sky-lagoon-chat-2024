@@ -3523,54 +3523,46 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n🆕 New Session Created:', sessionId);
             }
 
-            // First check if we have any knowledge base matches
-            const preliminaryCheck = getRelevantKnowledge(userMessage);
-            
-            // If there are knowledge base matches, skip greeting handling
-            if (preliminaryCheck && preliminaryCheck.length > 0) {
-                console.log('\n📚 Knowledge base matches found, skipping greeting handler');
-            } else {
-                // Get existing context or create new one
-                context = conversationContext.get(sessionId) || {
-                    language: 'en',
-                    conversationStarted: true,
-                    messageCount: 0
-                };
+            // Get existing context or create new one
+            context = conversationContext.get(sessionId) || {
+                language: 'en',
+                conversationStarted: true,
+                messageCount: 0
+            };
 
-                // Force language based on exact greeting - UPDATED THIS PART
-                const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
-                const isEnglishGreeting = simpleEnglishGreetings.some(g => 
-                    msg === g || msg === g + '!' || msg.startsWith(g + ' ')
-                );
-                
-                // Always use follow-up responses since ChatWidget handles initial greeting
-                const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
-                    (isEnglishGreeting ? 
-                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
-                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
-                    (isEnglishGreeting ? 
-                        GREETING_RESPONSES.english[0] : 
-                        GREETING_RESPONSES.icelandic[0]);
-                
-                // Update context
-                context.language = isEnglishGreeting ? 'en' : 'is';
-                context.conversationStarted = true;
-                conversationContext.set(sessionId, context);
-                
-                // Broadcast the greeting
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    isEnglishGreeting ? 'en' : 'is',
-                    'greeting',
-                    'direct_response'
-                );
-        
-                return res.status(200).json({
-                    message: response,
-                    language: isEnglishGreeting ? 'en' : 'is'
-                });
-            }
+            // Force language based on exact greeting
+            const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
+            const isEnglishGreeting = simpleEnglishGreetings.some(g => 
+                msg === g || msg === g + '!' || msg.startsWith(g + ' ')
+            );
+            
+            // Always use follow-up responses since ChatWidget handles initial greeting
+            const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
+                (isEnglishGreeting ? 
+                    FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
+                    FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
+                (isEnglishGreeting ? 
+                    GREETING_RESPONSES.english[0] : 
+                    GREETING_RESPONSES.icelandic[0]);
+            
+            // Update context
+            context.language = isEnglishGreeting ? 'en' : 'is';
+            context.conversationStarted = true;
+            conversationContext.set(sessionId, context);
+            
+            // Broadcast the greeting
+            await broadcastConversation(
+                userMessage,
+                response,
+                isEnglishGreeting ? 'en' : 'is',
+                'greeting',
+                'direct_response'
+            );
+    
+            return res.status(200).json({
+                message: response,
+                language: isEnglishGreeting ? 'en' : 'is'
+            });
         }
 
         // ADD THIS EARLY CHECK HERE 👇
