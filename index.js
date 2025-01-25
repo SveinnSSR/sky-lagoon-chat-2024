@@ -527,11 +527,10 @@ const CONFIRMATION_RESPONSES = [
 
 // Simple greeting detection constants
 const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
-    'howdy', 'hi there', 'morning', 'afternoon', 'evening', 'good day',
-    'greetings', 'good evening', 'hey there', 'hiya', 'hullo', 'yo',
-    'good day to you', 'welcome', 'evening', 'morning', 'afternoon',
-    'hi hi', 'hello there', 'heya', 'hi folks', 'good evening', 'good night'
+    'hi', 'hello', 'hey',  
+    'howdy', 'hi there',
+    'greetings', 'hey there', 'hiya', 'hullo', 'yo',
+    'welcome', 'hi hi', 'hello there', 'heya', 'hi folks'
 ];
 
 const simpleIcelandicGreetings = [
@@ -567,7 +566,10 @@ const isSimpleGreeting = message => {
         'good morning',
         'good afternoon',
         'good evening',
-        'good day'
+        'good day',
+        'morning',
+        'afternoon',
+        'evening'
     ];
     if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
     
