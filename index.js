@@ -3476,6 +3476,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
                         FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
                         
+                    // Initialize minimal context for greeting
+                    context = conversationContext.get(sessionId) || {
+                        language: isEnglishGreeting ? 'en' : 'is',
+                        conversationStarted: true
+                    };
+            
+                    // Store session if new
+                    if (!currentSession) {
+                        conversationContext.set('currentSession', sessionId);
+                    }
+
                     // Broadcast the follow-up greeting
                     await broadcastConversation(
                         userMessage,
