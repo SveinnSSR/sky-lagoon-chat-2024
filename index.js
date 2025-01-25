@@ -526,11 +526,12 @@ const CONFIRMATION_RESPONSES = [
 ];
 
 // Simple greeting detection constants
-const timeBasedGreetings = [
-    'good morning',
-    'good afternoon', 
-    'good evening',
-    'good day'
+const simpleEnglishGreetings = [
+    'hi', 'hello', 'hey',  
+    'howdy', 'hi there',
+    'greetings', 'hey there', 'hiya', 'hullo', 'yo',
+    'welcome', 'hi hi', 'hello there', 'heya', 'hi folks',
+    'good morning', 'good afternoon', 'good evening', 'good day'
 ];
 
 const compositeIcelandicGreetings = [
@@ -544,13 +545,6 @@ const compositeIcelandicGreetings = [
     'komdu sæl'
 ];
 
-const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey',  
-    'howdy', 'hi there',
-    'greetings', 'hey there', 'hiya', 'hullo', 'yo',
-    'welcome', 'hi hi', 'hello there', 'heya', 'hi folks'
-];
-
 const simpleIcelandicGreetings = [
     'hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'góðan', 'góða', 'morgunn', 
     'daginn', 'kvöld', 'góðan daginn', 'góðan dag', 'verið velkomin', 
@@ -561,65 +555,44 @@ const simpleIcelandicGreetings = [
     'velkominn', 'morguninn', 'kvöldið'
 ];
 
-// Helper function for greeting detection
 const isSimpleGreeting = message => {
-    // First clean the message
     const msg = message.toLowerCase().trim()
-        .replace(/[!.,]+$/, '')  // Remove ending punctuation
-        .replace(/\s+/g, ' ')    // Normalize spaces
-        .replace(/\brán\b/gi, '')  // Remove Rán's name (case insensitive)
-        .trim();                 // Trim again after removing name
+        .replace(/[!.,]+$/, '')
+        .replace(/\s+/g, ' ')    
+        .replace(/\brán\b/gi, '')
+        .trim();                 
     
     console.log('\n👋 Greeting Check:', {
         original: message,
         cleaned: msg,
-        inTimeBasedGreetings: timeBasedGreetings.some(g => msg === g || msg === g + '!'),
-        inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
+        inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g || msg === g + '!')
     });
 
-    // Early length checks
     if (!msg || msg.split(' ').length > 5) return false;
-    
-    // Immediate disqualifiers
-    if (msg.includes('?')) return false;         // Questions
-    if (msg.includes('@')) return false;         // Emails/handles
-    if (msg.includes('http')) return false;      // URLs
-    if (/\d/.test(msg)) return false;           // Contains numbers
+    if (msg.includes('?')) return false;
+    if (msg.includes('@')) return false;
+    if (msg.includes('http')) return false;
+    if (/\d/.test(msg)) return false;
 
-    // Check time-based greetings first
-    if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
-    
-    // Check Icelandic composite greetings
-    if (compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) return true;
-
-    // Check for exact matches
+    // Check for exact matches including both regular and punctuated forms
     const exactGreetingMatch = (
-        simpleEnglishGreetings.some(g => msg === g) || 
-        simpleIcelandicGreetings.some(g => msg === g)
+        simpleEnglishGreetings.some(g => msg === g || msg === g + '!') || 
+        simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
+        compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')
     );
     if (exactGreetingMatch) return true;
-    
-    // Check for greetings with ending punctuation
-    const greetingWithPunctuation = (
-        simpleEnglishGreetings.some(g => msg === g + '!') || 
-        simpleIcelandicGreetings.some(g => msg === g + '!')
-    );
-    if (greetingWithPunctuation) return true;
 
-    // If the message starts with a greeting but has more content, it's not a simple greeting
+    // Check for longer phrases
     const hasGreetingStart = (
         simpleEnglishGreetings.some(g => msg.startsWith(g + ' ')) ||
         simpleIcelandicGreetings.some(g => msg.startsWith(g + ' '))
     );
     if (hasGreetingStart) return false;
     
-    // Check for common question starters or chat initiators
     const notSimpleGreeting = [
-        // English
         'can', 'could', 'would', 'do', 'does', 'is', 'are', 'what', 
         'when', 'where', 'why', 'how', 'should', 'may', 'might',
         'help', 'need', 'want', 'looking', 'trying',
-        // Icelandic
         'get', 'má', 'er', 'hefur', 'getur', 'hvernig', 'hvar',
         'viltu', 'geturðu', 'mig langar', 'ég er', 'ég vil'
     ];
@@ -628,25 +601,21 @@ const isSimpleGreeting = message => {
         return false;
     }
 
-    // Final check for exact greeting matches
-    return (
-        simpleEnglishGreetings.includes(msg) || 
-        simpleIcelandicGreetings.includes(msg) ||
-        timeBasedGreetings.includes(msg) ||
-        compositeIcelandicGreetings.includes(msg)
-    );
+    return simpleEnglishGreetings.includes(msg) || 
+           simpleIcelandicGreetings.includes(msg) ||
+           compositeIcelandicGreetings.includes(msg);
 };
 
-// Log some test cases when server starts
+// Test cases
 console.log('\n👋 Testing Greeting Detection:', {
     'hello': isSimpleGreeting('hello'),
     'hello!': isSimpleGreeting('hello!'),
     'hæ': isSimpleGreeting('hæ'),
     'góðan dag': isSimpleGreeting('góðan dag'),
-    'hello there': isSimpleGreeting('hello there'),          // should be false
-    'hi, how are you': isSimpleGreeting('hi, how are you'), // should be false
-    'hello?': isSimpleGreeting('hello?'),                   // should be false
-    'hey can you': isSimpleGreeting('hey can you'),         // should be false
+    'hello there': isSimpleGreeting('hello there'),
+    'hi, how are you': isSimpleGreeting('hi, how are you'),
+    'hello?': isSimpleGreeting('hello?'),
+    'hey can you': isSimpleGreeting('hey can you'),
     'good morning': isSimpleGreeting('good morning'),
     'sæl og blessuð': isSimpleGreeting('sæl og blessuð')
 });
@@ -3564,15 +3533,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Get existing context or create new one
                 context = conversationContext.get(sessionId) || {
                     language: 'en',
-                    conversationStarted: true,  // Set this to true by default since ChatWidget shows initial greeting
+                    conversationStarted: true,
                     messageCount: 0
                 };
 
-                // Force language based on exact greeting
+                // Force language based on exact greeting - UPDATED THIS PART
                 const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
-                const isEnglishGreeting = (
-                    simpleEnglishGreetings.some(g => msg === g || msg === g + '!') ||
-                    timeBasedGreetings.some(g => msg === g || msg === g + '!')
+                const isEnglishGreeting = simpleEnglishGreetings.some(g => 
+                    msg === g || msg === g + '!' || msg.startsWith(g + ' ')
                 );
                 
                 // Always use follow-up responses since ChatWidget handles initial greeting
