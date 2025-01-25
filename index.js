@@ -561,8 +561,30 @@ const isSimpleGreeting = message => {
     if (msg.includes('@')) return false;         // Emails/handles
     if (msg.includes('http')) return false;      // URLs
     if (/\d/.test(msg)) return false;           // Contains numbers
+
+    // Time-based English greetings - MOVED THIS UP before exact matches
+    const timeBasedGreetings = [
+        'good morning',
+        'good afternoon',
+        'good evening',
+        'good day'
+    ];
+    if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
     
-    // Check for exact matches first (most strict)
+    // Icelandic composite greetings - MOVED THIS UP too since they're similar to time-based
+    const compositeIcelandicGreetings = [
+        'góðan dag',
+        'góðan daginn',
+        'gott kvöld',
+        'góða kvöldið',
+        'sæll og blessaður',
+        'sæl og blessuð',
+        'komdu sæll',
+        'komdu sæl'
+    ];
+    if (compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) return true;    
+
+    // Check for exact matches (after composite greetings)
     const exactGreetingMatch = (
         simpleEnglishGreetings.some(g => msg === g) || 
         simpleIcelandicGreetings.some(g => msg === g)
@@ -575,28 +597,6 @@ const isSimpleGreeting = message => {
         simpleIcelandicGreetings.some(g => msg === g + '!')
     );
     if (greetingWithPunctuation) return true;
-    
-    // Time-based English greetings
-    const timeBasedGreetings = [
-        'good morning',
-        'good afternoon',
-        'good evening',
-        'good day'
-    ];
-    if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
-    
-    // Icelandic composite greetings
-    const compositeIcelandicGreetings = [
-        'góðan dag',
-        'góðan daginn',
-        'gott kvöld',
-        'góða kvöldið',
-        'sæll og blessaður',
-        'sæl og blessuð',
-        'komdu sæll',
-        'komdu sæl'
-    ];
-    if (compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) return true;
 
     // If the message starts with a greeting but has more content, it's not a simple greeting
     const hasGreetingStart = (
