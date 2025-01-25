@@ -3556,7 +3556,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Force language based on exact greeting
                 const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
-                const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
+                const isEnglishGreeting = simpleEnglishGreetings.some(g => 
+                    msg === g || msg === g + '!' || msg.startsWith(g + ' ')
+                );
                 
                 // Always use follow-up responses since ChatWidget handles initial greeting
                 const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
