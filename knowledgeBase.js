@@ -5,50 +5,50 @@ export const knowledgeBase = {
         regular: {
             summer: {
                 period: "June 1 - September 30",
-                hours: "09:00 - 23:00",
+                hours: "09:00 (GMT) - 23:00 (GMT)",
                 daily: true,
                 facilities: {
                     lagoon: "Closes 30 minutes before closing time",
                     ritual: "Closes 1 hour before closing time",
                     gelmir_bar: "Closes 1 hour before closing time",
-                    keimur_cafe: "09:00 - 22:30",
-                    smakk_bar: "12:00 - 22:30"
+                    keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
+                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
                 }
             },
             autumn: {
                 period: "October 1 - October 31",
-                hours: "10:00 - 23:00",
+                hours: "10:00 (GMT) - 23:00 (GMT)",
                 daily: true,
                 facilities: {
                     lagoon: "Closes 30 minutes before closing time",
                     ritual: "Closes 1 hour before closing time",
                     gelmir_bar: "Closes 1 hour before closing time",
-                    keimur_cafe: "10:00 - 22:30",
-                    smakk_bar: "12:00 - 22:30"
+                    keimur_cafe: "10:00 (GMT) - 22:30 (GMT)",
+                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
                 }
             },
             winter: {
                 period: "November 1 - May 31",
                 weekday: {
                     days: "Monday - Friday",
-                    hours: "11:00 - 22:00",
+                    hours: "11:00 (GMT) - 22:00 (GMT)",
                     facilities: {
                         lagoon: "Closes 30 minutes before closing time",
                         ritual: "Closes 1 hour before closing time",
                         gelmir_bar: "Closes 1 hour before closing time",
-                        keimur_cafe: "11:00 - 21:30",
-                        smakk_bar: "12:00 - 21:30"
+                        keimur_cafe: "11:00 (GMT) - 21:30 (GMT)",
+                        smakk_bar: "12:00 (GMT) - 21:30 (GMT)"
                     }
                 },
                 weekend: {
                     days: "Saturday - Sunday",
-                    hours: "10:00 - 22:00",
+                    hours: "10:00 (GMT) - 22:00 (GMT)",
                     facilities: {
                         lagoon: "Closes 30 minutes before closing time",
                         ritual: "Closes 1 hour before closing time",
                         gelmir_bar: "Closes 1 hour before closing time",
-                        keimur_cafe: "11:00 - 21:30",
-                        smakk_bar: "12:00 - 21:30"
+                        keimur_cafe: "11:00 (GMT) - 21:30 (GMT)",
+                        smakk_bar: "12:00 (GMT) - 21:30 (GMT)"
                     }
                 }
             }
@@ -56,23 +56,23 @@ export const knowledgeBase = {
         holidays: {
             christmas_eve: {
                 date: "December 24",
-                hours: "09:00 - 16:00",
+                hours: "09:00 (GMT) - 16:00 (GMT)",
             },
             christmas_day: {
                 date: "December 25",
-                hours: "09:00 - 18:00",
+                hours: "09:00 (GMT) - 18:00 (GMT)",
             },
             boxing_day: {
                 date: "December 26",
-                hours: "09:00 - 22:00",
+                hours: "09:00 (GMT) - 22:00 (GMT)",
             },
             new_years_eve: {
                 date: "December 31",
-                hours: "09:00 - 18:00",
+                hours: "09:00 (GMT) - 18:00 (GMT)",
             },
             new_years_day: {
                 date: "January 1",
-                hours: "10:00 - 22:00",
+                hours: "10:00 (GMT) - 22:00 (GMT)",
             }
         },
         important_notes: [
@@ -88,15 +88,15 @@ export const knowledgeBase = {
                 description: "Fresh coffee, light meals, and Icelandic treats",
                 summer: {
                     period: "June 1 - September 30",
-                    hours: "09:00 - 22:30"
+                    hours: "09:00 (GMT) - 22:30 (GMT)"
                 },
                 autumn: {
                     period: "October 1 - October 31",
-                    hours: "10:00 - 22:30"
+                    hours: "10:00 (GMT) - 22:30 (GMT)"
                 },
                 winter: {
                     period: "November 1 - May 31",
-                    hours: "11:00 - 21:30"
+                    hours: "11:00 (GMT) - 21:30 (GMT)"
                 },
                 notes: "Last orders 30 minutes before closing"
             },
@@ -105,15 +105,15 @@ export const knowledgeBase = {
                 description: "Icelandic culinary experience with tasting platters",
                 summer: {
                     period: "June 1 - September 30",
-                    hours: "12:00 - 22:30"
+                    hours: "12:00 (GMT) - 22:30 (GMT)"
                 },
                 autumn: {
                     period: "October 1 - October 31",
-                    hours: "12:00 - 22:30"
+                    hours: "12:00 (GMT) - 22:30 (GMT)"
                 },
                 winter: {
                     period: "November 1 - May 31",
-                    hours: "12:00 - 21:30"
+                    hours: "12:00 (GMT) - 21:30 (GMT)"
                 },
                 notes: "Last orders 30 minutes before closing"
             },
@@ -286,7 +286,7 @@ export const knowledgeBase = {
                 "how_to_book": "Book directly through our website or at reception",
                 "availability": "Subject to capacity",
                 "recommended": "Advance booking recommended",
-                "last_booking": "18:00",
+                "last_booking": "18:00 (GMT)",
                 "timing_note": "Last booking time ensures guests can fully enjoy all package inclusions including our Sky Platter and drinks service"
             }
         }
@@ -447,7 +447,7 @@ export const knowledgeBase = {
                 instructions: "To modify your booking, you can:",
                 methods: {
                     phone: {
-                        text: "Call us at +354 527 6800 (open 9 AM - 7 PM)",
+                        text: "Call us at +354 527 6800 (open 9 AM - 7 PM) (GMT)",
                         note: "Best option for same-day changes"
                     },
                     email: {
@@ -667,7 +667,7 @@ export const knowledgeBase = {
                 description: "Experience the magic of Icelandic summer, where day seamlessly blends into night under the Midnight Sun",
                 highlights: [
                     "Experience the legendary Midnight Sun (around June 21)",
-                    "Extended daylight hours until closing at 23:00",
+                    "Extended daylight hours until closing at 23:00 (GMT)",
                     "Late evening sun views from infinity edge",
                     "Bask in the bright Nordic evening atmosphere",
                     "Experience warmer outdoor temperatures while maintaining our perfectly heated waters",
@@ -686,7 +686,7 @@ export const knowledgeBase = {
                         peak_period: "Mid-May to mid-August",
                         longest_day: "Around June 21",
                         evening_experience: {
-                            hours: "9:00 - 23:00 daily",
+                            hours: "9:00 (GMT) - 23:00 (GMT) daily",
                             highlights: [
                                 "Late evening sun views from infinity edge",
                                 "Extended twilight atmosphere",
@@ -756,15 +756,15 @@ export const knowledgeBase = {
                 opening_hours: {
                     summer: {
                         period: "June 1 - September 30",
-                        hours: "12:00 - 22:30"
+                        hours: "12:00 (GMT) - 22:30 (GMT)"
                     },
                     autumn: {
                         period: "October 1 - October 31",
-                        hours: "12:00 - 22:30"
+                        hours: "12:00 (GMT) - 22:30 (GMT)"
                     },
                     winter: {
                         period: "November 1 - May 31",
-                        hours: "12:00 - 21:30"
+                        hours: "12:00 (GMT) - 21:30 (GMT)"
                     }
                 },
                 menu: {
@@ -855,15 +855,15 @@ export const knowledgeBase = {
                 opening_hours: {
                     summer: {
                         period: "June 1 - September 30",
-                        hours: "9:00 - 22:30"
+                        hours: "09:00 (GMT) - 22:30 (GMT)"
                     },
                     autumn: {
                         period: "October 1 - October 31",
-                        hours: "10:00 - 22:30"
+                        hours: "10:00 (GMT) - 22:30 (GMT)"
                     },
                     winter: {
                         period: "November 1 - May 31",
-                        hours: "11:00 - 21:30"
+                        hours: "11:00 (GMT) - 21:30 (GMT)"
                     }
                 },
                 menu: {
@@ -1701,7 +1701,7 @@ export const knowledgeBase = {
             provider: "Reykjavík Excursions",
             bsi_service: {
                 departure_point: "BSÍ bus terminal",
-                departure_times: ["13:00", "15:00", "17:00", "19:00"],
+                departure_times: ["13:00 (GMT)", "15:00 (GMT)", "17:00 (GMT)", "19:00 (GMT)"],
                 timing: "Bus departs BSÍ on the hour of your booking",
                 direction: "Direct service to Sky Lagoon",
                 pickup_service: {
@@ -1742,8 +1742,8 @@ export const knowledgeBase = {
                 departure_point: "Sky Lagoon",
                 destination: "Same bus stop as pickup location",
                 departure_times: [
-                    "14:30", "15:30", "16:30", "17:30", 
-                    "18:30", "19:30", "20:30", "21:30"
+                    "14:30 (GMT)", "15:30 (GMT)", "16:30 (GMT)", "17:30 (GMT)", 
+                    "18:30 (GMT)", "19:30 (GMT)", "20:30 (GMT)", "21:30 (GMT)"    
                 ],
                 notes: "Return service will drop you off at your original pickup location"
             },
