@@ -3466,6 +3466,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 let currentSession = conversationContext.get('currentSession');
                 const sessionId = currentSession || `session_${Date.now()}`;
                 
+                // Get existing context or create new one
+                context = conversationContext.get(sessionId) || {
+                    language: 'en',
+                    conversationStarted: false,
+                    messageCount: 0
+                };
+
                 // Force language based on exact greeting
                 const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
                 const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
@@ -3476,11 +3483,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
                         FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
                         
-                    // Initialize minimal context for greeting
-                    context = conversationContext.get(sessionId) || {
-                        language: isEnglishGreeting ? 'en' : 'is',
-                        conversationStarted: true
-                    };
+                    // Update context
+                    context.language = isEnglishGreeting ? 'en' : 'is';
+                    context.conversationStarted = true;
+                    conversationContext.set(sessionId, context);
             
                     // Store session if new
                     if (!currentSession) {
@@ -3502,16 +3508,36 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     });
                 }
                 
-                // Original greeting handling for first greeting
+                // For any greeting after conversation has started, use follow-up response
+                if (context.conversationStarted) {
+                    const response = isEnglishGreeting ? 
+                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
+                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
+
+                    // Broadcast the follow-up greeting
+                    await broadcastConversation(
+                        userMessage,
+                        response,
+                        isEnglishGreeting ? 'en' : 'is',
+                        'greeting',
+                        'direct_response'
+                    );
+                    
+                    return res.status(200).json({
+                        message: response,
+                        language: isEnglishGreeting ? 'en' : 'is'
+                    });
+                }
+                
+                // Only use full greeting for very first interaction
                 const greeting = isEnglishGreeting ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0];
                     
-                // Initialize minimal context for greeting
-                context = conversationContext.get(sessionId) || {
-                    language: isEnglishGreeting ? 'en' : 'is',
-                    conversationStarted: true
-                };
+                // Update context
+                context.language = isEnglishGreeting ? 'en' : 'is';
+                context.conversationStarted = true;
+                conversationContext.set(sessionId, context);
         
                 // Store session if new
                 if (!currentSession) {
