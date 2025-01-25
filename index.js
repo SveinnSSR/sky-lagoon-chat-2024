@@ -3536,6 +3536,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Early greeting check - ADD THIS BLOCK HERE 👇
         if (isSimpleGreeting(userMessage)) {
+            // Get the conversation ID first
+            let currentSession = conversationContext.get('currentSession');
+            const sessionId = currentSession || `session_${Date.now()}`;
+            
+            // Store new session if needed
+            if (!currentSession) {
+                conversationContext.set('currentSession', sessionId);
+                console.log('\n🆕 New Session Created:', sessionId);
+            }
+
             // First check if we have any knowledge base matches
             const preliminaryCheck = getRelevantKnowledge(userMessage);
             
@@ -3543,10 +3553,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (preliminaryCheck && preliminaryCheck.length > 0) {
                 console.log('\n📚 Knowledge base matches found, skipping greeting handler');
             } else {
-                // Only handle as greeting if no knowledge base matches found
-                let currentSession = conversationContext.get('currentSession');
-                const sessionId = currentSession || `session_${Date.now()}`;
-                
                 // Get existing context or create new one
                 context = conversationContext.get(sessionId) || {
                     language: 'en',
@@ -3573,12 +3579,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 context.language = isEnglishGreeting ? 'en' : 'is';
                 context.conversationStarted = true;
                 conversationContext.set(sessionId, context);
-        
-                // Store session if new
-                if (!currentSession) {
-                    conversationContext.set('currentSession', sessionId);
-                }
-        
+                
                 // Broadcast the greeting
                 await broadcastConversation(
                     userMessage,
