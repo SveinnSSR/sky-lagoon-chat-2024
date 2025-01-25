@@ -526,8 +526,26 @@ const CONFIRMATION_RESPONSES = [
 ];
 
 // Simple greeting detection constants
+const timeBasedGreetings = [
+    'good morning',
+    'good afternoon', 
+    'good evening',
+    'good day'
+];
+
+const compositeIcelandicGreetings = [
+    'góðan dag',
+    'góðan daginn',
+    'gott kvöld',
+    'góða kvöldið',
+    'sæll og blessaður',
+    'sæl og blessuð',
+    'komdu sæll',
+    'komdu sæl'
+];
+
 const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey', 
+    'hi', 'hello', 'hey',  
     'howdy', 'hi there',
     'greetings', 'hey there', 'hiya', 'hullo', 'yo',
     'welcome', 'hi hi', 'hello there', 'heya', 'hi folks'
@@ -547,18 +565,18 @@ const simpleIcelandicGreetings = [
 const isSimpleGreeting = message => {
     // First clean the message
     const msg = message.toLowerCase().trim()
-        .replace(/[!.,]+$/, '')  
-        .replace(/\s+/g, ' ')    
-        .replace(/\brán\b/gi, '') 
-        .trim();                 
-
+        .replace(/[!.,]+$/, '')  // Remove ending punctuation
+        .replace(/\s+/g, ' ')    // Normalize spaces
+        .replace(/\brán\b/gi, '')  // Remove Rán's name (case insensitive)
+        .trim();                 // Trim again after removing name
+    
     console.log('\n👋 Greeting Check:', {
         original: message,
         cleaned: msg,
         inTimeBasedGreetings: timeBasedGreetings.some(g => msg === g || msg === g + '!'),
         inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
     });
-    
+
     // Early length checks
     if (!msg || msg.split(' ').length > 5) return false;
     
@@ -568,29 +586,13 @@ const isSimpleGreeting = message => {
     if (msg.includes('http')) return false;      // URLs
     if (/\d/.test(msg)) return false;           // Contains numbers
 
-    // Time-based English greetings - MOVED THIS UP before exact matches
-    const timeBasedGreetings = [
-        'good morning',
-        'good afternoon',
-        'good evening',
-        'good day',
-    ];
+    // Check time-based greetings first
     if (timeBasedGreetings.some(g => msg === g || msg === g + '!')) return true;
     
-    // Icelandic composite greetings - MOVED THIS UP too since they're similar to time-based
-    const compositeIcelandicGreetings = [
-        'góðan dag',
-        'góðan daginn',
-        'gott kvöld',
-        'góða kvöldið',
-        'sæll og blessaður',
-        'sæl og blessuð',
-        'komdu sæll',
-        'komdu sæl'
-    ];
-    if (compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) return true;    
+    // Check Icelandic composite greetings
+    if (compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) return true;
 
-    // Check for exact matches (after composite greetings)
+    // Check for exact matches
     const exactGreetingMatch = (
         simpleEnglishGreetings.some(g => msg === g) || 
         simpleIcelandicGreetings.some(g => msg === g)
