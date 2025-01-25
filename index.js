@@ -3503,14 +3503,16 @@ const getContext = (sessionId) => conversationContext.get(sessionId);
 
 // Enhanced chat endpoint with GPT-4 optimization
 app.post('/chat', verifyApiKey, async (req, res) => {
-    // Declare all variables at the top level of the function
-    let context, currentSession, sessionId;
+    // Declare all variables at the top level of the function, with defaults
+    let context = null;
+    let currentSession = null;
+    let sessionId = null;
     
     try {
         console.log('\n🔍 Full request body:', req.body);
         console.log('\n📥 Incoming Message:', req.body.message);
 
-        // Initialize session first, using let declarations from above
+        // Initialize session variables
         currentSession = conversationContext.get('currentSession');
         sessionId = currentSession || `session_${Date.now()}`;
         
@@ -4420,20 +4422,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         });
 
     } catch (error) {
-        // Update last interaction time even on error
-        if (context) {
-            context.lastInteraction = Date.now();
-            conversationContext.set(sessionId, context);
-        }
-
-        logError(error, {
-            message: req.body?.message,
-            language: detectLanguage(req.body?.message),
-            isIcelandic: detectLanguage(req.body?.message)
+        // Safe error handling that doesn't depend on potentially undefined variables
+        console.error('\n❌ Error Details:', {
+            message: error.message,
+            stack: error.stack,
+            type: error.constructor.name,
+            context: {
+                message: req.body?.message,
+                language: req.body?.language || 'English',
+                timestamp: new Date().toISOString()
+            }
         });
+
+        // Use a basic error response if formatErrorMessage isn't available
+        const errorResponse = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
         
         return res.status(500).json({
-            error: formatErrorMessage(error, req.body?.message)
+            message: errorResponse,
+            error: error.message
         });
     }
 });
