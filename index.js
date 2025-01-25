@@ -3469,7 +3469,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Get existing context or create new one
                 context = conversationContext.get(sessionId) || {
                     language: 'en',
-                    conversationStarted: false,
+                    conversationStarted: true,  // Set this to true by default since ChatWidget shows initial greeting
                     messageCount: 0
                 };
 
@@ -3477,63 +3477,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
                 const isEnglishGreeting = simpleEnglishGreetings.some(g => msg.startsWith(g));
                 
-                // Check if this is a follow-up greeting with Rán's name
-                if (isFollowUpGreeting(userMessage)) {
-                    const response = isEnglishGreeting ? 
+                // Always use follow-up responses since ChatWidget handles initial greeting
+                const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
+                    (isEnglishGreeting ? 
                         FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
-                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
-                        
-                    // Update context
-                    context.language = isEnglishGreeting ? 'en' : 'is';
-                    context.conversationStarted = true;
-                    conversationContext.set(sessionId, context);
-            
-                    // Store session if new
-                    if (!currentSession) {
-                        conversationContext.set('currentSession', sessionId);
-                    }
-
-                    // Broadcast the follow-up greeting
-                    await broadcastConversation(
-                        userMessage,
-                        response,
-                        isEnglishGreeting ? 'en' : 'is',
-                        'greeting',
-                        'direct_response'
-                    );
-                    
-                    return res.status(200).json({
-                        message: response,
-                        language: isEnglishGreeting ? 'en' : 'is'
-                    });
-                }
+                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
+                    (isEnglishGreeting ? 
+                        GREETING_RESPONSES.english[0] : 
+                        GREETING_RESPONSES.icelandic[0]);
                 
-                // For any greeting after conversation has started, use follow-up response
-                if (context.conversationStarted) {
-                    const response = isEnglishGreeting ? 
-                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
-                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)];
-
-                    // Broadcast the follow-up greeting
-                    await broadcastConversation(
-                        userMessage,
-                        response,
-                        isEnglishGreeting ? 'en' : 'is',
-                        'greeting',
-                        'direct_response'
-                    );
-                    
-                    return res.status(200).json({
-                        message: response,
-                        language: isEnglishGreeting ? 'en' : 'is'
-                    });
-                }
-                
-                // Only use full greeting for very first interaction
-                const greeting = isEnglishGreeting ? 
-                    GREETING_RESPONSES.english[0] : 
-                    GREETING_RESPONSES.icelandic[0];
-                    
                 // Update context
                 context.language = isEnglishGreeting ? 'en' : 'is';
                 context.conversationStarted = true;
@@ -3547,14 +3499,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Broadcast the greeting
                 await broadcastConversation(
                     userMessage,
-                    greeting,
-                    context.language,
+                    response,
+                    isEnglishGreeting ? 'en' : 'is',
                     'greeting',
                     'direct_response'
                 );
         
                 return res.status(200).json({
-                    message: greeting,
+                    message: response,
                     language: isEnglishGreeting ? 'en' : 'is'
                 });
             }
