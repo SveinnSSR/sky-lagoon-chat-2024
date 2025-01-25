@@ -527,10 +527,21 @@ const CONFIRMATION_RESPONSES = [
 
 // Simple greeting detection constants
 const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey', 'good', 'morning', 'afternoon', 'evening', 'howdy', 'hi there'];
+    'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
+    'howdy', 'hi there', 'morning', 'afternoon', 'evening', 'good day',
+    'greetings', 'good evening', 'hey there', 'hiya', 'hullo', 'yo',
+    'good day to you', 'welcome', 'evening', 'morning', 'afternoon',
+    'hi hi', 'hello there', 'heya', 'hi folks', 'good evening', 'good night'
+];
+
 const simpleIcelandicGreetings = [
     'hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'góðan', 'góða', 'morgunn', 
-    'daginn', 'kvöld', 'góðan daginn', 'góðan dag'  // Added these variations
+    'daginn', 'kvöld', 'góðan daginn', 'góðan dag', 'verið velkomin', 
+    'gott kvöld', 'góða kvöldið', 'sæll og blessaður', 'sæl og blessuð', 
+    'komdu sæll', 'komdu sæl', 'góðan og blessaðan', 'blessaður', 'blessuð',
+    'hæhæ hæ', 'halló halló', 'hæ hæ', 'komdu blessaður', 'komdu blessuð',
+    'góðan daginn', 'góða kvöldið', 'kær kveðja', 'heilsað þér', 'velkomin',
+    'velkominn', 'morguninn', 'kvöldið'
 ];
 
 // Helper function for greeting detection
@@ -660,12 +671,27 @@ const smallTalkPatterns = [
 const acknowledgmentPatterns = {
     simple: {
         en: [
-            'thanks', 'ok', 'got it', 'perfect', 'understood', 
-            'sure', 'alright', 'yep', 'cool', 'great'
+            'thanks', 'ok', 'got it', 'perfect', 'understood', 'understand',
+            'sure', 'alright', 'yep', 'cool', 'great', 'good', 'right',
+            'i see', 'makes sense', 'clear', 'noted', 'okay', 'k',
+            'got you', 'gotcha', 'roger', 'roger that', 'copy that',
+            'will do', 'absolutely', 'of course', 'certainly', 'indeed',
+            'true', 'fair enough', 'fine', 'sounds good', 'good good',
+            'brilliant', 'excellent', 'wonderful', 'fab', 'sweet',
+            'that works', 'perfect thanks', 'got that', 'makes perfect sense',
+            'understand completely', 'crystal clear', 'i understand',
+            'that makes sense', 'right right', 'ah ok', 'ah okay'
         ],
         is: [
-            'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 
-            'gott', 'skil', 'já', 'geggjað', 'næs', 'gott að vita'
+            'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
+            'geggjað', 'næs', 'gott að vita', 'skil þetta', 'érna', 'einmitt',
+            'ég skil', 'ókei', 'í góðu', 'allt skýrt', 'mhm', 'jebb', 'jepp',
+            'akkúrat', 'nákvæmlega', 'nákvæmlega þetta', 'skil vel', 
+            'þetta er skýrt', 'allt skilið', 'í fínu', 'snilld', 'frábært mál',
+            'flott mál', 'góð punktar', 'skil þetta vel', 'algjörlega', 
+            'klárlega', 'augljóslega', 'hiklaust', 'örugglega', 'vissulega',
+            'alveg rétt', 'rétt hjá þér', 'þetta er rétt', 'já einmitt',
+            'ah já', 'ah ok', 'ah ókei', 'mm', 'mmm', 'mmmhm', 'aha'
         ]
     },
     positive: {
@@ -673,23 +699,78 @@ const acknowledgmentPatterns = {
             'very helpful', 'so helpful', 'really helpful',
             'really good', 'very good', 'so good',
             'perfect', 'excellent', 'wonderful', 'fantastic', 'amazing',
-            'appreciate', 'thanks for', 'thank you for'
+            'appreciate', 'thanks for', 'thank you for',
+            'that helps', 'that helped', 'this helps', 'helps a lot',
+            'super helpful', 'extremely helpful', 'incredibly helpful',
+            'great help', 'perfect help', 'exactly what i needed',
+            'just what i needed', 'that was perfect', 'that was great',
+            'that was wonderful', 'that was fantastic', 'that was amazing',
+            'that was excellent', 'brilliant', 'superb', 'outstanding',
+            'magnificent', 'splendid', 'marvelous', 'terrific',
+            'thank you so much', 'thanks so much', 'much appreciated',
+            'greatly appreciated', 'really appreciate', 'appreciate it',
+            'appreciate that', 'appreciate your help', 'appreciate the help',
+            'thank you for your help', 'thanks for your help',
+            'this is perfect', 'this is excellent', 'this is great',
+            'this is wonderful', 'this is fantastic', 'this is amazing',
+            'answered perfectly', 'perfect answer', 'great answer',
+            'excellent answer', 'wonderful answer', 'fantastic answer'
         ],
         is: [
             'frábært', 'hjálplegt', 'gott', 'þægilegt', 'æðislegt',
-            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk', 'gott að vita'
+            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk', 'gott að vita',
+            'þetta hjálpaði', 'hjálpaði mikið', 'rosalega hjálplegt',
+            'alveg frábært', 'alveg æðislegt', 'alveg dásamlegt',
+            'alveg geggjað', 'alveg ótrúlegt', 'alveg snilld',
+            'þetta var frábært', 'þetta var æðislegt', 'þetta var dásamlegt',
+            'þetta var geggjað', 'þetta var ótrúlegt', 'þetta var snilld',
+            'þetta er nákvæmlega það sem ég þurfti', 'nákvæmlega það sem ég var að leita að',
+            'kærar þakkir', 'þakka þér fyrir', 'þakka þér kærlega',
+            'þúsund þakkir', 'mjög þakklát/ur', 'innilega þakkir',
+            'frábær hjálp', 'fullkomin hjálp', 'ómetanleg hjálp',
+            'þetta er nákvæmlega það', 'þetta er fullkomið',
+            'algjör snilld', 'algjört æði', 'hrein snilld',
+            'stórkostlegt', 'magnað', 'meiriháttar', 'framúrskarandi',
+            'þetta var akkúrat', 'þetta hjálpaði mikið',
+            'rosa gott', 'rosalega gott', 'virkilega gott',
+            'virkilega hjálplegt', 'rosalega hjálplegt'
         ]
     },
     continuity: {
         en: [
             'a few more questions', 'can i ask', 'actually',
             'have questions', 'want to ask', 'few more',
-            'another question'
+            'another question', 'one more thing', 'one more question',
+            'something else', 'also wanted to ask', 'also wondering',
+            'while i have you', 'since i have you', 'before you go',
+            'just one more', 'quick question', 'quick follow up',
+            'follow up question', 'related question', 'similar question',
+            'on that note', 'speaking of that', 'that reminds me',
+            'that made me think', 'that brings up', 'that leads me to',
+            'wondering about', 'curious about', 'interested in knowing',
+            'would like to know', 'need to know', 'want to know more about',
+            'could i also ask', 'mind if i ask', 'if i could ask',
+            'one other thing', 'couple more things', 'few other things',
+            'additional question', 'furthermore', 'additionally',
+            'on a related note', 'in addition', 'moreover'
         ],
         is: [
             'fleiri spurningar', 'má ég spyrja', 'reyndar',
             'er með spurningar', 'vil spyrja', 'aðra spurningu',
-            'spyrja meira'
+            'spyrja meira', 'ein spurning í viðbót', 'ein spurning enn',
+            'eitthvað annað', 'vildi líka spyrja', 'er líka að pæla',
+            'fyrst ég er kominn', 'áður en þú ferð', 'bara ein í viðbót',
+            'stutt spurning', 'svona tengt þessu', 'tengd spurning',
+            'sambærileg spurning', 'það minnir mig á', 'það fær mig til að hugsa',
+            'það leiðir mig að', 'er að velta fyrir mér', 'forvitinn um',
+            'langar að vita', 'þarf að vita', 'vil vita meira um',
+            'mætti ég líka spyrja', 'ef ég mætti spyrja',
+            'eitt annað', 'nokkur önnur atriði', 'aðeins meira',
+            'aukaleg spurning', 'að auki', 'ennfremur',
+            'í framhaldi af því', 'annað svipað', 'samt sem áður',
+            'þó að lokum', 'ein síðasta spurning', 'þegar ég hugsa um það',
+            'það kom mér í hug', 'mér datt í hug', 'hélt ég myndi spyrja',
+            'úr því að ég er kominn', 'úr því að við erum að ræða þetta'
         ]
     }
 };
