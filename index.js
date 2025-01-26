@@ -798,7 +798,19 @@ const acknowledgmentPatterns = {
             'nothing else thanks',
             'nothing else right now',
             'thats all for now',
-            "that's all for now"
+            "that's all for now",
+            // Add new variations
+            'nothing right now',
+            'not now',
+            'nothing at the moment',
+            'maybe later',
+            'another time',
+            'just saying hi',
+            'just saying hello',
+            'just wanted to say hi',
+            'just wanted to say hello',
+            'just greeting',
+            'just saying hey'
         ],
         is: [
             'ekkert annað',
@@ -811,7 +823,18 @@ const acknowledgmentPatterns = {
             'ekkert annað takk',
             'ekkert meira takk',
             'ekkert fleira takk',
-            'þetta var það'
+            'þetta var það',
+            // Add new variations
+            'bara að heilsa',
+            'bara að kíkja',
+            'bara að líta við',
+            'kannski seinna',
+            'seinna meir',
+            'ekki núna',
+            'ekki að sinni',
+            'ekki í augnablikinu',
+            'bara að skoða',
+            'bara að kveðja'
         ]
     }
 };
@@ -4034,11 +4057,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Check for conversation ending
-        if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
-            acknowledgmentPatterns.finished.is.some(pattern => msg.includes(pattern))) {
+        if (acknowledgmentPatterns.finished.en.some(pattern => 
+            msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern)) ||
+            acknowledgmentPatterns.finished.is.some(pattern => 
+            msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern))) {
             const response = isIcelandic ?
-                "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna." :
-                "Thanks for chatting! I'm here if you need any more information later.";
+                msg.includes('heil') || msg.includes('bara að heilsa') ?
+                    "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
+                    "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna." :
+                msg.includes('just say') || msg.includes('greeting') ?
+                    "Hi there! Feel free to ask if you have any questions about Sky Lagoon. I'm here to help! 😊" :
+                    "Thanks for chatting! I'm here if you need any more information later.";
 
             // Add broadcast
             await broadcastConversation(
@@ -4056,7 +4085,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     confidence: 'high'
                 }
             });
-        }             
+        } 
 
         // Check for booking or question patterns first
         const hasBookingPattern = questionPatterns.booking[isIcelandic ? 'is' : 'en']
