@@ -3503,18 +3503,17 @@ const getContext = (sessionId) => conversationContext.get(sessionId);
 
 // Enhanced chat endpoint with GPT-4 optimization
 app.post('/chat', verifyApiKey, async (req, res) => {
-    // Declare all variables at the top level of the function, with defaults
-    let context = null;
-    let currentSession = null;
-    let sessionId = null;
+    let context;  // Keep let for context since it's modified throughout
     
     try {
         console.log('\n🔍 Full request body:', req.body);
         console.log('\n📥 Incoming Message:', req.body.message);
 
-        // Initialize session variables
-        currentSession = conversationContext.get('currentSession');
-        sessionId = currentSession || `session_${Date.now()}`;
+        const userMessage = req.body.message;
+        
+        // Initialize session ONCE at the start
+        const currentSession = conversationContext.get('currentSession');
+        const sessionId = currentSession || `session_${Date.now()}`;
         
         // Store new session if needed
         if (!currentSession) {
@@ -3522,17 +3521,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n🆕 New Session Created:', sessionId);
         }
 
-        const userMessage = req.body.message;
+        // Initialize context before using it
+        context = conversationContext.get(sessionId) || {
+            language: 'en',
+            conversationStarted: true,
+            messageCount: 0
+        };
 
         // Early greeting check
         if (isSimpleGreeting(userMessage)) {
-            // Get existing context or create new one
-            context = conversationContext.get(sessionId) || {
-                language: 'en',
-                conversationStarted: true,
-                messageCount: 0
-            };
-
             // Force language based on exact greeting
             const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
             const isEnglishGreeting = simpleEnglishGreetings.some(g => 
@@ -3582,16 +3579,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Get the conversation ID from the stored session or create a new one
-        let currentSession = conversationContext.get('currentSession');
-        const sessionId = currentSession || `session_${Date.now()}`;
-        
-        // If this is a new session, store it
-        if (!currentSession) {
-            conversationContext.set('currentSession', sessionId);
-            console.log('\n🆕 New Session Created:', sessionId);
-        }
-
+        // Log session info for debugging
         console.log('\n🔍 Session ID:', {
             sessionId,
             isNewSession: !currentSession,
@@ -4422,7 +4410,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         });
 
     } catch (error) {
-        // Safe error handling that doesn't depend on potentially undefined variables
         console.error('\n❌ Error Details:', {
             message: error.message,
             stack: error.stack,
@@ -4434,12 +4421,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Use a basic error response if formatErrorMessage isn't available
-        const errorResponse = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
-        
         return res.status(500).json({
-            message: errorResponse,
-            error: error.message
+            message: "I apologize, but I'm having trouble connecting right now. Please try again shortly."
         });
     }
 });
