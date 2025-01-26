@@ -785,6 +785,34 @@ const acknowledgmentPatterns = {
             'virkar mjög vel',
             'gott að geta spjallað'
         ]
+    },
+    finished: {
+        en: [
+            'nothing else',
+            'nothing now',
+            'not right now',
+            'nothing more',
+            'no more questions',
+            'that is all',
+            "that's all",
+            'nothing else thanks',
+            'nothing else right now',
+            'thats all for now',
+            "that's all for now"
+        ],
+        is: [
+            'ekkert annað',
+            'ekkert núna',
+            'ekkert meira',
+            'ekkert að sinni',
+            'ekkert fleira',
+            'það er allt',
+            'það er allt í bili',
+            'ekkert annað takk',
+            'ekkert meira takk',
+            'ekkert fleira takk',
+            'þetta var það'
+        ]
     }
 };
 
@@ -4003,7 +4031,32 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     confidence: 'high'
                 }
             });
-        }        
+        }
+
+        // Check for conversation ending
+        if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
+            acknowledgmentPatterns.finished.is.some(pattern => msg.includes(pattern))) {
+            const response = isIcelandic ?
+                "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna." :
+                "Thanks for chatting! I'm here if you need any more information later.";
+
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'finished',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    confidence: 'high'
+                }
+            });
+        }             
 
         // Check for booking or question patterns first
         const hasBookingPattern = questionPatterns.booking[isIcelandic ? 'is' : 'en']
