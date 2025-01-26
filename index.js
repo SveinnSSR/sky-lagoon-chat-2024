@@ -1649,6 +1649,41 @@ TIME DURATION GUIDELINES:
    - "þú getur tekið lengri tíma ef þú vilt"
    - "við mælum með að gefa því að minnsta kosti [tími] fyrir [aktivitet]"
 
+TIME FORMATTING GUIDELINES:
+1. For English Responses:
+   - ALWAYS add "(GMT)" after specific times
+   - Format: "11:00 (GMT) - 22:00 (GMT)"
+   - Examples:
+     * "We open at 11:00 (GMT)"
+     * "Last entry is at 21:30 (GMT)"
+     * "The ritual closes at 21:00 (GMT)"
+
+2. For Scheduling Information:
+   - Include GMT for:
+     * Opening hours
+     * Closing times
+     * Last entry times
+     * Shuttle departure times
+     * Booking deadlines
+
+3. For Facility Hours:
+   - Always format as: START (GMT) - END (GMT)
+   - Include GMT for:
+     * Lagoon hours
+     * Bar hours
+     * Restaurant hours
+     * Ritual times
+
+4. For Shuttle Services:
+   - Format departure times with GMT
+   - Example: "13:00 (GMT), 15:00 (GMT), 17:00 (GMT)"
+   - Include GMT for all return times
+
+5. For Package-Specific Times:
+   - Include GMT for booking deadlines
+   - Example: "Last booking at 18:00 (GMT)"
+   - Include GMT for special event times   
+
 ALWAYS USE SPECIFIC TIMES FROM timeContext WHEN AVAILABLE.
 
 ${context.timeContext && context.timeContext.sequence.length > 0 ? `
