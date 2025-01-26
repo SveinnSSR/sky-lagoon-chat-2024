@@ -4016,9 +4016,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Check for simple acknowledgments (1-4 words)
                 if (userMessage.split(' ').length <= 4 && 
                     (acknowledgmentPatterns.simple.en.some(word => 
-                        msg.split(' ').some(msgWord => msgWord === word.toLowerCase())) ||
+                        msg.includes(word.toLowerCase())) ||
                      acknowledgmentPatterns.simple.is.some(word => 
-                        msg.split(' ').some(msgWord => msgWord === word.toLowerCase())))) {
+                        msg.includes(word.toLowerCase())))) {
                         const response = isIcelandic ?
                             "Láttu mig vita ef þú hefur fleiri spurningar!" :
                             "Is there anything else you'd like to know about Sky Lagoon?";
