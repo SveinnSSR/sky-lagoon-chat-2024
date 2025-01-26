@@ -851,6 +851,62 @@ export const knowledgeBase_is = {
             ]
         }
     },
+    discounts: {
+        questions: [
+            "Er afsláttur?",
+            "Eruð þið með afslátt?",
+            "Er hægt að fá afslátt?",
+            "Eru einhver tilboð?",
+            "Er hægt að fá betra verð?",
+            "Er hægt að spara?",
+            "Er eitthvað tilboð í gangi?",
+            "Eruð þið með sérkjör?",
+            "Er hægt að fá það ódýrara?",
+            "Er einhver leið til að spara?",
+            "Eruð þið með einhver tilboð?",
+            "Er hægt að fá afsláttarkjör?"
+        ],
+        patterns: [
+            "afsláttur",
+            "afsláttarkjör",
+            "verðlækkun",
+            "tilboð",
+            "sérkjör",
+            "betra verð",
+            "spara",
+            "sparnaður",
+            "ódýrara",
+            "lækkað verð",
+            "hagstætt verð",
+            "hagstæðara",
+            "lægra verð"
+        ],
+        answer: {
+            introduction: "Við bjóðum ekki upp á sérstakan afslátt, en Multi-Pass er frábær leið til að spara.",
+            description: "Multi-Pass veitir þér sex heimsóknir í Sky Lagoon á um helmingi af venjulegu verði. Passinn gildir í 4 ár frá kaupdegi og er í boði bæði með Saman og Sér pökkunum.",
+            options: {
+                ser: {
+                    name: "Sér Multi-Pass (með einkaklefa)",
+                    price: "44.970 kr fyrir 6 skipti",
+                    includes: [
+                        "Aðgangur að lóninu",
+                        "Skjól Ritúal meðferð",
+                        "Einkaklefi með sturtu"
+                    ]
+                },
+                saman: {
+                    name: "Saman Multi-Pass (með almennum klefa)",
+                    price: "35.970 kr fyrir 6 skipti",
+                    includes: [
+                        "Aðgangur að lóninu",
+                        "Skjól Ritúal meðferð",
+                        "Almenn búningsaðstaða"
+                    ]
+                }
+            },
+            important_note: "Multi-Pass er persónubundinn og gildir einungis fyrir eiganda kortsins - ekki er hægt að deila með öðrum eða bjóða gestum með."
+        }
+    },
     gift_cards: {
         questions: [
             // Existing questions
@@ -2453,7 +2509,34 @@ export const getRelevantKnowledge_is = (userMessage) => {
             });
         }
     }  // End of Multi-Pass section
-
+    
+    // Discount queries
+    if (message.includes('afsláttur') || 
+        message.includes('afsláttarkjör') ||
+        message.includes('verðlækkun') ||
+        message.includes('tilboð') ||
+        message.includes('sérkjör') ||
+        message.includes('betra verð') ||
+        message.includes('spara') ||
+        message.includes('sparnaður') ||
+        message.includes('ódýrara') ||
+        message.includes('lækkað verð') ||
+        message.includes('hagstætt') ||
+        message.includes('hagstæðara') ||
+        message.includes('lægra verð') ||
+        // Question patterns
+        (message.includes('er') && message.includes('afsláttur')) ||
+        (message.includes('eruð') && message.includes('tilboð')) ||
+        (message.includes('hægt') && message.includes('spara')) ||
+        (message.includes('hægt') && message.includes('ódýrara'))) {
+    
+        console.log('\n💰 Discount Query Match Found');
+        relevantInfo.push({
+            type: 'discounts',
+            content: knowledgeBase_is.discounts
+        });
+    }  // End of Discount section
+    
     // Gift Card Pattern Detection
     if (message.includes('gjafakort') ||
         message.includes('gjafabréf') ||
