@@ -4111,38 +4111,35 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             .some(word => msg.includes(word));
 
         // Only proceed with acknowledgment check if no booking/question patterns detected
-        // AND message is either short OR a simple acknowledgment
-        if (!hasBookingPattern && !hasQuestionWord && 
-            (userMessage.length < 100 || acknowledgmentPatterns.finished.is.some(pattern => 
-                msg.includes(pattern)))) {
+        if (!hasBookingPattern && !hasQuestionWord) {
             // Check for simple acknowledgments (1-4 words)
-                if (userMessage.split(' ').length <= 4 && 
-                    (acknowledgmentPatterns.simple.en.some(word => 
-                        msg.includes(word.toLowerCase())) ||
-                     acknowledgmentPatterns.simple.is.some(word => 
-                        msg.includes(word.toLowerCase())))) {
-                        const response = isIcelandic ?
-                            "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                            "Is there anything else you'd like to know about Sky Lagoon?";
+            if (userMessage.split(' ').length <= 4 && 
+                (acknowledgmentPatterns.simple.en.some(word => 
+                    msg.includes(word.toLowerCase())) ||
+                 acknowledgmentPatterns.simple.is.some(word => 
+                    msg.includes(word.toLowerCase())))) {
+                    const response = isIcelandic ?
+                        "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                        "Is there anything else you'd like to know about Sky Lagoon?";
 
-                        // Add this broadcast 👇
-                        await broadcastConversation(
-                            userMessage,
-                            response,
-                            isIcelandic ? 'is' : 'en',
-                            'acknowledgment',
-                            'direct_response'
-                        );                        
+                    // Add this broadcast 👇
+                    await broadcastConversation(
+                        userMessage,
+                        response,
+                        isIcelandic ? 'is' : 'en',
+                        'acknowledgment',
+                        'direct_response'
+                    );                        
 
-                        return res.status(200).json({
-                            message: response,
-                            language: {
-                                detected: isIcelandic ? 'Icelandic' : 'English',
-                                confidence: 'high'
-                            }
-                        });
-                }
-        }
+                    return res.status(200).json({
+                        message: response,
+                        language: {
+                            detected: isIcelandic ? 'Icelandic' : 'English',
+                            confidence: 'high'
+                        }
+                    });
+            }
+    }
 
         // Yes/Confirmation handling
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
