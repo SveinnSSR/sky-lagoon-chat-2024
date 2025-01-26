@@ -1249,7 +1249,7 @@ const initializeContext = (sessionId, language = 'en') => {
         lateArrival: null,
         lastInteraction: Date.now(),
         language: language,  // Changed from isIcelandic ? 'is' : 'en' to use the parameter
-        conversationStarted: false,
+        conversationStarted: true,  // Initialize as true since ChatWidget handles first greeting
         messageCount: 0,
         lastTopic: null,
         lastResponse: null,
