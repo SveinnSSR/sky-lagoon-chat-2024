@@ -1568,8 +1568,13 @@ const detectLateArrivalScenario = (message) => {
 
     // Helper function to check if a word exists as a complete word
     const hasCompleteWord = (text, word) => {
+        // Clean text of smileys and emojis before checking
+        const cleanText = text
+            .replace(/[:;][-]?[)(/\]]/g, '')  // Remove :) :( ;) etc
+            .replace(/\s+/g, ' ')             // Normalize spaces
+            .trim();                          // Remove extra spaces
         const regex = new RegExp(`\\b${word}\\b`, 'i');
-        return regex.test(text);
+        return regex.test(cleanText);
     };
 
     // For vague "late" mentions without specific time
