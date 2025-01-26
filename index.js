@@ -3233,6 +3233,12 @@ const handleCasualChat = (message, isIcelandic) => {
     
     // For "nice to meet you" type responses
     if (isIcelandic) {
+        // Add casual greeting checks first
+        if (msg.includes('bara heilsa') || 
+            msg.includes('bara að heilsa') || 
+            msg.includes('bara að kíkja')) {
+            return "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊";
+        }
         if (msg.includes('gaman að hitta') || 
             msg.includes('gaman að kynnast') || 
             msg.includes('gott að hitta')) {
