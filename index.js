@@ -4105,8 +4105,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             .some(word => msg.includes(word));
 
         // Only proceed with acknowledgment check if no booking/question patterns detected
-        // AND message is not too long
-        if (!hasBookingPattern && !hasQuestionWord && userMessage.length < 100) {
+        // AND message is either short OR a simple acknowledgment
+        if (!hasBookingPattern && !hasQuestionWord && 
+            (userMessage.length < 100 || acknowledgmentPatterns.finished.is.some(pattern => 
+                msg.includes(pattern)))) {
             // Check for simple acknowledgments (1-4 words)
                 if (userMessage.split(' ').length <= 4 && 
                     (acknowledgmentPatterns.simple.en.some(word => 
