@@ -1205,6 +1205,98 @@ const CONTEXT_PATTERNS = {
     }
 };
 
+// Initialize context before any usage
+const initializeContext = (sessionId, language = 'en') => {
+    return {
+        messages: [],
+        bookingTime: null,
+        lateArrival: null,
+        lastInteraction: Date.now(),
+        language: language,  // Changed from isIcelandic ? 'is' : 'en' to use the parameter
+        conversationStarted: false,
+        messageCount: 0,
+        lastTopic: null,
+        lastResponse: null,
+        conversationMemory: {
+            topics: [],
+            lastResponse: null,
+            contextualQuestions: {},
+            addTopic: function(topic, details) {
+                this.topics.unshift({ topic, details, timestamp: Date.now() });
+                if (this.topics.length > 5) this.topics.pop();
+            },
+            getLastTopic: function() {
+                return this.topics[0]?.topic || null;
+            },
+            getTopicDetails: function(topic) {
+                return this.topics.find(t => t.topic === topic)?.details || null;
+            }
+        },
+        lateArrivalContext: {
+            isLate: false,
+            type: null,
+            minutes: null,
+            lastUpdate: null,
+            previousResponses: [],
+            addResponse: function(response) {
+                this.previousResponses.unshift({
+                    response,
+                    timestamp: Date.now()
+                });
+                if (this.previousResponses.length > 3) this.previousResponses.pop();
+            },
+            hasRecentInteraction: function() {
+                return this.lastUpdate && 
+                       (Date.now() - this.lastUpdate) < 5 * 60 * 1000;
+            }
+        },
+        icelandicTopics: [],
+        timeContext: {
+            bookingTime: null,
+            activityDuration: {
+                ritual: 45,
+                dining: 60,
+                bar: 30
+            },
+            sequence: [],
+            lastDiscussedTime: null
+        },
+        lastQuestion: null,
+        lastAnswer: null,
+        prevQuestions: [],
+        contextualReferences: [],
+        relatedTopics: [],
+        questionContext: null,
+        selectedGreeting: null,
+        isFirstGreeting: true,
+        selectedAcknowledgment: null,
+        isAcknowledgment: false,
+        seasonalContext: {
+            type: null,
+            subtopic: null,
+            lastFollowUp: null,
+            previousSeason: null,
+            holidayContext: {
+                isHoliday: false,
+                holidayType: null,
+                specialHours: null
+            },
+            transitionDate: null,
+            currentInfo: null
+        },
+        currentSeason: null,
+        referenceContext: null,
+        lateArrivalScenario: null,
+        soldOutStatus: false,
+        lastTransition: null,
+        bookingModification: {
+            requested: false,
+            type: null,
+            originalTime: null
+        }
+    };
+};
+
 // Add new code here
 const EMOJI_MAPPING = {
     greeting: '😊',
@@ -3213,102 +3305,8 @@ const formatErrorMessage = (error, userMessage) => {
 
 // Context management
 const updateContext = (sessionId, message, response) => {
-    // Initialize context with all required properties
-    let context = conversationContext.get(sessionId) || {
-        messages: [],
-        bookingTime: null,
-        lateArrival: null,
-        lastInteraction: Date.now(),
-        language: detectLanguage(message) ? 'is' : 'en',  // Add language here        
-        conversationStarted: false,
-        messageCount: 0,
-        lastTopic: null,
-        lastResponse: null,
-        // Add the new conversationMemory property here 👇
-        conversationMemory: {
-            topics: [],
-            lastResponse: null,
-            contextualQuestions: {},
-            addTopic: function(topic, details) {
-                this.topics.unshift({ topic, details, timestamp: Date.now() });
-                if (this.topics.length > 5) this.topics.pop();
-            },
-            getLastTopic: function() {
-                return this.topics[0]?.topic || null;
-            },
-            getTopicDetails: function(topic) {
-                return this.topics.find(t => t.topic === topic)?.details || null;
-            }
-        },
-        // Enhanced late arrival context
-        lateArrivalContext: {
-            isLate: false,
-            type: null,  // 'flight_delay', 'unspecified_delay', 'within_grace', 'moderate_delay', 'significant_delay'
-            minutes: null,
-            lastUpdate: null,
-            previousResponses: [],
-            addResponse: function(response) {
-                this.previousResponses.unshift({
-                    response,
-                    timestamp: Date.now()
-                });
-                if (this.previousResponses.length > 3) this.previousResponses.pop();
-            },
-            hasRecentInteraction: function() {
-                return this.lastUpdate && 
-                       (Date.now() - this.lastUpdate) < 5 * 60 * 1000; // 5 minutes
-            }
-        },
-        // Add this new property here 👇
-        icelandicTopics: [],  // Track topics discussed in Icelandic
-        // Add timeContext here 👇
-            timeContext: {
-                bookingTime: null,
-                activityDuration: {
-                    ritual: 45,     // 45 minutes for ritual
-                    dining: 60,     // 1 hour for dining
-                    bar: 30         // 30 minutes for bar
-                },
-                sequence: [],
-                lastDiscussedTime: null
-        },
-        // Enhanced context tracking
-        lastQuestion: null,
-        lastAnswer: null,
-        prevQuestions: [],
-        contextualReferences: [],
-        relatedTopics: [],
-        questionContext: null,
-        // New properties for greetings and acknowledgments
-        selectedGreeting: null,
-        isFirstGreeting: true,
-        selectedAcknowledgment: null,
-        isAcknowledgment: false,
-        // Existing seasonal context
-        seasonalContext: {
-            type: null,
-            subtopic: null,
-            lastFollowUp: null,
-            previousSeason: null,
-            holidayContext: {
-                isHoliday: false,
-                holidayType: null,
-                specialHours: null
-            },
-            transitionDate: null,
-            currentInfo: null
-        },
-        currentSeason: null,
-        referenceContext: null,
-        lateArrivalScenario: null,
-        soldOutStatus: false,
-        lastTransition: null,
-        bookingModification: {
-            requested: false,
-            type: null,
-            originalTime: null
-        }
-    };
+    let context = conversationContext.get(sessionId) || 
+                 initializeContext(sessionId, detectLanguage(message) ? 'is' : 'en');
 
     // Reset specific contexts when appropriate
     if (message.toLowerCase().includes('reschedule') || 
@@ -3541,12 +3539,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n🆕 New Session Created:', sessionId);
         }
 
-        // Initialize context before using it
-        context = conversationContext.get(sessionId) || {
-            language: 'en',
-            conversationStarted: true,
-            messageCount: 0
-        };
+        let context = conversationContext.get(sessionId) || 
+        initializeContext(sessionId, detectLanguage(userMessage) ? 'is' : 'en');
 
         // Early greeting check
         if (isSimpleGreeting(userMessage)) {
@@ -3668,103 +3662,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 rawDetection: languageCheck.rawDetection
             }
         });
-
-        // Initialize context before any usage
-        context = conversationContext.get(sessionId) || {
-            messages: [],
-            bookingTime: null,
-            lateArrival: null,
-            lastInteraction: Date.now(),
-            language: isIcelandic ? 'is' : 'en',  // Add here, after lastInteraction
-            conversationStarted: false,
-            messageCount: 0,
-            lastTopic: null,
-            lastResponse: null,
-            // Add these new properties RIGHT HERE 👇
-            conversationMemory: {
-                topics: [],
-                lastResponse: null,
-                contextualQuestions: {},
-                addTopic: function(topic, details) {
-                    this.topics.unshift({ topic, details, timestamp: Date.now() });
-                    if (this.topics.length > 5) this.topics.pop();
-                },
-                getLastTopic: function() {
-                    return this.topics[0]?.topic || null;
-                },
-                getTopicDetails: function(topic) {
-                    return this.topics.find(t => t.topic === topic)?.details || null;
-                }
-            },
-            // Enhanced late arrival handling 👇
-            lateArrivalContext: {
-                isLate: false,
-                type: null,  // 'flight_delay', 'unspecified_delay', 'within_grace', 'moderate_delay', 'significant_delay'
-                minutes: null,
-                lastUpdate: null,
-                previousResponses: [],
-                addResponse: function(response) {
-                    this.previousResponses.unshift({
-                        response,
-                        timestamp: Date.now()
-                    });
-                    if (this.previousResponses.length > 3) this.previousResponses.pop();
-                },
-                hasRecentInteraction: function() {
-                    return this.lastUpdate && 
-                           (Date.now() - this.lastUpdate) < 5 * 60 * 1000; // 5 minutes
-                }
-            },
-            // Add this new property here 👇
-            icelandicTopics: [],  // Track topics discussed in Icelandic
-            // Add timeContext here 👇
-            timeContext: {
-                bookingTime: null,
-                activityDuration: {
-                    ritual: 45,     // 45 minutes for ritual
-                    dining: 60,     // 1 hour for dining
-                    bar: 30         // 30 minutes for bar
-                },
-                sequence: [],
-                lastDiscussedTime: null
-            },
-            // Enhanced context tracking
-            lastQuestion: null,
-            lastAnswer: null,
-            prevQuestions: [],
-            contextualReferences: [],
-            relatedTopics: [],
-            questionContext: null,
-            // Existing greeting and acknowledgment properties
-            selectedGreeting: null,
-            isFirstGreeting: true,
-            selectedAcknowledgment: null,
-            isAcknowledgment: false,
-            // Existing seasonal context
-            seasonalContext: {
-                type: null,
-                subtopic: null,
-                lastFollowUp: null,
-                previousSeason: null,
-                holidayContext: {
-                    isHoliday: false,
-                    holidayType: null,
-                    specialHours: null
-                },
-                transitionDate: null,
-                currentInfo: null
-            },
-            currentSeason: null,
-            referenceContext: null,
-            lateArrivalScenario: null,
-            soldOutStatus: false,
-            lastTransition: null,
-            bookingModification: {
-                requested: false,
-                type: null,
-                originalTime: null
-            }
-        };
 
         // MOVE TOPIC CONTEXT CODE HERE - after context initialization
         if (userMessage.toLowerCase().includes('ritual') || 
