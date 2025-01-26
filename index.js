@@ -1566,8 +1566,14 @@ const detectLateArrivalScenario = (message) => {
         };
     }
 
+    // Helper function to check if a word exists as a complete word
+    const hasCompleteWord = (text, word) => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(text);
+    };
+
     // For vague "late" mentions without specific time
-    if (lowerMessage.includes('late') || lowerMessage.includes('delay')) {
+    if (hasCompleteWord(lowerMessage, 'late') || hasCompleteWord(lowerMessage, 'delay')) {
         return {
             type: 'unspecified_delay',
             minutes: null
