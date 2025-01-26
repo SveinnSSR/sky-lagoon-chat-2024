@@ -1409,7 +1409,7 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage) => {
         message: userMessage
     });
 
-//    // Enhanced language detection
+//    // Enhanced language detection.
 //    const languageCheck = {
 //        hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
 //        rawDetection: detectLanguage(userMessage),
