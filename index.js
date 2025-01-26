@@ -826,6 +826,11 @@ const acknowledgmentPatterns = {
             'þetta var það',
             // Add new variations
             'bara að heilsa',
+            'bara heilsa',      // Need to add this variation
+            'er bara að heilsa',
+            'var bara að heilsa',
+            'bara að prufa',
+            'bara prufa',
             'bara að kíkja',
             'bara að líta við',
             'kannski seinna',
@@ -4100,8 +4105,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             .some(word => msg.includes(word));
 
         // Only proceed with acknowledgment check if no booking/question patterns detected
-        if (!hasBookingPattern && !hasQuestionWord) {
-                // Check for simple acknowledgments (1-4 words)
+        // AND message is not too long
+        if (!hasBookingPattern && !hasQuestionWord && userMessage.length < 100) {
+            // Check for simple acknowledgments (1-4 words)
                 if (userMessage.split(' ').length <= 4 && 
                     (acknowledgmentPatterns.simple.en.some(word => 
                         msg.includes(word.toLowerCase())) ||
