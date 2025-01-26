@@ -864,7 +864,13 @@ export const knowledgeBase_is = {
             "Er hægt að fá það ódýrara?",
             "Er einhver leið til að spara?",
             "Eruð þið með einhver tilboð?",
-            "Er hægt að fá afsláttarkjör?"
+            "Er hægt að fá afsláttarkjör?",
+            "Ertu með einhvern afsláttarkóða?",
+            "Er hægt að fá ódýrari miða?",
+            "Eru einhverjir afslættir?",
+            "Er hægt að versla miða á ódýrara verði?",
+            "Er hægt að fá ódýrari pakka?",
+            "Eruð þið með einhver sérkjör?"
         ],
         patterns: [
             "afsláttur",
@@ -879,7 +885,12 @@ export const knowledgeBase_is = {
             "lækkað verð",
             "hagstætt verð",
             "hagstæðara",
-            "lægra verð"
+            "lægra verð",
+            "afslætti",  // Added these variations below
+            "afsláttarkóði",
+            "afsláttarkóða",
+            "ódýrari miða",
+            "ódýrari pakka"
         ],
         answer: {
             introduction: "Við bjóðum ekki upp á sérstakan afslátt, en Multi-Pass er frábær leið til að spara.",
@@ -904,7 +915,8 @@ export const knowledgeBase_is = {
                     ]
                 }
             },
-            important_note: "Multi-Pass er persónubundinn og gildir einungis fyrir eiganda kortsins - ekki er hægt að deila með öðrum eða bjóða gestum með."
+            important_note: "Multi-Pass er persónubundinn og gildir einungis fyrir eiganda kortsins - ekki er hægt að deila með öðrum eða bjóða gestum með.",
+            additional_info: "Ef þú hefur sérstakar spurningar um verð eða afsláttarmöguleika, ekki hika við að hafa samband við okkur á reservations@skylagoon.is."    
         }
     },
     gift_cards: {
@@ -2512,6 +2524,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
     
     // Discount queries
     if (message.includes('afsláttur') || 
+        message.includes('afslætti') ||
         message.includes('afsláttarkjör') ||
         message.includes('verðlækkun') ||
         message.includes('tilboð') ||
@@ -2524,16 +2537,25 @@ export const getRelevantKnowledge_is = (userMessage) => {
         message.includes('hagstætt') ||
         message.includes('hagstæðara') ||
         message.includes('lægra verð') ||
+        message.includes('afsláttarkóði') ||
+        message.includes('afsláttarkóða') ||
         // Question patterns
         (message.includes('er') && message.includes('afsláttur')) ||
         (message.includes('eruð') && message.includes('tilboð')) ||
         (message.includes('hægt') && message.includes('spara')) ||
-        (message.includes('hægt') && message.includes('ódýrara'))) {
-    
+        (message.includes('hægt') && message.includes('ódýrara')) ||
+        (message.includes('hægt') && message.includes('ódýrari')) ||
+        (message.includes('eru') && message.includes('afslættir')) ||
+        (message.includes('ertu') && message.includes('afsláttarkóða')) ||
+        (message.includes('eru') && message.includes('sérkjör')) ||
+        // Complex discount phrases
+        (message.includes('versla') && message.includes('ódýrara')) ||
+        (message.includes('fá') && message.includes('ódýrari'))) {
+        
         console.log('\n💰 Discount Query Match Found');
         relevantInfo.push({
             type: 'discounts',
-            content: knowledgeBase_is.discounts
+            content: knowledgeBase_is.discounts.answer
         });
     }  // End of Discount section
     
