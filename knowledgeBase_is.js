@@ -2550,7 +2550,9 @@ export const getRelevantKnowledge_is = (userMessage) => {
         (message.includes('eru') && message.includes('sérkjör')) ||
         // Complex discount phrases
         (message.includes('versla') && message.includes('ódýrara')) ||
-        (message.includes('fá') && message.includes('ódýrari'))) {
+        (message.includes('fá') && message.includes('ódýrari')) ||
+        // Add this specific pattern
+        (message.includes('hægt') && message.includes('fá') && message.includes('afslát'))) {
         
         console.log('\n💰 Discount Query Match Found');
         relevantInfo.push({
