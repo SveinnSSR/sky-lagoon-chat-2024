@@ -2286,22 +2286,7 @@ IF user says "yes" to more information:
             basePrompt += `\n\n${info.type.toUpperCase()}:\n${JSON.stringify(info.content, null, 2)}`;
         });
     }
-
-    // Add explicit age policy if question might be age-related // NOT SURE IF NECCESSARY. SEEMS TO WORK OK WITHOUT IT.
-    //const ageRelatedTerms = ['minimum age', 'age limit', 'age policy', 'age restriction'];
-    //const ageRelatedPhrases = [
-    //'how old', 'age requirement',
-    //'bring kids', 'bring children', 'with kids',
-    //'with children', 'for kids', 'for children',
-    //'can children', 'can kids', 'allowed age',
-    //'family friendly', 'child friendly'
-    //];
-    
-    //if (ageRelatedTerms.some(term => userMessage.toLowerCase().includes(term)) ||
-    //    ageRelatedPhrases.some(phrase => userMessage.toLowerCase().includes(phrase))) {
-    //    basePrompt += '\n\nMANDATORY AGE POLICY RESPONSE REQUIRED';
-    //}    
-
+  
     // Add Icelandic guidelines if detected
     if (detectLanguage(userMessage)) {
         basePrompt += `
@@ -2513,7 +2498,7 @@ STRICT RULES FOR COMPARISONS:
    INSTEAD OF: "bæta við þinni heilsufar"
    USE: "Já, Sky Lagoon snyrtivörur eru í boði í öllum búningsklefum."
 
-FORBIDDEN PHRASES:
+FORBIDDEN PHRASES: 
 - "færir þú" (use "færð þú" instead)
 - "á hinn bóginn"
 - "sérstök þjónusta"
