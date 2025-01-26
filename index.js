@@ -657,7 +657,14 @@ const acknowledgmentPatterns = {
             'brilliant', 'excellent', 'wonderful', 'fab', 'sweet',
             'that works', 'perfect thanks', 'got that', 'makes perfect sense',
             'understand completely', 'crystal clear', 'i understand',
-            'that makes sense', 'right right', 'ah ok', 'ah okay'
+            'that makes sense', 'right right', 'ah ok', 'ah okay',
+            // Add new patterns here
+            'thats great',
+            "that's great",
+            'all good',
+            'all good!',
+            'no worries',
+            'no worries!'
         ],
         is: [
             'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
@@ -668,7 +675,8 @@ const acknowledgmentPatterns = {
             'flott mál', 'góð punktar', 'skil þetta vel', 'algjörlega', 
             'klárlega', 'augljóslega', 'hiklaust', 'örugglega', 'vissulega',
             'alveg rétt', 'rétt hjá þér', 'þetta er rétt', 'já einmitt',
-            'ah já', 'ah ok', 'ah ókei', 'mm', 'mmm', 'mmmhm', 'aha'
+            'ah já', 'ah ok', 'ah ókei', 'mm', 'mmm', 'mmmhm', 'aha', 
+            'ekkert mál', 'ekkert núna'
         ]
     },
     positive: {
@@ -710,7 +718,7 @@ const acknowledgmentPatterns = {
             'stórkostlegt', 'magnað', 'meiriháttar', 'framúrskarandi',
             'þetta var akkúrat', 'þetta hjálpaði mikið',
             'rosa gott', 'rosalega gott', 'virkilega gott',
-            'virkilega hjálplegt', 'rosalega hjálplegt'
+            'virkilega hjálplegt', 'rosalega hjálplegt', 'hjálpsamt'
         ]
     },
     continuity: {
@@ -748,6 +756,34 @@ const acknowledgmentPatterns = {
             'þó að lokum', 'ein síðasta spurning', 'þegar ég hugsa um það',
             'það kom mér í hug', 'mér datt í hug', 'hélt ég myndi spyrja',
             'úr því að ég er kominn', 'úr því að við erum að ræða þetta'
+        ]
+    },
+    general: {
+        en: [
+            'impressed with this chat',
+            'impressed with you',
+            'chat is helpful',
+            'chat is great',
+            'really cool system',
+            'works well',
+            'works great',
+            'loving this',
+            'love this',
+            'really like this',
+            'good chat',
+            'great chat',
+            'nice chat'
+        ],
+        is: [
+            'gaman að spjalla',
+            'gott spjall',
+            'virkar vel',
+            'þetta er frábært',
+            'þetta er geggjað',
+            'mjög gott kerfi',
+            'þetta er snilld',
+            'virkar mjög vel',
+            'gott að geta spjallað'
         ]
     }
 };
@@ -3943,6 +3979,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
         }
+
+        // Check for general chat praise
+        if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
+            acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
+            const response = isIcelandic ?
+                "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?" :
+                "Thank you for the kind words! What else would you like to know about Sky Lagoon?";
+
+            // Add broadcast like your other acknowledgments
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'acknowledgment',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    confidence: 'high'
+                }
+            });
+        }        
 
         // Check for booking or question patterns first
         const hasBookingPattern = questionPatterns.booking[isIcelandic ? 'is' : 'en']
