@@ -6,7 +6,7 @@ export const detectLanguage = (message) => {
     const simpleIcelandicWords = [
         // Single words
         'takk', 'já', 'nei', 'ok', 'oki', 'okei', 'flott', 
-        'gott', 'bara', 'allt',
+        'gott', 'bara', 'allt', 'snilld', 'snillingur',  // Added these
         // Common combinations
         'takk fyrir', 'takk kærlega', 'kærar þakkir',
         'takk fyrir það', 'takk fyrir þetta',
@@ -14,7 +14,10 @@ export const detectLanguage = (message) => {
         'takk kæra', 'þúsund þakkir',
         'ók takk', 'okei takk', 'oki takk',
         'flott er', 'flott takk',
-        'gott að vita', 'allt í lagi'
+        'gott að vita', 'allt í lagi',
+        // Snilld variations
+        'snilld takk', 'algjör snilld', 'hrein snilld',
+        'þetta er snilld', 'alveg snilld'
     ];
     
     // Modify the check to handle multi-word phrases
