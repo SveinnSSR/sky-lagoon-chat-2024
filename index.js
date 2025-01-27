@@ -3862,46 +3862,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 isAvailabilityQuery,
                 message: userMessage,
                 processingTime: Date.now() - startTime
-            });
-
-            // Only check for late arrival if it's not an availability query
-            const lateScenario = !isAvailabilityQuery ? 
-                detectLateArrivalScenario(userMessage) : 
-                null;
-
-            if (lateScenario) {
-                let response;
-                if (lateScenario.type === 'flight_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-                } else if (lateScenario.type === 'unspecified_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-                } else if (lateScenario.type === 'within_grace') {
-                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-                } else if (lateScenario.type === 'moderate_delay') {
-                    response = getRandomResponse(context.soldOutStatus ? 
-                        BOOKING_RESPONSES.moderate_delay.sold_out : 
-                        BOOKING_RESPONSES.moderate_delay.normal);
-                } else if (lateScenario.type === 'significant_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-                } else {
-                    response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
-                }
-
-                // Add this broadcast before the return
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    isIcelandic ? 'is' : 'en',
-                    'late_arrival',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
-                    message: response,
-                    lateArrivalHandled: true,
-                    lateScenarioType: lateScenario.type // Optional: useful for debugging
-                });
-            }        
+            });     
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
@@ -4029,6 +3990,44 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
             console.log('\n📦 Using cached response');
             return res.json(cached.response);
+        }
+
+        // ADD NEW CODE RIGHT HERE 👇
+        // Check for late arrival ONLY if no knowledge base match
+        if (knowledgeBaseResults.length === 0) {
+            const lateScenario = detectLateArrivalScenario(userMessage);
+            if (lateScenario) {
+                let response;
+                if (lateScenario.type === 'flight_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+                } else if (lateScenario.type === 'unspecified_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
+                } else if (lateScenario.type === 'within_grace') {
+                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+                } else if (lateScenario.type === 'moderate_delay') {
+                    response = getRandomResponse(context.soldOutStatus ? 
+                        BOOKING_RESPONSES.moderate_delay.sold_out : 
+                        BOOKING_RESPONSES.moderate_delay.normal);
+                } else if (lateScenario.type === 'significant_delay') {
+                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+                } else {
+                    response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
+                }
+
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    isIcelandic ? 'is' : 'en',
+                    'late_arrival',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: response,
+                    lateArrivalHandled: true,
+                    lateScenarioType: lateScenario.type
+                });
+            }
         }
 
         // Enhanced small talk handling
