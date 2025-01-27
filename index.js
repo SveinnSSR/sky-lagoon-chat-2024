@@ -1440,51 +1440,36 @@ const getAppropriateSuffix = (message) => {
 // Helper function for late arrival detection.
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
-
+    
     // Helper function to check if a word exists as a complete word
     const hasCompleteWord = (text, word) => {
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         return regex.test(text);
     };
 
-    // Define complete words we want to match
-    const latenessWords = {
-        en: ['late', 'delay', 'delayed'],
-        is: ['sein', 'seint', 'seinna', 'seinkar', 'seinkaði']
-    };
-
-    // Check if ANY complete lateness word exists
-    const hasLatenessWord = [...latenessWords.en, ...latenessWords.is]
-        .some(word => hasCompleteWord(lowerMessage, word));
-
-    // If no complete lateness word is found, return null early
-    if (!hasLatenessWord) {
-        return null;
-    }    
-
-    // First check for flight delay indicators
+    // First check for flight delay indicators with more comprehensive patterns
     const flightDelayIndicators = [
         'flight delayed',
         'flight delay',
         'still at airport',
         'still on runway',
-        'on runway',         
-        'runway in',         
+        'on runway',         // Added for cases like "sat on the runway"
+        'runway in',         // Added for "runway in Manchester" etc
         'waiting for flight',
         'flight is late',
         'waiting for flybys',
-        'flight',            
+        'flight',            // Generic flight mention with delay context
         'plane delayed',
         'plane delay',
         'aircraft'
     ];
 
-    // Modified to use hasCompleteWord for delay words
+    // If it's a flight delay and there's context about delay/lateness
     if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator)) &&
-        (hasCompleteWord(lowerMessage, 'late') || 
-         hasCompleteWord(lowerMessage, 'delay') || 
-         hasCompleteWord(lowerMessage, 'still') ||
-         hasCompleteWord(lowerMessage, 'waiting'))) {
+        (lowerMessage.includes('late') || 
+         lowerMessage.includes('delay') || 
+         lowerMessage.includes('still') ||
+         lowerMessage.includes('waiting'))) {
         return {
             type: 'flight_delay',
             minutes: null
@@ -1517,9 +1502,9 @@ const detectLateArrivalScenario = (message) => {
         /(?:an?|one)\s*(?:hour|hr|h)\s*(?:late|delay)?/i,                 // "an hour late"
         
         // Minutes with various prefixes
+        /(?:about|around|maybe|perhaps)\s+(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,  // "about 30 minutes late"
         /(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,         // "30 minutes late"
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,           // "late by 30 minutes"
-        /(?:about|around|maybe|perhaps)\s+(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,  // "about 30 minutes late"
         
         // General time mentions
         /(?:minute|min|minutes|mins?)\s*(\d+)/i                           // "minutes 30"
@@ -1593,7 +1578,8 @@ const detectLateArrivalScenario = (message) => {
     }
 
     // For vague "late" mentions without specific time
-    if (hasCompleteWord(lowerMessage, 'late') || hasCompleteWord(lowerMessage, 'delay')) {
+    if (hasCompleteWord(lowerMessage, 'late') || hasCompleteWord(lowerMessage, 'delay') ||
+        hasCompleteWord(lowerMessage, 'sein') || hasCompleteWord(lowerMessage, 'seint')) {
         return {
             type: 'unspecified_delay',
             minutes: null
