@@ -2,6 +2,15 @@
 
 // Initial language detection functions (keeping these as they are crucial).
 export const detectLanguage = (message) => {
+    // Add simple Icelandic words check FIRST
+    const simpleIcelandicWords = [
+        'takk', 'já', 'nei', 'ok', 'oki', 'okei', 'flott', 
+        'gott', 'bara', 'allt'
+    ];
+    if (simpleIcelandicWords.includes(message.toLowerCase().trim())) {
+        return true;  // Definitely Icelandic
+    }
+
     // Special characters
     const icelandicIndicators = ['ð', 'þ', 'æ', 'ö', 'á', 'í', 'ú', 'é', 'ó'];
     
