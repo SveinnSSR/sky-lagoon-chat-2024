@@ -3458,10 +3458,19 @@ const updateContext = (sessionId, message, response) => {
     let context = conversationContext.get(sessionId) || 
                  initializeContext(sessionId, detectLanguage(message) ? 'is' : 'en');
     
-    // Maintain language context from previous messages
+    // Enhanced language context maintenance
     const previousContext = conversationContext.get(sessionId);
-    if (previousContext?.language === 'is' && detectLanguage(message)) {
+    
+    // If previous context exists, strongly maintain its language
+    if (previousContext) {
+        context.language = previousContext.language;
+    }
+    
+    // Only override if current message has clear language indicators
+    if (detectLanguage(message)) {
         context.language = 'is';
+    } else if (/^(hi|hello|thanks|thank you)$/i.test(message)) {
+        context.language = 'en';
     }
 
     // Reset specific contexts when appropriate
