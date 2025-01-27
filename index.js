@@ -4086,6 +4086,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const response = isIcelandic ?
                 "Endilega spurðu!" :
                 "Of course! Please go ahead and ask your questions.";
+
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'continuity',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: response,
                 language: {
@@ -4105,6 +4115,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 context.lastTopic ?
                     `I'm glad I could help! If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
                     `I'm glad I could help! What else would you like to know about Sky Lagoon?`;
+                    
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'acknowledgment',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: response,
                 language: {
@@ -4232,6 +4252,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 response += ` ${getContextualTransition(context.lastTopic, 'confirmation')}`;
             }
 
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                response,
+                isIcelandic ? 'is' : 'en',
+                'confirmation',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: response
             });
@@ -4251,6 +4280,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 message: userMessage,
                 isIcelandic: true
             });
+
+            // Add broadcast for tracking group booking queries
+            await broadcastConversation(
+                userMessage,
+                'group_booking_detection',  // Not a response, just tracking the detection
+                'is',
+                'group_bookings',
+                'detection'
+            );
             
             // Continue to normal flow to let GPT handle with knowledge base content
         }
@@ -4272,6 +4310,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const response = simpleResponseLanguage === 'is' ? 
                     "Láttu mig vita ef þú hefur fleiri spurningar!" :
                     "Is there anything else you'd like to know about Sky Lagoon?";
+
+                // Add broadcast
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    simpleResponseLanguage,
+                    'acknowledgment',
+                    'direct_response'
+                );
                     
                 return res.status(200).json({
                     message: response,
@@ -4289,7 +4336,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
                     Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
                 ];
-                
+
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                unknownResponse,
+                isIcelandic ? 'is' : 'en',
+                'unknown_query',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: unknownResponse,
                 language: isIcelandic ? 'is' : 'en'
@@ -4316,7 +4372,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (shouldUseUnknownHandler && !userMessage.toLowerCase().startsWith('welcome')) {
             // Log that we're using unknown query handler response
             console.log('\n📝 Using Unknown Query Handler Response');
-            
+
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                shouldUseUnknownHandler.response,
+                isIcelandic ? 'is' : 'en',
+                'unknown_query',
+                'direct_response'
+            );
+
             // Update context and cache
             updateContext(sessionId, userMessage, shouldUseUnknownHandler.response);
             responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
@@ -4405,6 +4470,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             !isHoursQuery) { 
             context.conversationStarted = true;
             const introResponse = `${getRandomResponse(SMALL_TALK_RESPONSES)} `;
+
+            // Add broadcast
+            await broadcastConversation(
+                userMessage,
+                introResponse,
+                isIcelandic ? 'is' : 'en',
+                'first_time',
+                'direct_response'
+            );
+
             return res.status(200).json({
                 message: introResponse
             });
@@ -4582,8 +4657,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
+        const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
+
+        // Add broadcast for error scenarios
+        await broadcastConversation(
+            req.body?.message || 'unknown_message',
+            errorMessage,
+            'en',  // Default to English for error messages
+            'error',
+            'error_response'
+        );
+
         return res.status(500).json({
-            message: "I apologize, but I'm having trouble connecting right now. Please try again shortly."
+            message: errorMessage
         });
     }
 });
