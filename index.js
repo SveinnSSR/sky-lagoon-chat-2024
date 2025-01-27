@@ -3897,8 +3897,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 isComparison: !!isComparisonQuestion,
                 isFollowUp: !!isContextQuestion,
                 lastTopic: context.lastTopic || null,
-                isLateArrival: !!lateScenario,
-                lateArrivalType: lateScenario?.type || null
+                isLateArrival: !!arrivalCheck,
+                lateArrivalType: arrivalCheck?.type || null
             });
             
             // If we have context and it's a follow-up question
