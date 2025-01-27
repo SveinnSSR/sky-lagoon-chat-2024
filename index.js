@@ -3455,6 +3455,12 @@ const formatErrorMessage = (error, userMessage) => {
 const updateContext = (sessionId, message, response) => {
     let context = conversationContext.get(sessionId) || 
                  initializeContext(sessionId, detectLanguage(message) ? 'is' : 'en');
+    
+    // Maintain language context from previous messages
+    const previousContext = conversationContext.get(sessionId);
+    if (previousContext?.language === 'is' && detectLanguage(message)) {
+        context.language = 'is';
+    }
 
     // Reset specific contexts when appropriate
     if (message.toLowerCase().includes('reschedule') || 
@@ -3660,6 +3666,14 @@ const updateContext = (sessionId, message, response) => {
     context.lastInteraction = Date.now();
     context.lastResponse = response;
     
+    // Maintain language context through responses
+    if (response) {
+        // If the response is in Icelandic, keep Icelandic context
+        if (context.language === 'is' || /[þæðöáíúéó]/i.test(response)) {
+            context.language = 'is';
+        }
+    }
+
     // Save context
     conversationContext.set(sessionId, context);
     return context;
