@@ -1440,6 +1440,11 @@ const getAppropriateSuffix = (message) => {
 // Helper function for late arrival detection.
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
+
+    // Early check for "bara" greetings using regex
+    if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
+        return null;
+    }    
     
     // Helper function to check if a word exists as a complete word
     const hasCompleteWord = (text, word) => {
