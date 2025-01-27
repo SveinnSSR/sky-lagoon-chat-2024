@@ -1335,7 +1335,7 @@ const CONTEXT_PATTERNS = {
 };
 
 // Initialize context before any usage
-const initializeContext = (sessionId, language = 'en') => {
+const initializeContext = (sessionId, language) => {
     return {
         messages: [],
         bookingTime: null,
