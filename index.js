@@ -555,6 +555,15 @@ const simpleIcelandicGreetings = [
     'velkominn', 'morguninn', 'kvöldið'
 ];
 
+// Common Icelandic question words and starters
+const icelandicQuestionStarters = [
+    'er ', 'má ', 'get ', 'getur ', 'hefur ',
+    'fylgja ', 'kostar ', 'þarf ', 'hvar ',
+    'hvenær ', 'hvernig ', 'hvað ', 'hver ',
+    'verð ', 'eru ', 'eigið ', 'eigum ',
+    'geturðu ', 'mætti ', 'megið ', 'væri '
+];
+
 const isSimpleGreeting = message => {
     const msg = message.toLowerCase().trim()
         .replace(/[!.,]+$/, '')
@@ -568,13 +577,19 @@ const isSimpleGreeting = message => {
         inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g || msg === g + '!')
     });
 
-    if (!msg || msg.split(' ').length > 5) return false;
+    // Early returns for invalid messages
+    if (!msg) return false;
     if (msg.includes('?')) return false;
     if (msg.includes('@')) return false;
     if (msg.includes('http')) return false;
     if (/\d/.test(msg)) return false;
 
-    // Check for exact matches including both regular and punctuated forms
+    // Check for Icelandic questions first
+    if (icelandicQuestionStarters.some(starter => msg.startsWith(starter))) {
+        return false;
+    }
+
+    // Check for exact greeting matches (both regular and punctuated forms)
     const exactGreetingMatch = (
         simpleEnglishGreetings.some(g => msg === g || msg === g + '!') || 
         simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
@@ -582,13 +597,14 @@ const isSimpleGreeting = message => {
     );
     if (exactGreetingMatch) return true;
 
-    // Check for longer phrases
+    // Check for compound greetings that start with known greetings
     const hasGreetingStart = (
         simpleEnglishGreetings.some(g => msg.startsWith(g + ' ')) ||
         simpleIcelandicGreetings.some(g => msg.startsWith(g + ' '))
     );
     if (hasGreetingStart) return false;
     
+    // Words that indicate it's not a greeting
     const notSimpleGreeting = [
         'can', 'could', 'would', 'do', 'does', 'is', 'are', 'what', 
         'when', 'where', 'why', 'how', 'should', 'may', 'might',
@@ -597,10 +613,12 @@ const isSimpleGreeting = message => {
         'viltu', 'geturðu', 'mig langar', 'ég er', 'ég vil'
     ];
     
+    // Check for non-greeting indicators
     if (notSimpleGreeting.some(starter => msg.includes(` ${starter} `) || msg.startsWith(starter + ' '))) {
         return false;
     }
 
+    // Final check for exact matches in greeting lists
     return simpleEnglishGreetings.includes(msg) || 
            simpleIcelandicGreetings.includes(msg) ||
            compositeIcelandicGreetings.includes(msg);
@@ -617,7 +635,11 @@ console.log('\n👋 Testing Greeting Detection:', {
     'hello?': isSimpleGreeting('hello?'),
     'hey can you': isSimpleGreeting('hey can you'),
     'good morning': isSimpleGreeting('good morning'),
-    'sæl og blessuð': isSimpleGreeting('sæl og blessuð')
+    'sæl og blessuð': isSimpleGreeting('sæl og blessuð'),
+    // Add new test cases for questions
+    'er hægt að fá handklæði': isSimpleGreeting('er hægt að fá handklæði'),
+    'fylgja handklæði með': isSimpleGreeting('fylgja handklæði með'),
+    'kostar eitthvað': isSimpleGreeting('kostar eitthvað')
 });
 
 // Add these new patterns to your smallTalkPatterns array
