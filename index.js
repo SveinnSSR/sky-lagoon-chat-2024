@@ -938,14 +938,16 @@ const checkSimpleResponse = (message) => {
         return 'is';
     }
     
-    // Handle standalone 'ok' based on context - Enhanced version
+    // Handle standalone 'ok' based on context
     if (msg === 'ok' || msg === 'okay') {
-        // If we have previous Icelandic context, maintain it
-        if (previousLanguage === 'is') {
+        // ALWAYS check context language first
+        if (context?.language === 'is') {
             return 'is';
         }
-        // If we have specific Icelandic indicators in context
-        if (context?.icelandicTopics?.length > 0 || context?.lastResponse?.includes('þú')) {
+        // Only then consider other factors
+        if (context?.lastResponse?.includes('þú') || 
+            context?.icelandicTopics?.length > 0 ||
+            context?.messages?.some(m => m.content.includes('þú'))) {
             return 'is';
         }
         return 'en';
@@ -4155,8 +4157,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Only proceed with acknowledgment check if no booking/question patterns detected
         if (!hasBookingPattern && !hasQuestionWord) {
-            // Check for simple acknowledgments (1-4 words)
-            if (userMessage.split(' ').length <= 4 && 
+            // Add knowledge base check BEFORE word count check
+            const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
+            
+            // Only do simple response check if no knowledge base match
+            if (!hasKnowledgeBaseMatch && userMessage.split(' ').length <= 4 && 
                 (acknowledgmentPatterns.simple.en.some(word => 
                     msg.includes(word.toLowerCase())) ||
                  acknowledgmentPatterns.simple.is.some(word => 
@@ -4182,7 +4187,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         }
                     });
             }
-    }
+        }
 
         // Yes/Confirmation handling
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
