@@ -928,29 +928,9 @@ const checkSimpleResponse = (message) => {
     
     const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
-    // Get current session and context FIRST
-    const currentSession = conversationContext.get('currentSession');
-    const context = currentSession ? conversationContext.get(currentSession) : null;
-    const previousLanguage = context?.language;
-
     // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
         return 'is';
-    }
-    
-    // Handle standalone 'ok' based on context
-    if (msg === 'ok' || msg === 'okay') {
-        // ALWAYS check context language first
-        if (context?.language === 'is') {
-            return 'is';
-        }
-        // Only then consider other factors
-        if (context?.lastResponse?.includes('þú') || 
-            context?.icelandicTopics?.length > 0 ||
-            context?.messages?.some(m => m.content.includes('þú'))) {
-            return 'is';
-        }
-        return 'en';
     }
 
     // Handle "bara" phrases
@@ -958,15 +938,15 @@ const checkSimpleResponse = (message) => {
         return 'is';
     }
     
+    // Handle standalone oki/okei variations
+    if (msg === 'oki' || msg === 'okei' || msg === 'óki' || msg === 'ókei') return 'is';
+
     // Enhanced ok/oki/okei handling - KEEPING THE ORIGINAL WORKING VERSION
     if (msg.startsWith('ok ')) {
         const afterOk = msg.slice(3);
         if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
         if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
     }
-    
-    // Handle standalone oki/okei variations
-    if (msg === 'oki' || msg === 'okei' || msg === 'óki' || msg === 'ókei') return 'is';
     
     // Check if message starts with any Icelandic responses
     if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
@@ -979,8 +959,25 @@ const checkSimpleResponse = (message) => {
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
     if (strictEnglishResponses.some(word => msg === word)) return 'en';
     
-    // Default to previous language context if available and no clear English indicators
-    if (previousLanguage === 'is' && !strictEnglishResponses.some(word => msg.includes(word))) {
+    // Handle standalone 'ok' based on context - MOVED TO END
+    if (msg === 'ok' || msg === 'okay') {
+        const currentSession = conversationContext.get('currentSession');
+        const context = currentSession ? conversationContext.get(currentSession) : null;
+        if (context?.language === 'is') {
+            return 'is';
+        }
+        if (context?.lastResponse?.includes('þú') || 
+            context?.icelandicTopics?.length > 0 ||
+            context?.messages?.some(m => m.content.includes('þú'))) {
+            return 'is';
+        }
+        return 'en';
+    }
+
+    // Default to previous language context if available
+    const currentSession = conversationContext.get('currentSession');
+    const context = currentSession ? conversationContext.get(currentSession) : null;
+    if (context?.language === 'is' && !strictEnglishResponses.some(word => msg.includes(word))) {
         return 'is';
     }
     
