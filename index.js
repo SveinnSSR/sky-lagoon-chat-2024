@@ -3668,10 +3668,19 @@ const updateContext = (sessionId, message, response) => {
     context.lastInteraction = Date.now();
     context.lastResponse = response;
     
-    // Maintain language context through responses
+    // Enhanced language context persistence
     if (response) {
-        // If the response is in Icelandic, keep Icelandic context
-        if (context.language === 'is' || /[þæðöáíúéó]/i.test(response)) {
+        // If previous context was Icelandic, maintain it strongly
+        if (previousContext?.language === 'is') {
+            context.language = 'is';
+        } 
+        // If response contains Icelandic characters, set to Icelandic
+        else if (/[þæðöáíúéó]/i.test(response)) {
+            context.language = 'is';
+        }
+        // If response is clearly in Icelandic, set to Icelandic
+        else if (context.lastResponse?.includes('þú') || 
+                context.messages?.some(m => m.content.includes('þú'))) {
             context.language = 'is';
         }
     }
