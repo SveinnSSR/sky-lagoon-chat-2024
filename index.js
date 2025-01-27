@@ -3718,8 +3718,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n🆕 New Session Created:', sessionId);
         }
 
-        let context = conversationContext.get(sessionId) || 
-        initializeContext(sessionId, detectLanguage(userMessage) ? 'is' : 'en');
+        let context = conversationContext.get(sessionId);
+        if (!context) {
+            // Check for simple responses first
+            const simpleResponseLanguage = checkSimpleResponse(userMessage);
+            // Only then use detectLanguage if no simple response match
+            const language = simpleResponseLanguage || (detectLanguage(userMessage) ? 'is' : 'en');
+            context = initializeContext(sessionId, language);
+        }
 
         // Early greeting check
         if (isSimpleGreeting(userMessage)) {
