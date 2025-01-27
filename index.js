@@ -513,7 +513,7 @@ const FOLLOWUP_RESPONSES = {
         "Hvernig get ég aðstoðað þig?",
         "Hvað viltu vita um Sky Lagoon?",
         "Ég get hjálpað þér að skipuleggja heimsóknina. Hvað langar þig að vita?",
-        "Hvað má segja þér um Sky Lagoon?"
+        "Get ég veitt þér einhverjar upplýsingar um Sky Lagoon?"
     ]
 };
 
