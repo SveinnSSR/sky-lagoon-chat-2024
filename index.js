@@ -906,21 +906,32 @@ const checkSimpleResponse = (message) => {
     
     const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
+    // Get current session and context FIRST
+    const currentSession = conversationContext.get('currentSession');
+    const context = currentSession ? conversationContext.get(currentSession) : null;
+    const previousLanguage = context?.language;
+
     // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
         return 'is';
     }
     
-    // Handle standalone 'ok' based on context
-    if (msg === 'ok') {
-        const currentSession = conversationContext.get('currentSession');
-        if (currentSession) {
-            const context = conversationContext.get(currentSession);
-            if (context?.language === 'is') {
-                return 'is';
-            }
+    // Handle standalone 'ok' based on context - Enhanced version
+    if (msg === 'ok' || msg === 'okay') {
+        // If we have previous Icelandic context, maintain it
+        if (previousLanguage === 'is') {
+            return 'is';
+        }
+        // If we have specific Icelandic indicators in context
+        if (context?.icelandicTopics?.length > 0 || context?.lastResponse?.includes('þú')) {
+            return 'is';
         }
         return 'en';
+    }
+
+    // Handle "bara" phrases
+    if (msg.startsWith('bara ') || msg === 'bara heilsa' || msg === 'bara að heilsa') {
+        return 'is';
     }
     
     // Enhanced ok/oki/okei handling - KEEPING THE ORIGINAL WORKING VERSION
@@ -943,6 +954,11 @@ const checkSimpleResponse = (message) => {
     // Basic exact matches
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
     if (strictEnglishResponses.some(word => msg === word)) return 'en';
+    
+    // Default to previous language context if available and no clear English indicators
+    if (previousLanguage === 'is' && !strictEnglishResponses.some(word => msg.includes(word))) {
+        return 'is';
+    }
     
     return null;
 };
