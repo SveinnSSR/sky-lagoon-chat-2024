@@ -3741,20 +3741,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // ADD THIS EARLY CHECK HERE 👇
-        // Early check for simple responses
-        const simpleResponseLanguage = checkSimpleResponse(userMessage);
-        if (simpleResponseLanguage) {
-            const response = simpleResponseLanguage === 'is' ? 
-                "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                "Is there anything else you'd like to know about Sky Lagoon?";
-                
-            return res.status(200).json({
-                message: response,
-                language: simpleResponseLanguage
-            });
-        }
-
         // Log session info for debugging
         console.log('\n🔍 Session ID:', {
             sessionId,
@@ -4253,6 +4239,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                   userMessage.toLowerCase().includes('panta') ||
                                   userMessage.toLowerCase().includes('pakk') ||
                                   userMessage.toLowerCase().includes('ritúal');
+
+        // If no knowledge base matches found, check if it's a simple response
+        if (knowledgeBaseResults.length === 0) {
+            const simpleResponseLanguage = checkSimpleResponse(userMessage);
+            if (simpleResponseLanguage) {
+                const response = simpleResponseLanguage === 'is' ? 
+                    "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                    "Is there anything else you'd like to know about Sky Lagoon?";
+                    
+                return res.status(200).json({
+                    message: response,
+                    language: simpleResponseLanguage
+                });
+            }
+        }
 
         // If message has no relation to our business and no knowledge base matches
         if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
