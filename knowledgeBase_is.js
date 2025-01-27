@@ -4,10 +4,24 @@
 export const detectLanguage = (message) => {
     // Add simple Icelandic words check FIRST
     const simpleIcelandicWords = [
+        // Single words
         'takk', 'já', 'nei', 'ok', 'oki', 'okei', 'flott', 
-        'gott', 'bara', 'allt'
+        'gott', 'bara', 'allt',
+        // Common combinations
+        'takk fyrir', 'takk kærlega', 'kærar þakkir',
+        'takk fyrir það', 'takk fyrir þetta',
+        'takk fyrir hjálpina', 'takk fyrir aðstoðina',
+        'takk kæra', 'þúsund þakkir',
+        'ók takk', 'okei takk', 'oki takk',
+        'flott er', 'flott takk',
+        'gott að vita', 'allt í lagi'
     ];
-    if (simpleIcelandicWords.includes(message.toLowerCase().trim())) {
+    
+    // Modify the check to handle multi-word phrases
+    if (simpleIcelandicWords.some(phrase => 
+        message.toLowerCase().trim() === phrase || 
+        message.toLowerCase().trim().startsWith(phrase + ' ') ||
+        message.toLowerCase().trim().endsWith(' ' + phrase))) {
         return true;  // Definitely Icelandic
     }
 
