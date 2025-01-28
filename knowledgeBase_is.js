@@ -6,7 +6,8 @@ export const detectLanguage = (message) => {
     const simpleIcelandicWords = [
         // Single words
         'takk', 'já', 'nei', 'ok', 'oki', 'okei', 'flott', 
-        'gott', 'bara', 'allt', 'snilld', 'snillingur',  // Added these
+        'gott', 'bara', 'allt', 'snilld', 'snillingur', 'jam', 'jamm',
+        'geggjað', 'magnað', 'hjálpsamt', 'snilldin',
         // Common combinations
         'takk fyrir', 'takk kærlega', 'kærar þakkir',
         'takk fyrir það', 'takk fyrir þetta',
@@ -15,16 +16,26 @@ export const detectLanguage = (message) => {
         'ók takk', 'okei takk', 'oki takk',
         'flott er', 'flott takk',
         'gott að vita', 'allt í lagi',
-        // Snilld variations
+        // Snilld variations  
         'snilld takk', 'algjör snilld', 'hrein snilld',
-        'þetta er snilld', 'alveg snilld'
+        'þetta er snilld', 'alveg snilld', 'snilldin ein',
+        // More variations
+        'alveg geggjað', 'alveg frábært', 'frábær hjálp',
+        'gott spjall', 'frábær hjálp', 'snilldin ein',
+        'magnað', 'magnaður', 'magnað takk',
+        'hjálpsamt', 'hjálpsamur', 'hjálpsöm',
+        // Exclamation versions
+        'snilld!', 'geggjað!', 'magnað!', 'frábært!'
     ];
     
-    // Modify the check to handle multi-word phrases
+    // Modify the check to handle multi-word phrases and punctuation
     if (simpleIcelandicWords.some(phrase => 
-        message.toLowerCase().trim() === phrase || 
-        message.toLowerCase().trim().startsWith(phrase + ' ') ||
-        message.toLowerCase().trim().endsWith(' ' + phrase))) {
+        message.toLowerCase().trim().replace(/[!.?]/g, '') === phrase || 
+        message.toLowerCase().trim().replace(/[!.?]/g, '').startsWith(phrase + ' ') ||
+        message.toLowerCase().trim().replace(/[!.?]/g, '').endsWith(' ' + phrase) ||
+        // Handle variations with exclamation marks
+        message.toLowerCase().trim() === phrase + '!' ||
+        phrase.endsWith('!'))) {
         return true;  // Definitely Icelandic
     }
 
