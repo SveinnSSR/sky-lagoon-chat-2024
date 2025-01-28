@@ -405,6 +405,41 @@ export const knowledgeBase_is = {
                 }
             }
         },
+        lagoon_info: {
+            questions: [
+                "Hversu heitt er lónið?",
+                "Hvað er hitastigið í lóninu?",
+                "Er lónið nógu heitt?",
+                "Breytist hitastigið?",
+                // Adding more temperature related patterns
+                "Hvað er vatnið heitt?",
+                "Hvað er heitt?",
+                "Hver er hitinn?",
+                "Hversu heitur er potturinn?",
+                "Er heitt?",
+                "Er nógu heitt?",
+                "Hvernig er hitinn?",
+                "Hvernig er hitastigið?",
+                "Hvað er mikill hiti?",
+                "Hvað eru margar gráður?",
+                "Hversu margar gráður?",
+                "Hversu mikill hiti?",
+                "Er kalt?",
+                "Er of heitt?",
+                // Add variations with "vatn"
+                "Hversu heitt er vatnið?",
+                "Hvað er vatnið heitt?",
+                "Hver er hiti vatnsins?",
+                "Hvernig er hiti vatnsins?",
+                "Er vatnið heitt?",
+                "Er vatnið nógu heitt?"
+            ],
+            temperature: {
+                answer: "Lónið er u.þ.b. 38--40° heitt. Okkar breytilega veðurfar getur þó auðvitað haft töluverð áhrif á hitastigið og upplifunina almennt.",
+                degrees: "38-40°C",
+                weather_note: "Okkar breytilega veðurfar getur þó auðvitað haft töluverð áhrif á hitastigið og upplifunina almennt."
+            }
+        },    
         amenities: {
             handklaedi: {
                 questions: [
@@ -2031,6 +2066,50 @@ export const getRelevantKnowledge_is = (userMessage) => {
         });
     }
 
+    // Temperature and lagoon info
+    if (message.includes('heit') || 
+        message.includes('hita') ||
+        message.includes('hit') ||
+        message.includes('gráð') ||
+        message.includes('°') ||
+        message.includes('grad') ||
+        message.includes('kalt') ||
+        message.includes('heitur') ||
+        message.includes('heitt') ||
+        // Temperature with water/lagoon combinations
+        (message.includes('vatn') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit') || 
+          message.includes('gráð') || 
+          message.includes('kalt'))) ||
+        // General temperature questions
+        (message.includes('hvað') && message.includes('heit')) ||
+        (message.includes('hversu') && message.includes('heit')) ||
+        (message.includes('hver') && message.includes('hit')) ||
+        (message.includes('hvernig') && message.includes('hit')) ||
+        // Additional common temperature phrases
+        (message.includes('hversu') && message.includes('gráður')) ||
+        (message.includes('hvað') && message.includes('margar') && message.includes('gráður')) ||
+        (message.includes('er') && message.includes('nógu') && message.includes('heit')) ||
+        // Temperature with pool/lagoon combinations
+        (message.includes('lón') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit'))) ||
+        (message.includes('pottur') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit')))) {
+        
+        console.log('\n🌡️ Temperature Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'temperature',
+            content: knowledgeBase_is.facilities.lagoon_info.temperature.answer
+        });
+    }
+
     // Handklæði (Towels)
     if (message.includes('handklæði') || 
         message.includes('handklæðum') ||
@@ -2327,7 +2406,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
         }
 
         relevantInfo.push(accessibilityInfo);
-    }
+    } // End of full Facilities section
 
     // Ritual related queries
     if (message.includes('ritúal') || 
@@ -3501,7 +3580,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
                 content: knowledgeBase_is.views_and_landmarks
             });
         }
-    }
+    } // End of Views and landmarks related queries section
 
     // Lost and found queries
     if (message.includes('týnd') || 
@@ -3522,7 +3601,7 @@ export const getRelevantKnowledge_is = (userMessage) => {
             type: 'lost_found',
             content: knowledgeBase_is.lost_found
         });
-    }
+    }  // End of Lost and found queries section
 
     return relevantInfo; 
 }  // Final closing bracket for the entire function
