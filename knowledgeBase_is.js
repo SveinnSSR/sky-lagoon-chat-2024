@@ -7,7 +7,8 @@ export const detectLanguage = (message) => {
         // Single words
         'takk', 'já', 'nei', 'ok', 'oki', 'okei', 'flott', 
         'gott', 'bara', 'allt', 'snilld', 'snillingur', 'jam', 'jamm',
-        'geggjað', 'magnað', 'hjálpsamt', 'snilldin',
+        'geggjað', 'geggjuð', 'magnað', 'hjálpsamt', 'snilldin', 'skil',
+        'æði', 'æðislegt', 'æðisleg',
         // Common combinations
         'takk fyrir', 'takk kærlega', 'kærar þakkir',
         'takk fyrir það', 'takk fyrir þetta',
@@ -24,18 +25,27 @@ export const detectLanguage = (message) => {
         'gott spjall', 'frábær hjálp', 'snilldin ein',
         'magnað', 'magnaður', 'magnað takk',
         'hjálpsamt', 'hjálpsamur', 'hjálpsöm',
+        'geggjuð takk', 'geggjað takk',
         // Exclamation versions
         'snilld!', 'geggjað!', 'magnað!', 'frábært!'
     ];
     
-    // Modify the check to handle multi-word phrases and punctuation
-    if (simpleIcelandicWords.some(phrase => 
-        message.toLowerCase().trim().replace(/[!.?]/g, '') === phrase || 
-        message.toLowerCase().trim().replace(/[!.?]/g, '').startsWith(phrase + ' ') ||
-        message.toLowerCase().trim().replace(/[!.?]/g, '').endsWith(' ' + phrase) ||
-        // Handle variations with exclamation marks
-        message.toLowerCase().trim() === phrase + '!' ||
-        phrase.endsWith('!'))) {
+    // Modify the check to handle multi-word phrases, punctuation and smileys
+    if (simpleIcelandicWords.some(phrase => {
+        // Clean the message by removing punctuation and smileys
+        const cleanedMessage = message.toLowerCase()
+            .trim()
+            .replace(/[!.?]/g, '')
+            .replace(/[:;][\-]?[\)|\(]/g, '')  // Remove smileys
+            .trim();
+            
+        return cleanedMessage === phrase || 
+               cleanedMessage.startsWith(phrase + ' ') ||
+               cleanedMessage.endsWith(' ' + phrase) ||
+               // Handle variations with exclamation marks
+               message.toLowerCase().trim() === phrase + '!' ||
+               phrase.endsWith('!');
+    })) {
         return true;  // Definitely Icelandic
     }
 
