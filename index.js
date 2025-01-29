@@ -3770,9 +3770,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             isNewSession: !currentSession,
             currentSession: conversationContext.get('currentSession')
         });                      
+        // Language determination
+        let isIcelandic;
+        // Early English Detection - Prevents language misidentification
+        const isDefinitelyEnglish = (message) => {
+            const msg = message.toLowerCase().trim();
+            return (
+                // Transportation questions
+                /^(?:what|how|where)(?:'|'|´|\s)*s?\s+(?:the\s+)?(?:best|fastest|easiest)\s+way/i.test(msg) ||
+                /^how\s+(?:do|can|should)\s+(?:i|we)\s+(?:get|reach|find)/i.test(msg) ||
+                
+                // Address/location questions with "from"
+                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(msg) ||
+                
+                // Common English question starts with location context
+                /^hello[\s,]+(?:what|how|can|could)/i.test(msg)
+            );
+        };
 
         // Enhanced language detection
-        const languageCheck = {            
+        const languageCheck = {         
+            // Early English check - prevents Icelandic misidentification
+            hasDefiniteEnglish: isDefinitelyEnglish(userMessage),
+   
             // CRITICAL FIX: Check for clear Icelandic sentence structure FIRST
             hasIcelandicStructure: (
                 /^(góðan dag|sæl|halló|hæ|verið velkomin)/i.test(userMessage.toLowerCase()) ||
@@ -3787,6 +3807,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             // CRITICAL FIX: Check for English sentence structure AFTER Icelandic check
             hasEnglishStructure: (
+                // Check definite English first
+                isDefinitelyEnglish(userMessage) ||
                 // Standard English starts
                 /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
                 // Add these new patterns 👇
@@ -3820,15 +3842,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             languageContext: getLanguageContext(userMessage)
         };
 
-        // CRITICAL FIX: Check Icelandic structure FIRST, then English
-        const isIcelandic = languageCheck.hasIcelandicStructure ? true :
-                           languageCheck.hasEnglishStructure ? false :
-                           (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
+        // Language determination with early English check
+        if (languageCheck.hasDefiniteEnglish) {
+            console.log('\n🌍 Definite English detected:', userMessage);
+            isIcelandic = false;
+        } else {
+            // CRITICAL FIX: Check Icelandic structure FIRST, then English
+            isIcelandic = languageCheck.hasIcelandicStructure ? true :
+                         languageCheck.hasEnglishStructure ? false :
+                         (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
+        }
 
         console.log('\n🌍 Language Detection:', {
             message: userMessage,
             isIcelandic,
             detectionMethod: {
+                hasDefiniteEnglish: languageCheck.hasDefiniteEnglish,
+                hasIcelandicStructure: languageCheck.hasIcelandicStructure,
+                hasEnglishStructure: languageCheck.hasEnglishStructure,
                 hasIcelandicChars: languageCheck.hasIcelandicChars,
                 rawDetection: languageCheck.rawDetection
             }
