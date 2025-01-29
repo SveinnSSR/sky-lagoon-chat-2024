@@ -670,23 +670,31 @@ const smallTalkPatterns = [
 const acknowledgmentPatterns = {
     simple: {
         en: [
-            'thanks', 'ok', 'got it', 'perfect', 'understood', 'understand',
-            'sure', 'alright', 'yep', 'cool', 'great', 'good', 'right',
-            'i see', 'makes sense', 'clear', 'noted', 'okay', 'k',
-            'got you', 'gotcha', 'roger', 'roger that', 'copy that',
-            'will do', 'absolutely', 'of course', 'certainly', 'indeed',
-            'true', 'fair enough', 'fine', 'sounds good', 'good good',
-            'brilliant', 'excellent', 'wonderful', 'fab', 'sweet',
-            'that works', 'perfect thanks', 'got that', 'makes perfect sense',
-            'understand completely', 'crystal clear', 'i understand',
-            'that makes sense', 'right right', 'ah ok', 'ah okay',
-            // Add new patterns here
-            'thats great',
-            "that's great",
-            'all good',
-            'all good!',
-            'no worries',
-            'no worries!'
+            // Single word acknowledgments
+            'thanks', 'ok', 'okay', 'perfect', 'great', 'good', 'noted',
+            'understood', 'alright', 'sure', 'yep', 'cool', 'right',
+            'clear', 'fine', 'brilliant', 'excellent', 'wonderful',
+            'sweet', 'fab', 'indeed', 'absolutely', 'certainly',
+            // Two word variations
+            'got it', 'i see', 'makes sense', 'thank you',
+            'sounds good', 'fair enough', 'very good', 'very well',
+            'got that', 'understand completely', 'crystal clear',
+            'makes perfect', 'thanks alot', 'thanks so',
+            // Three+ word variations
+            'that makes sense', 'i got it', 'i understand that',
+            'that sounds good', 'that works fine', 'makes perfect sense',
+            'thanks a lot', 'thanks so much', 'thank you very',
+            'that makes perfect', 'that is clear', 'that is good',
+            'that is perfect', 'i see that', 'got it thanks',
+            'makes sense now', 'understand it now', 'that helps alot',
+            // Ah variations  
+            'ah ok', 'ah okay', 'ah right', 'ah yes', 'ah perfect',
+            // That's variations
+            'thats good', 'thats great', 'thats perfect', 'thats fine',
+            'thats clear', 'thats right', 'thats wonderful', 'thats excellent',
+            'thats brilliant', "that's good", "that's great", "that's perfect",
+            "that's fine", "that's clear", "that's right", "that's wonderful",
+            "that's excellent", "that's brilliant"
         ],
         is: [
             'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
@@ -3718,12 +3726,77 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n🆕 New Session Created:', sessionId);
         }
 
+        // Log session info for debugging
+        console.log('\n🔍 Session ID:', {
+            sessionId,
+            isNewSession: !currentSession,
+            currentSession: conversationContext.get('currentSession')
+        });
+
+        // Early language detection - determines language before any other processing
+        const languageResult = {
+            hasDefiniteEnglish: (
+                // Question starters (now includes does) - with or without question mark
+                /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
+                // Thanks variations (simpler pattern)
+                /^(?:thanks|thank you)\b/i.test(userMessage) ||
+                // Package-specific patterns
+                /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage) ||
+                // Facility questions
+                /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
+                // Location patterns
+                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
+                // ENHANCED Acknowledgment check
+                (() => {
+                    const cleanedMsg = userMessage.toLowerCase().trim();
+                    return (
+                        // Basic acknowledgments (single word)
+                        /^(great|perfect|noted|understood|alright|good|fine|excellent|sure)$/i.test(cleanedMsg) ||
+                        // That's variations
+                        /^that'?s\s+(good|great|perfect|fine|clear|right|wonderful|excellent|brilliant)$/i.test(cleanedMsg) ||
+                        // Makes sense variations
+                        /^(makes|that makes)\s+(sense|perfect sense)$/i.test(cleanedMsg) ||
+                        // Use existing patterns for everything else
+                        acknowledgmentPatterns.simple.en.some(word => 
+                            cleanedMsg === word ||
+                            cleanedMsg.startsWith(word + ' ') ||
+                            cleanedMsg.endsWith(' ' + word)
+                        )
+                    );
+                })()
+            )
+        };
+
+        console.log('\n🌍 Early Language Detection:', {
+            message: userMessage,
+            isDefinitelyEnglish: languageResult.hasDefiniteEnglish
+        });
+
+        // Set isIcelandic based on our early detection
+        const isIcelandic = !languageResult.hasDefiniteEnglish && detectLanguage(userMessage);
+
+        // Add this simplified languageCheck object 👇
+        const languageCheck = {
+            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+            hasIcelandicStructure: !languageResult.hasDefiniteEnglish && detectLanguage(userMessage),
+            hasEnglishStructure: languageResult.hasDefiniteEnglish,
+            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+            rawDetection: detectLanguage(userMessage)
+        };
+
+        // Log both detections
+        console.log('\n🌍 Language Decision:', {
+            message: userMessage,
+            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+            detectLanguageResult: detectLanguage(userMessage),
+            finalDecision: isIcelandic ? 'Icelandic' : 'English'
+        });
+
         let context = conversationContext.get(sessionId);
         if (!context) {
-            // Check for simple responses first
-            const simpleResponseLanguage = checkSimpleResponse(userMessage);
-            // Only then use detectLanguage if no simple response match
-            const language = simpleResponseLanguage || (detectLanguage(userMessage) ? 'is' : 'en');
+            // Use our early language detection result
+            const language = languageResult.hasDefiniteEnglish ? 'en' : 
+                           (detectLanguage(userMessage) ? 'is' : 'en');
             context = initializeContext(sessionId, language);
         }
 
@@ -3763,126 +3836,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 language: isEnglishGreeting ? 'en' : 'is'
             });
         }
-
-        // Log session info for debugging
-        console.log('\n🔍 Session ID:', {
-            sessionId,
-            isNewSession: !currentSession,
-            currentSession: conversationContext.get('currentSession')
-        });                      
-        // Language determination
-        let isIcelandic;
-        // Early English Detection - Prevents language misidentification
-        const isDefinitelyEnglish = (message) => {
-            const msg = message.toLowerCase().trim();
-            return (
-                // Transportation questions
-                /^(?:what|how|where)(?:'|'|´|\s)*s?\s+(?:the\s+)?(?:best|fastest|easiest)\s+way/i.test(msg) ||
-                /^how\s+(?:do|can|should)\s+(?:i|we)\s+(?:get|reach|find)/i.test(msg) ||
-                
-                // Address/location questions with "from"
-                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(msg) ||
-                
-                // Common English question starts with location context
-                /^hello[\s,]+(?:what|how|can|could)/i.test(msg)
-            );
-        };
-
-        // Enhanced language detection
-        const languageCheck = {         
-            // Early English check - prevents Icelandic misidentification
-            hasDefiniteEnglish: (
-                // Question starters (now includes does) - with or without question mark
-                /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
-                // Thanks variations (simpler pattern)
-                /^(?:thanks|thank you)\b/i.test(userMessage) ||
-                // Package-specific patterns
-                /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage) ||
-                // Facility questions
-                /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
-                // Location patterns
-                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
-                // Use existing acknowledgment patterns
-                acknowledgmentPatterns.simple.en.some(word => 
-                    userMessage.toLowerCase().trim() === word ||
-                    userMessage.toLowerCase().trim().startsWith(word + ' ') ||
-                    userMessage.toLowerCase().trim().endsWith(' ' + word)
-                )
-            ),
-   
-            // Icelandic structure check
-            hasIcelandicStructure: (
-                /^(góðan dag|sæl|halló|hæ|verið velkomin)/i.test(userMessage.toLowerCase()) ||
-                // Question structures
-                /^(er |get |má |hvernig |hver |hvenær |af hverju |hvers vegna )/i.test(userMessage.toLowerCase()) ||
-                // Common Icelandic sentence patterns
-                /(ég er|ég vil|ég ætla|við erum|þú ert)\b/i.test(userMessage.toLowerCase()) ||
-                // Multiple Icelandic words indicate definite Icelandic
-                (/\bað\b/.test(userMessage.toLowerCase()) && /\bog\b/.test(userMessage.toLowerCase())) ||
-                (/\bmeð\b/.test(userMessage.toLowerCase()) && /\bað\b/.test(userMessage.toLowerCase()))
-            ),
-            
-            // CRITICAL FIX: Check for English sentence structure AFTER Icelandic check
-            hasEnglishStructure: (
-                // Check definite English first
-                isDefinitelyEnglish(userMessage) ||
-                // Standard English starts
-                /^(tell|what|how|can|does|is|are|do|where|when|why|could|i want|i would|please)/i.test(userMessage.toLowerCase()) ||
-                // Add these new patterns 👇
-                /^(i|we|they|actually|perhaps|maybe|about|around|thanks)/i.test(userMessage.toLowerCase()) ||
-                /\b(sorry|thanks|thank you|late|delayed|minutes|mins)\b/i.test(userMessage.toLowerCase()) ||
-                // More casual English indicators
-                userMessage.toLowerCase().includes("i'll") ||
-                userMessage.toLowerCase().includes("i'm") ||
-                userMessage.toLowerCase().includes("i think") ||
-                userMessage.toLowerCase().includes("i might") ||
-                // Questions starting with conjunctions
-                /^(and|but|so|or)\s+(the|your|about|how|what|does|is|are|can|will|would|tell)/i.test(userMessage.toLowerCase()) ||
-                // "Does" appearing anywhere in question
-                /\bdoes\s+the\b|\bdoes\s+it\b|\bdoes\s+this\b/i.test(userMessage.toLowerCase()) ||
-                // Common English question patterns
-                userMessage.toLowerCase().includes('tell me about') ||
-                userMessage.toLowerCase().includes('what is the') ||
-                userMessage.toLowerCase().includes('difference between') ||
-                // Simple questions about branded items
-                /^(and|but|so|or)\s+(the|your)\s+(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase()) ||
-                // Questions about packages and ritual
-                /\b(about|include|explain|show|price of|cost of)\s+(the\s+)?(sér|ser|skjól|skjol)/i.test(userMessage.toLowerCase()) ||
-                // Package questions with dashes or other punctuation
-                /\b(sér|ser|skjól|skjol)\s*(-|\.|\?|\s)\s*(package|ritual)/i.test(userMessage.toLowerCase()) ||
-                // Just package mentions
-                /(^|\s)(sér|ser|skjól|skjol)\s+(package|ritual)($|\s|\?)/i.test(userMessage.toLowerCase()) ||
-                /\b(package|ritual)\b/i.test(userMessage.toLowerCase())
-            ),
-            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-            rawDetection: detectLanguage(userMessage),
-            languageContext: getLanguageContext(userMessage)
-        };
-
-        // Language determination with early English check
-        if (languageCheck.hasDefiniteEnglish) {
-            console.log('\n🌍 Definite English detected:', userMessage);
-            isIcelandic = false;
-        } else if (languageCheck.hasEnglishStructure) {
-            // If it has English structure, it's English unless it has clear Icelandic indicators
-            isIcelandic = languageCheck.hasIcelandicStructure && languageCheck.hasIcelandicChars;
-        } else {
-            // Only then check other indicators
-            isIcelandic = languageCheck.hasIcelandicStructure ? true :
-                         (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
-        }
-
-        console.log('\n🌍 Language Detection:', {
-            message: userMessage,
-            isIcelandic,
-            detectionMethod: {
-                hasDefiniteEnglish: languageCheck.hasDefiniteEnglish,
-                hasIcelandicStructure: languageCheck.hasIcelandicStructure,
-                hasEnglishStructure: languageCheck.hasEnglishStructure,
-                hasIcelandicChars: languageCheck.hasIcelandicChars,
-                rawDetection: languageCheck.rawDetection
-            }
-        });
 
         // MOVE TOPIC CONTEXT CODE HERE - after context initialization
         if (userMessage.toLowerCase().includes('ritual') || 
@@ -3940,15 +3893,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
+            // Use our early language detection result first
+            if (languageResult.hasDefiniteEnglish) {
+                return getRelevantKnowledge(userMessage);
+            }
 
-            // Force English if we detect obvious English patterns
+            // Then check English structure
             const hasEnglishStructure = /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
                                       userMessage.toLowerCase().includes('sorry') ||
                                       userMessage.toLowerCase().includes('thanks') ||
                                       userMessage.toLowerCase().includes('thank you');
 
             if (hasEnglishStructure) {
-                isIcelandic = false;
+                return getRelevantKnowledge(userMessage);
             }
 
             // Check for context-dependent words (follow-up questions)
@@ -4038,8 +3995,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             }
             
-            // Default search
-            return isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage);
+            // More explicit language decision
+            if (languageResult.hasDefiniteEnglish) {
+                return getRelevantKnowledge(userMessage);
+            }
+            
+            // Use detectLanguage as final check
+            return detectLanguage(userMessage) ? 
+                   getRelevantKnowledge_is(userMessage) : 
+                   getRelevantKnowledge(userMessage);
         };
 
         // Use the smart context function instead of direct knowledge base calls
@@ -4252,21 +4216,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
             
             if (!hasKnowledgeBaseMatch && 
-                !languageCheck.hasDefiniteEnglish &&
-                userMessage.split(' ').length <= 4 && 
-                (acknowledgmentPatterns.simple.en.some(word => 
-                    msg.includes(word.toLowerCase())) ||
-                 acknowledgmentPatterns.simple.is.some(word => 
-                    msg.includes(word.toLowerCase())))) {
-                    const response = isIcelandic ?
-                        "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                        "Is there anything else you'd like to know about Sky Lagoon?";
+                userMessage.split(' ').length <= 4) {
+                // Get language from our early detection
+                const useEnglish = languageResult.hasDefiniteEnglish || 
+                                 (!detectLanguage(userMessage) && 
+                                  acknowledgmentPatterns.simple.en.some(word => 
+                                      msg.includes(word.toLowerCase())));
+                
+                // Only check patterns for the detected language
+                const isAcknowledgment = useEnglish ?
+                    acknowledgmentPatterns.simple.en.some(word => 
+                        msg.includes(word.toLowerCase())) :
+                    acknowledgmentPatterns.simple.is.some(word => 
+                        msg.includes(word.toLowerCase()));
+                        
+                if (isAcknowledgment) {
+                    const response = useEnglish ?
+                        "Is there anything else you'd like to know about Sky Lagoon?" :
+                        "Láttu mig vita ef þú hefur fleiri spurningar!";
 
-                    // Add this broadcast 👇
+                    // Add broadcast
                     await broadcastConversation(
                         userMessage,
                         response,
-                        isIcelandic ? 'is' : 'en',
+                        useEnglish ? 'en' : 'is',
                         'acknowledgment',
                         'direct_response'
                     );                        
@@ -4274,10 +4247,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     return res.status(200).json({
                         message: response,
                         language: {
-                            detected: isIcelandic ? 'Icelandic' : 'English',
+                            detected: useEnglish ? 'English' : 'Icelandic',
                             confidence: 'high'
                         }
                     });
+                }
             }
         }
 
