@@ -3746,6 +3746,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
                 // Location patterns
                 /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
+                // Enhanced greeting detection
+                /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage) ||
+                // Common English phrases
+                /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage) ||
+                // Question mark with English words
+                /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage) ||
                 // ENHANCED Acknowledgment check
                 (() => {
                     const cleanedMsg = userMessage.toLowerCase().trim();
@@ -3767,9 +3773,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             )
         };
 
+        // Enhanced logging for language detection
         console.log('\n🌍 Early Language Detection:', {
             message: userMessage,
-            isDefinitelyEnglish: languageResult.hasDefiniteEnglish
+            isDefinitelyEnglish: languageResult.hasDefiniteEnglish,
+            patterns: {
+                hasQuestionStarter: /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage),
+                hasPackagePattern: /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage),
+                hasFacilityQuestion: /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage),
+                hasLocationPattern: /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage),
+                hasGreetingWithQuestion: /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage),
+                hasCommonEnglishPhrase: /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage),
+                hasEnglishQuestionMark: /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage)
+            }
         });
 
         // Set isIcelandic based on our early detection
@@ -3794,19 +3810,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         let context = conversationContext.get(sessionId);
         if (!context) {
-            // Use our early language detection result
+            // Use our consistent early language detection
             const language = languageResult.hasDefiniteEnglish ? 'en' : 
-                           (detectLanguage(userMessage) ? 'is' : 'en');
+                           (isIcelandic ? 'is' : 'en');
             context = initializeContext(sessionId, language);
         }
 
         // Early greeting check
         if (isSimpleGreeting(userMessage)) {
-            // Force language based on exact greeting
+            // Use early language detection for greetings
             const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
-            const isEnglishGreeting = simpleEnglishGreetings.some(g => 
-                msg === g || msg === g + '!' || msg.startsWith(g + ' ')
-            );
+            const isEnglishGreeting = languageResult.hasDefiniteEnglish || 
+                                    (simpleEnglishGreetings.some(g => 
+                                        msg === g || msg === g + '!' || msg.startsWith(g + ' ')
+                                    ) && !isIcelandic);
             
             // Always use follow-up responses since ChatWidget handles initial greeting
             const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
@@ -3850,19 +3867,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             };
         }
 
-        // Add late arrival context tracking
-        const arrivalCheck = detectLateArrivalScenario(userMessage);
-        if (arrivalCheck) {
-            context.lastTopic = 'late_arrival';
-            context.lateArrivalContext = {
-                ...context.lateArrivalContext,
-                isLate: true,
-                type: arrivalCheck.type,
-                minutes: arrivalCheck.minutes,
-                lastUpdate: Date.now()
-            };
-        }
-
         // ADD THE NEW CODE RIGHT HERE 👇
             // Add timestamp for performance tracking
             const startTime = Date.now();
@@ -3889,6 +3893,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 message: userMessage,
                 processingTime: Date.now() - startTime
             });     
+
+            const msg = userMessage.toLowerCase();            
+
+        // Add late arrival context tracking
+        const arrivalCheck = detectLateArrivalScenario(userMessage);
+        if (arrivalCheck) {
+            context.lastTopic = 'late_arrival';
+            context.lateArrivalContext = {
+                ...context.lateArrivalContext,
+                isLate: true,
+                type: arrivalCheck.type,
+                minutes: arrivalCheck.minutes,
+                lastUpdate: Date.now()
+            };
+        }
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
@@ -3941,10 +3960,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     isLateArrival: context.lastTopic === 'late_arrival'
                 });
                 
-                // Get relevant knowledge base results
-                const results = isIcelandic ? 
-                    getRelevantKnowledge_is(userMessage) :
-                    getRelevantKnowledge(userMessage);
+                // Use our early language detection result
+                const results = languageResult.hasDefiniteEnglish ? 
+                    getRelevantKnowledge(userMessage) :
+                    (isIcelandic ? getRelevantKnowledge_is(userMessage) : 
+                                 getRelevantKnowledge(userMessage));
                     
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
@@ -3995,38 +4015,175 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             }
             
-            // More explicit language decision
-            if (languageResult.hasDefiniteEnglish) {
-                return getRelevantKnowledge(userMessage);
-            }
-            
-            // Use detectLanguage as final check
-            return detectLanguage(userMessage) ? 
-                   getRelevantKnowledge_is(userMessage) : 
-                   getRelevantKnowledge(userMessage);
+            // Use our early language detection consistently
+            console.log('\n🔍 Knowledge Base Selection:', {
+                message: userMessage,
+                hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+                isIcelandic: isIcelandic,
+                usingEnglish: languageResult.hasDefiniteEnglish || !isIcelandic
+            });
+
+            const results = languageResult.hasDefiniteEnglish ? 
+                getRelevantKnowledge(userMessage) :
+                (isIcelandic ? getRelevantKnowledge_is(userMessage) : 
+                             getRelevantKnowledge(userMessage));
+
+            // Log the results for debugging
+            console.log('\n📚 Knowledge Base Results:', {
+                count: results.length,
+                types: results.map(r => r.type),
+                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+            });
+
+            return results;
         };
 
         // Use the smart context function instead of direct knowledge base calls
         const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
 
+        // Log full results
+        console.log('\n📝 Full Knowledge Base Results:', {
+            count: knowledgeBaseResults.length,
+            message: userMessage,
+            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+            finalLanguage: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+        });
+
         // Update conversation memory with current topic
         if (knowledgeBaseResults.length > 0) {
             const mainTopic = knowledgeBaseResults[0].type;
+            // Add language info to topic tracking
             context.conversationMemory.addTopic(mainTopic, {
                 query: userMessage,
-                response: knowledgeBaseResults[0].content
+                response: knowledgeBaseResults[0].content,
+                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
             });
         }
 
-        // Update context with the current message
-        context = updateContext(sessionId, userMessage, null);        
+        // Update context with the current message and language info
+        context = updateContext(sessionId, userMessage, null);
+        context.language = languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en');
 
-        // Then use it in cache check
-        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}`;
+        // Add language info to cache key
+        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')}`;
         const cached = responseCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
             console.log('\n📦 Using cached response');
             return res.json(cached.response);
+        }
+
+        // Enhanced question pattern detection
+        const hasBookingPattern = languageResult.hasDefiniteEnglish ? 
+            questionPatterns.booking.en.some(pattern => msg.includes(pattern)) :
+            (isIcelandic ? 
+                questionPatterns.booking.is.some(pattern => msg.includes(pattern)) :
+                questionPatterns.booking.en.some(pattern => msg.includes(pattern)));
+
+        // Check question words with early language detection
+        const hasQuestionWord = languageResult.hasDefiniteEnglish ?
+            questionPatterns.question.en.some(word => msg.includes(word)) :
+            (isIcelandic ? 
+                questionPatterns.question.is.some(word => msg.includes(word)) :
+                questionPatterns.question.en.some(word => msg.includes(word)));
+
+        // Add logging for question detection
+        console.log('\n❓ Question Pattern Detection:', {
+            message: userMessage,
+            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+            hasBookingPattern,
+            hasQuestionWord,
+            patterns: {
+                booking: hasBookingPattern,
+                question: hasQuestionWord
+            }
+        });
+
+        // Only proceed with acknowledgment check if no booking/question patterns detected
+        if (!hasBookingPattern && !hasQuestionWord) {
+            // Add knowledge base check BEFORE pattern check
+            const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
+            
+            if (!hasKnowledgeBaseMatch) {
+                // Use our early language detection consistently
+                const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+
+                // Check all acknowledgment patterns
+                if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
+                    acknowledgmentPatterns.finished.is.some(pattern => msg.includes(pattern))) {
+                    const response = useEnglish ?
+                        "Thanks for chatting! I'm here if you need any more information later." :
+                        "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
+                        
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        'finished', 'direct_response');
+                    return res.status(200).json({ message: response, 
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                }
+                
+                if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
+                    acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
+                    const response = useEnglish ? "Of course! Please go ahead and ask your questions." :
+                        "Endilega spurðu!";
+                        
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        'continuity', 'direct_response');
+                    return res.status(200).json({ message: response, 
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                }
+                
+                if (acknowledgmentPatterns.positive.en.some(pattern => msg.includes(pattern)) ||
+                    acknowledgmentPatterns.positive.is.some(pattern => msg.includes(pattern))) {
+                    const response = useEnglish ?
+                        `I'm glad I could help! ${context.lastTopic ? 
+                            `If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
+                            `What else would you like to know about Sky Lagoon?`}` :
+                        `Gott að geta hjálpað! ${context.lastTopic ? 
+                            `Ef þú hefur fleiri spurningar um ${context.lastTopic}, eða eitthvað annað, ekki hika við að spyrja.` :
+                            `Láttu mig vita ef þú hefur fleiri spurningar!`}`;
+                        
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        'positive', 'direct_response');
+                    return res.status(200).json({ message: response, 
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                }
+                
+                if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
+                    acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
+                    const response = useEnglish ?
+                        "Thank you! What else would you like to know about Sky Lagoon?" :
+                        "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
+                        
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        'general', 'direct_response');
+                    return res.status(200).json({ message: response, 
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                }
+                
+                // Finally check simple acknowledgments with word limit
+                if (userMessage.split(' ').length <= 4) {
+                    // Log acknowledgment check
+                    console.log('\n🔍 Checking simple acknowledgment:', {
+                        message: userMessage,
+                        hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+                        useEnglish: useEnglish
+                    });
+
+                    const isAcknowledgment = useEnglish ?
+                        acknowledgmentPatterns.simple.en.some(word => msg.includes(word.toLowerCase())) :
+                        acknowledgmentPatterns.simple.is.some(word => msg.includes(word.toLowerCase()));
+                            
+                    if (isAcknowledgment) {
+                        const response = useEnglish ?
+                            "Is there anything else you'd like to know about Sky Lagoon?" :
+                            "Láttu mig vita ef þú hefur fleiri spurningar!";
+
+                        await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                            'acknowledgment', 'direct_response');
+                        return res.status(200).json({ message: response, 
+                            language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                    }
+                }
+            }
         }
 
         // ADD NEW CODE RIGHT HERE 👇
@@ -4035,6 +4192,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const lateScenario = detectLateArrivalScenario(userMessage);
             if (lateScenario) {
                 let response;
+                // Use our early detection for response selection
+                const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+                
                 if (lateScenario.type === 'flight_delay') {
                     response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
                 } else if (lateScenario.type === 'unspecified_delay') {
@@ -4054,7 +4214,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 await broadcastConversation(
                     userMessage,
                     response,
-                    isIcelandic ? 'is' : 'en',
+                    useEnglish ? 'en' : 'is',
                     'late_arrival',
                     'direct_response'
                 );
@@ -4068,15 +4228,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Enhanced small talk handling
-        const msg = userMessage.toLowerCase();
-        const casualResponse = handleCasualChat(msg, isIcelandic);
+        const casualResponse = handleCasualChat(msg, languageResult.hasDefiniteEnglish ? false : isIcelandic);
         if (casualResponse || smallTalkPatterns.some(pattern => msg.includes(pattern))) {
             context.lastTopic = 'small_talk';
             context.conversationStarted = true;
             
-            const response = casualResponse || (isIcelandic ?
-                SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
-                SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
+            const response = casualResponse || (languageResult.hasDefiniteEnglish ? 
+                SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
+                (isIcelandic ? 
+                    SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
+                    SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]));
 
             // Broadcast the small talk conversation
             await broadcastConversation(
@@ -4204,84 +4365,48 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         } 
 
-        // Check for booking or question patterns first
-        const hasBookingPattern = questionPatterns.booking[isIcelandic ? 'is' : 'en']
-            .some(pattern => msg.includes(pattern));
-        const hasQuestionWord = questionPatterns.question[isIcelandic ? 'is' : 'en']
-            .some(word => msg.includes(word));
-
-        // Only proceed with acknowledgment check if no booking/question patterns detected
-        if (!hasBookingPattern && !hasQuestionWord) {
-            // Add knowledge base check BEFORE word count check
-            const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
-            
-            if (!hasKnowledgeBaseMatch && 
-                userMessage.split(' ').length <= 4) {
-                // Get language from our early detection
-                const useEnglish = languageResult.hasDefiniteEnglish || 
-                                 (!detectLanguage(userMessage) && 
-                                  acknowledgmentPatterns.simple.en.some(word => 
-                                      msg.includes(word.toLowerCase())));
-                
-                // Only check patterns for the detected language
-                const isAcknowledgment = useEnglish ?
-                    acknowledgmentPatterns.simple.en.some(word => 
-                        msg.includes(word.toLowerCase())) :
-                    acknowledgmentPatterns.simple.is.some(word => 
-                        msg.includes(word.toLowerCase()));
-                        
-                if (isAcknowledgment) {
-                    const response = useEnglish ?
-                        "Is there anything else you'd like to know about Sky Lagoon?" :
-                        "Láttu mig vita ef þú hefur fleiri spurningar!";
-
-                    // Add broadcast
-                    await broadcastConversation(
-                        userMessage,
-                        response,
-                        useEnglish ? 'en' : 'is',
-                        'acknowledgment',
-                        'direct_response'
-                    );                        
-
-                    return res.status(200).json({
-                        message: response,
-                        language: {
-                            detected: useEnglish ? 'English' : 'Icelandic',
-                            confidence: 'high'
-                        }
-                    });
-                }
-            }
-        }
-
         // Yes/Confirmation handling
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
             let response = getContextualResponse('confirmation', context.messages.map(m => m.content));
             
+            // Use our early language detection to determine language
+            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+            
             if (context.lastTopic === 'seasonal') {
                 if (context.seasonalContext?.type === 'winter') {
-                    response += " Would you like to know about:\n" +
-                              "- Our winter activities and experiences?\n" +
-                              "- Northern lights viewing opportunities?\n" +
-                              "- Our facilities during winter?\n\n" +
-                              "Please let me know which aspect interests you most.";
+                    response += useEnglish ? 
+                        " Would you like to know about:\n" +
+                        "- Our winter activities and experiences?\n" +
+                        "- Northern lights viewing opportunities?\n" +
+                        "- Our facilities during winter?\n\n" +
+                        "Please let me know which aspect interests you most." :
+                        " Viltu fá að vita meira um:\n" +
+                        "- Vetrarupplifunina okkar og afþreyingu?\n" +
+                        "- Norðurljósaskoðun?\n" +
+                        "- Aðstöðuna okkar á veturna?\n\n" +
+                        "Láttu mig vita hvaða þáttur áhugaverðastur.";
                 } else if (context.seasonalContext?.type === 'summer') {
-                    response += " Would you like to know about:\n" +
-                              "- Our summer activities and experiences?\n" +
-                              "- Late evening sun viewing opportunities?\n" +
-                              "- Our facilities during summer?\n\n" +
-                              "Please let me know which aspect interests you most.";
+                    response += useEnglish ?
+                        " Would you like to know about:\n" +
+                        "- Our summer activities and experiences?\n" +
+                        "- Late evening sun viewing opportunities?\n" +
+                        "- Our facilities during summer?\n\n" +
+                        "Please let me know which aspect interests you most." :
+                        " Viltu fá að vita meira um:\n" +
+                        "- Sumarupplifunina okkar og afþreyingu?\n" +
+                        "- Miðnætursólina?\n" +
+                        "- Aðstöðuna okkar á sumrin?\n\n" +
+                        "Láttu mig vita hvaða þáttur áhugaverðastur.";
                 }
             } else {
                 response += ` ${getContextualTransition(context.lastTopic, 'confirmation')}`;
             }
 
-            // Add broadcast
+            // Add broadcast with consistent language detection
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                useEnglish ? 'en' : 'is',
                 'confirmation',
                 'direct_response'
             );
@@ -4292,25 +4417,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Check if it's a group booking query but DON'T return immediately
-        if (isIcelandic && (
+        if (!languageResult.hasDefiniteEnglish && (
             userMessage.toLowerCase().includes('hóp') || 
             userMessage.toLowerCase().includes('manna') ||
-            userMessage.toLowerCase().includes('hópabókun'))) {
+            userMessage.toLowerCase().includes('hópabókun') ||
+            userMessage.toLowerCase().includes('group') ||
+            userMessage.toLowerCase().includes('booking for') ||
+            userMessage.toLowerCase().includes('people'))) {
             
             // Just set the context topic
             context.lastTopic = 'group_bookings';
             
-            // Log that we detected a group booking
+            // Log that we detected a group booking - use our consistent language detection
             console.log('\n👥 Group Booking Query Detected:', {
                 message: userMessage,
-                isIcelandic: true
+                isIcelandic: !languageResult.hasDefiniteEnglish && isIcelandic,
+                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
             });
 
             // Add broadcast for tracking group booking queries
             await broadcastConversation(
                 userMessage,
                 'group_booking_detection',  // Not a response, just tracking the detection
-                'is',
+                languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
                 'group_bookings',
                 'detection'
             );
@@ -4354,13 +4483,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // If message has no relation to our business and no knowledge base matches
         if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
-            const unknownResponse = isIcelandic ? 
-                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
-                    Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
-                ] :
+            const unknownResponse = languageResult.hasDefiniteEnglish ? 
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
                     Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
-                ];
+                ] :
+                (isIcelandic ? 
+                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
+                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
+                    ] :
+                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
+                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
+                    ]);
 
             // Add broadcast
             await broadcastConversation(
@@ -4437,10 +4570,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (topic === 'seasonal') {
             let seasonalInfo = knowledgeBaseResults.find(k => k.type === 'seasonal_information');
             if (seasonalInfo) {
+                // Use consistent language check for seasonal terms
+                const isWinter = userMessage.toLowerCase().includes('winter') || 
+                               userMessage.toLowerCase().includes('northern lights') ||
+                               (!languageResult.hasDefiniteEnglish && (
+                                   userMessage.toLowerCase().includes('vetur') ||
+                                   userMessage.toLowerCase().includes('vetrar') ||
+                                   userMessage.toLowerCase().includes('norðurljós')
+                               ));
+                               
                 // Store previous season if it's changing
-                const newType = userMessage.toLowerCase().includes('winter') || 
-                               userMessage.toLowerCase().includes('northern lights') ? 
-                               'winter' : 'summer';
+                const newType = isWinter ? 'winter' : 'summer';
                                
                 if (context.seasonalContext.type && context.seasonalContext.type !== newType) {
                     context.seasonalContext.previousSeason = context.seasonalContext.type;
@@ -4574,7 +4714,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 Please provide a natural, conversational response using ONLY the information from the knowledge base. 
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                ${isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English'}`  // Added closing backtick here
+                ${languageResult.hasDefiniteEnglish ? 'Response MUST be in English' : 
+                  (isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English')}`  // Added closing backtick here
         });
 
         // Make GPT-4 request with retries
@@ -4622,7 +4763,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             await broadcastConversation(
                 req.body.message,
                 completion.choices[0].message.content,
-                isIcelandic ? 'is' : 'en',
+                languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
                 context?.lastTopic || 'general',
                 'gpt_response'
             );
@@ -4645,11 +4786,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
 
         // Cache the response with language
+        const languageChoice = languageResult.hasDefiniteEnglish ? 'English' : 
+                             (isIcelandic ? 'Icelandic' : 'English');
+        const languageCode = languageResult.hasDefiniteEnglish ? 'en' : 
+                           (isIcelandic ? 'is' : 'en');
+
         responseCache.set(cacheKey, {
             response: {
                 message: enhancedResponse,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
+                    detected: languageChoice,
                     confidence: 'high'
                 }
             },
@@ -4658,14 +4804,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Update conversation context with language
         context.lastInteraction = Date.now();
-        context.language = isIcelandic ? 'is' : 'en';
+        context.language = languageCode;
         conversationContext.set(sessionId, context);
 
         // Return enhanced response format
         return res.status(200).json({
             message: enhancedResponse,
             language: {
-                detected: isIcelandic ? 'Icelandic' : 'English',
+                detected: languageChoice,
                 confidence: 'high'
             }
         });
@@ -4677,24 +4823,37 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             type: error.constructor.name,
             context: {
                 message: req.body?.message,
-                language: req.body?.language || 'English',
+                hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
+                isIcelandic: isIcelandic,
+                language: languageResult?.hasDefiniteEnglish ? 'en' : 
+                         (isIcelandic ? 'is' : 'en'),
                 timestamp: new Date().toISOString()
             }
         });
 
-        const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
+        // Use consistent language detection for error messages
+        const errorMessage = languageResult?.hasDefiniteEnglish ? 
+            "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+            (isIcelandic ? 
+                "Ég biðst afsökunar en ég er að lenda í vandræðum með tengingu. Vinsamlegast reyndu aftur eftir smá stund." :
+                "I apologize, but I'm having trouble connecting right now. Please try again shortly.");
 
         // Add broadcast for error scenarios
         await broadcastConversation(
             req.body?.message || 'unknown_message',
             errorMessage,
-            'en',  // Default to English for error messages
+            languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
             'error',
             'error_response'
         );
 
         return res.status(500).json({
-            message: errorMessage
+            message: errorMessage,
+            language: {
+                detected: languageResult?.hasDefiniteEnglish ? 'English' : 
+                         (isIcelandic ? 'Icelandic' : 'English'),
+                confidence: 'high'
+            }
         });
     }
 });
