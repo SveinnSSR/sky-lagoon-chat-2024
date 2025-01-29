@@ -3791,9 +3791,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Enhanced language detection
         const languageCheck = {         
             // Early English check - prevents Icelandic misidentification
-            hasDefiniteEnglish: isDefinitelyEnglish(userMessage),
+            hasDefiniteEnglish: (
+                // Question starters (now includes does) - with or without question mark
+                /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
+                // Thanks variations (simpler pattern)
+                /^(?:thanks|thank you)\b/i.test(userMessage) ||
+                // Package-specific patterns
+                /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage) ||
+                // Facility questions
+                /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
+                // Location patterns
+                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
+                // Use existing acknowledgment patterns
+                acknowledgmentPatterns.simple.en.some(word => 
+                    userMessage.toLowerCase().trim() === word ||
+                    userMessage.toLowerCase().trim().startsWith(word + ' ') ||
+                    userMessage.toLowerCase().trim().endsWith(' ' + word)
+                )
+            ),
    
-            // CRITICAL FIX: Check for clear Icelandic sentence structure FIRST
+            // Icelandic structure check
             hasIcelandicStructure: (
                 /^(góðan dag|sæl|halló|hæ|verið velkomin)/i.test(userMessage.toLowerCase()) ||
                 // Question structures
@@ -3846,10 +3863,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (languageCheck.hasDefiniteEnglish) {
             console.log('\n🌍 Definite English detected:', userMessage);
             isIcelandic = false;
+        } else if (languageCheck.hasEnglishStructure) {
+            // If it has English structure, it's English unless it has clear Icelandic indicators
+            isIcelandic = languageCheck.hasIcelandicStructure && languageCheck.hasIcelandicChars;
         } else {
-            // CRITICAL FIX: Check Icelandic structure FIRST, then English
+            // Only then check other indicators
             isIcelandic = languageCheck.hasIcelandicStructure ? true :
-                         languageCheck.hasEnglishStructure ? false :
                          (languageCheck.rawDetection || languageCheck.hasIcelandicChars);
         }
 
@@ -4232,8 +4251,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Add knowledge base check BEFORE word count check
             const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
             
-            // Only do simple response check if no knowledge base match
-            if (!hasKnowledgeBaseMatch && userMessage.split(' ').length <= 4 && 
+            if (!hasKnowledgeBaseMatch && 
+                !languageCheck.hasDefiniteEnglish &&
+                userMessage.split(' ').length <= 4 && 
                 (acknowledgmentPatterns.simple.en.some(word => 
                     msg.includes(word.toLowerCase())) ||
                  acknowledgmentPatterns.simple.is.some(word => 
