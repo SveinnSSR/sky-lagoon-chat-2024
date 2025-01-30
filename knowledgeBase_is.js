@@ -1874,74 +1874,80 @@ export const getRelevantKnowledge_is = (userMessage) => {
     const message = userMessage.toLowerCase();
     let relevantInfo = [];
 
-    // Opening hours and timing
-    if (message.includes('opið') || 
-        message.includes('opnun') ||
-        message.includes('lokunartím') ||
-        message.includes('lokað') ||
-        message.includes('tímasetning') ||
-        message.includes('tími') ||
-        message.includes('klukkan') ||
-        message.includes('hvenær') ||
-        message.includes('afgreiðslutím') ||
-        
-        // Holiday specific
-        message.includes('jól') ||
-        message.includes('áramót') ||
-        message.includes('hátíð') ||
-        message.includes('desember') ||
-        message.includes('24.') ||
-        message.includes('25.') ||
-        message.includes('31.') ||
-        
-        // Season specific
-        message.includes('sumar') ||
-        message.includes('vetur') ||
-        message.includes('haust') ||
-        
-        // Experience specific
-        message.includes('norðurljós') ||
-        message.includes('miðnætursól') ||
-        message.includes('sólarupprás') ||
-        message.includes('kvöld') ||
-        message.includes('morgn') ||
-        
-        // Venue specific
-        message.includes('smakk bar') ||
-        message.includes('keimur') ||
-        message.includes('kaffihús') ||
-        message.includes('veitingastaður') ||
-        message.includes('bar')) {
-        
-        console.log('\n⏰ Opening Hours Match Found');
+// Opening hours and timing
+if (message.includes('opið') || 
+    message.includes('opnun') ||
+    message.includes('lokunartím') ||
+    message.includes('lokað') ||
+    message.includes('lokar') ||
+    message.includes('tímasetning') ||
+    message.includes('tími') ||
+    message.includes('klukkan') ||
+    message.includes('hvenær') ||
+    message.includes('afgreiðslutím') ||
+    message.includes('í dag') ||
+    message.includes('á morgun') ||
+    message.includes('opin') ||
+    message.includes('opið') ||
+    message.includes('lokun') ||
+    
+    // Holiday specific
+    message.includes('jól') ||
+    message.includes('áramót') ||
+    message.includes('hátíð') ||
+    message.includes('desember') ||
+    message.includes('24.') ||
+    message.includes('25.') ||
+    message.includes('31.') ||
+    
+    // Season specific
+    message.includes('sumar') ||
+    message.includes('vetur') ||
+    message.includes('haust') ||
+    
+    // Experience specific
+    message.includes('norðurljós') ||
+    message.includes('miðnætursól') ||
+    message.includes('sólarupprás') ||
+    message.includes('kvöld') ||
+    message.includes('morgn') ||
+    
+    // Venue specific
+    message.includes('smakk bar') ||
+    message.includes('keimur') ||
+    message.includes('kaffihús') ||
+    message.includes('veitingastaður') ||
+    message.includes('bar')) {
+    
+    console.log('\n⏰ Opening Hours Match Found');
 
-        // Return specific content based on query type
-        if (message.includes('smakk bar') || message.includes('veitingastaður')) {
-            relevantInfo.push({
-                type: 'opening_hours',
-                subtype: 'smakk_bar',
-                content: knowledgeBase_is.opening_hours.venue_specific.smakk_bar.description
-            });
-        } else if (message.includes('kaffihús') || message.includes('keimur')) {
-            relevantInfo.push({
-                type: 'opening_hours',
-                subtype: 'keimur_cafe',
-                content: knowledgeBase_is.opening_hours.venue_specific.keimur_cafe
-            });
-        } else if (message.includes('jól') || message.includes('áramót') || message.includes('hátíð')) {
-            relevantInfo.push({
-                type: 'opening_hours',
-                subtype: 'holidays',
-                content: knowledgeBase_is.opening_hours.holidays
-            });
-        } else {
-            // Return complete opening hours information
-            relevantInfo.push({
-                type: 'opening_hours',
-                content: knowledgeBase_is.opening_hours
-            });
-        }
+    // Return specific content based on query type
+    if (message.includes('smakk bar') || message.includes('veitingastaður')) {
+        relevantInfo.push({
+            type: 'opening_hours',
+            subtype: 'smakk_bar',
+            content: knowledgeBase_is.opening_hours.venue_specific.smakk_bar.description
+        });
+    } else if (message.includes('kaffihús') || message.includes('keimur')) {
+        relevantInfo.push({
+            type: 'opening_hours',
+            subtype: 'keimur_cafe',
+            content: knowledgeBase_is.opening_hours.venue_specific.keimur_cafe
+        });
+    } else if (message.includes('jól') || message.includes('áramót') || message.includes('hátíð')) {
+        relevantInfo.push({
+            type: 'opening_hours',
+            subtype: 'holidays',
+            content: knowledgeBase_is.opening_hours.holidays
+        });
+    } else {
+        // Return complete opening hours information
+        relevantInfo.push({
+            type: 'opening_hours',
+            content: knowledgeBase_is.opening_hours
+        });
     }
+}
     // Full getRelevantKnowledge section for Facilities below
     // Búningsklefar (Changing Rooms) - expanded patterns
     // First check specifically for comparisons

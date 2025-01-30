@@ -4001,6 +4001,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early language detection - determines language before any other processing
         const languageResult = {
             hasDefiniteEnglish: (
+                // Common English request patterns - ADD THESE
+                /^(?:please|tell me|let me|show me|explain|give me)\b/i.test(userMessage) ||
+                /^i\s+(?:would|want|need|would like|'d like)\b/i.test(userMessage) ||
+                // New patterns - Catches "i'd like", "i'd want", etc.
+                /^i['']d\s+(?:like|want|need|love|prefer|hope|wish|be interested in|appreciate)\b/i.test(userMessage) ||
+                // I'm looking for, i'm wondering about...
+                /^i['']m\s+(?:looking|trying|hoping|wondering|interested|curious|planning)\b/i.test(userMessage) ||
+                // I was wondering if...
+                /^i\s+was\s+(?:wondering|hoping|thinking|looking)\b/i.test(userMessage) ||
+                // are there any..
+                /^(?:are|do|is|can)\s+(?:there|you|we|it)\b/i.test(userMessage) ||
+                // looking to book, trying to find...
+                /^(?:looking|trying|wanting)\s+to\b/i.test(userMessage) ||
                 // Question starters (now includes does) - with or without question mark
                 /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
                 // Thanks variations (simpler pattern)
@@ -4948,6 +4961,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                            userMessage.toLowerCase().includes('open') || 
                            userMessage.toLowerCase().includes('close') ||
                            userMessage.toLowerCase().includes('time');
+                            // Add these Icelandic patterns
+                            userMessage.toLowerCase().includes('opin') ||
+                            userMessage.toLowerCase().includes('opið') ||
+                            userMessage.toLowerCase().includes('lokað') ||
+                            userMessage.toLowerCase().includes('lokar') ||
+                            userMessage.toLowerCase().includes('opnun') ||
+                            userMessage.toLowerCase().includes('lokun') ||
+                            userMessage.toLowerCase().includes('í dag') ||  // "today" often used with hours
+                            userMessage.toLowerCase().includes('á morgun');  // "tomorrow" often used with hours
 
         // Detect topic and get initial transitions
         let topicResult = detectTopic(userMessage, knowledgeBaseResults, context);
