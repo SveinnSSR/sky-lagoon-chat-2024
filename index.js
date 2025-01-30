@@ -4003,7 +4003,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Common English phrases & Acknowledgments
                 /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage) ||
                 /^(?:nothing|maybe|not)\s+(?:right now|now|at the moment|later)\b/i.test(userMessage) ||
-                /^(?:very|that was|this was)\s+(?:helpful|good|great|useful)\b/i.test(userMessage) ||
+                /(?:very|that was|this was|it was)\s+(?:helpful|good|great|useful)\b/i.test(userMessage) ||
                 // Question mark with English words
                 /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage) ||
                 // ENHANCED Acknowledgment check
