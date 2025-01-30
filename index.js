@@ -465,6 +465,13 @@ const SMALL_TALK_RESPONSES = {
             "Lovely to meet you as well! Would you like to learn about our experiences at Sky Lagoon?",
             "Great to meet you too! I'm here to help you learn about Sky Lagoon. What interests you most?",
             "Wonderful to meet you! I'd love to tell you about what makes Sky Lagoon special. What would you like to know?"
+        ],
+        // For identity questions (who are you, etc.)
+        identity: [
+            "I'm Rán, an AI assistant dedicated to helping guests discover Sky Lagoon. What would you like to know?",
+            "I'm Rán, your AI guide to Sky Lagoon. What aspects of our experience would you like to learn about?",
+            "I'm Rán, an AI assistant here to help you learn about Sky Lagoon. What interests you most?",
+            "I'm Rán, your AI assistant for all things Sky Lagoon. How can I help you today?"
         ]
     },
     is: {
@@ -488,6 +495,13 @@ const SMALL_TALK_RESPONSES = {
             "Sömuleiðis! Hvernig get ég aðstoðað þig?",
             "Gaman að kynnast þér líka! Hvernig get ég aðstoðað þig?",
             "Sömuleiðis! Hvernig get ég aðstoðað þig?"
+        ],
+        // For identity questions (who are you, etc.)
+        identity: [
+            "Ég er Rán, gervigreindaraðstoðarmaður sem hjálpar gestum að kynnast Sky Lagoon. Hvernig get ég aðstoðað þig?",
+            "Ég er Rán, gervigreindin þín fyrir Sky Lagoon. Hvað viltu vita um upplifunina okkar?",
+            "Ég er Rán, gervigreindaraðstoðarmaður fyrir Sky Lagoon. Hvað langar þig að fræðast um?",
+            "Ég er Rán, gervigreindarráðgjafinn þinn fyrir allt sem viðkemur Sky Lagoon. Hvernig get ég hjálpað?"
         ]
     }
 };
@@ -871,18 +885,18 @@ const getSmallTalkResponse = (result, languageResult = { hasDefiniteEnglish: fal
     
     // Log response selection
     console.log('\n💬 Small Talk Response Selection:', {
-        category: result.category,
+        category: result.category || 'casual',
         language: useEnglish ? 'en' : 'is',
         hasDefiniteEnglish: languageResult.hasDefiniteEnglish
     });
 
-    return useEnglish ? 
-        SMALL_TALK_RESPONSES.en[result.category || 'casual'][
-            Math.floor(Math.random() * SMALL_TALK_RESPONSES.en[result.category || 'casual'].length)
-        ] :
-        SMALL_TALK_RESPONSES.is[result.category || 'casual'][
-            Math.floor(Math.random() * SMALL_TALK_RESPONSES.is[result.category || 'casual'].length)
-        ];
+    // Get responses array with fallback to casual category
+    const selectedLanguage = useEnglish ? SMALL_TALK_RESPONSES.en : SMALL_TALK_RESPONSES.is;
+    const category = result.category || 'casual';
+    const responses = selectedLanguage[category] || selectedLanguage.casual;
+
+    // Select random response from the array
+    return responses[Math.floor(Math.random() * responses.length)];
 };
 
 const acknowledgmentPatterns = {
