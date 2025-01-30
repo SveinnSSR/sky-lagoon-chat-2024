@@ -492,14 +492,50 @@ const SMALL_TALK_RESPONSES = {
     }
 };
 
-// Follow-up greeting detection and responses
-const isFollowUpGreeting = message => {
+// Enhanced follow-up greeting detection
+const isFollowUpGreeting = (message, languageResult = { hasDefiniteEnglish: false }) => {
     const msg = message.toLowerCase().trim();
-    return (
-        // Check if it's a greeting with Rán's name
+    
+    // Log follow-up check
+    console.log('\n👋 Follow-up Greeting Check:', {
+        message: msg,
+        patterns: {
+            hasName: msg.includes('rán'),
+            startsWithEnglish: simpleEnglishGreetings.some(g => msg.startsWith(g)),
+            startsWithIcelandic: simpleIcelandicGreetings.some(g => msg.startsWith(g)),
+            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|rán)\b/i.test(msg),
+            hasFollowUpWord: /\b(?:again|back|now|once more)\b/i.test(msg)
+        }
+    });
+
+    // Check for explicit follow-up patterns first
+    if (/^(?:hi|hello|hey)\s+(?:again|back)\b/i.test(msg)) {
+        return true;
+    }
+
+    // Check for Icelandic follow-up patterns
+    if (/^(?:hæ|halló|sæl)\s+(?:aftur|enn)\b/i.test(msg)) {
+        return true;
+    }
+
+    // Check for greetings with Rán's name
+    const hasRánWithGreeting = (
+        // English greetings with Rán
         (simpleEnglishGreetings.some(g => msg.startsWith(g)) && msg.includes('rán')) ||
+        // Icelandic greetings with Rán
         (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && msg.includes('rán'))
     );
+
+    if (hasRánWithGreeting) {
+        return true;
+    }
+
+    // Check for contextual follow-ups (when we have previous interaction)
+    if (msg.match(/^(?:hi|hello|hey|hæ|halló)\s+(?:there|again|back|aftur)\b/i)) {
+        return true;
+    }
+
+    return false;
 };
 
 const FOLLOWUP_RESPONSES = {
@@ -507,14 +543,27 @@ const FOLLOWUP_RESPONSES = {
         "How can I help you today?",
         "What would you like to know about Sky Lagoon?",
         "I'd be happy to help you plan your visit. What interests you most?",
-        "What can I tell you about Sky Lagoon?"
+        "What can I tell you about Sky Lagoon?",
+        "Nice to see you again! What can I help you with?",
+        "Welcome back! How can I assist you today?"
     ],
     is: [
         "Hvernig get ég aðstoðað þig?",
         "Hvað viltu vita um Sky Lagoon?",
         "Ég get hjálpað þér að skipuleggja heimsóknina. Hvað langar þig að vita?",
-        "Get ég veitt þér einhverjar upplýsingar um Sky Lagoon?"
+        "Get ég veitt þér einhverjar upplýsingar um Sky Lagoon?",
+        "Gaman að sjá þig aftur! Hvernig get ég aðstoðað?",
+        "Velkomin/n aftur! Hvað get ég gert fyrir þig?"
     ]
+};
+
+// Add logging helper for response selection
+const logFollowUpResponse = (language, response) => {
+    console.log('\n🗣️ Selected Follow-up Response:', {
+        language: language,
+        response: response,
+        totalOptions: FOLLOWUP_RESPONSES[language].length
+    });
 };
 
 const CONFIRMATION_RESPONSES = [
@@ -525,35 +574,76 @@ const CONFIRMATION_RESPONSES = [
     "I understand! "
 ];
 
-// Simple greeting detection constants
+// Enhanced greeting detection with patterns
 const simpleEnglishGreetings = [
-    'hi', 'hello', 'hey',  
-    'howdy', 'hi there',
-    'greetings', 'hey there', 'hiya', 'hullo', 'yo',
-    'welcome', 'hi hi', 'hello there', 'heya', 'hi folks',
-    'good morning', 'good afternoon', 'good evening', 'good day'
+    // Basic greetings
+    'hi', 'hello', 'hey', 'howdy',
+    // Variations with "there"
+    'hi there', 'hello there', 'hey there',
+    'greetings', 'hiya', 'hullo', 
+    // Time-based greetings
+    'good morning', 'good afternoon', 'good evening', 'good day',
+    // Welcome variations
+    'welcome', 'welcome back',
+    // Casual variations
+    'yo', 'heya', 'hi folks',
+    // Double greetings
+    'hi hi', 'hello hello',
+    // With name
+    'hi rán', 'hello rán', 'hey rán'
 ];
 
+// Composite Icelandic greetings - ordered by complexity
 const compositeIcelandicGreetings = [
+    // Time-based formal greetings
     'góðan dag',
     'góðan daginn',
     'gott kvöld',
     'góða kvöldið',
+    // Formal greetings with gender
     'sæll og blessaður',
     'sæl og blessuð',
     'komdu sæll',
-    'komdu sæl'
+    'komdu sæl',
+    // Additional formal variations
+    'verið velkomin',
+    'góðan og blessaðan'
 ];
 
+// Simple Icelandic greetings - categorized and sorted
 const simpleIcelandicGreetings = [
-    'hæ', 'hæhæ', 'hææ', 'halló', 'sæl', 'góðan', 'góða', 'morgunn', 
-    'daginn', 'kvöld', 'góðan daginn', 'góðan dag', 'verið velkomin', 
-    'gott kvöld', 'góða kvöldið', 'sæll og blessaður', 'sæl og blessuð', 
-    'komdu sæll', 'komdu sæl', 'góðan og blessaðan', 'blessaður', 'blessuð',
-    'hæhæ hæ', 'halló halló', 'hæ hæ', 'komdu blessaður', 'komdu blessuð',
-    'góðan daginn', 'góða kvöldið', 'kær kveðja', 'heilsað þér', 'velkomin',
-    'velkominn', 'morguninn', 'kvöldið'
+    // Basic greetings
+    'hæ', 'hæhæ', 'hææ', 'halló', 
+    'sæl', 'sæll',
+    // Time components
+    'góðan', 'góða', 'morgunn',
+    'daginn', 'kvöld', 'morguninn', 'kvöldið',
+    // Full time-based greetings
+    'góðan daginn', 'góðan dag',
+    'gott kvöld', 'góða kvöldið',
+    // Formal variations
+    'blessaður', 'blessuð',
+    'komdu blessaður', 'komdu blessuð',
+    // Welcome variations
+    'velkomin', 'velkominn',
+    // Multiple greetings
+    'hæhæ hæ', 'halló halló', 'hæ hæ',
+    // Additional formal phrases
+    'kær kveðja', 'heilsað þér'
 ];
+
+// Add enhanced logging for greeting pattern usage
+const logGreetingMatch = (message, matches) => {
+    console.log('\n👋 Greeting Pattern Match:', {
+        message: message,
+        matches: {
+            simpleEnglish: simpleEnglishGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
+            compositeIcelandic: compositeIcelandicGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
+            simpleIcelandic: simpleIcelandicGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase()))
+        },
+        finalMatch: matches
+    });
+};
 
 // Common Icelandic question words and starters
 const icelandicQuestionStarters = [
@@ -566,36 +656,55 @@ const icelandicQuestionStarters = [
 
 const isSimpleGreeting = message => {
     const msg = message.toLowerCase().trim()
-        .replace(/[!.,]+$/, '')
-        .replace(/\s+/g, ' ')    
-        .replace(/\brán\b/gi, '')
-        .trim();                 
+        .replace(/[!.,]+$/, '')     // Remove trailing punctuation
+        .replace(/\s+/g, ' ')       // Normalize spaces
+        .replace(/\brán\b/gi, '')   // Remove mentions of Rán
+        .trim();                    // Final trim
     
-    console.log('\n👋 Greeting Check:', {
+    // Enhanced logging with more details
+    console.log('\n👋 Enhanced Greeting Check:', {
         original: message,
         cleaned: msg,
-        inSimpleGreetings: simpleEnglishGreetings.some(g => msg === g || msg === g + '!')
+        patterns: {
+            simpleEnglish: simpleEnglishGreetings.some(g => msg === g || msg === g + '!'),
+            simpleIcelandic: simpleIcelandicGreetings.some(g => msg === g || msg === g + '!'),
+            compositeIcelandic: compositeIcelandicGreetings.some(g => msg === g || msg === g + '!'),
+            hasQuestion: msg.includes('?'),
+            hasNumbers: /\d/.test(msg),
+            hasIcelandicStarter: icelandicQuestionStarters.some(starter => msg.startsWith(starter)),
+            isStandaloneGreeting: /^(?:hi|hello|hey|hæ|halló|sæl)\b$/i.test(msg)
+        }
     });
 
-    // Early returns for invalid messages
-    if (!msg) return false;
-    if (msg.includes('?')) return false;
-    if (msg.includes('@')) return false;
-    if (msg.includes('http')) return false;
-    if (/\d/.test(msg)) return false;
+    // Early validation - prevent processing of invalid messages
+    if (!msg) return false;                    // Empty message
+    if (msg.includes('?')) return false;       // Questions
+    if (msg.includes('@')) return false;       // Emails/mentions
+    if (msg.includes('http')) return false;    // URLs
+    if (/\d/.test(msg)) return false;          // Numbers
+
+    // Standalone English greetings (highest priority)
+    if (/^(?:hi|hello|hey|hi there)\b$/i.test(msg)) {
+        return true;
+    }
 
     // Check for Icelandic questions first
     if (icelandicQuestionStarters.some(starter => msg.startsWith(starter))) {
         return false;
     }
 
-    // Check for exact greeting matches (both regular and punctuated forms)
+    // Check for exact greeting matches with punctuation variations
     const exactGreetingMatch = (
         simpleEnglishGreetings.some(g => msg === g || msg === g + '!') || 
         simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
         compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')
     );
     if (exactGreetingMatch) return true;
+
+    // Add explicit standalone Icelandic greeting check
+    if (/^(?:hæ|halló|sæl|sæll)\b$/i.test(msg)) {
+        return true;
+    }
 
     // Check for compound greetings that start with known greetings
     const hasGreetingStart = (
@@ -604,24 +713,38 @@ const isSimpleGreeting = message => {
     );
     if (hasGreetingStart) return false;
     
-    // Words that indicate it's not a greeting
+    // Enhanced non-greeting indicators
     const notSimpleGreeting = [
-        'can', 'could', 'would', 'do', 'does', 'is', 'are', 'what', 
-        'when', 'where', 'why', 'how', 'should', 'may', 'might',
-        'help', 'need', 'want', 'looking', 'trying',
-        'get', 'má', 'er', 'hefur', 'getur', 'hvernig', 'hvar',
-        'viltu', 'geturðu', 'mig langar', 'ég er', 'ég vil'
+        // English question/request words
+        'can', 'could', 'would', 'do', 'does', 'is', 'are', 
+        'what', 'when', 'where', 'why', 'how', 'should', 
+        'may', 'might', 'please', 'thanks', 'thank',
+        // Action words
+        'help', 'need', 'want', 'looking', 'trying', 'get',
+        'book', 'find', 'know', 'tell', 'show',
+        // Icelandic indicators
+        'má', 'er', 'hefur', 'getur', 'hvernig', 'hvar',
+        'viltu', 'geturðu', 'mig langar', 'ég er', 'ég vil',
+        'gætirðu', 'væri', 'get ég', 'má ég'
     ];
     
-    // Check for non-greeting indicators
-    if (notSimpleGreeting.some(starter => msg.includes(` ${starter} `) || msg.startsWith(starter + ' '))) {
+    // Check for any non-greeting indicators more thoroughly
+    if (notSimpleGreeting.some(word => {
+        // Check for word boundaries to prevent partial matches
+        const pattern = new RegExp(`(^|\\s)${word}\\b`, 'i');
+        return pattern.test(msg);
+    })) {
         return false;
     }
 
-    // Final check for exact matches in greeting lists
+    // If message is longer than 4 words, it's probably not a simple greeting
+    if (msg.split(' ').length > 4) return false;
+
+    // Final check - must explicitly match one of our greeting patterns
     return simpleEnglishGreetings.includes(msg) || 
            simpleIcelandicGreetings.includes(msg) ||
-           compositeIcelandicGreetings.includes(msg);
+           compositeIcelandicGreetings.includes(msg) ||
+           /^(?:hi|hello|hey|hæ|halló|sæl|sæll)\b(?:\s*(?:there|rán))?\s*$/i.test(msg);
 };
 
 // Test cases
@@ -642,30 +765,125 @@ console.log('\n👋 Testing Greeting Detection:', {
     'kostar eitthvað': isSimpleGreeting('kostar eitthvað')
 });
 
-// Add these new patterns to your smallTalkPatterns array
-const smallTalkPatterns = [
-    'how are you',
-    'how\'s it going',
-    'how do you do',
-    'how are things',
-    'what\'s up',
-    'hows it going',
-    'how you doing',
-    'who are you',
-    'what can you do',
-    'what do you do',
-    'tell me about yourself',
-    'your name',
-    'who made you',
-    'nice to meet you',
-    'good to meet you',
-    'pleased to meet you',
-    'great to meet you',
-    'gaman að hitta þig',
-    'gaman að kynnast þér',
-    'gott að hitta þig',
-    'gaman að sjá þig'
-];
+// Enhanced small talk patterns with better categorization
+const smallTalkPatterns = {
+    en: {
+        wellbeing: [
+            'how are you',
+            'how\'s it going',
+            'how do you do',
+            'how are things',
+            'what\'s up',
+            'how you doing',
+            'everything good',
+            'all good'
+        ],
+        identity: [
+            'who are you',
+            'what can you do',
+            'what do you do',
+            'tell me about yourself',
+            'your name',
+            'who made you'
+        ],
+        greeting: [
+            'nice to meet you',
+            'good to meet you',
+            'pleased to meet you',
+            'great to meet you',
+            'lovely to meet you',
+            'wonderful to meet you'
+        ],
+        return: [
+            'nice to see you',
+            'good to see you',
+            'great to see you',
+            'glad to see you'
+        ]
+    },
+    is: {
+        wellbeing: [
+            'hvernig hefurðu það',
+            'allt gott',
+            'hvað segirðu',
+            'hvernig gengur',
+            'allt í lagi'
+        ],
+        greeting: [
+            'gaman að hitta þig',
+            'gaman að kynnast þér',
+            'gott að hitta þig',
+            'gaman að sjá þig',
+            'gott að sjá þig'
+        ],
+        identity: [
+            'hver ert þú',
+            'hvað geturðu',
+            'segðu mér frá þér',
+            'hvað heitirðu',
+            'hver bjó þig til'
+        ]
+    }
+};
+
+// Add helper function for small talk detection
+const detectSmallTalk = (message, languageResult = { hasDefiniteEnglish: false }) => {
+    const msg = message.toLowerCase().trim();
+
+    // Log detection attempt
+    console.log('\n💬 Small Talk Pattern Check:', {
+        message: msg,
+        hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+        patterns: {
+            enWellbeing: smallTalkPatterns.en.wellbeing.some(p => msg.includes(p)),
+            enIdentity: smallTalkPatterns.en.identity.some(p => msg.includes(p)),
+            enGreeting: smallTalkPatterns.en.greeting.some(p => msg.includes(p)),
+            isWellbeing: smallTalkPatterns.is.wellbeing.some(p => msg.includes(p)),
+            isGreeting: smallTalkPatterns.is.greeting.some(p => msg.includes(p))
+        }
+    });
+
+    // Check English patterns first if definite English
+    if (languageResult.hasDefiniteEnglish) {
+        for (const category in smallTalkPatterns.en) {
+            if (smallTalkPatterns.en[category].some(pattern => msg.includes(pattern))) {
+                return { isSmallTalk: true, language: 'en', category };
+            }
+        }
+    }
+
+    // Then check both languages
+    for (const lang of ['en', 'is']) {
+        for (const category in smallTalkPatterns[lang]) {
+            if (smallTalkPatterns[lang][category].some(pattern => msg.includes(pattern))) {
+                return { isSmallTalk: true, language: lang, category };
+            }
+        }
+    }
+
+    return { isSmallTalk: false, language: null, category: null };
+};
+
+// Add response selector helper
+const getSmallTalkResponse = (result, languageResult = { hasDefiniteEnglish: false }) => {
+    // Use our early language detection
+    const useEnglish = languageResult.hasDefiniteEnglish || result.language === 'en';
+    
+    // Log response selection
+    console.log('\n💬 Small Talk Response Selection:', {
+        category: result.category,
+        language: useEnglish ? 'en' : 'is',
+        hasDefiniteEnglish: languageResult.hasDefiniteEnglish
+    });
+
+    return useEnglish ? 
+        SMALL_TALK_RESPONSES.en[result.category || 'casual'][
+            Math.floor(Math.random() * SMALL_TALK_RESPONSES.en[result.category || 'casual'].length)
+        ] :
+        SMALL_TALK_RESPONSES.is[result.category || 'casual'][
+            Math.floor(Math.random() * SMALL_TALK_RESPONSES.is[result.category || 'casual'].length)
+        ];
+};
 
 const acknowledgmentPatterns = {
     simple: {
@@ -3278,58 +3496,91 @@ const getMaxTokens = (userMessage) => {
     return 500;  // Default token count
 };
 
-// Helper function for casual chat responses
-const handleCasualChat = (message, isIcelandic) => {
-    const msg = message.toLowerCase();
-    
-    // For "nice to meet you" type responses
-    if (isIcelandic) {
-        // Add casual greeting checks first
-        if (msg.includes('bara heilsa') || 
+// Enhanced casual chat handler with better language detection
+const handleCasualChat = (message, isIcelandic, languageResult = { hasDefiniteEnglish: false }) => {
+    try {
+        const msg = message.toLowerCase();
+        
+        // Log chat analysis
+        console.log('\n💬 Casual Chat Analysis:', {
+            message: msg,
+            hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
+            isIcelandic: isIcelandic,
+            patterns: {
+                isGreeting: /^(?:hi|hello|hey|hæ|halló)\b/i.test(msg),
+                isCasualGreeting: msg.includes('bara heilsa') || msg.includes('bara að heilsa'),
+                isHowAreYou: /how are you|how\'s it going|hvað segir|hvernig hefur/i.test(msg),
+                isPositive: /^(?:good|great|fine|ok|okay|gott|frábært|geggjað|flott)$/i.test(msg)
+            }
+        });
+
+        // Use early language detection first
+        const useEnglish = languageResult?.hasDefiniteEnglish || !isIcelandic;
+
+        // Handle casual greetings first - keep existing functionality
+        if (!useEnglish && (msg.includes('bara heilsa') || 
             msg.includes('bara að heilsa') || 
-            msg.includes('bara að kíkja')) {
+            msg.includes('bara að kíkja'))) {
             return "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊";
         }
-        if (msg.includes('gaman að hitta') || 
-            msg.includes('gaman að kynnast') || 
-            msg.includes('gott að hitta')) {
-            return SMALL_TALK_RESPONSES.is.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.greeting.length)];
+
+        // Check for "nice to meet you" variations
+        if (useEnglish) {
+            if (msg.includes('nice to meet') || 
+                msg.includes('good to meet') || 
+                msg.includes('pleased to meet') || 
+                msg.includes('great to meet')) {
+                return SMALL_TALK_RESPONSES.en.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.greeting.length)];
+            }
+            // English "how are you" variations
+            if (msg.includes('how are you') || 
+                msg.includes('how do you do') || 
+                msg.includes('how\'s it going')) {
+                return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
+            }
+            // English positive responses
+            if (/^(?:good|great|fine|ok|okay)$/i.test(msg)) {
+                return SMALL_TALK_RESPONSES.en.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.positive.length)];
+            }
+        } else {
+            // Icelandic greeting variations
+            if (msg.includes('gaman að hitta') || 
+                msg.includes('gaman að kynnast') || 
+                msg.includes('gott að hitta')) {
+                return SMALL_TALK_RESPONSES.is.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.greeting.length)];
+            }
+            // Icelandic "how are you" variations
+            if (msg.includes('hvað segir') || 
+                msg.includes('hvernig hefur') || 
+                msg.includes('allt gott')) {
+                return SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)];
+            }
+            // Icelandic positive responses
+            if (/^(?:gott|frábært|geggjað|flott)$/i.test(msg)) {
+                return SMALL_TALK_RESPONSES.is.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.positive.length)];
+            }
         }
-        // For responses to "how are you" type questions
-        if (msg.includes('hvað segir') || 
-            msg.includes('hvernig hefur') || 
-            msg.includes('allt gott')) {
-            return SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)];
+
+        // Check for enhanced small talk patterns
+        const smallTalkResult = detectSmallTalk(msg, languageResult || { hasDefiniteEnglish: false });
+        if (smallTalkResult.isSmallTalk) {
+            return getSmallTalkResponse(smallTalkResult, languageResult);
         }
-        // For responses to "gott", "frábært", etc.
-        if (msg === 'gott' || 
-            msg === 'frábært' || 
-            msg === 'geggjað' || 
-            msg === 'flott') {
-            return SMALL_TALK_RESPONSES.is.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.positive.length)];
-        }
-    } else {
-        if (msg.includes('nice to meet') || 
-            msg.includes('good to meet') || 
-            msg.includes('pleased to meet') || 
-            msg.includes('great to meet')) {
-            return SMALL_TALK_RESPONSES.en.greeting[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.greeting.length)];
-        }
-        if (msg.includes('how are you') || 
-            msg.includes('how do you do') || 
-            msg.includes('how\'s it going')) {
-            return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
-        }
-        // For responses to "good", "great", etc.
-        if (msg === 'good' || 
-            msg === 'great' || 
-            msg === 'fine' || 
-            msg === 'ok' || 
-            msg === 'okay') {
-            return SMALL_TALK_RESPONSES.en.positive[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.positive.length)];
-        }
+
+        return null;
+
+    } catch (error) {
+        console.error('\n❌ Error in handleCasualChat:', {
+            error: error.message,
+            stack: error.stack,
+            input: {
+                message,
+                isIcelandic,
+                languageResult
+            }
+        });
+        return null;
     }
-    return null;
 };
 
 console.log('Environment Check:');
@@ -3746,10 +3997,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
                 // Location patterns
                 /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
-                // Enhanced greeting detection
+                // Enhanced greeting detection - Split into simple greetings and greetings with questions
+                /^(?:hi|hello|hey|hi there)\b$/i.test(userMessage) ||  // Simple standalone greetings
                 /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage) ||
-                // Common English phrases
+                // Common English phrases & Acknowledgments
                 /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage) ||
+                /^(?:nothing|maybe|not)\s+(?:right now|now|at the moment|later)\b/i.test(userMessage) ||
+                /^(?:very|that was|this was)\s+(?:helpful|good|great|useful)\b/i.test(userMessage) ||
                 // Question mark with English words
                 /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage) ||
                 // ENHANCED Acknowledgment check
@@ -3818,12 +4072,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Early greeting check
         if (isSimpleGreeting(userMessage)) {
-            // Use early language detection for greetings
+            // Use our consistent early language detection
             const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
             const isEnglishGreeting = languageResult.hasDefiniteEnglish || 
+                                    (/^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)) ||
                                     (simpleEnglishGreetings.some(g => 
                                         msg === g || msg === g + '!' || msg.startsWith(g + ' ')
                                     ) && !isIcelandic);
+
+            // Log greeting detection
+            console.log('\n👋 Enhanced Greeting Check:', {
+                original: userMessage,
+                cleaned: msg,
+                hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+                isEnglishGreeting: isEnglishGreeting,
+                patterns: {
+                    isSimpleHi: /^(?:hi|hello|hey)\b$/i.test(msg),
+                    isEnglishGreetingWithMore: /^(?:hi|hello|hey)\b.+/i.test(msg),
+                    matchesSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
+                }
+            });
             
             // Always use follow-up responses since ChatWidget handles initial greeting
             const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
@@ -3833,8 +4101,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 (isEnglishGreeting ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0]);
-            
-            // Update context
+
+            // Update context and save
             context.language = isEnglishGreeting ? 'en' : 'is';
             context.conversationStarted = true;
             conversationContext.set(sessionId, context);
@@ -4161,19 +4429,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 // Finally check simple acknowledgments with word limit
                 if (userMessage.split(' ').length <= 4) {
-                    // Log acknowledgment check
-                    console.log('\n🔍 Checking simple acknowledgment:', {
+                    // Use consistent language detection for acknowledgments
+                    const useEnglish = languageResult.hasDefiniteEnglish || 
+                                     (/^(?:ok|okay|alright|sure|got it|right|perfect|great|thanks)\b/i.test(userMessage));
+
+                    // Enhanced logging for acknowledgment detection
+                    console.log('\n🔍 Checking Simple Acknowledgment:', {
                         message: userMessage,
                         hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-                        useEnglish: useEnglish
+                        useEnglish: useEnglish,
+                        wordCount: userMessage.split(' ').length,
+                        cleanedMessage: msg
                     });
 
                     const isAcknowledgment = useEnglish ?
-                        acknowledgmentPatterns.simple.en.some(word => msg.includes(word.toLowerCase())) :
-                        acknowledgmentPatterns.simple.is.some(word => msg.includes(word.toLowerCase()));
+                        // Enhanced English acknowledgment check
+                        (acknowledgmentPatterns.simple.en.some(word => msg === word.toLowerCase()) ||
+                         /^(?:nothing|maybe|very|that was|one more|tell me)\b/i.test(msg)) :
+                        // Icelandic check only if not definitely English
+                        acknowledgmentPatterns.simple.is.some(word => msg === word.toLowerCase());
                             
                     if (isAcknowledgment) {
-                        const response = useEnglish ?
+                        // Ensure English patterns get English responses
+                        const forceEnglish = /^(?:ok|okay|alright|sure|perfect|great|got it)\b/i.test(msg);
+                        const response = (useEnglish || forceEnglish) ?
                             "Is there anything else you'd like to know about Sky Lagoon?" :
                             "Láttu mig vita ef þú hefur fleiri spurningar!";
 
@@ -4227,30 +4506,61 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // Enhanced small talk handling
-        const casualResponse = handleCasualChat(msg, languageResult.hasDefiniteEnglish ? false : isIcelandic);
-        if (casualResponse || smallTalkPatterns.some(pattern => msg.includes(pattern))) {
+        // Enhanced small talk handling with consistent language detection
+        const casualResponse = handleCasualChat(msg, languageResult.hasDefiniteEnglish ? false : isIcelandic, languageResult);
+        if (casualResponse || Object.values(smallTalkPatterns).some(category => 
+            Object.values(category).some(patterns => 
+                patterns.some(pattern => msg.includes(pattern))
+            ))
+        ) {
             context.lastTopic = 'small_talk';
             context.conversationStarted = true;
             
-            const response = casualResponse || (languageResult.hasDefiniteEnglish ? 
-                SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
-                (isIcelandic ? 
-                    SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
-                    SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]));
-
+            // Log small talk detection
+            console.log('\n💬 Small Talk Detection:', {
+                message: msg,
+                hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
+                isIcelandic: isIcelandic,
+                patterns: {
+                    hasCasualResponse: !!casualResponse,
+                    matchesPattern: true
+                }
+            });
+        
+            const response = casualResponse || (() => {
+                // First check if we have a specific small talk match
+                const smallTalkResult = detectSmallTalk(msg, languageResult || { hasDefiniteEnglish: false });
+                if (smallTalkResult.isSmallTalk) {
+                    return getSmallTalkResponse(smallTalkResult, languageResult);
+                }
+        
+                // Fallback to casual responses
+                return languageResult?.hasDefiniteEnglish ? 
+                    SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
+                    (isIcelandic ? 
+                        SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
+                        SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
+            })();
+        
+            // Update context with confirmed language
+            context.language = languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en');
+        
             // Broadcast the small talk conversation
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
                 'small_talk',
                 'direct_response'
             );    
-
+        
             return res.status(200).json({
                 message: response,
-                language: isIcelandic ? 'is' : 'en'
+                language: {
+                    detected: languageResult?.hasDefiniteEnglish ? 'English' : 
+                             (isIcelandic ? 'Icelandic' : 'English'),
+                    confidence: 'high'
+                }
             });
         }
         
