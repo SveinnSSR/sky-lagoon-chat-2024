@@ -4447,12 +4447,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 if (acknowledgmentPatterns.positive.en.some(pattern => msg.includes(pattern)) ||
                     acknowledgmentPatterns.positive.is.some(pattern => msg.includes(pattern))) {
                     const response = useEnglish ?
-                        `I'm glad I could help! ${context.lastTopic ? 
-                            `If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
-                            `What else would you like to know about Sky Lagoon?`}` :
-                        `Gott að geta hjálpað! ${context.lastTopic ? 
-                            `Ef þú hefur fleiri spurningar um ${context.lastTopic}, eða eitthvað annað, ekki hika við að spyrja.` :
-                            `Láttu mig vita ef þú hefur fleiri spurningar!`}`;
+                        "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
+                        "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
                         
                     await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
                         'positive', 'direct_response');
