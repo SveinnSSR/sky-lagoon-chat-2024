@@ -4073,6 +4073,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add these clarification patterns right after your time-related patterns
                 /^i\s+(?:mean|meant|think|thought|guess|suppose)\b/i.test(userMessage) ||
                 /^i\s+(?:was|am)\s+(?:talking|asking|wondering)\s+(?:about|regarding)\b/i.test(userMessage) ||
+                // Add health condition and accommodation patterns
+                /(?:i|we)(?:\s+(?:cannot|can['']t|unable to|won['']t be able to))\s+(?:do|complete|participate in|take part in)\s+(?:the|your|a)?\s+(?:ritual|treatment|activity|experience)/i.test(userMessage) ||
+                // Add health-related patterns
+                /(?:due to|because of|have|with)\s+(?:health|medical|physical|personal)\s+(?:conditions?|reasons?|issues?|concerns?)/i.test(userMessage) ||
+                // Add skip/alternative option patterns
+                /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
                 // Add patterns for website/technical issues
                 /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
                 // Add patterns for specific technical problems
