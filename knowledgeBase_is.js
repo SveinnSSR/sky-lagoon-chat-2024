@@ -2430,7 +2430,14 @@ if (message.includes('opið') ||
         message.includes('7') || 
         message.includes('ofnæmi') || 
         message.includes('skref') ||
-        // Add these new patterns for general ritual queries
+        // Skip ritual patterns
+        (message.includes('bara') && message.includes('ofaní')) ||
+        (message.includes('bara') && message.includes('lón')) ||
+        (message.includes('án') && message.includes('ritúal')) ||
+        (message.includes('sleppa') && message.includes('ritúal')) ||
+        (message.includes('kaupa') && message.includes('bara')) ||
+        (message.includes('bara') && message.includes('aðgang')) ||
+        // General ritual query patterns
         (message.includes('hvernig') && message.includes('ritúal')) ||
         (message.includes('hvernig') && message.includes('skjól')) ||
         (message.includes('hvað') && message.includes('ritúal')) ||
@@ -2441,15 +2448,32 @@ if (message.includes('opið') ||
 
         console.log('\n🧖‍♀️ Ritual Match Found');
 
+        // If asking about skipping ritual
+        if ((message.includes('bara') && message.includes('ofaní')) ||
+            (message.includes('bara') && message.includes('lón')) ||
+            (message.includes('án') && message.includes('ritúal')) ||
+            (message.includes('sleppa') && message.includes('ritúal')) ||
+            (message.includes('kaupa') && message.includes('bara')) ||
+            (message.includes('bara') && message.includes('aðgang'))) {
+            
+            console.log('\n❌ Skip Ritual Query Found');
+            relevantInfo.push({
+                type: 'ritual_mandatory',
+                content: {
+                    answer: "Skjól ritúal meðferðin er innifalin í öllum pökkum okkar og er órjúfanlegur hluti af Sky Lagoon upplifuninni. Þú getur valið á milli tveggja pakka - Saman eða Sér - sem báðir innihalda aðgang að lóninu og Skjól ritúal meðferðina.",
+                    details: knowledgeBase_is.ritual.answer
+                }
+            });
+        }
         // If asking about allergies
-        if (message.includes('ofnæmi')) {
+        else if (message.includes('ofnæmi')) {
             console.log('\n🧪 Ritual Allergies Match Found');
             relevantInfo.push({
                 type: 'ritual_allergies',
                 content: knowledgeBase_is.ritual.allergies
             });
         }
-        // For all ritual queries (including steps), give full ritual information
+        // For all other ritual queries (including steps), give full ritual information
         else {
             console.log('\n✨ Full Ritual Information Match Found');
             relevantInfo.push({
@@ -2476,7 +2500,7 @@ if (message.includes('opið') ||
             type: 'ritual_allergies',
             content: knowledgeBase_is.ritual.allergies
         });
-    }
+    } // End of full Ritual section
     
     // Pakkar - Saman, Sér, Stefnumót (Packages)
     if (message.includes('pakki') || 
