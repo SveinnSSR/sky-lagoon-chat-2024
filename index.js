@@ -994,8 +994,7 @@ const acknowledgmentPatterns = {
             'follow up question', 'related question', 'similar question',
             'on that note', 'speaking of that', 'that reminds me',
             'that made me think', 'that brings up', 'that leads me to',
-            'wondering about', 'curious about', 'interested in knowing',
-            'would like to know', 'need to know', 'want to know more about',
+            // Remove 'wondering about' and similar general inquiry patterns
             'could i also ask', 'mind if i ask', 'if i could ask',
             'one other thing', 'couple more things', 'few other things',
             'additional question', 'furthermore', 'additionally',
@@ -4005,15 +4004,34 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:please|tell me|let me|show me|explain|give me)\b/i.test(userMessage) ||
                 /^i\s+(?:would|want|need|would like|'d like)\b/i.test(userMessage) ||
                 // New patterns - Catches "i'd like", "i'd want", etc.
-                /^i['']d\s+(?:like|want|need|love|prefer|hope|wish|be interested in|appreciate)\b/i.test(userMessage) ||
-                // I'm looking for, i'm wondering about...
-                /^i['']m\s+(?:looking|trying|hoping|wondering|interested|curious|planning)\b/i.test(userMessage) ||
+                /^i(?:['']d|d)\s+(?:like|want|need|love|prefer|hope|wish|be interested in|appreciate)\b/i.test(userMessage) ||
+                // "want/need" variations
+                /^(?:wanted|needed|wanting|needing)\b.*|^(?:just|really)\s+(?:want|need)\b/i.test(userMessage) ||
+                // I'm/Im/im looking for, I'm/Im/im wondering about...
+                /^(?:i['']m|im|i\s+am)\s+(?:looking|trying|hoping|wondering|interested|curious|planning|going|heading|coming)\b/i.test(userMessage) ||
+                // "Ill take" type phrases
+                /^i(?:['']ll|ll)\s+(?:take|have|get|book|need|want|be)\b/i.test(userMessage) ||
                 // I was wondering if...
                 /^i\s+was\s+(?:wondering|hoping|thinking|looking)\b/i.test(userMessage) ||
                 // are there any..
                 /^(?:are|do|is|can)\s+(?:there|you|we|it)\b/i.test(userMessage) ||
-                // looking to book, trying to find...
+                // looking to book, trying to find... // looking for, searching for ...
                 /^(?:looking|trying|wanting)\s+to\b/i.test(userMessage) ||
+                /^(?:looking|searching|seeking|checking|asking)\s+(?:for|about|into)\b/i.test(userMessage) ||
+                // Common question starts
+                /^(?:has|have|had|shall|should|may|might|must)\b/i.test(userMessage) ||
+                // Question words in middle of sentence
+                /\b(?:which|whose|whom|who)\b.*\?$/i.test(userMessage) ||
+                // Booking inquiries
+                /^(?:about|regarding|concerning)\s+(?:my|your|the|a|this)\s+(?:booking|reservation|visit|tickets?)\b/i.test(userMessage) ||
+                // Time-related queries
+                /^(?:this|next|coming|tomorrow|today|tonight|weekend)\b/i.test(userMessage) ||
+                // Polite requests
+                /^(?:kindly|possibly|perhaps|maybe)\b/i.test(userMessage) ||
+                /^(?:was|were)\s+(?:hoping|wondering|thinking|planning)\b/i.test(userMessage) ||
+                // common English expressions
+                /^(?:just|quick|real quick|excuse me|pardon|sorry)\b/i.test(userMessage) ||
+                /^got\s+(?:any|some)?\s+(?:info|information|help|advice|guidance)|^getting\s+(?:some|any)\s+(?:info|information|help|advice|guidance)\b/i.test(userMessage) ||
                 // Question starters (now includes does) - with or without question mark
                 /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
                 // Thanks variations (simpler pattern)
@@ -4621,13 +4639,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (acknowledgmentPatterns.positive.en.some(word => msg.includes(word)) ||
             acknowledgmentPatterns.positive.is.some(word => msg.includes(word))) {
             const response = isIcelandic ?
-                context.lastTopic ?
-                    `Gott að geta hjálpað! Ef þú hefur fleiri spurningar um ${context.lastTopic}, eða eitthvað annað, ekki hika við að spyrja.` :
-                    `Gott að geta hjálpað! Láttu mig vita ef þú hefur fleiri spurningar!` :
-                context.lastTopic ?
-                    `I'm glad I could help! If you have any more questions about ${context.lastTopic}, or anything else, feel free to ask.` :
-                    `I'm glad I could help! What else would you like to know about Sky Lagoon?`;
-                    
+                "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja." :
+                "I'm glad I could help! What else would you like to know about Sky Lagoon?";
+    
             // Add broadcast
             await broadcastConversation(
                 userMessage,
@@ -4793,6 +4807,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                   userMessage.toLowerCase().includes('panta') ||
                                   userMessage.toLowerCase().includes('pakk') ||
                                   userMessage.toLowerCase().includes('ritúal');
+                                // Add these discount-related terms
+                                  userMessage.toLowerCase().includes('discount') ||
+                                  userMessage.toLowerCase().includes('offer') ||
+                                  userMessage.toLowerCase().includes('deal') ||
+                                  userMessage.toLowerCase().includes('price') ||
+                                  userMessage.toLowerCase().includes('cost');
 
         // If no knowledge base matches found, check if it's a simple response
         if (knowledgeBaseResults.length === 0) {
