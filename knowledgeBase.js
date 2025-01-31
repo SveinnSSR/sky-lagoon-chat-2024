@@ -512,6 +512,15 @@ export const knowledgeBase = {
         status: {
             included: true,
             mandatory: true,
+            medical_exemption: {
+                description: "While included in all packages, guests with health conditions may choose which ritual elements to participate in based on their comfort and medical advice",
+                options: [
+                    "Enjoy lagoon without ritual participation",
+                    "Select specific ritual elements suitable for your condition",
+                    "Take breaks as needed",
+                    "Staff assistance available"
+                ]
+            },
             packages: [
                 "Included in Saman Package",
                 "Included in Sér Package"
@@ -3062,6 +3071,26 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('optional ritual') ||
         message.includes('ritual included') ||
         message.includes('ritual access') ||
+        // Health and medical related ritual queries
+        message.includes('cannot do ritual') ||
+        message.includes('can\'t do ritual') ||
+        message.includes('health') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('cold') ||
+            message.includes('steam') ||
+            message.includes('sauna')
+        ) ||
+        message.includes('medical') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('exempt')
+        ) ||
+        message.includes('condition') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('skip')
+        ) ||
         // Adding step-specific terms from website
         message.includes('laug') ||
         message.includes('kuldi') ||
@@ -3159,10 +3188,29 @@ export const getRelevantKnowledge = (userMessage) => {
             message.includes('mist') ||
             message.includes('plunge')
         )) {
+
+        // For health-related ritual queries, include both ritual and health safety info
+        if (message.includes('health') || 
+            message.includes('medical') || 
+            message.includes('condition') ||
+            message.includes('cannot do') ||
+            message.includes('can\'t do')) {
+            relevantInfo.push({
+                type: 'ritual_health',
+                content: {
+                    ritual_status: knowledgeBase.ritual.status,
+                    medical_exemption: knowledgeBase.ritual.status.medical_exemption,
+                    health_safety: knowledgeBase.policies.health_safety
+                }
+            });
+        }
+
+        // Standard ritual info
         relevantInfo.push({
             type: 'ritual',
             content: knowledgeBase.ritual
         });
+
         // Also include packages info since ritual is part of packages
         relevantInfo.push({
             type: 'packages',
@@ -3181,7 +3229,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: knowledgeBase.facilities
             });
         }
-    }
+    } // End of full Ritual section
 
     // Policy related queries (// including age terms since they may relate to other policies)
     if (message.includes('policy') || 
