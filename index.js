@@ -4054,6 +4054,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add these clarification patterns right after your time-related patterns
                 /^i\s+(?:mean|meant|think|thought|guess|suppose)\b/i.test(userMessage) ||
                 /^i\s+(?:was|am)\s+(?:talking|asking|wondering)\s+(?:about|regarding)\b/i.test(userMessage) ||
+                // Add patterns for website/technical issues
+                /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
+                // Add patterns for specific technical problems
+                /(?:can['']t|cannot|unable to|stuck|issues?|problems?)\s+(?:with|making|entering|selecting|choosing|proceeding|booking|paying)/i.test(userMessage) ||
+                // Add patterns for form field issues
+                /(?:field|dropdown|menu|selection|option|box|text|input)\s+(?:is|are|seems?|appears?|shows?)\s+(?:empty|blank|mandatory|required|not working)/i.test(userMessage) ||
+                // Add patterns for payment/processing issues
+                /(?:payment|checkout|purchase|booking|reservation)\s+(?:process|page|system|won['']t|not|isn['']t)\s+(?:working|proceeding|going through|completing)/i.test(userMessage) ||
+                // Add patterns for help requests with context
+                /(?:help|assist|guide|support)(?:\s+(?:me|please|needed|required))?\s*[!?.]*/i.test(userMessage) ||
+                // Add these complex booking story patterns
+                /^(?:hi|hello|hey)?,?\s*(?:i|we)\s+(?:had|have|made)\s+(?:a|the)\s+(?:booking|reservation)/i.test(userMessage) ||
+                // Add patterns for explanatory situations
+                /(?:my|our)\s+(?:plans?|schedule|timing)\s+(?:changed|shifted|got changed)/i.test(userMessage) ||
+                // Add patterns for missed transport
+                /(?:missed|left without|couldn't make)\s+(?:the|my|our|their)?\s+(?:bus|tour|transfer|shuttle)/i.test(userMessage) ||
+                // Add patterns for hopeful requests
+                /(?:is there|would there be|do you have)\s+(?:any|a)\s+(?:chance|possibility|way|option)/i.test(userMessage) ||
+                /(?:it|that)\s+would\s+(?:make|help|be)\s+(?:my|our)\s+(?:day|life|plans)/i.test(userMessage) ||
+                // Add these weather and contrasting statement patterns
+                /^(?:but|however|although|though)\s+(?:the|this|that|your|our|it|there)\s+(?:is|was|has|will be)\b/i.test(userMessage) ||
+                /^(?:but|however|although|though)\s+(?:the|this|that|your|our)\s+(?:weather|forecast|rain|snow|wind|storm)\b/i.test(userMessage) ||
+                /(?:weather|forecast|conditions?)\s+(?:is|are|looks?|seems?)\s+(?:bad|poor|terrible|awful|horrible|not good)\b/i.test(userMessage) ||
+                /(?:its|it is|its going to|it will be)\s+(?:raining|snowing|stormy|windy|bad|poor)\b/i.test(userMessage) ||
                 // Add these single-word response patterns
                 /^(?:yes|no|yeah|nope|yep|nah|yup)\b$/i.test(userMessage) ||
                 /^(?:yes|no|yeah|nope|yep|nah|yup)(?:\s+(?:please|thanks|thank you))?\b/i.test(userMessage) ||
