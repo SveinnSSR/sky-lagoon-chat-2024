@@ -4024,8 +4024,46 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /\b(?:which|whose|whom|who)\b.*\?$/i.test(userMessage) ||
                 // Booking inquiries
                 /^(?:about|regarding|concerning)\s+(?:my|your|the|a|this)\s+(?:booking|reservation|visit|tickets?)\b/i.test(userMessage) ||
+                // Add these booking modification patterns
+                /^(?:hi|hello|hey),?\s+(?:is|can|could|would)\s+(?:it|i|we|you)\s+(?:possible|able)\s+(?:to|for)\s+(?:swap|change|modify|move|reschedule|cancel)\b/i.test(userMessage) ||
+                /^(?:hi|hello|hey),?\s+(?:how|what|when)\s+(?:can|do|should|could|would)\s+(?:i|we)\s+(?:swap|change|modify|move|reschedule|cancel)\b/i.test(userMessage) ||
+                // Add these transport and location query patterns
+                /^(?:hi|hello|hey)?\.?\s*(?:can|could)\s+(?:you)?\s*(?:tell|let)\s+(?:me|us)\s+(?:about|know|understand)?/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\.?\s*(?:how|what)\s+(?:far|long|is|about)\s+(?:the|your|are)\s+(?:distance|location|address|you)\s+(?:from|to)\b/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\.?\s*(?:can|could|would|how)\s+(?:you)?\s*(?:help|advise|explain|describe)\s+(?:me|us)\s+(?:about|with|on|regarding)\b/i.test(userMessage) ||
+                // Add transport availability patterns
+                /(?:transport|transportation|transfer|shuttle|bus|taxi)\s+(?:is|are|available|options|possible|from|to)\b/i.test(userMessage) ||
+                // Add airport specific patterns
+                /(?:from|to)\s+(?:the\s+)?(?:airport|kef|keflavik|reykjavik)\b/i.test(userMessage) ||
+                // Add these language query patterns
+                /^(?:hi|hello|hey)?\s*(?:do|can|could|would)\s+(?:you|someone|anybody)\s+(?:speak|understand|know)\s+(?:english|icelandic|any english)\b/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\s*(?:is|are|does)\s+(?:there|anyone|somebody)\s+(?:who|that)\s+(?:speaks|understands)\s+(?:english|icelandic)\b/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\s*(?:english|icelandic)\s+(?:spoken|available|possible)\b/i.test(userMessage) ||
+                // Add optional 'please' variations
+                /^(?:hi|hello|hey)?\s*(?:please\s+)?(?:speak|talk)\s+(?:in\s+)?(?:english|icelandic)(?:\s+please)?\b/i.test(userMessage) ||
+                // Add these booking statement and modification patterns
+                /^(?:i|we)(?:\s+(?:have|had|would|want|need))?\s+(?:a|the|my|our)\s+(?:booking|reservation|visit|ticket)/i.test(userMessage) ||
+                /^(?:i|we)\s+(?:would|want|need|would like|want to|need to)\s+(?:to\s+)?(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
+                /^(?:can|could)\s+(?:we|i|you)\s+(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
+                /(?:change|modify|move|swap|reschedule|update)\s+(?:t[op]|to|from|for|the|this|my|our)\s+(?:time|date|booking|slot)/i.test(userMessage) ||
                 // Time-related queries
                 /^(?:this|next|coming|tomorrow|today|tonight|weekend)\b/i.test(userMessage) ||
+                // Add these time-related and transfer patterns
+                /^(?:later|earlier|today|tomorrow|tonight|this)\s+(?:today|morning|afternoon|evening|night)\b/i.test(userMessage) ||
+                /^(?:need|want|looking)\s+(?:to get|to book|to arrange|for)\s+(?:a|the)?\s*(?:transfer|shuttle|bus|ride)\b/i.test(userMessage) ||
+                // Add these clarification patterns right after your time-related patterns
+                /^i\s+(?:mean|meant|think|thought|guess|suppose)\b/i.test(userMessage) ||
+                /^i\s+(?:was|am)\s+(?:talking|asking|wondering)\s+(?:about|regarding)\b/i.test(userMessage) ||
+                // Add these single-word response patterns
+                /^(?:yes|no|yeah|nope|yep|nah|yup)\b$/i.test(userMessage) ||
+                /^(?:yes|no|yeah|nope|yep|nah|yup)(?:\s+(?:please|thanks|thank you))?\b/i.test(userMessage) ||
+                // Add this pattern for common words with spelling variations
+                /^(?:hi|hello|hey),?\s+(?:cancel?l?ation|cancel?l?ing|cancel?l?ed|refund|booking|reserv[ae]tion)\b/i.test(userMessage) ||
+                // Add variation for email-related queries
+                /^(?:hi|hello|hey),?\s+(?:what|which|where)\s+(?:is|do|should|can|about)\s+(?:\w+\s+)*(?:email|mail|address|contact)\b/i.test(userMessage) ||
+                // Add these ending/closing patterns to your early detection
+                /^(?:nothing|that's|thats|no|thanks|ok|okay)\s+(?:else|all|good|fine|needed|required)\b/i.test(userMessage) ||
+                /^(?:no\s+(?:other|more|further)|that(?:'s|\s+is)\s+(?:all|everything|it))\b/i.test(userMessage) ||
                 // Polite requests
                 /^(?:kindly|possibly|perhaps|maybe)\b/i.test(userMessage) ||
                 /^(?:was|were)\s+(?:hoping|wondering|thinking|planning)\b/i.test(userMessage) ||
