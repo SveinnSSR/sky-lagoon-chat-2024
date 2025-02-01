@@ -4079,6 +4079,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:due to|because of|have|with)\s+(?:health|medical|physical|personal)\s+(?:conditions?|reasons?|issues?|concerns?)/i.test(userMessage) ||
                 // Add skip/alternative option patterns
                 /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
+                // Add patterns for email confirmation issues with common typos
+                /^(?:i|we)?\s*(?:do|did|have|has|had|dont|havent|didnt)?\s*(?:not|nt)?\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen|recv|rcv)\s*(?:the|my|an?|any)?\s*(?:confirm\w*|email|mail|msg|message)/i.test(userMessage) ||
+                /(?:havnt|didnt|dont|havent|cant)\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen)\s*(?:\w+)?\s*(?:mail|email|msg)/i.test(userMessage) ||
+                /^(?:can|could|would|pls|plz|please)?\s*(?:you|someone|anybody)?\s*(?:resend|send|forward|help)\s*(?:the|my|an?)?\s*(?:confirm\w*|email|mail)/i.test(userMessage) ||
+                /(?:confirm\w*|confrim\w*|confirmaton|confrmation)\s*(?:mail|email|message)/i.test(userMessage) ||
+                // Add patterns for requirements and items
+                /^(?:are|do|does)\s+(?:guests?|visitors?|people|you|we)\s+(?:need|have|required|supposed|allowed)\s+to\s+(?:wear|bring|use|have)/i.test(userMessage) ||
+                /^(?:what|which)\s+(?:items?|things?|equipment|gear|footwear|shoes)\s+(?:do|should|can|must)\s+(?:i|we|you|guests?)\s+(?:bring|wear|use|have)/i.test(userMessage) ||
+                /^(?:is|are)\s+(?:there|any|some)\s+(?:special|specific|required)\s+(?:items?|things?|equipment|gear|rules?)\b/i.test(userMessage) ||
                 // Add patterns for website/technical issues
                 /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
                 // Add patterns for specific technical problems
@@ -4103,6 +4112,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:but|however|although|though)\s+(?:the|this|that|your|our)\s+(?:weather|forecast|rain|snow|wind|storm)\b/i.test(userMessage) ||
                 /(?:weather|forecast|conditions?)\s+(?:is|are|looks?|seems?)\s+(?:bad|poor|terrible|awful|horrible|not good)\b/i.test(userMessage) ||
                 /(?:its|it is|its going to|it will be)\s+(?:raining|snowing|stormy|windy|bad|poor)\b/i.test(userMessage) ||
+                // Add patterns for weather-related concerns and conditions
+                /^(?:hi|hello|hey)?,?\s*(?:we|i)\s+(?:wanted|want|planned|planning)\s+to\s+(?:come|visit|go)\s+(?:to|at)\s+(?:sky\s+lagoon|the\s+lagoon)/i.test(userMessage) ||
+                // Add patterns for weather concerns
+                /(?:worried|concerned|unsure|wondering)\s+about\s+(?:the|your)?\s*(?:weather|conditions|forecast|wind|rain|storm)/i.test(userMessage) ||
+                // Add patterns for recommendations/advice
+                /(?:do|would|can|could)\s+(?:you)?\s*(?:recommend|suggest|advise)\s+(?:us|me|someone)?\s+to\s+(?:visit|come|go|book)/i.test(userMessage) ||
+                // Add patterns for "what happens if" scenarios
+                /(?:what|how)\s+(?:happens|about|if|with)\s+(?:our|the|my)\s+(?:tickets?|booking|reservation|visit)\s+if\s+(?:the|there)?\s+(?:weather|wind|storm|rain|conditions?)\s+(?:is|are|gets?|becomes?)/i.test(userMessage) ||
                 // Add these single-word response patterns
                 /^(?:yes|no|yeah|nope|yep|nah|yup)\b$/i.test(userMessage) ||
                 /^(?:yes|no|yeah|nope|yep|nah|yup)(?:\s+(?:please|thanks|thank you))?\b/i.test(userMessage) ||
