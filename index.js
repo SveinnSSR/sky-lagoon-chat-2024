@@ -4019,6 +4019,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early language detection - determines language before any other processing
         const languageResult = {
             hasDefiniteEnglish: (
+                // Highest priority booking change patterns - put these FIRST, before any other patterns
+                /^need\s+to\s+modify\s+reservation\s+\d{5,}/i.test(userMessage) ||
+                /^(?:hello|hi)?,?\s*(?:we|i)\s+would\s+like\s+to\s+change\s+our\s+(?:sky\s+lagoon)?\s*reservation/i.test(userMessage) ||
+                /^(?:would|want|need)\s+(?:like|to)\s+change\s+(?:sky\s+lagoon)?\s*booking.*?#?\d{5,}/i.test(userMessage) ||
+                // Add even higher priority booking change patterns (put these FIRST)
+                /^(?:need|would like|want)\s+to\s*(?:modify|change)\s+(?:reservation|booking)\s+\d{5,}/i.test(userMessage) ||
+                // Variation with number first
+                /^(?:reservation|booking)?\s*(?:number|#|no|id)?[:\s]*\d{5,}.*?(?:from)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?)/i.test(userMessage) ||
+                // Catch "modify/change reservation" at start
+                /^(?:modify|change|reschedule)\s+(?:reservation|booking).*?\d{5,}/i.test(userMessage) ||
+                // Add priority patterns for detailed reservation changes (put these BEFORE other patterns)
+                /(?:would|want|need)\s+(?:like|to)\s+(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot).*?(?:number|#|no|id)?[:\s]+\d{5,}/i.test(userMessage) ||
+                // Add pattern for full reservation change requests with details
+                /(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot).*?(?:from)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?).*?(?:to)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?)/i.test(userMessage) ||
+                // Add pattern for requests that include reservation numbers and names
+                /(?:change|modify|move|reschedule|shift).*?(?:reservation|booking).*?(?:number|#|no|id)?[:\s]+\d{5,}.*?(?:name)[:\s]+[A-Za-z\s]+/i.test(userMessage) ||
                 // Common English request patterns - ADD THESE
                 /^(?:please|tell me|let me|show me|explain|give me)\b/i.test(userMessage) ||
                 /^i\s+(?:would|want|need|would like|'d like)\b/i.test(userMessage) ||
@@ -4060,11 +4076,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:hi|hello|hey)?\s*(?:english|icelandic)\s+(?:spoken|available|possible)\b/i.test(userMessage) ||
                 // Add optional 'please' variations
                 /^(?:hi|hello|hey)?\s*(?:please\s+)?(?:speak|talk)\s+(?:in\s+)?(?:english|icelandic)(?:\s+please)?\b/i.test(userMessage) ||
+                // Add patterns for reservation changes and time modifications
+                /(?:hoping|want|wanted|trying|need|like)\s+to\s+(?:shift|change|modify|move|reschedule|adjust)\s+(?:the|my|our)?\s*(?:reservation|booking|time|slot|visit)/i.test(userMessage) ||
+                // Add more casual versions of time change requests
+                /(?:can|could|possible|possible to)\s+(?:shift|change|modify|move|reschedule)\s+(?:the|my|our)?\s*(?:time|booking|reservation|slot|visit)/i.test(userMessage) ||
+                // Add patterns for time-related modifications
+                /(?:different|another|new)\s+(?:time|slot|booking)\s+(?:slot|possible|available|instead)/i.test(userMessage) ||
                 // Add these booking statement and modification patterns
                 /^(?:i|we)(?:\s+(?:have|had|would|want|need))?\s+(?:a|the|my|our)\s+(?:booking|reservation|visit|ticket)/i.test(userMessage) ||
                 /^(?:i|we)\s+(?:would|want|need|would like|want to|need to)\s+(?:to\s+)?(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
                 /^(?:can|could)\s+(?:we|i|you)\s+(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
                 /(?:change|modify|move|swap|reschedule|update)\s+(?:t[op]|to|from|for|the|this|my|our)\s+(?:time|date|booking|slot)/i.test(userMessage) ||
+                // Add patterns for specific reservation time changes
+                /(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot)\s+(?:from|to|at|for)?\s*(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                // Add patterns for reservation numbers and names
+                /(?:reservation|booking|confirmation|reference|order)\s*(?:number|#|no|id)?[:\s]+(?:\d{5,})/i.test(userMessage) ||
+                /(?:reservation|booking)\s+(?:name|under|for)[:\s]+(?:[A-Za-z\s]+)/i.test(userMessage) ||
+                // Add patterns for time changes with specific details
+                /(?:from|changing)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+to\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
                 // Time-related queries
                 /^(?:this|next|coming|tomorrow|today|tonight|weekend)\b/i.test(userMessage) ||
                 // Add these time-related and transfer patterns
@@ -4088,6 +4117,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:are|do|does)\s+(?:guests?|visitors?|people|you|we)\s+(?:need|have|required|supposed|allowed)\s+to\s+(?:wear|bring|use|have)/i.test(userMessage) ||
                 /^(?:what|which)\s+(?:items?|things?|equipment|gear|footwear|shoes)\s+(?:do|should|can|must)\s+(?:i|we|you|guests?)\s+(?:bring|wear|use|have)/i.test(userMessage) ||
                 /^(?:is|are)\s+(?:there|any|some)\s+(?:special|specific|required)\s+(?:items?|things?|equipment|gear|rules?)\b/i.test(userMessage) ||
+                // Add expanded patterns for footwear requirements
+                /(?:do|are|is|must|should)\s+(?:guests?|visitors?|people|we|you|i)\s+(?:need|have|required|supposed|allowed|permitted)\s+to\s+(?:wear|bring|use|have)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)/i.test(userMessage) ||
+                // Add patterns for bringing/providing items
+                /(?:do|does|are|can|should)\s+(?:guests?|visitors?|people|we|you|i)\s+(?:bring|provide|need|have)\s+(?:their|our|my|your|own)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)/i.test(userMessage) ||
+                // Add patterns for availability questions
+                /(?:is|are)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)\s+(?:provided|available|included|required|mandatory|needed)/i.test(userMessage) ||
                 // Add patterns for website/technical issues
                 /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
                 // Add patterns for specific technical problems
