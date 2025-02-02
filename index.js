@@ -4614,13 +4614,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         context = updateContext(sessionId, userMessage, null);
         context.language = languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en');
 
-        // Add language info to cache key
-        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')}`;
-        const cached = responseCache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-            console.log('\n📦 Using cached response');
-            return res.json(cached.response);
-        }
+//        // Add language info to cache key
+//        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')}`;
+//        const cached = responseCache.get(cacheKey);
+//        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+//            console.log('\n📦 Using cached response');
+//           return res.json(cached.response);
+//       }
 
         // Enhanced question pattern detection
         const hasBookingPattern = languageResult.hasDefiniteEnglish ? 
@@ -5390,16 +5390,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const languageCode = languageResult.hasDefiniteEnglish ? 'en' : 
                            (isIcelandic ? 'is' : 'en');
 
-        responseCache.set(cacheKey, {
-            response: {
-                message: enhancedResponse,
-                language: {
-                    detected: languageChoice,
-                    confidence: 'high'
-                }
-            },
-            timestamp: Date.now()
-        });
+//        responseCache.set(cacheKey, {
+//            response: {
+//                message: enhancedResponse,
+//                language: {
+//                    detected: languageChoice,
+//                    confidence: 'high'
+//                }
+//            },
+//            timestamp: Date.now()
+//        });
 
         // Update conversation context with language
         context.lastInteraction = Date.now();
