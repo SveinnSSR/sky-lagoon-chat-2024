@@ -1717,6 +1717,130 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
 
+    // FIRST: Check if this is clearly a booking change request (not late arrival)
+    if (
+        // Clear booking changes
+        lowerMessage.includes('earlier time') || 
+        lowerMessage.includes('move up') ||
+        // Moving TO a specific time (booking change) - improved time pattern
+        lowerMessage.match(/(?:move|change).*to.*\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) ||
+        // Move up/earlier with time - new pattern
+        (lowerMessage.match(/\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) && 
+         (lowerMessage.includes('move up') || 
+          lowerMessage.includes('earlier time') ||
+          lowerMessage.includes('change to'))) ||
+        // "Change booking" without late/delay context
+        (lowerMessage.includes('change') && 
+         lowerMessage.includes('booking') && 
+         !lowerMessage.includes('late') &&
+         !lowerMessage.includes('delay')) ||
+        // Has booking reference
+        /SKY-[A-Z0-9]+/.test(message) ||
+        // Moving to earlier in day (booking change)
+        (lowerMessage.match(/\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) && 
+         (lowerMessage.includes('earlier') || 
+          lowerMessage.includes('move') ||
+          lowerMessage.includes('change'))) ||
+        // Plans changed mentions
+        (lowerMessage.includes('plans') && 
+         lowerMessage.includes('changed') &&
+         !lowerMessage.includes('delay')) ||
+        // Icelandic booking changes (enhanced)
+        (lowerMessage.includes('færa') && 
+         (lowerMessage.includes('til') || lowerMessage.includes('tíma'))) ||
+        (lowerMessage.includes('breyta') && 
+         (lowerMessage.includes('bókun') || lowerMessage.includes('tíma'))) ||
+        (lowerMessage.includes('breyta') && !lowerMessage.includes('sein')) ||
+        // Match Icelandic time change format (15:00, 17:00, etc.)
+        (lowerMessage.match(/\d{1,2}[:;]\d{2}/) && 
+         (lowerMessage.includes('færa') || lowerMessage.includes('breyta')))
+    ) {
+        return null;
+    }
+
+    // SECOND: Check for flight delay situations
+    const flightDelayPatterns = [
+        // Runway situations
+        'runway',
+        'on runway',
+        'runway in',
+        'still on runway',
+        // Aircraft terms
+        'aircraft',
+        'plane delayed',
+        'plane delay',
+        'plane is delayed',
+        'technical issues',
+        'technical problems',
+        // Waiting scenarios
+        'waiting for flight',
+        'waiting at airport',
+        'waiting for plane',
+        'flight not departed',
+        'still waiting',
+        'just leave airport',
+        'just left airport',
+        'leaving airport',
+        // General delays
+        'flight delayed',
+        'flight delay',
+        'delayed flight',
+        'miss our booking',
+        'miss the booking',
+        'will miss',
+        'might miss',
+        // Weather related
+        'bad weather flight',
+        'weather delay'
+    ];
+
+    // Enhanced flight delay check that takes precedence
+    if (
+        // First clean any common greetings from the start of message
+        (() => {
+            const cleanedMessage = lowerMessage
+                .replace(/^(?:good\s+(?:morning|afternoon|evening)|hi|hello|hey)(?:\s+and)?\s+/i, '')
+                .trim();
+            
+            return (
+                // Check specific flight patterns
+                flightDelayPatterns.some(pattern => cleanedMessage.includes(pattern)) ||
+                // Check combined flight + delay mentions
+                (cleanedMessage.includes('flight') && 
+                 (cleanedMessage.includes('delay') || 
+                  cleanedMessage.includes('delayed'))) || 
+                // Check plane + delay mentions
+                (cleanedMessage.includes('plane') && 
+                 (cleanedMessage.includes('delay') || 
+                  cleanedMessage.includes('delayed'))) ||
+                // Check airport scenarios with time context
+                ((cleanedMessage.includes('just') || 
+                  cleanedMessage.includes('still')) && 
+                 cleanedMessage.includes('airport') &&
+                 (cleanedMessage.includes('leave') || 
+                  cleanedMessage.includes('left') ||
+                  cleanedMessage.includes('leaving'))) ||
+                // Check arrival mentions with delays
+                (cleanedMessage.includes('arrived') && 
+                 (cleanedMessage.includes('delay') || 
+                  cleanedMessage.includes('delayed') ||
+                  cleanedMessage.includes('weather'))) ||
+                // Weather + Flight scenarios
+                (cleanedMessage.includes('weather') && 
+                 cleanedMessage.includes('bad') && 
+                 (cleanedMessage.includes('flight') || 
+                  cleanedMessage.includes('delayed'))) ||
+                // Multiple delay mentions in same message
+                ((cleanedMessage.match(/delay/g) || []).length >= 2)
+            );
+        })()
+    ) {
+        return {
+            type: 'flight_delay',
+            minutes: null
+        };
+    }
+
     // Early check for "bara" greetings using regex
     if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
         return null;
@@ -1727,43 +1851,6 @@ const detectLateArrivalScenario = (message) => {
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         return regex.test(text);
     };
-
-    // First check for flight delay indicators with more comprehensive patterns
-    const flightDelayIndicators = [
-        'flight delayed',
-        'flight delay',
-        'still at airport',
-        'still on runway',
-        'on runway',         // Added for cases like "sat on the runway"
-        'runway in',         // Added for "runway in Manchester" etc
-        'waiting for flight',
-        'flight is late',
-        'waiting for flybys',
-        'flight',            // Generic flight mention with delay context
-        'plane delayed',
-        'plane delay',
-        'aircraft'
-    ];
-
-    // If it's a flight delay and there's context about delay/lateness
-    if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator)) &&
-        (lowerMessage.includes('late') || 
-         lowerMessage.includes('delay') || 
-         lowerMessage.includes('still') ||
-         lowerMessage.includes('waiting'))) {
-        return {
-            type: 'flight_delay',
-            minutes: null
-        };
-    }
-
-    // If it's a flight delay, return special type
-    if (flightDelayIndicators.some(indicator => lowerMessage.includes(indicator))) {
-        return {
-            type: 'flight_delay',
-            minutes: null
-        };
-    }
 
     // Enhanced time patterns to catch more variations
     const timePatterns = [
@@ -4070,6 +4157,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:transport|transportation|transfer|shuttle|bus|taxi)\s+(?:is|are|available|options|possible|from|to)\b/i.test(userMessage) ||
                 // Add airport specific patterns
                 /(?:from|to)\s+(?:the\s+)?(?:airport|kef|keflavik|reykjavik)\b/i.test(userMessage) ||
+                // Flight and booking delay patterns
+                /(?:runway|aircraft|plane|flight)\s+(?:delay|delayed|issues?|problems?)/i.test(userMessage) ||
+                /(?:waiting|still|stuck)\s+(?:for|at|on)\s+(?:flight|plane|airport|runway)/i.test(userMessage) ||
+                /(?:technical|mechanical)\s+(?:issues?|problems?|difficulties)/i.test(userMessage) ||
+                /(?:miss|missing|cant make|cannot make)\s+(?:the|our|my)?\s*booking/i.test(userMessage) ||
+                // Enhanced time-related booking patterns
+                /(?:our|my|the)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+(?:booking|reservation|slot)/i.test(userMessage) ||
+                /(?:booked|reserved|have)\s+(?:for|at)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                // Transport and delay indications
+                /(?:in|at|from)\s+(?:Manchester|London|Edinburgh|Glasgow|Dublin|Paris|Amsterdam)/i.test(userMessage) ||
+                /(?:won'?t|will not|can'?t|cannot)\s+(?:make|reach|get to|arrive)/i.test(userMessage) ||
                 // Add these language query patterns
                 /^(?:hi|hello|hey)?\s*(?:do|can|could|would)\s+(?:you|someone|anybody)\s+(?:speak|understand|know)\s+(?:english|icelandic|any english)\b/i.test(userMessage) ||
                 /^(?:hi|hello|hey)?\s*(?:is|are|does)\s+(?:there|anyone|somebody)\s+(?:who|that)\s+(?:speaks|understands)\s+(?:english|icelandic)\b/i.test(userMessage) ||
