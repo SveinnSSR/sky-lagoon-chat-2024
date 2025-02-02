@@ -1717,6 +1717,17 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
 
+    // MOST IMPORTANT: Log what we're detecting
+    console.log('\n🔍 Analyzing message for late arrival/booking change:', {
+        message: lowerMessage,
+        hasPlansChanged: lowerMessage.includes('plans changed'),
+        hasMoveUp: lowerMessage.includes('move up'),
+        hasEarlier: lowerMessage.includes('earlier'),
+        hasBooking: lowerMessage.includes('booking'),
+        hasChange: lowerMessage.includes('change'),
+        hasMove: lowerMessage.includes('move')
+    });
+
     // FIRST: Check if this is clearly a booking change request (not late arrival)
     if (
         // Clear booking changes
@@ -1745,6 +1756,10 @@ const detectLateArrivalScenario = (message) => {
         (lowerMessage.includes('plans') && 
          lowerMessage.includes('changed') &&
          !lowerMessage.includes('delay')) ||
+        // Move booking up - explicit check
+        (lowerMessage.includes('booking') &&
+         (lowerMessage.includes('move up') ||
+          lowerMessage.includes('earlier'))) ||
         // Icelandic booking changes (enhanced)
         (lowerMessage.includes('færa') && 
          (lowerMessage.includes('til') || lowerMessage.includes('tíma'))) ||
@@ -1755,6 +1770,7 @@ const detectLateArrivalScenario = (message) => {
         (lowerMessage.match(/\d{1,2}[:;]\d{2}/) && 
          (lowerMessage.includes('færa') || lowerMessage.includes('breyta')))
     ) {
+        console.log('\n✅ Booking modification detected - returning null to prevent late arrival handling');
         return null;
     }
 
@@ -1802,6 +1818,8 @@ const detectLateArrivalScenario = (message) => {
                 .replace(/^(?:good\s+(?:morning|afternoon|evening)|hi|hello|hey)(?:\s+and)?\s+/i, '')
                 .trim();
             
+            console.log('\n🧹 Cleaned message for flight delay check:', cleanedMessage);
+            
             return (
                 // Check specific flight patterns
                 flightDelayPatterns.some(pattern => cleanedMessage.includes(pattern)) ||
@@ -1835,6 +1853,7 @@ const detectLateArrivalScenario = (message) => {
             );
         })()
     ) {
+        console.log('\n✈️ Flight delay detected');
         return {
             type: 'flight_delay',
             minutes: null
@@ -1843,6 +1862,7 @@ const detectLateArrivalScenario = (message) => {
 
     // Early check for "bara" greetings using regex
     if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
+        console.log('\n👋 Bara greeting detected');
         return null;
     }    
     
