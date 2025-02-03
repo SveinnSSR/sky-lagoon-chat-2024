@@ -4126,6 +4126,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early language detection - determines language before any other processing
         const languageResult = {
             hasDefiniteEnglish: (
+                // Expanded GET/REF booking number patterns with context
+                /^(?:it\s+is|this\s+is|that\s+is|here\s+is)?\s*(?:GET|REF|BOOK|BK|B)-\d{5,}\s*$/i.test(userMessage) ||
+                /^(?:GET|REF|BOOK|BK|B)-\d{5,}\s*(?:is\s+(?:my|the|our|a))?\s*(?:booking|reference|number|code)?\s*$/i.test(userMessage) ||
+                /^(?:my|the|our)\s*(?:booking|reference|number|code)\s*(?:is)?\s*(?:GET|REF|BOOK|BK|B)-\d{5,}\s*$/i.test(userMessage) ||
+                // Single booking number variations (add these BEFORE any other patterns)
+                /^\d{8}$/i.test(userMessage) ||  // Matches exactly 8 digits
+                /^(?:GET|REF|BOOK|BK|B)-?\d{8}$/i.test(userMessage) ||  // Matches prefixed 8-digit numbers
+                /^(?:GET|REF|BOOK|BK|B)-?\d{5,}$/i.test(userMessage) ||  // Matches prefixed 5+ digit numbers
+                // Booking number with context (add these after)
+                /^(?:this is|here is|my|the)?\s*(?:booking|reference|reservation|confirmation)?\s*(?:number|#|no|code|id)?\s*(?:is)?\s*(?:\d{5,}|(?:GET|REF|BOOK|BK|B)-\d{5,})\s*$/i.test(userMessage) ||
+                /^(?:GET|REF|BOOK|BK|B)?-?\d{5,}\s*(?:is my|is the|this is my)?\s*(?:booking|reference|reservation|confirmation)?\s*(?:number|#|no|code|id)?\s*$/i.test(userMessage) ||
                 // Highest priority booking change patterns - put these FIRST, before any other patterns
                 /^need\s+to\s+modify\s+reservation\s+\d{5,}/i.test(userMessage) ||
                 /^(?:hello|hi)?,?\s*(?:we|i)\s+would\s+like\s+to\s+change\s+our\s+(?:sky\s+lagoon)?\s*reservation/i.test(userMessage) ||
@@ -4230,6 +4241,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add patterns for reservation numbers and names
                 /(?:reservation|booking|confirmation|reference|order)\s*(?:number|#|no|id)?[:\s]+(?:\d{5,})/i.test(userMessage) ||
                 /(?:reservation|booking)\s+(?:name|under|for)[:\s]+(?:[A-Za-z\s]+)/i.test(userMessage) ||
+                // Add these for package references
+                /(?:the|a|any|which|what|your)?\s*(?:higher|better|upgraded|premium|special|different)\s+(?:package|option|pass|admission|tier)\s*(?:with|that|which|including)?\s+(?:the|some|any)?\s*(?:food|meal|dining|drinks?|refreshments?)\s+(?:included|offered|available|option)?\s*$/i.test(userMessage) ||
                 // Add patterns for time changes with specific details
                 /(?:from|changing)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+to\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
                 // Time-related queries
@@ -4237,9 +4250,35 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add these time-related and transfer patterns
                 /^(?:later|earlier|today|tomorrow|tonight|this)\s+(?:today|morning|afternoon|evening|night)\b/i.test(userMessage) ||
                 /^(?:need|want|looking)\s+(?:to get|to book|to arrange|for)\s+(?:a|the)?\s*(?:transfer|shuttle|bus|ride)\b/i.test(userMessage) ||
+                // Enhanced time reference patterns with variations
+                /(?:it['']?s|its|currently|have|booked|think\s+(?:it['']?s|its))\s+(?:an?)?\s*(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM|booking|slot|time)?\s*$/i.test(userMessage) ||
+                /(?:might|may|could|should)\s+(?:actually|probably|possibly)?\s+(?:be)\s+(?:an?)?\s*(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM|booking|slot|time)?\s*$/i.test(userMessage) ||
+                // Add these for time change requests
+                /(?:want|like|need|think|wish|hope)\s+to\s+(?:move|change|switch|shift)\s+(?:it|the\s+booking|the\s+time|the\s+slot)?\s+to\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM)?\s*$/i.test(userMessage) ||
+                /(?:move|change|switch|shift)\s+(?:it|the\s+booking|the\s+time|the\s+slot)?\s+to\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM)?\s*$/i.test(userMessage) ||
+                // Time uncertainty patterns (add these as new patterns)
+                /^(?:it|this)\s+(?:might|may|could)\s+(?:actually|possibly|probably)?\s+be\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])(?:[:.]?\d{2})?\s*(?:currently|now|at the moment|right now)?$/i.test(userMessage) ||
+                // Think/believe time change patterns (add these as new patterns)
+                /^(?:because|and|so|but)?\s*(?:i|we)\s+(?:think|believe|feel|guess)\s+(?:we|i|they)?\s+(?:want|would like|need|have|had)\s+to\s+(?:move|change|switch)\s+(?:it|this|that)?\s+to\s+(?:\d{1,2}(?::\d{2})?|[1-9]|1[0-2])\s*(?:am|pm|AM|PM)?/i.test(userMessage) ||
                 // Add these clarification patterns right after your time-related patterns
                 /^i\s+(?:mean|meant|think|thought|guess|suppose)\b/i.test(userMessage) ||
                 /^i\s+(?:was|am)\s+(?:talking|asking|wondering)\s+(?:about|regarding)\b/i.test(userMessage) ||
+                // Availability check patterns - add these BEFORE other patterns
+                /^(?:hi|hello|hey)?\s*(?:are|is)\s+there\s+(?:any|some)?\s*(?:openings?|availability|space|room)\s+(?:and|or)?\s*(?:availability)?\s+(?:to\s+(?:come|visit|book))?\s+(?:to|at|in)?\s*(?:the\s+)?sky\s*lagoon/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\s*(?:is|are)\s+(?:the\s+)?sky\s*lagoon\s+(?:open|available|taking\s+bookings?)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\s*(?:can|could)\s+(?:i|we)\s+(?:book|visit|come\s+to)\s+(?:the\s+)?sky\s*lagoon\s+(?:today|now|this\s+(?:morning|afternoon|evening))?/i.test(userMessage) ||
+                // Same-day availability patterns (add as new patterns)
+                /(?:are|is|any)\s+(?:there|you|still)?\s*(?:openings?|availability|space|slots?|room)\s+(?:to|for|and)?\s*(?:come|visit|book|enter)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                /(?:can|could|possible)\s+(?:we|i)\s+(?:come|visit|book|enter)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||                
+                // Enhanced availability check patterns (add as new patterns)
+                /^(?:hi|hello|hey)?\s*(?:are|is)\s+(?:there|you|it)?\s*(?:any|some)?\s*(?:openings?|availability|space|slots?|spots?|places?)\s+(?:available|left|remaining|to)?\s*(?:come|visit|book|enter)?\s*(?:(?:to|at|in|for)\s+(?:the\s+)?sky\s*lagoon)?\s*(?:today|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near|for)?\s*(?:noon|midday|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                /^(?:hi|hello|hey)?\s*(?:do|would|could)\s+(?:you|we)?\s*(?:have|got)?\s*(?:any)?\s*(?:openings?|availability|space|slots?|spots?)\s*(?:(?:at|in|for)\s+(?:the\s+)?sky\s*lagoon)?\s*(?:today|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near|for)?\s*(?:noon|midday|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                // Payment method patterns (add as new patterns)
+                /(?:don'?t|do\s+not|dont)\s+have\s+(?:a|any|the|credit|debit)?\s*card\s*(?:for|to|with)?\s*(?:payment|booking|reservation)?/i.test(userMessage) ||
+                /(?:can|could|may|possible)\s+(?:we|i)\s+(?:come|pay|book)\s+(?:there|in\s+person)?\s*(?:and|to)?\s*(?:pay)?\s*(?:by|with|in|using)?\s*(?:cash|euros?|money)/i.test(userMessage) ||
+                // Currency and payment acceptance patterns (add as new patterns)
+                /(?:do|does|can|could|will)\s+(?:you|they|we)?\s*(?:take|accept|allow|permit)\s+(?:cash|euros?|cards?|payments?\s+in)\b/i.test(userMessage) ||
+                /^(?:what\s+about|how\s+about|and|also)?\s*(?:do|does|will)?\s*(?:you)?\s*(?:accept|take)\s+(?:cash|euros?|cards?)\??$/i.test(userMessage) ||
                 // Add health condition and accommodation patterns
                 /(?:i|we)(?:\s+(?:cannot|can['']t|unable to|won['']t be able to))\s+(?:do|complete|participate in|take part in)\s+(?:the|your|a)?\s+(?:ritual|treatment|activity|experience)/i.test(userMessage) ||
                 // Add health-related patterns
@@ -4253,11 +4292,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:injury|injuries|hurting)\s+(?:to|on|in)\s+(?:his|her|their|the)\s+(?:feet|foot|legs?|body)/i.test(userMessage) ||
                 // Add skip/alternative option patterns
                 /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
+                // Enhanced confirmation request patterns - add these at the START of your patterns
+                /^(?:can|could|would|will|please|kindly)?\s*(?:you)?\s*(?:please|kindly)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||
+                /^(?:you|can\s+you|could\s+you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||  
+                // Email and confirmation patterns - add these BEFORE other patterns
+                /^(?:can|could|would)\s+(?:you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check)\s+(?:the)?\s*(?:reservation|booking|appointment)/i.test(userMessage) ||
+                /^(?:i|we)\s+(?:haven'?t|have\s+not|still\s+haven'?t)\s+(?:got|gotten|received)\s+(?:the|any|your|a)?\s*(?:mail|email|confirmation)(?:\s+yet)?$/i.test(userMessage) ||
+                /^(?:just|now)?\s*(?:received|got|gotten)\s+(?:it|them|the\s+mail|the\s+email|the\s+confirmation)$/i.test(userMessage) ||
                 // Add patterns for email confirmation issues with common typos
                 /^(?:i|we)?\s*(?:do|did|have|has|had|dont|havent|didnt)?\s*(?:not|nt)?\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen|recv|rcv)\s*(?:the|my|an?|any)?\s*(?:confirm\w*|email|mail|msg|message)/i.test(userMessage) ||
                 /(?:havnt|didnt|dont|havent|cant)\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen)\s*(?:\w+)?\s*(?:mail|email|msg)/i.test(userMessage) ||
                 /^(?:can|could|would|pls|plz|please)?\s*(?:you|someone|anybody)?\s*(?:resend|send|forward|help)\s*(?:the|my|an?)?\s*(?:confirm\w*|email|mail)/i.test(userMessage) ||
                 /(?:confirm\w*|confrim\w*|confirmaton|confrmation)\s*(?:mail|email|message)/i.test(userMessage) ||
+                // Interest-based availability patterns - add after email patterns
+                /^(?:we|i)\s+(?:are|am|is|would\s+be)\s+(?:interested|looking|thinking|planning)\s+(?:in|about)\s+(?:coming|visiting|booking)\s+(?:there|to\s+sky\s+lagoon)?\s+(?:today|tomorrow|this\s+(?:morning|afternoon|evening))?\s*(?:around|at|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                /^(?:we|i)\s+(?:are|am|would\s+be)\s+(?:interested|looking|thinking)\s+(?:in|about)\s+(?:coming|visiting|booking).*?(?:would|could|can|will)\s+(?:we|i)\s+(?:be\s+able\s+to)?\s*(?:get|have|book|reserve)\s+(?:a|any)?\s*(?:spot|space|place|slot|booking)/i.test(userMessage) ||
                 // Add patterns for requirements and items
                 /^(?:are|do|does)\s+(?:guests?|visitors?|people|you|we)\s+(?:need|have|required|supposed|allowed)\s+to\s+(?:wear|bring|use|have)/i.test(userMessage) ||
                 /^(?:what|which)\s+(?:items?|things?|equipment|gear|footwear|shoes)\s+(?:do|should|can|must)\s+(?:i|we|you|guests?)\s+(?:bring|wear|use|have)/i.test(userMessage) ||
