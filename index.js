@@ -4188,12 +4188,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Transport and delay indications
                 /(?:in|at|from)\s+(?:Manchester|London|Edinburgh|Glasgow|Dublin|Paris|Amsterdam)/i.test(userMessage) ||
                 /(?:won'?t|will not|can'?t|cannot)\s+(?:make|reach|get to|arrive)/i.test(userMessage) ||
+                // Add near the transport/shuttle patterns
+                /(?:didn'?t|did not|couldn'?t|could not)\s+(?:see|find|spot|locate)\s+(?:the|your|a)?\s*(?:shuttle|bus|transport)/i.test(userMessage) ||
+                /(?:arrived|were|was|got there|made it)\s+(?:on|in)\s+(?:time|schedule|early)/i.test(userMessage) ||
                 // Add these language query patterns
                 /^(?:hi|hello|hey)?\s*(?:do|can|could|would)\s+(?:you|someone|anybody)\s+(?:speak|understand|know)\s+(?:english|icelandic|any english)\b/i.test(userMessage) ||
                 /^(?:hi|hello|hey)?\s*(?:is|are|does)\s+(?:there|anyone|somebody)\s+(?:who|that)\s+(?:speaks|understands)\s+(?:english|icelandic)\b/i.test(userMessage) ||
                 /^(?:hi|hello|hey)?\s*(?:english|icelandic)\s+(?:spoken|available|possible)\b/i.test(userMessage) ||
                 // Add optional 'please' variations
                 /^(?:hi|hello|hey)?\s*(?:please\s+)?(?:speak|talk)\s+(?:in\s+)?(?:english|icelandic)(?:\s+please)?\b/i.test(userMessage) ||
+                // Enhanced informal greetings and responses
+                /^(?:h[ie]+y+|h[ie]+|h[ie]{2,}|howdy|yo|heya|hiya|sup)\s*$/i.test(userMessage) ||
+                // Extended acknowledgment variations
+                /^(?:perfect|perfecto|amazing|amazin[g']+|solid|nice one|awesome|cool|brilliant|excellent)\s*$/i.test(userMessage) ||
+                // Enhanced acknowledgment variations with looser matching
+                /^(?:amazing|amazin[g']*|awesom[e']*|amaz[ing']*)\s*[!.]*$/i.test(userMessage) ||
+                // Multiple letter variations
+                /^(?:y[ae][sy]+|ok+a*y+|thx+|thanx+)\s*$/i.test(userMessage) ||
+                // Add near the awkward/unclear English patterns (for non-native speakers)
+                /(?:i'?m?\s+be|am\s+be)\s+(?:person|people|customer|guest)/i.test(userMessage) ||
+                /(?:know|see|understand)\s+(?:it|that|what)\s+(?:says|said|mentioned|stated)\s+(?:about|against|regarding)/i.test(userMessage) ||
                 // Add patterns for reservation changes and time modifications
                 /(?:hoping|want|wanted|trying|need|like)\s+to\s+(?:shift|change|modify|move|reschedule|adjust)\s+(?:the|my|our)?\s*(?:reservation|booking|time|slot|visit)/i.test(userMessage) ||
                 // Add more casual versions of time change requests
@@ -4205,6 +4219,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:i|we)\s+(?:would|want|need|would like|want to|need to)\s+(?:to\s+)?(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
                 /^(?:can|could)\s+(?:we|i|you)\s+(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
                 /(?:change|modify|move|swap|reschedule|update)\s+(?:t[op]|to|from|for|the|this|my|our)\s+(?:time|date|booking|slot)/i.test(userMessage) ||
+                // Add near the booking/scheduling patterns
+                /(?:possible|able)\s+(?:to|can|could)\s+(?:chance|change|modify|reschedule)\s+(?:the|your|our|my)\s+(?:day|booking|reservation)/i.test(userMessage) ||
+                /(?:excursion|tour|trip|booking|plan)\s+(?:needs|had|has|requires|needed)\s+(?:to be|been)\s+(?:rescheduled|changed|modified)/i.test(userMessage) ||
+                // Add near the booking/cancellation patterns
+                /(?:friend|person|guest|someone)\s+(?:is|was|just|recently|got)\s+(?:tested|found out|discovered)\s+(?:that|they|she|he)?\s*(?:is|are|was)\s+pregnant/i.test(userMessage) ||
+                /(?:cancel|refund|change)\s+(?:one|single|individual|specific)\s+(?:person'?s?|guest'?s?|friend'?s?)\s+(?:booking|reservation|ticket)/i.test(userMessage) ||
                 // Add patterns for specific reservation time changes
                 /(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot)\s+(?:from|to|at|for)?\s*(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
                 // Add patterns for reservation numbers and names
@@ -4224,6 +4244,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:i|we)(?:\s+(?:cannot|can['']t|unable to|won['']t be able to))\s+(?:do|complete|participate in|take part in)\s+(?:the|your|a)?\s+(?:ritual|treatment|activity|experience)/i.test(userMessage) ||
                 // Add health-related patterns
                 /(?:due to|because of|have|with)\s+(?:health|medical|physical|personal)\s+(?:conditions?|reasons?|issues?|concerns?)/i.test(userMessage) ||
+                // Add near the health/medical condition patterns
+                /(?:diabetic|medical condition|health condition|nervous about|injury|feet|medical|health)\s+(?:allowed|can|wear|bring|use)/i.test(userMessage) ||
+                /(?:dad|father|parent|family member|relative)\s+(?:is|has|needs|requires)\s+(?:diabetic|medical|special)/i.test(userMessage) ||
+                // More comprehensive pattern for injury/health concerns
+                /(?:says?|mentioned|states?)\s+(?:about|against|regarding|that)\s+(?:etiquette|rules?|policy)/i.test(userMessage) ||
+                /(?:nervous|worried|concerned)\s+about\s+(?:injury|injuries|hurting|damage)/i.test(userMessage) ||
+                /(?:injury|injuries|hurting)\s+(?:to|on|in)\s+(?:his|her|their|the)\s+(?:feet|foot|legs?|body)/i.test(userMessage) ||
                 // Add skip/alternative option patterns
                 /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
                 // Add patterns for email confirmation issues with common typos
@@ -4249,6 +4276,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:field|dropdown|menu|selection|option|box|text|input)\s+(?:is|are|seems?|appears?|shows?)\s+(?:empty|blank|mandatory|required|not working)/i.test(userMessage) ||
                 // Add patterns for payment/processing issues
                 /(?:payment|checkout|purchase|booking|reservation)\s+(?:process|page|system|won['']t|not|isn['']t)\s+(?:working|proceeding|going through|completing)/i.test(userMessage) ||
+                // Add near the retail/shopping patterns
+                /(?:bought|purchased|got)\s+(?:souvenirs?|items?|things?|products?|gifts?)\s+(?:but|and|however)\s+(?:lost|missing|misplaced|left)/i.test(userMessage) ||
+                /(?:shipping|delivery|send|mail|post)\s+(?:option|available|possible)\s+(?:to|for)\s+(?:buy|purchase|get|order)\s+(?:things|items|products|souvenirs)/i.test(userMessage) ||
+                /(?:gift\s+shop|store|retail|shop)\s+(?:items?|products?|souvenirs?|things)/i.test(userMessage) ||
                 // Add patterns for help requests with context
                 /(?:help|assist|guide|support)(?:\s+(?:me|please|needed|required))?\s*[!?.]*/i.test(userMessage) ||
                 // Add these complex booking story patterns
@@ -4280,6 +4311,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:hi|hello|hey),?\s+(?:cancel?l?ation|cancel?l?ing|cancel?l?ed|refund|booking|reserv[ae]tion)\b/i.test(userMessage) ||
                 // Add variation for email-related queries
                 /^(?:hi|hello|hey),?\s+(?:what|which|where)\s+(?:is|do|should|can|about)\s+(?:\w+\s+)*(?:email|mail|address|contact)\b/i.test(userMessage) ||
+                // Add near the error/technical issue patterns
+                /^(?:an?\s+error|error|problem|issue|something\s+wrong)\s+(?:occurred|happened|appeared|showing|popped up)/i.test(userMessage) ||
+                // Make ERROR pattern more flexible and case-insensitive
+                /(?:an?\s+)?error\s+(?:oc*ur*ed|happened|appeared|showing|popped\s+up)/i.test(userMessage) ||
+                /(?:ERROR|PROBLEM|ISSUE)[\s!]*$/i.test(userMessage) ||
                 // Add these ending/closing patterns to your early detection
                 /^(?:nothing|that's|thats|no|thanks|ok|okay)\s+(?:else|all|good|fine|needed|required)\b/i.test(userMessage) ||
                 /^(?:no\s+(?:other|more|further)|that(?:'s|\s+is)\s+(?:all|everything|it))\b/i.test(userMessage) ||
