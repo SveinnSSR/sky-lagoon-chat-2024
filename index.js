@@ -1717,29 +1717,166 @@ const getAppropriateSuffix = (message) => {
 const detectLateArrivalScenario = (message) => {
     const lowerMessage = message.toLowerCase();
 
+    // Add time extraction helper at the top
+    const extractTimeInMinutes = (timeStr) => {
+        const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:([AaPp][Mm])|([Hh]))?/);
+        if (!match) return null;
+        
+        let hours = parseInt(match[1]);
+        const minutes = match[2] ? parseInt(match[2]) : 0;
+        const meridiem = match[3]?.toLowerCase();
+        
+        // Convert to 24-hour format if PM
+        if (meridiem === 'pm' && hours !== 12) hours += 12;
+        if (meridiem === 'am' && hours === 12) hours = 0;
+        
+        return hours * 60 + minutes;
+    };
+
+    // Early check for "bara" greetings using regex
+    if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
+        console.log('\n👋 Bara greeting detected');
+        return null;
+    }    
+    
+    // Helper function to check if a word exists as a complete word
+    const hasCompleteWord = (text, word) => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(text);
+    };
+
     // MOST IMPORTANT: Log what we're detecting
     console.log('\n🔍 Analyzing message for late arrival/booking change:', {
         message: lowerMessage,
-        hasPlansChanged: lowerMessage.includes('plans changed'),
-        hasMoveUp: lowerMessage.includes('move up'),
-        hasEarlier: lowerMessage.includes('earlier'),
-        hasBooking: lowerMessage.includes('booking'),
-        hasChange: lowerMessage.includes('change'),
-        hasMove: lowerMessage.includes('move')
+        hasDateChange: lowerMessage.includes('tomorrow') || lowerMessage.includes('next'),
+        hasTimePreference: lowerMessage.includes('instead') || lowerMessage.includes('possible'),
+        hasBSI: lowerMessage.includes('bsi') || lowerMessage.includes('transfer'),
+        hasBookingReference: /SKY-[A-Z0-9]+/.test(message),
+        hasFlightDelay: lowerMessage.includes('flight') && lowerMessage.includes('delay'),
+        hasTransfer: lowerMessage.includes('transfer') || lowerMessage.includes('bsi')
     });
 
-    // FIRST: Check if this is clearly a booking change request (not late arrival)
+    // Add debug log here
+    console.log('\n🔎 FLIGHT DELAY DEBUG:', {
+        message: lowerMessage,
+        hasFlight: lowerMessage.includes('flight'),
+        hasDelay: lowerMessage.includes('delay') || lowerMessage.includes('delayed'),
+        hasAirport: lowerMessage.includes('airport'),
+        hasBook: lowerMessage.includes('book'),
+        hasTime: lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/),
+        fullMessage: message
+    });
+
+    // FIRST: Check for flight delay situations 
     if (
+        // Check for "just leave/left airport" patterns first
+        /just\s+(?:leave|left|leaving)\s+airport/.test(lowerMessage) ||
+        // Flight delay combination
+        (lowerMessage.includes('flight') && 
+         (lowerMessage.includes('delay') || 
+          lowerMessage.includes('delayed'))) ||
+        // Airport combination with leave/wait
+        (lowerMessage.includes('airport') && 
+         (lowerMessage.includes('just leave') || 
+          lowerMessage.includes('just left') ||
+          lowerMessage.includes('waiting') ||
+          lowerMessage.includes('delayed')))
+    ) {
+        console.log('\n✈️ Flight delay detected');
+        return {
+            type: 'flight_delay',
+            minutes: null
+        };
+    }
+
+    // SECOND: Check time differences and booking modifications
+    const times = lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/g);
+    if (times && times.length >= 2) {
+        const time1 = extractTimeInMinutes(times[0]);
+        const time2 = extractTimeInMinutes(times[1]);
+        
+        if (time1 !== null && time2 !== null) {
+            const difference = Math.abs(time1 - time2);
+            console.log('\n⏰ Extracted minutes:', {
+                time1: time1,
+                time2: time2,
+                difference: difference
+            });
+            
+            // Only then check for booking modifications
+            if (difference > 30 && (
+                lowerMessage.includes('earlier') ||
+                lowerMessage.includes('adjust') ||
+                lowerMessage.includes('change') ||
+                lowerMessage.includes('move') ||
+                lowerMessage.includes('instead')
+            )) {
+                console.log('\n📅 Booking modification detected - significant time difference');
+                return null;
+            }
+        }
+    }
+
+    // THIRD: Check for BSÍ/transfer changes
+    if (
+        // BSÍ mentions
+        lowerMessage.includes('bsi') ||
+        lowerMessage.includes('transfer') ||
+        // Transfer time changes
+        (lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/) && 
+         (lowerMessage.includes('shuttle') || 
+          lowerMessage.includes('bus') || 
+          lowerMessage.includes('transport')))
+    ) {
+        console.log('\n🚌 Transfer change detected');
+        return null;  // Let regular booking change handling take over
+    }
+
+    // FOURTH: Check for future date/time changes (not late arrival)
+    if (
+        // Future dates
+        lowerMessage.includes('tomorrow') ||
+        lowerMessage.includes('next day') ||
+        lowerMessage.includes('next week') ||
+        lowerMessage.includes('another day') ||
+        lowerMessage.includes('different day') ||
+        // Specific date change requests
+        (lowerMessage.includes('date') && 
+         (lowerMessage.includes('change') || 
+          lowerMessage.includes('move') || 
+          lowerMessage.includes('switch'))) ||
+        // Alternative dates
+        lowerMessage.includes('day after') ||
+        lowerMessage.includes('different date') ||
+        // Icelandic date changes
+        lowerMessage.includes('á morgun') ||
+        lowerMessage.includes('næsta dag') ||
+        lowerMessage.includes('annan dag')
+    ) {
+        console.log('\n📅 Future date change request detected');
+        return null;
+    }
+
+    // FIFTH: Check for alternative time requests (not late arrival)
+    if (
+        // BSÍ transfer changes
+        (lowerMessage.includes('bsi') || lowerMessage.includes('transfer')) &&
+        (lowerMessage.includes('instead') || 
+         lowerMessage.includes('change') || 
+         lowerMessage.includes('earlier') ||
+         lowerMessage.includes('different') ||
+         lowerMessage.match(/(?:from|at)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+to/)) ||
+        // Time preference queries
+        (lowerMessage.includes('possible') && 
+         lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/)) ||
+        // Availability questions
+        (lowerMessage.includes('available') && 
+         lowerMessage.includes('time')) ||
         // Clear booking changes
         lowerMessage.includes('earlier time') || 
         lowerMessage.includes('move up') ||
-        // Moving TO a specific time (booking change) - improved time pattern
+        // Moving TO a specific time (booking change)
         lowerMessage.match(/(?:move|change).*to.*\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) ||
-        // Move up/earlier with time - new pattern
-        (lowerMessage.match(/\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) && 
-         (lowerMessage.includes('move up') || 
-          lowerMessage.includes('earlier time') ||
-          lowerMessage.includes('change to'))) ||
         // "Change booking" without late/delay context
         (lowerMessage.includes('change') && 
          lowerMessage.includes('booking') && 
@@ -1756,11 +1893,7 @@ const detectLateArrivalScenario = (message) => {
         (lowerMessage.includes('plans') && 
          lowerMessage.includes('changed') &&
          !lowerMessage.includes('delay')) ||
-        // Move booking up - explicit check
-        (lowerMessage.includes('booking') &&
-         (lowerMessage.includes('move up') ||
-          lowerMessage.includes('earlier'))) ||
-        // Icelandic booking changes (enhanced)
+        // Icelandic booking changes
         (lowerMessage.includes('færa') && 
          (lowerMessage.includes('til') || lowerMessage.includes('tíma'))) ||
         (lowerMessage.includes('breyta') && 
@@ -1770,132 +1903,108 @@ const detectLateArrivalScenario = (message) => {
         (lowerMessage.match(/\d{1,2}[:;]\d{2}/) && 
          (lowerMessage.includes('færa') || lowerMessage.includes('breyta')))
     ) {
-        console.log('\n✅ Booking modification detected - returning null to prevent late arrival handling');
+        console.log('\n⏰ Alternative time request detected');
         return null;
     }
 
-    // SECOND: Check for flight delay situations
-    const flightDelayPatterns = [
-        // Runway situations
-        'runway',
-        'on runway',
-        'runway in',
-        'still on runway',
-        // Aircraft terms
-        'aircraft',
-        'plane delayed',
-        'plane delay',
-        'plane is delayed',
-        'technical issues',
-        'technical problems',
-        // Waiting scenarios
-        'waiting for flight',
-        'waiting at airport',
-        'waiting for plane',
-        'flight not departed',
-        'still waiting',
-        'just leave airport',
-        'just left airport',
-        'leaving airport',
-        // General delays
-        'flight delayed',
-        'flight delay',
-        'delayed flight',
-        'miss our booking',
-        'miss the booking',
-        'will miss',
-        'might miss',
-        // Weather related
-        'bad weather flight',
-        'weather delay'
-    ];
+    // Check for explicit time difference mentions with enhanced patterns
+    const bookingTimeMatch = lowerMessage.match(/(?:book(?:ed|ing)?|ticket|reservation|booking)\s+(?:is|for|at|was)?\s*(?:at|for)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
+    let arrivalTimeMatch = lowerMessage.match(/(?:arrive|coming|there|visit|get there|be there|make it|show up|will arrive)\s+(?:at|by|around|near)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
 
-    // Enhanced flight delay check that takes precedence
-    if (
-        // First clean any common greetings from the start of message
-        (() => {
-            const cleanedMessage = lowerMessage
-                .replace(/^(?:good\s+(?:morning|afternoon|evening)|hi|hello|hey)(?:\s+and)?\s+/i, '')
-                .trim();
-            
-            console.log('\n🧹 Cleaned message for flight delay check:', cleanedMessage);
-            
-            return (
-                // Check specific flight patterns
-                flightDelayPatterns.some(pattern => cleanedMessage.includes(pattern)) ||
-                // Check combined flight + delay mentions
-                (cleanedMessage.includes('flight') && 
-                 (cleanedMessage.includes('delay') || 
-                  cleanedMessage.includes('delayed'))) || 
-                // Check plane + delay mentions
-                (cleanedMessage.includes('plane') && 
-                 (cleanedMessage.includes('delay') || 
-                  cleanedMessage.includes('delayed'))) ||
-                // Check airport scenarios with time context
-                ((cleanedMessage.includes('just') || 
-                  cleanedMessage.includes('still')) && 
-                 cleanedMessage.includes('airport') &&
-                 (cleanedMessage.includes('leave') || 
-                  cleanedMessage.includes('left') ||
-                  cleanedMessage.includes('leaving'))) ||
-                // Check arrival mentions with delays
-                (cleanedMessage.includes('arrived') && 
-                 (cleanedMessage.includes('delay') || 
-                  cleanedMessage.includes('delayed') ||
-                  cleanedMessage.includes('weather'))) ||
-                // Weather + Flight scenarios
-                (cleanedMessage.includes('weather') && 
-                 cleanedMessage.includes('bad') && 
-                 (cleanedMessage.includes('flight') || 
-                  cleanedMessage.includes('delayed'))) ||
-                // Multiple delay mentions in same message
-                ((cleanedMessage.match(/delay/g) || []).length >= 2)
-            );
-        })()
-    ) {
-        console.log('\n✈️ Flight delay detected');
-        return {
-            type: 'flight_delay',
-            minutes: null
-        };
+    // Debug log for initial matches
+    console.log('\n🕒 Time Pattern Matches:', {
+        message: lowerMessage,
+        bookingMatch: bookingTimeMatch ? bookingTimeMatch[1] : null,
+        arrivalMatch: arrivalTimeMatch ? arrivalTimeMatch[1] : null
+    });
+
+    // Additional pattern for "running late" scenarios
+    if (!arrivalTimeMatch) {
+        const lateTimeMatch = lowerMessage.match(/(?:if|can|would|will)?\s*(?:we|i)?\s*(?:come|arrive|be there|get there|make it)\s*(?:at|by|around|until|near)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
+        if (lateTimeMatch) {
+            arrivalTimeMatch = lateTimeMatch;
+            console.log('\n🕒 Late Pattern Match Found:', lateTimeMatch[1]);
+        }
     }
 
-    // Early check for "bara" greetings using regex
-    if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
-        console.log('\n👋 Bara greeting detected');
-        return null;
-    }    
-    
-    // Helper function to check if a word exists as a complete word
-    const hasCompleteWord = (text, word) => {
-        const regex = new RegExp(`\\b${word}\\b`, 'i');
-        return regex.test(text);
-    };
+    if (bookingTimeMatch && arrivalTimeMatch) {
+        const bookingTime = extractTimeInMinutes(bookingTimeMatch[1]);
+        const arrivalTime = extractTimeInMinutes(arrivalTimeMatch[1]);
+        
+        // Debug log for extracted times
+        console.log('\n⏲️ Extracted Times:', {
+            booking: {
+                raw: bookingTimeMatch[1],
+                minutes: bookingTime
+            },
+            arrival: {
+                raw: arrivalTimeMatch[1],
+                minutes: arrivalTime
+            }
+        });
 
-    // Enhanced time patterns to catch more variations
+        if (bookingTime !== null && arrivalTime !== null) {
+            const difference = arrivalTime - bookingTime;
+            console.log('\n⏰ Time Difference Analysis:', {
+                bookingTime,
+                arrivalTime,
+                difference,
+                category: difference > 60 ? 'significant_delay' :
+                         difference > 30 ? 'moderate_delay' :
+                         difference > 0 ? 'within_grace' : 'invalid'
+            });
+            
+            // Direct time difference handling without nesting
+            if (difference <= 0) {
+                return null;  // Invalid time difference
+            }
+            
+            if (difference > 60) {
+                return {
+                    type: 'significant_delay',
+                    minutes: difference
+                };
+            }
+            
+            if (difference > 30) {  // Will catch 31-60 minutes
+                return {
+                    type: 'moderate_delay',
+                    minutes: difference
+                };
+            }
+            
+            // Will catch 1-30 minutes
+            return {
+                type: 'within_grace',
+                minutes: difference
+            };
+        }
+    }
+
+    // Only now check for actual late arrival time patterns
     const timePatterns = [
         // Complex hour and minute combinations first
-        /(?:about|around|maybe|perhaps)?\s*(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,  // "2 hours and 15 minutes late"
-        /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,  // "1 hour and 45 minutes late"
+        /(?:about|around|maybe|perhaps)?\s*(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
+        /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
         
         // Half and quarter hour expressions
-        /(?:an?|one)\s+and\s+(?:a\s+)?half\s+hours?\s*(?:late|delay)?/i,  // "one and a half hours late"
-        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?half\s*(?:late|delay)?/i,     // "hour and a half late"
-        /(\d+)\s*and\s+(?:a\s+)?half\s+hours?\s*(?:late|delay)?/i,        // "2 and a half hours late"
-        /quarter\s+(?:of\s+)?(?:an?\s+)?hour\s*(?:late|delay)?/i,         // "quarter of an hour late"
-        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?quarter\s*(?:late|delay)?/i,  // "hour and a quarter late"
+        /(?:an?|one)\s+and\s+(?:a\s+)?half\s+hours?\s*(?:late|delay)?/i,
+        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?half\s*(?:late|delay)?/i,
+        /(\d+)\s*and\s+(?:a\s+)?half\s+hours?\s*(?:late|delay)?/i,
+        /quarter\s+(?:of\s+)?(?:an?\s+)?hour\s*(?:late|delay)?/i,
+        /(?:a|an?)?\s*hour\s+and\s+(?:a\s+)?quarter\s*(?:late|delay)?/i,
         
         // Single hour patterns
-        /(\d+)\s*(?:hour|hr|hours|hrs?)\s*(?:late|delay)?/i,              // "2 hours late"
-        /(?:an?|one)\s*(?:hour|hr|h)\s*(?:late|delay)?/i,                 // "an hour late"
+        /(\d+)\s*(?:hour|hr|hours|hrs?)\s*(?:late|delay)?/i,
+        /(?:an?|one)\s*(?:hour|hr|h)\s*(?:late|delay)?/i,
         
         // Minutes with various prefixes
-        /(?:about|around|maybe|perhaps)\s+(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,  // "about 30 minutes late"
-        /(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,         // "30 minutes late"
-        /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,           // "late by 30 minutes"
+        /(?:about|around|maybe|perhaps)\s+(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
+        /(\d+)\s(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
+        /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
         
-        // General time mentions
-        /(?:minute|min|minutes|mins?)\s*(\d+)/i                           // "minutes 30"
+        // General time mentions WITH late/delay context only
+        /(?:minute|min|minutes|mins?)\s*(\d+)\s*(?:late|delay)/i
     ];
 
     let minutes = null;
@@ -1947,8 +2056,16 @@ const detectLateArrivalScenario = (message) => {
         }
     }
 
-    // If we have specific minutes, categorize based on that
+    // ONLY process minutes if we have a clear late/delay context
     if (minutes !== null) {
+        // Extra check - make sure we have late/delay context
+        if (!lowerMessage.includes('late') && 
+            !lowerMessage.includes('delay') && 
+            !lowerMessage.includes('sein')) {
+            console.log('\n⚠️ Time found but no late/delay context - not treating as late arrival');
+            return null;
+        }
+        
         return {
             type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
                   minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
@@ -1959,6 +2076,7 @@ const detectLateArrivalScenario = (message) => {
 
     // Check for qualitative time indicators
     if (LATE_QUALIFIERS.some(indicator => lowerMessage.includes(indicator))) {
+        console.log('\n📝 Qualitative late indicator found');
         return {
             type: 'significant_delay',
             minutes: null
@@ -1966,14 +2084,18 @@ const detectLateArrivalScenario = (message) => {
     }
 
     // For vague "late" mentions without specific time
-    if (hasCompleteWord(lowerMessage, 'late') || hasCompleteWord(lowerMessage, 'delay') ||
-        hasCompleteWord(lowerMessage, 'sein') || hasCompleteWord(lowerMessage, 'seint')) {
+    if (hasCompleteWord(lowerMessage, 'late') || 
+        hasCompleteWord(lowerMessage, 'delay') ||
+        hasCompleteWord(lowerMessage, 'sein') || 
+        hasCompleteWord(lowerMessage, 'seint')) {
+        console.log('\n❓ Unspecified delay detected');
         return {
             type: 'unspecified_delay',
             minutes: null
         };
     }
 
+    console.log('\n✨ No late arrival scenario detected');
     return null;
 };
 
@@ -4449,6 +4571,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             finalDecision: isIcelandic ? 'Icelandic' : 'English'
         });
 
+        // Check for flight delays BEFORE any other processing
+        const lateScenario = detectLateArrivalScenario(userMessage);
+        if (lateScenario && lateScenario.type === 'flight_delay') {
+            // Use our early detection for response selection
+            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+            const response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
+
+            await broadcastConversation(
+                userMessage,
+                response,
+                useEnglish ? 'en' : 'is',
+                'late_arrival',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: response,
+                lateArrivalHandled: true,
+                lateScenarioType: 'flight_delay'
+            });
+        }
+
         let context = conversationContext.get(sessionId);
         if (!context) {
             // Use our consistent early language detection
@@ -4562,6 +4706,37 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 minutes: arrivalCheck.minutes,
                 lastUpdate: Date.now()
             };
+
+            let response;
+            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+
+            if (arrivalCheck.type === 'unspecified_delay') {
+                response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
+            } else if (arrivalCheck.type === 'within_grace') {
+                response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+            } else if (arrivalCheck.type === 'moderate_delay') {
+                response = getRandomResponse(context.soldOutStatus ? 
+                    BOOKING_RESPONSES.moderate_delay.sold_out : 
+                    BOOKING_RESPONSES.moderate_delay.normal);
+            } else if (arrivalCheck.type === 'significant_delay') {
+                response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
+            } else {
+                response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
+            }
+
+            await broadcastConversation(
+                userMessage,
+                response,
+                useEnglish ? 'en' : 'is',
+                'late_arrival',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: response,
+                lateArrivalHandled: true,
+                lateScenarioType: arrivalCheck.type
+            });
         }
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
@@ -4845,47 +5020,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
                     }
                 }
-            }
-        }
-
-        // ADD NEW CODE RIGHT HERE 👇
-        // Check for late arrival ONLY if no knowledge base match
-        if (knowledgeBaseResults.length === 0) {
-            const lateScenario = detectLateArrivalScenario(userMessage);
-            if (lateScenario) {
-                let response;
-                // Use our early detection for response selection
-                const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
-                
-                if (lateScenario.type === 'flight_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
-                } else if (lateScenario.type === 'unspecified_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
-                } else if (lateScenario.type === 'within_grace') {
-                    response = getRandomResponse(BOOKING_RESPONSES.within_grace);
-                } else if (lateScenario.type === 'moderate_delay') {
-                    response = getRandomResponse(context.soldOutStatus ? 
-                        BOOKING_RESPONSES.moderate_delay.sold_out : 
-                        BOOKING_RESPONSES.moderate_delay.normal);
-                } else if (lateScenario.type === 'significant_delay') {
-                    response = getRandomResponse(BOOKING_RESPONSES.significant_delay);
-                } else {
-                    response = getRandomResponse(BOOKING_RESPONSES.moderate_delay.normal);
-                }
-
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    useEnglish ? 'en' : 'is',
-                    'late_arrival',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
-                    message: response,
-                    lateArrivalHandled: true,
-                    lateScenarioType: lateScenario.type
-                });
             }
         }
 
@@ -5525,28 +5659,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             message: error.message,
             stack: error.stack,
             type: error.constructor.name,
-            context: {
-                message: req.body?.message,
-                hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
-                isIcelandic: isIcelandic,
-                language: languageResult?.hasDefiniteEnglish ? 'en' : 
-                         (isIcelandic ? 'is' : 'en'),
-                timestamp: new Date().toISOString()
-            }
+            timestamp: new Date().toISOString()
         });
 
-        // Use consistent language detection for error messages
-        const errorMessage = languageResult?.hasDefiniteEnglish ? 
-            "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-            (isIcelandic ? 
-                "Ég biðst afsökunar en ég er að lenda í vandræðum með tengingu. Vinsamlegast reyndu aftur eftir smá stund." :
-                "I apologize, but I'm having trouble connecting right now. Please try again shortly.");
+        const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
         // Add broadcast for error scenarios
         await broadcastConversation(
             req.body?.message || 'unknown_message',
             errorMessage,
-            languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
+            'en',
             'error',
             'error_response'
         );
