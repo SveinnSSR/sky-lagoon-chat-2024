@@ -4493,6 +4493,44 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Polite requests
                 /^(?:kindly|possibly|perhaps|maybe)\b/i.test(userMessage) ||
                 /^(?:was|were)\s+(?:hoping|wondering|thinking|planning)\b/i.test(userMessage) ||
+                // Time expressions
+                /^(?:for|at|around|about)?\s*(?:\d{1,2})(?::\d{2})?\s*(?:am|pm|AM|PM|a\.m\.|p\.m\.)?\s*(?:please|pls|plz)?\s*$/i.test(userMessage) ||
+                // Let's/That's expressions
+                /^(?:let['']?s|that['']?s|this['']?s)\s+(?:do|try|book|get|make|would|will|might|could|should|be)\b/i.test(userMessage) ||
+                // Website references
+                /^(?:i['']?ve|i\s+have|just|oh)\s+(?:been|looked|checked|visited|seen)\s+(?:the|your)?\s*(?:website|site|page|booking)/i.test(userMessage) ||
+                // Looking at/for patterns
+                /^(?:looking|checking|thinking|wondering)\s+(?:at|about|into|for|if)\b/i.test(userMessage) ||
+                // Group size indicators
+                /^(?:its|it['']?s|this\s+is)\s+(?:for|about)?\s*\d+\s*(?:people|persons|guests|of us)?\s*(?:please|pls)?\s*$/i.test(userMessage) ||
+                // Confirmation and gratitude
+                /^(?:great|perfect|excellent|awesome|wonderful|fantastic|nice|good|ok|okay|sure|alright|thanks|thank you|thx|ty)\s*(?:!+|\.|,)?\s*(?:a lot|so much|very much|again)?(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Also/And patterns
+                /^(?:also|and)\s+(?:can|could|would|will|should|may|might|must|is|are|do|does)\b/i.test(userMessage) ||
+                // That/This would be patterns
+                /^(?:that|this)\s+would\s+be\b/i.test(userMessage) ||
+                // Time preference expressions
+                /^(?:would|could|can|may|might)\s+(?:we|i|you)?\s*(?:do|try|get|make|have)?\s*(?:it|the booking|the reservation|a booking)?\s*(?:at|for|around|about)?\s*(?:\d{1,2})(?::\d{2})?\s*(?:am|pm|AM|PM|a\.m\.|p\.m\.)?/i.test(userMessage) ||
+                // Casual question endings
+                /(?:at all|possible|available|doable|feasible)\s*\?*$/i.test(userMessage) ||
+                // If statements
+                /^if\s+(?:i|we|you|they|there)\s+(?:is|are|was|were|have|has|had|can|could|will|would|should|may|might)\b/i.test(userMessage) ||
+                // Enhanced transfer/entry patterns
+                /^if\s+i\s+(?:buy|get|purchase|have)\s+(?:an?\s+)?(?:entry|ticket|pass|admission|transfer|booking)\b/i.test(userMessage) ||
+                // Enhanced website reference patterns (make more comprehensive)
+                /^(?:oh|ah|hey|hi|just|i|we|they)?\s*(?:i['']?ve|i\s+have|just|oh)?\s*(?:been|looked|checked|visited|seen|found|read)\s+(?:on|at|through|in|the|your)?\s*(?:website|site|page|booking|web|online)\b/i.test(userMessage) ||
+                // Enhanced gratitude/confirmation patterns (make more comprehensive)
+                /^(?:great|perfect|excellent|awesome|wonderful|fantastic|nice|good|ok|okay|sure|alright|cool|brilliant|amazing)\s*(?:!+|\.|,)?\s*(?:thanks|thank\s+you|thx|ty|cheers)?\s*(?:!+|\.|,)?\s*(?:a\s+lot|so\s+much|very\s+much|again|mate|everyone|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Standalone thanks patterns
+                /^(?:thanks|thank\s+you|thx|ty|cheers)\s*(?:!+|\.|,)?\s*(?:a\s+lot|so\s+much|very\s+much|again|mate|everyone|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Enhanced website reference pattern (made more flexible)
+                /^(?:oh|ah|hey|hi|well|just|i|we|they)?\s*(?:i['']?ve|i\s+have|have|just|oh)?\s*(?:been|looked|checked|visited|seen|found|read|checking|looking|visiting|searching|browsing)\s*(?:on|at|through|in|the|your|around|up)?\s*(?:website|site|page|booking|web|online|internet)?\b/i.test(userMessage) ||
+                // Expressions of affection/appreciation
+                /^(?:i|we|they|you|he|she)?\s*(?:really|truly|totally|absolutely|just)?\s*(?:love|loves|loved|appreciate|appreciate?s|appreciate?d|adore|adores|adored)\s*(?:you|it|this|that|the|everything|everyone|everybody|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Additional affection variations
+                /^(?:you['']?re?|you\s+are|that['']?s|this\s+is|how)?\s*(?:so|very|really|truly|totally|absolutely)?\s*(?:loved|appreciated|amazing|wonderful|fantastic|great|awesome|brilliant|incredible|outstanding|remarkable|phenomenal)(?:\s+by\s+(?:me|us|everyone|everybody))?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Simple expression variations
+                /^(?:love|appreciate|adore|thanks|thank\s+you)\s*(?:!+|\.|,)?$/i.test(userMessage) ||
                 // common English expressions
                 /^(?:just|quick|real quick|excuse me|pardon|sorry)\b/i.test(userMessage) ||
                 /^got\s+(?:any|some)?\s+(?:info|information|help|advice|guidance)|^getting\s+(?:some|any)\s+(?:info|information|help|advice|guidance)\b/i.test(userMessage) ||
@@ -4509,6 +4547,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Enhanced greeting detection - Split into simple greetings and greetings with questions
                 /^(?:hi|hello|hey|hi there)\b$/i.test(userMessage) ||  // Simple standalone greetings
                 /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage) ||
+                // Complex booking-related patterns
+                /^(?:i(?:['']ve)?\s+(?:booked|reserved|made|got|have)\s+(?:a|the|my)\s+(?:booking|reservation))/i.test(userMessage) ||
+                // Single word English patterns
+                /^(?:what|how|why|when|where|who|which|whose|hi|hello|hey|but|and|or|yes|no|ok|okay|thanks|thank|good|bad|me|too|the|a|an|this|that|these|those|it|its|i|my|mine|you|your|yours)\b/i.test(userMessage) ||
+                // Common English question starters
+                /^(?:what['']?s|how['']?s|who['']?s|where['']?s|when['']?s)\b/i.test(userMessage) ||
+                // Contracted forms
+                /^(?:i[''](?:ve|m|ll|d)|you[''](?:ve|re|ll|d)|we[''](?:ve|re|ll|d)|they[''](?:ve|re|ll|d)|he[''](?:s|d)|she[''](?:s|d)|it[''](?:s|d)|that['']s|there['']s|here['']s)\b/i.test(userMessage) ||
+                // Common English phrases
+                /^(?:can i|could i|may i|should i|would i|will i|do i|does it|is it|are you|was it|were you)\b/i.test(userMessage) ||
+                // Personal pronouns and possessives
+                /^(?:i\s+(?:have|had|want|need|would|will|am|was)|my\s+(?:friend|booking|reservation|ticket)|me\s+(?:too|and|or|but))\b/i.test(userMessage) ||
+                // Question words with "is/are/was/were"
+                /^(?:what|how|why|where|when|who)\s+(?:is|are|was|were|will|would|could|should|might|must)\b/i.test(userMessage) ||
+                // Random English letters/gibberish (more than 3 consecutive letters)
+                /^[a-zA-Z]{3,}$/i.test(userMessage) ||
                 // Common English phrases & Acknowledgments
                 /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage) ||
                 /^(?:nothing|maybe|not)\s+(?:right now|now|at the moment|later)\b/i.test(userMessage) ||
