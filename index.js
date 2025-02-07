@@ -4544,6 +4544,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
                 // Location patterns
                 /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
+                // Simple confirmations and status updates
+                /^(?:perfect|great|ok|okay|sure|alright|done|good)\s*(?:\.|\!)?(?:\s*(?:we|i|they)\s+(?:are|will|can|could)\s+(?:on|be|getting|coming|going|heading|making)\s+(?:our|my|the)?\s*way)?$/i.test(userMessage) ||
+                // Time slot requests
+                /^(?:any|is|are|have|got|get)?\s*(?:other|different|earlier|later|another|available|free|possible|better)?\s*(?:time|slot|booking|spots?|appointments?|availabilit(?:y|ies))?\s*(?:earlier|later|today|tomorrow|possible|available)?\s*\??$/i.test(userMessage) ||
+                // Change requests (including incomplete ones)
+                /^(?:change|switch|move|update|adjust|modify)\s*(?:to|the|my|our|this|that|it)?\s*\.{3,}?$/i.test(userMessage) ||
+                /^(?:change|switch|move|update|adjust|modify)\s+to$/i.test(userMessage) ||
+                // Knowledge acknowledgments
+                /^(?:now|ah|oh|i|we|they)\s*(?:i|we|they)?\s*(?:know|understand|see|got\s+it|understand\s+it|see\s+it|get\s+it)\b/i.test(userMessage) ||
+                // Single emoji detection (common positive emojis)
+                /^[👌👍✅💯🙏💪👏😊😉😄😃😀🥰😍🤗]$/u.test(userMessage) ||
+                // More comprehensive emoji detection (match any single emoji)
+                /^[\u{1F300}-\u{1F9FF}]$/u.test(userMessage) ||
+                // Single character responses
+                /^[✅✓✔️👍👌💯]$/u.test(userMessage) ||
+                // Time expressions with articles
+                /^(?:an|the|a|any)?\s*(?:earlier|later|different|other)\s*(?:time|slot|appointment|booking)?\s*(?:please|pls|plz|possible|available)?\s*\??$/i.test(userMessage) ||
+                // Additional time request variations
+                /^(?:got|have|there)\s*(?:an|any|some)?\s*(?:earlier|later)?\s*(?:times|slots|bookings|appointments)?\s*(?:available|possible|free|open)?\s*\??$/i.test(userMessage) ||
+                // Enhanced time slot requests (made more flexible)
+                /^(?:any|got|have|are\s+there|is\s+there)?\s*(?:other|different|earlier|later|free|open|available)?\s*(?:time|slot|slots|spot|spots|space|spaces|booking|bookings|times|availability|openings?)?\s*(?:earlier|later|today|tomorrow|now|possible|available|left|remaining|free|open)?\s*\??$/i.test(userMessage) ||
+                // Bot compliments
+                /^(?:best|nice|good|great|awesome|amazing|wonderful|excellent|helpful|smart|brilliant|beautiful|perfect)\s*(?:bot|assistant|helper|name)(?:\s+(?:ever|always|definitely|certainly|for\s+sure))?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
+                // Short affirmative/status words
+                /^(?:affirmative|roger|copy|understood|confirmed|confirm|noted|noted|checking|working|processing|done|ready|set|yep|yup|yeah)\s*(?:!+|\.|,)?$/i.test(userMessage) ||
                 // Enhanced greeting detection - Split into simple greetings and greetings with questions
                 /^(?:hi|hello|hey|hi there)\b$/i.test(userMessage) ||  // Simple standalone greetings
                 /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage) ||
