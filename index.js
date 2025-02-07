@@ -590,11 +590,14 @@ const CONFIRMATION_RESPONSES = [
 
 // Enhanced greeting detection with patterns
 const simpleEnglishGreetings = [
-    // Basic greetings
+    // Basic greetings with variations
     'hi', 'hello', 'hey', 'howdy',
+    'hii', 'hiii', 'hiiii',
+    'heyy', 'heyyy', 'heyyyy',
+    'helloo', 'hellooo',
     // Variations with "there"
     'hi there', 'hello there', 'hey there',
-    'greetings', 'hiya', 'hullo', 
+    'greetings', 'hiya', 'hullo',
     // Time-based greetings
     'good morning', 'good afternoon', 'good evening', 'good day',
     // Welcome variations
@@ -669,11 +672,16 @@ const icelandicQuestionStarters = [
 ];
 
 const isSimpleGreeting = message => {
-    const msg = message.toLowerCase().trim()
-        .replace(/[!.,]+$/, '')     // Remove trailing punctuation
-        .replace(/\s+/g, ' ')       // Normalize spaces
-        .replace(/\brán\b/gi, '')   // Remove mentions of Rán
-        .trim();                    // Final trim
+    // Remove emojis, emoticons, and extra punctuation, normalize repeated characters
+    const msg = message.toLowerCase()
+        .trim()
+        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')  // Remove emojis
+        .replace(/:[D\)dPp\(\)]+/g, '')         // Remove common emoticons :D :) :P etc
+        .replace(/[!.,?]+$/, '')                // Remove trailing punctuation
+        .replace(/(.)\1{2,}/g, '$1$1')          // Normalize repeated characters (e.g., hiii -> hii)
+        .replace(/\s+/g, ' ')                   // Normalize spaces
+        .replace(/\brán\b/gi, '')               // Remove mentions of Rán
+        .trim();                                // Final trim
     
     // Enhanced logging with more details
     console.log('\n👋 Enhanced Greeting Check:', {
@@ -686,7 +694,7 @@ const isSimpleGreeting = message => {
             hasQuestion: msg.includes('?'),
             hasNumbers: /\d/.test(msg),
             hasIcelandicStarter: icelandicQuestionStarters.some(starter => msg.startsWith(starter)),
-            isStandaloneGreeting: /^(?:hi|hello|hey|hæ|halló|sæl)\b$/i.test(msg)
+            isStandaloneGreeting: /^(?:hi+|he+y+|hello+)\b$/i.test(msg)
         }
     });
 
@@ -697,22 +705,36 @@ const isSimpleGreeting = message => {
     if (msg.includes('http')) return false;    // URLs
     if (/\d/.test(msg)) return false;          // Numbers
 
+    // Handle common greeting variations with repeated characters
+    if (/^(?:hi+|he+y+|hello+)\b$/i.test(msg)) {
+        return true;
+    }
+
     // Standalone English greetings (highest priority)
     if (/^(?:hi|hello|hey|hi there)\b$/i.test(msg)) {
         return true;
     }
 
-    // Check for Icelandic questions first
+    // Icelandic language check - if has Icelandic characters, prioritize Icelandic greetings
+    const hasIcelandicChars = /[þæðöáíúéó]/i.test(message);
+    if (hasIcelandicChars) {
+        // Check for Icelandic greetings first
+        if (/^(?:hæ|halló|sæl|sæll)\b$/i.test(msg)) {
+            return true;
+        }
+    }
+
+    // Check for Icelandic questions
     if (icelandicQuestionStarters.some(starter => msg.startsWith(starter))) {
         return false;
     }
 
     // Check for exact greeting matches with punctuation variations
-    const exactGreetingMatch = (
-        simpleEnglishGreetings.some(g => msg === g || msg === g + '!') || 
-        simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
-        compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')
-    );
+    const exactGreetingMatch = hasIcelandicChars ?
+        (simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
+         compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) :
+        simpleEnglishGreetings.some(g => msg === g || msg === g + '!');
+    
     if (exactGreetingMatch) return true;
 
     // Add explicit standalone Icelandic greeting check
@@ -721,10 +743,10 @@ const isSimpleGreeting = message => {
     }
 
     // Check for compound greetings that start with known greetings
-    const hasGreetingStart = (
-        simpleEnglishGreetings.some(g => msg.startsWith(g + ' ')) ||
-        simpleIcelandicGreetings.some(g => msg.startsWith(g + ' '))
-    );
+    const hasGreetingStart = hasIcelandicChars ?
+        simpleIcelandicGreetings.some(g => msg.startsWith(g + ' ')) :
+        simpleEnglishGreetings.some(g => msg.startsWith(g + ' '));
+    
     if (hasGreetingStart) return false;
     
     // Enhanced non-greeting indicators
@@ -754,11 +776,10 @@ const isSimpleGreeting = message => {
     // If message is longer than 4 words, it's probably not a simple greeting
     if (msg.split(' ').length > 4) return false;
 
-    // Final check - must explicitly match one of our greeting patterns
-    return simpleEnglishGreetings.includes(msg) || 
-           simpleIcelandicGreetings.includes(msg) ||
-           compositeIcelandicGreetings.includes(msg) ||
-           /^(?:hi|hello|hey|hæ|halló|sæl|sæll)\b(?:\s*(?:there|rán))?\s*$/i.test(msg);
+    // Final check - must explicitly match one of our greeting patterns or variations
+    return hasIcelandicChars ?
+        (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|rán))?\s*$/i.test(msg)) :
+        (/^(?:hi+|he+y+|hello+)\b(?:\s*(?:there|rán))?\s*$/i.test(msg));
 };
 
 // Test cases
