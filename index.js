@@ -4454,6 +4454,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Payment method patterns (add as new patterns)
                 /(?:don'?t|do\s+not|dont)\s+have\s+(?:a|any|the|credit|debit)?\s*card\s*(?:for|to|with)?\s*(?:payment|booking|reservation)?/i.test(userMessage) ||
                 /(?:can|could|may|possible)\s+(?:we|i)\s+(?:come|pay|book)\s+(?:there|in\s+person)?\s*(?:and|to)?\s*(?:pay)?\s*(?:by|with|in|using)?\s*(?:cash|euros?|money)/i.test(userMessage) ||
+                // Payment/booking method queries
+                /^(?:can|could|may|am\s+i\s+able)\s+(?:to|i)?\s*(?:come|pay|book|visit)\s+(?:and|to)?\s*(?:pay|book)?\s*(?:there|in\s+person|directly|at\s+location|on\s+site)\b/i.test(userMessage) ||
                 // Currency and payment acceptance patterns (add as new patterns)
                 /(?:do|does|can|could|will)\s+(?:you|they|we)?\s*(?:take|accept|allow|permit)\s+(?:cash|euros?|cards?|payments?\s+in)\b/i.test(userMessage) ||
                 /^(?:what\s+about|how\s+about|and|also)?\s*(?:do|does|will)?\s*(?:you)?\s*(?:accept|take)\s+(?:cash|euros?|cards?)\??$/i.test(userMessage) ||
@@ -4509,6 +4511,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:bought|purchased|got)\s+(?:souvenirs?|items?|things?|products?|gifts?)\s+(?:but|and|however)\s+(?:lost|missing|misplaced|left)/i.test(userMessage) ||
                 /(?:shipping|delivery|send|mail|post)\s+(?:option|available|possible)\s+(?:to|for)\s+(?:buy|purchase|get|order)\s+(?:things|items|products|souvenirs)/i.test(userMessage) ||
                 /(?:gift\s+shop|store|retail|shop)\s+(?:items?|products?|souvenirs?|things)/i.test(userMessage) ||
+                // Lost items patterns
+                /^(?:lost|missing|forgot|forgotten|left|misplaced)\s+(?:my|our|the)?\s*(?:phone|wallet|bag|purse|item|belongings?|stuff|things?|keys?)\b/i.test(userMessage) ||
                 // Add patterns for help requests with context
                 /(?:help|assist|guide|support)(?:\s+(?:me|please|needed|required))?\s*[!?.]*/i.test(userMessage) ||
                 // Add these complex booking story patterns
@@ -4553,6 +4557,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:was|were)\s+(?:hoping|wondering|thinking|planning)\b/i.test(userMessage) ||
                 // Time expressions
                 /^(?:for|at|around|about)?\s*(?:\d{1,2})(?::\d{2})?\s*(?:am|pm|AM|PM|a\.m\.|p\.m\.)?\s*(?:please|pls|plz)?\s*$/i.test(userMessage) ||
+                // Time preference/modification patterns
+                /^(?:\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:would|could|might|will|should)?\s*(?:actually|probably|maybe|definitely|certainly)?\s*(?:work|be|suit|fit)\s*(?:better|best|well|fine|okay|great)\b/i.test(userMessage) ||
+                // Time modification patterns - enhanced to catch more variations
+                 /^(?:\d{1,2}[:.]?\d{2})?(?:\s*[AaPp][Mm])?\s*(?:would|could|might|may|will|should|is|seems?)?\s*(?:actually|probably|maybe|definitely|certainly|really|just|also|perhaps)?\s*(?:work|be|suit|fit|better|best|easier|nicer|preferable)/i.test(userMessage) ||
+                /^(?:that|this|it)?\s*(?:time|slot)?\s*(?:would|could|might|will)?\s*(?:actually|probably|maybe|definitely)?\s*(?:work|be|suit|fit)\s*(?:better|best|well|fine|great)\b/i.test(userMessage) ||
+                // Group booking with time
+                /^(?:sky|saman|ser|sér)?\s*(?:package[ds]?|tick(?:et)?s?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?)?\s*(?:for|at|on)?\s*(?:\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight)?\b/i.test(userMessage) ||
+                // Group booking patterns - enhanced for package variations
+                /^(?:sky|saman|ser|sér)?\s*(?:package[ds]?|tick(?:et)?s?|pass(?:es)?|admissions?|entries?|bookings?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:for|at|on)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
+                /^(?:booking|reservation)\s*(?:for)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:at|for)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
+                /^(?:saman|ser|sér)\s*(?:package[ds]?|tick(?:et)?s?|pass(?:es)?|admissions?),?\s*(?:booking|reservation)?\s*(?:for|at|on)?\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
+                // Group booking patterns - significantly enhanced
+                /^(?:sky|saman|ser|sér)\s*(?:pack(?:age)?(?:ted|d|ed)?|tick(?:et)?s?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:for|at|on)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
+                // Additional group booking variations
+                /^(?:group|party|booking|reservation)\s*(?:of)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:for|with)?\s*(?:the)?\s*(?:sky|saman|ser|sér)/i.test(userMessage) ||
+                // Updated package booking variations
+                /^(?:saman|ser|sér)\s*(?:package[ds]?|tick(?:et)?s?)\b/i.test(userMessage) ||
+                // Package type leading with number of people
+                /^(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)\s*(?:for|with)?\s*(?:the)?\s*(?:sky|saman|ser|sér)/i.test(userMessage) ||
+                // Package variations with misspellings
+                /^(?:sky|saman|ser|sér)\s*(?:pack|package|packeted|packaged|ticketed|tickets?),?/i.test(userMessage) ||
+                // Time-specific group bookings
+                /^(?:booking|reservation|group)\s*(?:for)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\s*(?:for)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?)?/i.test(userMessage) ||
+                // Communication method queries
+                /^(?:via|through|by|using)?\s*(?:email|phone|call|text|message|booking)\?*$/i.test(userMessage) ||
                 // Let's/That's expressions
                 /^(?:let['']?s|that['']?s|this['']?s)\s+(?:do|try|book|get|make|would|will|might|could|should|be)\b/i.test(userMessage) ||
                 // Website references
