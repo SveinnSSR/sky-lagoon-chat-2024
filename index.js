@@ -4353,6 +4353,41 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:hi|hello|hey)?\s*(?:please\s+)?(?:speak|talk)\s+(?:in\s+)?(?:english|icelandic)(?:\s+please)?\b/i.test(userMessage) ||
                 // Enhanced informal greetings and responses
                 /^(?:h[ie]+y+|h[ie]+|h[ie]{2,}|howdy|yo|heya|hiya|sup)\s*$/i.test(userMessage) ||
+                // First add short word/phrase patterns (put these FIRST)
+                /^(?:oh|we|us|im|me|for)\s*$/i.test(userMessage) ||
+                /^(?:for|about)\s+(?:us|me|our|you)\s*$/i.test(userMessage) ||
+                /^(?:im|i['']m)\s+(?:here|there|ready|waiting)\s*$/i.test(userMessage) ||
+                // Availability check patterns (add these AFTER short phrases)
+                /^(?:any|first|next|last)?\s*(?:time|slot|booking)?\s*(?:available|free|open)?\s*(?:tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
+                /^(?:any\s+)?available\s+(?:agents?|staff|times?|slots?)?\s*\??$/i.test(userMessage) ||
+                // Time/Availability patterns (enhanced to catch more variations)
+                /^(?:\d*(?:st|nd|rd|th))?\s*(?:time|slot|booking)?\s*(?:available|free|open|possible)?\s*(?:tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
+                /^(?:when|what)?\s*(?:is|are|will be)?\s*(?:the|your)?\s*(?:first|next|earliest|latest|last)?\s*(?:available|free|open)?\s*(?:time|slot|booking|space)?\s*(?:for|tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
+                // Package/Date night patterns (enhanced)
+                /^(?:about|for|regarding)\s*(?:the)?\s*(?:date\s*night|sky|stefnu[mó]t)?\s*package/i.test(userMessage) ||
+                /(?:package|platter|date\s*night)\s*(?:include|come[s]?\s*with|contain|offer|give|get|have)\s*(?:food|drinks?|meal|platter)/i.test(userMessage) ||
+                // Youth/Price check patterns
+                /^(?:youth|price|pricing|cost)\s+(?:booking|prices?|info|information)?\s*$/i.test(userMessage) ||
+                /^(?:pricing|price|cost)\s+(?:for|of)?\s+(?:youths?|children|kids|teens)?\s*$/i.test(userMessage) ||
+                // Gift card patterns
+                /^(?:check|verify|what['']?s?)?\s*(?:the|my)?\s*(?:gift\s*card|card)?\s*(?:amount|balance|value)?\s*$/i.test(userMessage) ||
+                /^gift\s*card\s*$/i.test(userMessage) ||
+                // Gift card/amount check patterns (enhanced)
+                /^(?:check|verify|what['']?s?|how\s+much\s+is)?\s*(?:the|my)?\s*(?:gift\s*cards?|cards?)?\s*(?:amount|balance|value|worth)?\s*(?:left|remaining)?\s*$/i.test(userMessage) ||
+                /(?:check|verify|what['']?s?|how\s+much\s+is)\s*(?:the|my)?\s*(?:balance|amount|value)\s*(?:on|of|in)?\s*(?:the|my)?\s*(?:gift\s*cards?|cards?)/i.test(userMessage) ||
+                // Also/wondering patterns
+                /^(?:also|and)\s+(?:i\s+)?(?:was\s+)?wondering\s*(?:about)?\s*$/i.test(userMessage) ||
+                /^(?:also|and)\s+(?:i\s+)?(?:wanted|need|would like)\s+to\s+(?:ask|know|check)\s*$/i.test(userMessage) ||
+                // Also/wondering patterns with amenity questions (enhanced)
+                /^(?:also|and)\s+(?:i\s+)?(?:was\s+)?wondering[\s,]*(?:do|does|are|if|about|would|could|can)?\s*(?:you|we|there)?\s*(?:have|offer|provide|get|bring)\s*(?:robes?|towels?|amenities|facilities)/i.test(userMessage) ||
+                /(?:do|does)\s*(?:you|sky\s*lagoon)?\s*(?:have|offer|provide|give)\s*(?:robes?|towels?|amenities|facilities)/i.test(userMessage) ||
+                // Specific facility/amenity questions
+                /^(?:do\s+you\s+have|are\s+there)\s+(?:robes?|towels?|lockers?|amenities)\s*(?:for|available\s+to)?\s*(?:guests?|visitors?|customers?)?\s*\??$/i.test(userMessage) ||
+                // Package/platter questions
+                /^(?:for|about)\s+(?:the)?\s*(?:date\s+night|sky|stefnu[mó]t)?\s*package\s*$/i.test(userMessage) ||
+                /^(?:is|does)\s+(?:the|your)?\s*(?:sky\s*platter|platter|plate|food)\s+(?:shared|for\s+two|included)?\s*$/i.test(userMessage) ||
+                // Cold plunge/facility feature patterns
+                /^(?:cold\s*plunge|ice\s*bath|cold\s*pool|sauna|steam\s*room)\s*$/i.test(userMessage) ||
                 // Extended acknowledgment variations
                 /^(?:perfect|perfecto|amazing|amazin[g']+|solid|nice one|awesome|cool|brilliant|excellent)\s*$/i.test(userMessage) ||
                 // Enhanced acknowledgment variations with looser matching
@@ -4460,6 +4495,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:do|does|are|can|should)\s+(?:guests?|visitors?|people|we|you|i)\s+(?:bring|provide|need|have)\s+(?:their|our|my|your|own)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)/i.test(userMessage) ||
                 // Add patterns for availability questions
                 /(?:is|are)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)\s+(?:provided|available|included|required|mandatory|needed)/i.test(userMessage) ||
+                // Website reference patterns
+                /^(?:oh\s+)?i(?:['']ve|ve)?\s+(?:just|already)?\s+(?:been|looked|checked)\s+(?:on|at|your)?\s*(?:the)?\s*website\s*$/i.test(userMessage) ||
                 // Add patterns for website/technical issues
                 /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
                 // Add patterns for specific technical problems
