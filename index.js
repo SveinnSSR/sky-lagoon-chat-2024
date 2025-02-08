@@ -3898,7 +3898,8 @@ const corsOptions = {
         'https://sky-lagoon-chat-2024-rayuxftbk-svorum-straxs-projects.vercel.app', // another Vercel URL
         'https://sky-lagoon-chatbot-server.vercel.app',
         'https://skylagoon-chat-demo.vercel.app', // your new frontend URL
-        'https://chatbot-analytics-beta.vercel.app' // your dashboard URL
+        'https://chatbot-analytics-beta.vercel.app', // your dashboard URL
+        'https://hysing.svorumstrax.is'  // Add your new domain here
     ],
     methods: ['GET', 'POST', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
