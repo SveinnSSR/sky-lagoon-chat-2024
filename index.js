@@ -4575,6 +4575,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^if\s+(?:i|we|you|they|there)\s+(?:is|are|was|were|have|has|had|can|could|will|would|should|may|might)\b/i.test(userMessage) ||
                 // Enhanced transfer/entry patterns
                 /^if\s+i\s+(?:buy|get|purchase|have)\s+(?:an?\s+)?(?:entry|ticket|pass|admission|transfer|booking)\b/i.test(userMessage) ||
+                // Contractions and informal speech patterns (add these FIRST)
+                /^(?:ain'?t|isn'?t|aren'?t|wasn'?t|weren'?t|haven'?t|hasn'?t|won'?t|don'?t|doesn'?t|didn'?t|can'?t|couldn'?t|wouldn'?t|shouldn'?t)\b/i.test(userMessage) ||
+                /\b(?:something'?s|what'?s|that'?s|there'?s|here'?s|who'?s|where'?s|when'?s|how'?s|it'?s)\b/i.test(userMessage) ||
+                // "We are" patterns and variations
+                /^(?:we|they)\s+(?:are|were|will be|would be|might be|could be|should be|have been|had been)\b/i.test(userMessage) ||
+                /^(?:we|they)\s+(?:are|were|have been)\s+(?:here|there|coming|going|arriving|leaving|planning|thinking|wondering|looking)\b/i.test(userMessage) ||
+                // Common English adjective + noun combinations
+                /^(?:beautiful|nice|great|amazing|wonderful|lovely|stunning|incredible|fantastic|excellent)\s+(?:lagoon|view|place|location|facility|experience|spot)\b/i.test(userMessage) ||
+                // Common English phrases and assessments
+                /^(?:most|very|quite|rather|pretty|fairly|extremely|absolutely|definitely|probably)\s+(?:likely|possible|certain|sure|good|nice|beautiful|amazing)\b/i.test(userMessage) ||
                 // Enhanced website reference patterns (make more comprehensive)
                 /^(?:oh|ah|hey|hi|just|i|we|they)?\s*(?:i['']?ve|i\s+have|just|oh)?\s*(?:been|looked|checked|visited|seen|found|read)\s+(?:on|at|through|in|the|your)?\s*(?:website|site|page|booking|web|online)\b/i.test(userMessage) ||
                 // Enhanced gratitude/confirmation patterns (make more comprehensive)
