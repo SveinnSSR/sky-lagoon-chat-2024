@@ -3225,12 +3225,13 @@ export const getRelevantKnowledge = (userMessage) => {
         }
 
         // Standard ritual info
+        let ritualDescription = knowledgeBase.ritual.marketing.description;
         relevantInfo.push({
             type: 'ritual',
             content: {
                 ...knowledgeBase.ritual,
-                description: knowledgeBase.ritual.marketing.description + 
-                    " Learn more about our seven-step ritual here: https://www.skylagoon.com/experience/skjol-ritual/"
+                description: ritualDescription,
+                website_link: "https://www.skylagoon.com/experience/skjol-ritual/"
             }
         });
 
@@ -3915,10 +3916,9 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'location',
             content: {
                 ...knowledgeBase.transportation.location,
-                description: knowledgeBase.transportation.location.description + 
-                    " You can find us here: https://www.google.com/maps?q=Sky+Lagoon+Iceland&ll=64.111392,-21.911874",
-                website_info: "For more information about getting here, visit https://www.skylagoon.com/location/"
-            }        
+                maps_link: "https://www.google.com/maps?q=Sky+Lagoon+Iceland&ll=64.111392,-21.911874",
+                website_link: "https://www.skylagoon.com/location/"
+            }
         });
 
         // Enhanced shuttle/bus stop detection with more specific info types
