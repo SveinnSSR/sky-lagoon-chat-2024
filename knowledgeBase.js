@@ -3227,7 +3227,11 @@ export const getRelevantKnowledge = (userMessage) => {
         // Standard ritual info
         relevantInfo.push({
             type: 'ritual',
-            content: knowledgeBase.ritual
+            content: {
+                ...knowledgeBase.ritual,
+                description: knowledgeBase.ritual.marketing.description + 
+                    " Learn more about our seven-step ritual here: https://www.skylagoon.com/experience/skjol-ritual/"
+            }
         });
 
         // Also include packages info since ritual is part of packages
@@ -3728,7 +3732,7 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'facilities',
             content: knowledgeBase.facilities
         });
-    }
+    } // End of Dining and bar queries
 
     // Transportation, location, and directions
     if (message.includes('shuttle') || 
@@ -3909,7 +3913,12 @@ export const getRelevantKnowledge = (userMessage) => {
         // First push basic location info
         relevantInfo.push({
             type: 'location',
-            content: knowledgeBase.transportation.location
+            content: {
+                ...knowledgeBase.transportation.location,
+                description: knowledgeBase.transportation.location.description + 
+                    " You can find us here: https://www.google.com/maps?q=Sky+Lagoon+Iceland&ll=64.111392,-21.911874",
+                website_info: "For more information about getting here, visit https://www.skylagoon.com/location/"
+            }        
         });
 
         // Enhanced shuttle/bus stop detection with more specific info types
@@ -4153,7 +4162,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: knowledgeBase.transportation.eco_friendly_options
             });
         }
-    }
+    } // End of full Transportation section
 
     // Group booking related queries
     if (message.includes('group') || 
