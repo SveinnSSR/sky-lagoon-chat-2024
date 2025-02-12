@@ -3227,7 +3227,10 @@ export const getRelevantKnowledge = (userMessage) => {
         // Standard ritual info
         relevantInfo.push({
             type: 'ritual',
-            content: `Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. [View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)`
+            content: {
+                ...knowledgeBase.ritual,
+                description: `Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. [View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)`
+            }
         });
 
         // Also include packages info since ritual is part of packages
@@ -3911,8 +3914,7 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'location',
             content: {
                 ...knowledgeBase.transportation.location,
-                maps_link: "https://www.google.com/maps?q=Sky+Lagoon+Iceland&ll=64.111392,-21.911874",
-                website_link: "https://www.skylagoon.com/location/"
+                description: `You can find Sky Lagoon at Vesturvör 44-48, 200 Kópavogur. [View on Google Maps 📍] (https://www.google.com/maps/dir/64.111392,-21.911874)`
             }
         });
 
