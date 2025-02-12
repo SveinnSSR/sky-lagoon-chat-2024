@@ -1,5 +1,19 @@
 // knowledgeBase.js
 export const knowledgeBase = {
+    website_links: {
+        main: "https://www.skylagoon.com",
+        booking: "https://www.skylagoon.com/booking/",
+        packages: "https://www.skylagoon.com/packages/",
+        ritual: "https://www.skylagoon.com/experience/skjol-ritual/",
+        dining: {
+            overview: "https://www.skylagoon.com/dining/",
+            smakk_bar: "https://www.skylagoon.com/dining/smakk-bar/",
+            keimur_cafe: "https://www.skylagoon.com/dining/keimur-cafe/",
+            gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
+        },
+        gift_cards: "https://www.skylagoon.com/gift-cards/",
+        multi_pass: "https://www.skylagoon.com/multi-pass/"
+    },
     opening_hours: {
         tagline: "We look forward to welcoming you where the sea meets the sky",
         regular: {
@@ -1687,6 +1701,11 @@ export const knowledgeBase = {
         location: {
             address: "Vesturvör 44-48, 200 Kópavogur",
             description: "Sky Lagoon is conveniently located just minutes from central Reykjavík",
+            coordinates: {
+                lat: "64.111392",
+                lng: "-21.911874"
+            },
+            maps_url: "https://www.google.com/maps?q=Sky+Lagoon+Iceland&ll=64.111392,-21.911874",
             distance: {
                 from_city: "7 kilometers from central Reykjavík",
                 drive_time: "13-15 minutes",

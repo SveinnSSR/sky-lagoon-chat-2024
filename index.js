@@ -7,7 +7,7 @@ import OpenAI from 'openai';
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './knowledgeBase_is.js';
 // Add these imports at the top of your index.js with your other imports
-import { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws'; // propbably safe to remove this as we are using pusher now
 import { v4 as uuidv4 } from 'uuid';
 // Add Pusher import
 import Pusher from 'pusher';
