@@ -3722,10 +3722,13 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('traditional') ||
         message.includes('tasting') ||
         message.includes('culinary')) {
-        relevantInfo.push({
-            type: 'dining',
-            content: knowledgeBase.dining
-        });
+            relevantInfo.push({
+                type: 'dining',
+                content: {
+                    ...knowledgeBase.dining,
+                    description: `Explore our dining options at Sky Lagoon. [View Dining Options] (https://www.skylagoon.com/dining)`
+                }
+            });
         // Also include facilities info for location context
         relevantInfo.push({
             type: 'facilities',
