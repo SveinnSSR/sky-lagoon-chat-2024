@@ -3914,7 +3914,7 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'location',
             content: {
                 ...knowledgeBase.transportation.location,
-                description: `You can find Sky Lagoon at Vesturvör 44-48, 200 Kópavogur. [View on Google Maps 📍] (https://www.google.com/maps/dir/64.111392,-21.911874)`
+                description: `You can find Sky Lagoon at Vesturvör 44-48, 200 Kópavogur. [View on Google Maps 📍] (https://www.google.com/maps/dir//Sky+Lagoon,+Vesturv%C3%B6r+44-48,+200+K%C3%B3pavogur/@64.1131102,-21.9146798,17z)`
             }
         });
 
