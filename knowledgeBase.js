@@ -3227,11 +3227,7 @@ export const getRelevantKnowledge = (userMessage) => {
         // Standard ritual info
         relevantInfo.push({
             type: 'ritual',
-            content: {
-                ...knowledgeBase.ritual,
-                description: "Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. Learn more about our unique ritual experience.",
-                website_link: "https://www.skylagoon.com/experience/skjol-ritual"  // No trailing slash
-            }
+            content: `Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. [View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)`
         });
 
         // Also include packages info since ritual is part of packages
