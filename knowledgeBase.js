@@ -3225,13 +3225,12 @@ export const getRelevantKnowledge = (userMessage) => {
         }
 
         // Standard ritual info
-        let ritualDescription = knowledgeBase.ritual.marketing.description;
         relevantInfo.push({
             type: 'ritual',
             content: {
                 ...knowledgeBase.ritual,
-                description: ritualDescription,
-                website_link: "https://www.skylagoon.com/experience/skjol-ritual/"
+                description: "Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. Learn more about our unique ritual experience.",
+                website_link: "https://www.skylagoon.com/experience/skjol-ritual"  // No trailing slash
             }
         });
 
