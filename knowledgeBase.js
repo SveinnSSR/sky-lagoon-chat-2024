@@ -6,7 +6,7 @@ export const knowledgeBase = {
         packages: "https://www.skylagoon.com/packages/",
         ritual: "https://www.skylagoon.com/experience/skjol-ritual/",
         dining: {
-            overview: "https://www.skylagoon.com/dining/",
+            overview: "https://www.skylagoon.com/food-drink/",
             smakk_bar: "https://www.skylagoon.com/dining/smakk-bar/",
             keimur_cafe: "https://www.skylagoon.com/dining/keimur-cafe/",
             gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
@@ -2929,7 +2929,10 @@ export const getRelevantKnowledge = (userMessage) => {
             });
             relevantInfo.push({
                 type: 'packages',
-                content: knowledgeBase.packages
+                content: {
+                    ...knowledgeBase.packages,
+                    description: `Discover our unique packages designed for your ultimate relaxation experience. [View Our Packages] (https://www.skylagoon.com/packages)`
+                }
             });
         }
 
@@ -3041,7 +3044,10 @@ export const getRelevantKnowledge = (userMessage) => {
         } else {
             relevantInfo.push({
                 type: 'gift_tickets',
-                content: knowledgeBase.gift_tickets
+                content: {
+                    ...knowledgeBase.gift_tickets,
+                    description: `Give the gift of relaxation with our gift cards. [View Gift Card Options] (https://www.skylagoon.com/gift-cards)`
+                }
             });
 
             // If asking about booking with gift tickets, also include opening hours
@@ -3726,7 +3732,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 type: 'dining',
                 content: {
                     ...knowledgeBase.dining,
-                    description: `Explore our dining options at Sky Lagoon. [View Dining Options] (https://www.skylagoon.com/dining)`
+                    description: `Explore our dining options at Sky Lagoon. [View Dining Options] (https://www.skylagoon.com/food-drink)`
                 }
             });
         // Also include facilities info for location context
@@ -4297,7 +4303,10 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('regular basis')) {
         relevantInfo.push({
             type: 'multi_pass',
-            content: knowledgeBase.multi_pass
+            content: {
+                ...knowledgeBase.multi_pass,
+                description: `Learn more about our Multi-Pass option for regular visits. [View Multi-Pass Details] (https://www.skylagoon.com/multi-pass)`
+            }
         });
     }
 
