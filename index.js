@@ -4348,6 +4348,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // looking to book, trying to find... // looking for, searching for ...
                 /^(?:looking|trying|wanting)\s+to\b/i.test(userMessage) ||
                 /^(?:looking|searching|seeking|checking|asking)\s+(?:for|about|into)\b/i.test(userMessage) ||
+                // Add these bus stop and "can't find" patterns to your existing check
+                /(?:we|i|they)\s+(?:can['']?t|cannot|could\s+not|couldn['']t)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
+                /(?:can['']?t|cannot|could\s+not|couldn['']t)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
+                /(?:unable\s+to|having\s+trouble|having\s+difficulty)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
+                // Bus stop patterns
+                /\b(?:bus|shuttle|transport)\s*(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\b/i.test(userMessage) ||
+                /\b(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\s+(?:for|of)\s+(?:bus|shuttle|transport)\b/i.test(userMessage) ||
+                /\b(?:where|which|what|is|at)\s+(?:the|your|sky\s+lagoon['']?s?)?\s*(?:bus|shuttle|transport)\s*(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\b/i.test(userMessage) ||
+                // Missing/lost patterns
+                /(?:missing|lost|can['']?t\s+see|no\s+sign\s+of|looking\s+for)\s+(?:the|a|our|my|your)?\s*(?:bus|shuttle|transport|stop|pick[-\s]?up)\b/i.test(userMessage) ||
+                // Add these short inability patterns
+                /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s*$/i.test(userMessage) ||
+                /^(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s+(?:we|i|they|you)\s*$/i.test(userMessage) ||
+                /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\b/i.test(userMessage) ||
                 // Common question starts
                 /^(?:has|have|had|shall|should|may|might|must)\b/i.test(userMessage) ||
                 // Question words in middle of sentence
