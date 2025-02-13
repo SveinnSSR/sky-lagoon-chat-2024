@@ -2165,16 +2165,25 @@ WEBSITE LINKS GUIDELINES:
    - Include AFTER initial location description
 
 2. For Major Features:
+   - Main Website: "[Visit Sky Lagoon] (https://www.skylagoon.com)"
+   - Booking: "[Book Your Visit] (https://www.skylagoon.com/booking)"
    - Ritual: "[View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)"
    - Packages: "[View Our Packages] (https://www.skylagoon.com/packages)"
-   - Dining: "[View Dining Options] (https://www.skylagoon.com/food-drink/)"
    - Multi-Pass: "[View Multi-Pass Details] (https://www.skylagoon.com/multi-pass)"
-   - Gift Cards: "[View Sky Lagoon Gift Tickets] (https://www.skylagoon.com/buy-gift-tickets/)"
+   - Gift Cards: "[View Gift Ticket Options] (https://www.skylagoon.com/buy-gift-tickets)"
 
-3. Link Formatting:
+3. For Dining Options:
+   - Overview: "[View All Dining Options] (https://www.skylagoon.com/food-drink)"
+   - Smakk Bar: "[Visit Smakk Bar] (https://www.skylagoon.com/dining/smakk-bar)"
+   - Keimur Café: "[Visit Keimur Café] (https://www.skylagoon.com/dining/keimur-cafe)"
+   - Gelmir Bar: "[Visit Gelmir Bar] (https://www.skylagoon.com/dining/gelmir-bar)"
+
+4. Link Formatting:
    - ALWAYS use: "[Display Text] (URL)"
    - Include space between ] and (
    - Place links at end of relevant information
+   - NEVER include trailing slashes in URLs
+   - For gift cards, ALWAYS use /buy-gift-tickets (not /purchase-gift-tickets)
 
 ACKNOWLEDGMENT HANDLING:
 1. For simple acknowledgments (1-4 words):
