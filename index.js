@@ -4397,6 +4397,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Youth/Price check patterns
                 /^(?:youth|price|pricing|cost)\s+(?:booking|prices?|info|information)?\s*$/i.test(userMessage) ||
                 /^(?:pricing|price|cost)\s+(?:for|of)?\s+(?:youths?|children|kids|teens)?\s*$/i.test(userMessage) ||
+                // Add these more flexible translation patterns to your hasDefiniteEnglish check
+                /(?:how|what)\s+(?:do|does|can|could|would|should|might|to)?\s*(?:i|you|we|they|one)?\s*(?:say|speak|talk|translate|write|spell|pronounce)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
+                /(?:what|how)\s+(?:is|are|would|does|do)?\s+(?:.*?)\s+(?:said|written|spelled|translated|pronounced|expressed|mean|means)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
+                /(?:what|how)\s+(?:is|are)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
+                /(?:translate|say|write|spell)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
+                /icelandic\s+(?:word|translation|term|meaning|version|way to say)\s+(?:of|for|to say)?\s+(?:.*)/i.test(userMessage) ||
+                /(?:in|into|to|for)\s+icelandic\s+(?:.*?)\s+(?:is|means|said|written|spelled|translated|pronounced)/i.test(userMessage) ||
+                /^(?:how|what)\s+(?:do|does|can|could|would|should|might)\s+(?:i|you|we|they|one)\s+(?:say|speak|translate|write|spell)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
+                /^(?:what|how)\s+(?:is|are)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
+                /^(?:translate|say)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
+                /^icelandic\s+(?:word|translation|term)\s+(?:for|of)\s+\w+/i.test(userMessage) ||
+                // Language/translation question patterns - ADD THESE FIRST
+                /(?:how|what)\s+(?:do|does|can|could|would|should|might|is|are|would be)?\s*(?:i|you|we|they|one|someone|anybody)?\s*(?:say|speak|translate|write|spell|mean|express|pronounce)\b/i.test(userMessage) ||
+                /(?:how|what)?\s*(?:is|are|would be)?\s*(?:the|that|this|it)\s+(?:said|written|spelled|pronounced|translated|expressed)\s+(?:in|into|to)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
+                // Expanded translation request patterns
+                /(?:translate|say|spell|write|mean|express|pronounce)\s+(?:this|that|it|something|anything|a\s+\w+|the\s+\w+)\s+(?:in|to|into|for)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
+                /\b(?:icelandic|iceland)\s+(?:word|phrase|saying|translation|version|meaning|equivalent|pronunciation|way|term)\s+(?:for|of|to|about)?\b/i.test(userMessage) ||
+                // Broader language question patterns
+                /(?:in|into|to|for)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
+                /(?:speak|say|write|translate)\s+(?:\w+)\s+(?:in|into|to)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
+                // Handle questions about specific words/phrases
+                /(?:what|how)\s+(?:do|does|would)?\s*(?:they|you|icelanders?|locals?|people)?\s*(?:say|call|name|pronounce|refer\s+to)\b/i.test(userMessage) ||
+                /(?:say|speak|translate|write|spell|pronounce)\s+(?:in|into|to)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
+                // Add very short English phrase patterns - put these FIRST
+                /^(?:if|so|and|but|or)\s+(?:if|so|not|yet|then|that|this|we|i|you|they)\s*$/i.test(userMessage) ||
+                /^(?:if|so|and|but|or)\s+(?:if|so|not|yet|then|that|this|we|i|you|they)\b/i.test(userMessage) ||
+                // Add "our/my/your" possession patterns (for very short phrases)
+                /^(?:our|my|your|their|his|her)\s+(?:\w+)\s*$/i.test(userMessage) ||
+                // Add language question patterns
+                /(?:how|what|where|when)\s+(?:do|does|can|could|would|should|might)\s+(?:i|you|we|they|one)\s+(?:say|speak|translate|write|spell)\b/i.test(userMessage) ||
+                /(?:what|how)\s+(?:is|are|do|does)\s+(?:the|that|this|it|specific|certain)\s+(?:word|phrase|term|saying|expression)\s+(?:in|for|when|about)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
+                /(?:translate|say|spell|write)\s+(?:this|that|it|something|anything)\s+(?:in|to|into)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
+                // Add specific language reference patterns
+                /\b(?:icelandic|iceland|english|language)\s+(?:word|translation|version|meaning|equivalent|pronunciation)\b/i.test(userMessage) ||
+                /(?:in|to|into|from)\s+(?:icelandic|iceland|english)\b/i.test(userMessage) ||
+                // Add single possession word detection
+                /^(?:my|our|your|their|his|her)\s+\w+$/i.test(userMessage) ||
+                // Add two-word combinations with common English words
+                /^(?:if|so|and|but|or|yet|still|just|very|quite|rather|now|then|thus|hence|here|there)\s+(?:if|so|not|yet|then|that|this|we|i|you|they|here|there|now|good|bad|nice|far|close|near|right|wrong)\s*$/i.test(userMessage) ||
                 // Gift card patterns
                 /^(?:check|verify|what['']?s?)?\s*(?:the|my)?\s*(?:gift\s*card|card)?\s*(?:amount|balance|value)?\s*$/i.test(userMessage) ||
                 /^gift\s*card\s*$/i.test(userMessage) ||
