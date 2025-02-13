@@ -4503,6 +4503,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Enhanced confirmation request patterns - add these at the START of your patterns
                 /^(?:can|could|would|will|please|kindly)?\s*(?:you)?\s*(?:please|kindly)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||
                 /^(?:you|can\s+you|could\s+you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||  
+                // Add these descriptive/observational patterns
+                /^(?:there|it)\s+(?:seems?|appears?|looks?|feels?)\b/i.test(userMessage) ||
+                /^(?:seems?|appears?|looks?|feels?)\s+(?:like|that|as if)\b/i.test(userMessage) ||                
+                // Add "so if" and conditional patterns
+                /^(?:so|and|but|then)?\s*if\s+(?:i|we|you|they|it|there|that|this)\b/i.test(userMessage) ||
+                /^(?:what|how|where|when)\s+if\b/i.test(userMessage) ||
+                // Add "our/we" possession/status patterns
+                /^(?:our|my)\s+(?:\w+\s+)*(?:is|was|has|had|seems?|appears?|looks?|feels?)\b/i.test(userMessage) ||
+                /^(?:we|i)\s+(?:got|have|had|found|received|made it|arrived|reached)\b/i.test(userMessage) ||
+                // Add reaction/expression patterns
+                /^(?:ah|oh|wow|hmm|huh|aww?|ugh|ooh|well)\s+(?:what|that['']?s|this\s+is|i\s+see|okay|nice)\b/i.test(userMessage) ||
+                /^(?:what|that['']?s|this\s+is)\s+(?:a\s+)?(?:shame|pity|unfortunate|sad|great|good|nice|awesome)\b/i.test(userMessage) ||
+                // Add squeezing/fitting/capacity patterns
+                /(?:squeeze|fit|accommodate|add)\s+(?:in|more|extra|additional|another)?\s*(?:people|persons?|guests?|visitors?|spots?)/i.test(userMessage) ||
+                /(?:more|extra|additional|another)\s+(?:people|persons?|guests?|visitors?)\s+(?:in|into|for|during|at|during)/i.test(userMessage) ||
+                // Add hotel/location reference patterns
+                /^(?:my|our|the)\s+(?:hotel|place|accommodation|apartment|hostel|guesthouse)\s+(?:is|was|has|had|seems?|appears?|will be)\b/i.test(userMessage) ||
+                /(?:minutes?|hours?)\s+(?:away|from|to|between)\s+(?:the|your|sky)?\s*(?:lagoon|location|place|venue)/i.test(userMessage) ||
                 // Email and confirmation patterns - add these BEFORE other patterns
                 /^(?:can|could|would)\s+(?:you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check)\s+(?:the)?\s*(?:reservation|booking|appointment)/i.test(userMessage) ||
                 /^(?:i|we)\s+(?:haven'?t|have\s+not|still\s+haven'?t)\s+(?:got|gotten|received)\s+(?:the|any|your|a)?\s*(?:mail|email|confirmation)(?:\s+yet)?$/i.test(userMessage) ||
