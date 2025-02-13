@@ -268,7 +268,8 @@ const enforceTerminology = (text) => {
         'water stations',
         'water fountain',
         'geothermal water',  // Add this to preserve
-        'Gelmir lagoon bar'  // Add this to preserve the correct form
+        'Gelmir lagoon bar',  // Add this to preserve the correct form
+        'buy-gift-tickets'  // Add this to preserve URLs
     ];
 
     // Create unique markers for each phrase

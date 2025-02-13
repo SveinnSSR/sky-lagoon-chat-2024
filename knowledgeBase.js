@@ -3046,7 +3046,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 type: 'gift_tickets',
                 content: {
                     ...knowledgeBase.gift_tickets,
-                    description: `Give the gift of relaxation with our gift cards. [TEST_DEBUG - View Gift Card Options] (${knowledgeBase.website_links.gift_tickets.replace(/\/$/, '')})`
+                    description: `Give the gift of relaxation with our gift cards. [View Gift Ticket Options] (https://www.skylagoon.com/buy-gift-tickets)`
                 }
             });
 
