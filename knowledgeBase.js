@@ -11,7 +11,7 @@ export const knowledgeBase = {
             keimur_cafe: "https://www.skylagoon.com/dining/keimur-cafe/",
             gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
         },
-        gift_cards: "https://www.skylagoon.com/buy-gift-tickets/",
+        gift_tickets: "https://www.skylagoon.com/buy-gift-tickets/",
         multi_pass: "https://www.skylagoon.com/multi-pass/"
     },
     opening_hours: {
