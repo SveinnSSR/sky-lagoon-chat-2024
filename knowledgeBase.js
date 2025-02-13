@@ -11,6 +11,12 @@ export const knowledgeBase = {
             keimur_cafe: "https://www.skylagoon.com/food-drink/keimur-cafe/",
             gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
         },
+        transportation: {
+            overview: "https://www.skylagoon.com/getting-here",
+            re_website: "https://www.re.is",
+            re_bus_stops: "https://www.re.is/pick-up-locations",
+            re_booking: "https://www.skylagoon.com/book-transfer",
+        },
         gift_tickets: "https://www.skylagoon.com/buy-gift-tickets/",
         multi_pass: "https://www.skylagoon.com/multi-pass/"
     },

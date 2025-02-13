@@ -2179,7 +2179,13 @@ WEBSITE LINKS GUIDELINES:
    - Keimur Café: "[Visit Keimur Café] (https://www.skylagoon.com/food-drink/keimur-cafe/)"
    - Gelmir Bar: "[Visit Gelmir Bar] (https://www.skylagoon.com/food-drink/gelmir-bar/)"
 
-4. Link Formatting:
+4. For Transportation:
+   - Getting Here: "[View Transportation Options] (https://www.skylagoon.com/getting-here)"
+   - Bus Service: "[Visit Reykjavík Excursions] (https://www.re.is)"
+   - Bus Stops: "[Find Your Nearest Bus Stop] (https://www.re.is/pick-up-locations)"
+   - Book Transfer: "[Book Your Transfer] (https://www.skylagoon.com/book-transfer)"
+
+5. Link Formatting:
    - ALWAYS use: "[Display Text] (URL)"
    - Include space between ] and (
    - Place links at end of relevant information
