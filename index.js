@@ -2174,9 +2174,9 @@ WEBSITE LINKS GUIDELINES:
 
 3. For Dining Options:
    - Overview: "[View All Dining Options] (https://www.skylagoon.com/food-drink)"
-   - Smakk Bar: "[Visit Smakk Bar] (https://www.skylagoon.com/dining/smakk-bar)"
-   - Keimur Café: "[Visit Keimur Café] (https://www.skylagoon.com/dining/keimur-cafe)"
-   - Gelmir Bar: "[Visit Gelmir Bar] (https://www.skylagoon.com/dining/gelmir-bar)"
+   - Smakk Bar: "[Visit Smakk Bar] (https://www.skylagoon.com/food-drink/smakk-bar/)"
+   - Keimur Café: "[Visit Keimur Café] (https://www.skylagoon.com/food-drink/keimur-cafe/)"
+   - Gelmir Bar: "[Visit Gelmir Bar] (https://www.skylagoon.com/food-drink/gelmir-bar/)"
 
 4. Link Formatting:
    - ALWAYS use: "[Display Text] (URL)"

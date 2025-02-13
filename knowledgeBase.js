@@ -8,7 +8,7 @@ export const knowledgeBase = {
         dining: {
             overview: "https://www.skylagoon.com/food-drink/",
             smakk_bar: "https://www.skylagoon.com/dining/smakk-bar/",
-            keimur_cafe: "https://www.skylagoon.com/dining/keimur-cafe/",
+            keimur_cafe: "https://www.skylagoon.com/food-drink/keimur-cafe/",
             gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
         },
         gift_tickets: "https://www.skylagoon.com/buy-gift-tickets/",
@@ -3046,7 +3046,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 type: 'gift_tickets',
                 content: {
                     ...knowledgeBase.gift_tickets,
-                    description: `Give the gift of relaxation with our gift cards. [View Gift Card Options] (${knowledgeBase.website_links.gift_tickets.replace(/\/$/, '')})`
+                    description: `Give the gift of relaxation with our gift cards. [TEST_DEBUG - View Gift Card Options] (${knowledgeBase.website_links.gift_tickets.replace(/\/$/, '')})`
                 }
             });
 
