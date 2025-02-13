@@ -11,7 +11,7 @@ export const knowledgeBase = {
             keimur_cafe: "https://www.skylagoon.com/dining/keimur-cafe/",
             gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
         },
-        gift_cards: "https://www.skylagoon.com/gift-cards/",
+        gift_cards: "https://www.skylagoon.com/buy-gift-tickets/",
         multi_pass: "https://www.skylagoon.com/multi-pass/"
     },
     opening_hours: {
@@ -3046,7 +3046,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 type: 'gift_tickets',
                 content: {
                     ...knowledgeBase.gift_tickets,
-                    description: `Give the gift of relaxation with our gift cards. [View Gift Card Options] (https://www.skylagoon.com/gift-cards)`
+                    description: `Give the gift of relaxation with our gift cards. [View Gift Ticket Options] (https://www.skylagoon.com/buy-gift-tickets/)`
                 }
             });
 

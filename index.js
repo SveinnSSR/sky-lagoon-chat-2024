@@ -2169,7 +2169,7 @@ WEBSITE LINKS GUIDELINES:
    - Packages: "[View Our Packages] (https://www.skylagoon.com/packages)"
    - Dining: "[View Dining Options] (https://www.skylagoon.com/food-drink/)"
    - Multi-Pass: "[View Multi-Pass Details] (https://www.skylagoon.com/multi-pass)"
-   - Gift Cards: "[View Sky Lagoon Giftcards] (https://www.skylagoon.com/gift-cards)"
+   - Gift Cards: "[View Sky Lagoon Gift Tickets] (https://www.skylagoon.com/buy-gift-tickets/)"
 
 3. Link Formatting:
    - ALWAYS use: "[Display Text] (URL)"
