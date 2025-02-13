@@ -1733,6 +1733,21 @@ export const knowledgeBase = {
         },
         shuttle_service: {
             provider: "Reykjavík Excursions",
+            provider_info: {
+                description: "The shuttle service to Sky Lagoon is operated by our partners at Reykjavík Excursions",
+                contact: {
+                    email: "info@icelandia.is",
+                    phone: "+354 599 0000",
+                    website: "www.re.is"
+                },
+                support_services: [
+                    "Bus stop information",
+                    "Schedule changes",
+                    "Pickup assistance",
+                    "Last-minute bookings",
+                    "Transportation inquiries"
+                ]
+            },
             bsi_service: {
                 departure_point: "BSÍ bus terminal",
                 departure_times: ["13:00 (GMT)", "15:00 (GMT)", "17:00 (GMT)", "19:00 (GMT)"],
@@ -1744,7 +1759,7 @@ export const knowledgeBase = {
                     finding_bus_stop: {
                         methods: [
                             "Check re.is website for official bus stop list",
-                            "Contact Reykjavík Excursions at +354 580 5400 for guidance",
+                            "Contact Reykjavík Excursions at +354 599 0000 for guidance",
                             "Select the designated bus stop nearest to your accommodation"
                         ],
                         main_bus_stops: [
@@ -1786,11 +1801,12 @@ export const knowledgeBase = {
                     "Book with Sky Lagoon ticket purchase",
                     "Book separately through www.re.is"
                 ],
-                modifications: "Contact Reykjavík Excursions directly for changes",
+                modifications: "Contact Reykjavík Excursions directly at info@icelandia.is for changes",
                 support: {
-                    phone: "+354 580 5400",
+                    phone: "+354 599 0000",
+                    email: "info@icelandia.is",
                     website: "www.re.is",
-                    help: "Contact for assistance finding nearest bus stop to your accommodation"
+                    help: "Contact Reykjavík Excursions for assistance finding nearest bus stop to your accommodation"
                 }
             }
         },
@@ -1881,7 +1897,7 @@ export const knowledgeBase = {
             transfer_details: {
                 round_trip: {
                     included: true,
-                    description: "All transfers include both pick-up and return service",
+                    description: "All transfers include both pick-up and return service, operated by Reykjavík Excursions",
                     return_info: "Return drop-off will be at the same location as pick-up",
                     timing: {
                         pickup: "30 minutes before booked time",
@@ -1891,7 +1907,7 @@ export const knowledgeBase = {
                 identification: {
                     bus_marking: "Reykjavík Excursions shuttle to Sky Lagoon",
                     bus_signs: ["Sky Lagoon", "Reykjavík Excursions"],
-                    contact: "If unsure, call +354 580 5400 for assistance",
+                    contact: "If unsure, contact Reykjavík Excursions at +354 599 0000 or info@icelandia.is",
                     what_to_look_for: [
                         "Look for Reykjavík Excursions branded bus",
                         "Bus will have Sky Lagoon signage",
@@ -1901,14 +1917,16 @@ export const knowledgeBase = {
                 important_notes: [
                     "Be visible at your stop 30 minutes before departure",
                     "Have your booking confirmation ready",
-                    "Contact +354 580 5400 if pickup is more than 20 minutes late",
+                    "Contact Reykjavík Excursions at +354 599 0000 if pickup is more than 20 minutes late",
+                    "For any transportation inquiries, contact info@icelandia.is",
                     "Return service drops off at original pickup location only"
                 ]
             },
             customer_support: {
-                phone: "+354 580 5400",
+                phone: "+354 599 0000",
                 website: "www.re.is",
-                email: "reservations@skylagoon.is",
+                email: "info@icelandia.is",
+                primary_contact: "For all transportation inquiries, please contact Reykjavík Excursions directly",
                 assistance_available: [
                     "Finding nearest bus stop",
                     "Locating the bus",
@@ -1920,12 +1938,14 @@ export const knowledgeBase = {
                     before_trip: [
                         "Help finding nearest stop",
                         "Schedule confirmation",
-                        "Special requirements"
+                        "Special requirements",
+                        "Contact Reykjavík Excursions directly at info@icelandia.is"
                     ],
                     during_trip: [
                         "Bus not arrived within 20 minutes of pickup time",
                         "Cannot locate bus",
-                        "Last-minute changes needed"
+                        "Last-minute changes needed",
+                        "Contact Reykjavík Excursions at +354 599 0000"
                     ]
                 }
             },
@@ -2117,9 +2137,10 @@ export const knowledgeBase = {
                 "Storm Hotel"
             ],
             support_info: {
-                contact: "+354 580 5400",
+                contact: "+354 599 0000",
+                email: "info@icelandia.is",
                 website: "www.re.is",
-                note: "Call for assistance finding nearest bus stop to your accommodation"
+                note: "Contact Reykjavík Excursions directly for assistance finding nearest bus stop to your accommodation"
             }
         },
         public_transport: {
@@ -3974,6 +3995,15 @@ export const getRelevantKnowledge = (userMessage) => {
                 relevantInfo.push({
                     type: 'shuttle_service_detailed',
                     content: {
+                        provider_info: {
+                            name: "Reykjavík Excursions",
+                            contact: {
+                                email: "info@icelandia.is",
+                                phone: "+354 580 5400",
+                                website: "www.re.is"
+                            },
+                            note: "All shuttle services are operated by our partners at Reykjavík Excursions"
+                        },
                         basic_info: knowledgeBase.transportation.shuttle_service,
                         identification: knowledgeBase.transportation.hotel_bus_stops.transfer_details.identification,
                         timing: knowledgeBase.transportation.hotel_bus_stops.transfer_details.timing,
@@ -3991,17 +4021,20 @@ export const getRelevantKnowledge = (userMessage) => {
                     type: 'missed_pickup',
                     content: {
                         instructions: [
-                            "If pickup hasn't arrived within 20 minutes, call +354 580 5400",
+                            "If pickup hasn't arrived within 20 minutes, contact Reykjavík Excursions at +354 599 0000",
                             "If you miss your pickup, you must reach BSÍ at own cost",
-                            "Contact Reykjavík Excursions for assistance with rescheduling"
+                            "Contact Reykjavík Excursions at info@icelandia.is for assistance with rescheduling"
                         ],
                         contact: {
-                            phone: "+354 580 5400",
-                            email: "reservations@skylagoon.is"
+                            phone: "+354 599 0000",
+                            email: "info@icelandia.is",
+                            provider: "Reykjavík Excursions",
+                            note: "All shuttle services are operated by Reykjavík Excursions"
                         },
                         bsi_info: {
                             location: "BSÍ Bus Terminal - City center",
-                            schedule: "Buses depart on the hour of your booking"
+                            schedule: "Buses depart on the hour of your booking",
+                            provider: "Operated by Reykjavík Excursions"
                         }
                     }
                 });
@@ -4076,7 +4109,10 @@ export const getRelevantKnowledge = (userMessage) => {
                 if (!foundDirectPickup && relevantInfo.length <= 1) {
                     relevantInfo.push({
                         type: 'shuttle_service',
-                        content: knowledgeBase.transportation.shuttle_service
+                        content: {
+                            ...knowledgeBase.transportation.shuttle_service,
+                            provider_note: "Our shuttle service is operated by Reykjavík Excursions. For assistance finding your nearest bus stop, please contact them directly at info@icelandia.is or +354 599 0000"
+                        }
                     });
                     relevantInfo.push({
                         type: 'hotel_bus_stops',
