@@ -1556,6 +1556,7 @@ const conversationBuffer = new Map(); // Buffer recent conversations
 // Context tracking constants
 const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
 const MAX_CONTEXT_MESSAGES = 10; // Maximum messages to keep in history
+const CONTEXT_MEMORY_LIMIT = 5;  // Keep last 5 interactions
 
 // Enhanced context tracking patterns
 const CONTEXT_PATTERNS = {
@@ -1611,6 +1612,7 @@ const initializeContext = (sessionId, language) => {
             topics: [],
             lastResponse: null,
             contextualQuestions: {},
+            previousInteractions: [], // Add this line
             addTopic: function(topic, details) {
                 this.topics.unshift({ topic, details, timestamp: Date.now() });
                 if (this.topics.length > 5) this.topics.pop();
@@ -4104,6 +4106,20 @@ const updateContext = (sessionId, message, response) => {
             message
         ];
 
+        // Enhanced conversation memory tracking
+        context.conversationMemory.previousInteractions.push({
+            type: 'user',
+            content: message,
+            timestamp: Date.now(),
+            topic: context.lastTopic || null
+        });
+
+        // Maintain memory limit
+        if (context.conversationMemory.previousInteractions.length > CONTEXT_MEMORY_LIMIT * 2) {
+            context.conversationMemory.previousInteractions = 
+                context.conversationMemory.previousInteractions.slice(-CONTEXT_MEMORY_LIMIT * 2);
+        }
+
         // Detect follow-up patterns
         const patterns = CONTEXT_PATTERNS.followUp[context.language === 'is' ? 'is' : 'en'];
         if (patterns.some(pattern => message.toLowerCase().includes(pattern))) {
@@ -4122,7 +4138,15 @@ const updateContext = (sessionId, message, response) => {
     if (response) {
         // Store answer and track references
         context.lastAnswer = response;
-        
+
+        // Track response in conversation memory
+        context.conversationMemory.previousInteractions.push({
+            type: 'assistant',
+            content: response,
+            timestamp: Date.now(),
+            topic: context.lastTopic || null
+        });        
+
         // Detect references to previous content
         const referencePatterns = CONTEXT_PATTERNS.reference[context.language === 'is' ? 'is' : 'en'];
         if (referencePatterns.some(pattern => response.toLowerCase().includes(pattern))) {
@@ -5051,9 +5075,119 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
-            // Use our early language detection result first
-            if (languageResult.hasDefiniteEnglish) {
-                return getRelevantKnowledge(userMessage);
+            // Get current session context
+            const sessionId = conversationContext.get('currentSession');
+            const context = sessionId ? conversationContext.get(sessionId) : null;
+
+            // Enhanced package detection
+            const isSamanQuery = userMessage.toLowerCase().includes('saman');
+            const isSerQuery = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
+            
+            // Update package context immediately
+            if (context) {
+                // Update package type if explicitly mentioned
+                if (isSamanQuery) context.lastPackage = 'saman';
+                if (isSerQuery) context.lastPackage = 'ser';
+                
+                // Maintain existing package context for follow-up questions
+                if (!context.lastPackage && (context.lastTopic === 'packages' || context.previousPackage)) {
+                    context.lastPackage = context.previousPackage;
+                }
+                
+                // Store current package as previous for next query
+                if (context.lastPackage) {
+                    context.previousPackage = context.lastPackage;
+                }
+
+                // Persist package context for follow-up questions and dining queries
+                if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|matur|veitingar/)) {
+                    context.lastTopic = 'dining';
+                    // Ensure package context carries over to dining
+                    if (context.previousPackage && !context.lastPackage) {
+                        context.lastPackage = context.previousPackage;
+                    }
+                }
+            }
+
+            console.log('\n🧠 Context Analysis:', {
+                message: userMessage,
+                lastTopic: context?.lastTopic,
+                lastPackage: context?.lastPackage,
+                lastLocation: context?.lastLocation,
+                isIcelandic: isIcelandic,
+                packageDetected: isSamanQuery ? 'saman' : isSerQuery ? 'ser' : null
+            });
+
+            // Add package context debug log
+            if (context?.lastPackage) {
+                console.log('\n📦 Package Context:', {
+                    current: context.lastPackage,
+                    previous: context.previousPackage,
+                    topic: context.lastTopic
+                });
+            }
+
+            // Check for package upgrade or modification questions first
+            if (context?.lastTopic === 'packages' || 
+                userMessage.toLowerCase().includes('saman') || 
+                userMessage.toLowerCase().includes('sér')) {
+
+                // Handle upgrade to private changing
+                if (userMessage.toLowerCase().match(/private|changing|sér|upgrade|better/)) {
+                    console.log('\n📦 Package Upgrade Detected');
+                    return [{
+                        type: 'packages',
+                        content: {
+                            type: 'ser',
+                            context: 'upgrade',
+                            previousPackage: context?.lastPackage || 'saman'
+                        }
+                    }];
+                }
+
+                // Handle dining within package context
+                if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|smakk|keimur|gelmir|matur|veitingar|innifalinn/)) {
+                    console.log('\n🍽️ Package Dining Query Detected:', {
+                        package: context?.lastPackage,
+                        query: userMessage
+                    });
+                    
+                    return [{
+                        type: 'dining',
+                        content: {
+                            packageType: context?.lastPackage || 'standard',
+                            dining: {
+                                options: ['Smakk Bar', 'Keimur Café', 'Gelmir Bar'],
+                                packageInclusions: context?.lastPackage === 'ser' ? 
+                                    ['Premium Dining Access', 'Sky Products'] :
+                                    context?.lastPackage === 'stefnumot' ? 
+                                    ['Sky Platter', 'Welcome Drink'] : []
+                            },
+                            isIncluded: userMessage.toLowerCase().includes('innifalinn'),
+                            packageSpecific: true
+                        }
+                    }];
+                }
+            }
+
+            // Handle location/facilities context
+            if (context?.lastServiceType === 'ser' || 
+                context?.lastPackage === 'ser' || 
+                userMessage.toLowerCase().includes('facilities')) {
+                
+                if (userMessage.toLowerCase().match(/where|location|facilities|changing|locker|shower|private/)) {
+                    console.log('\n🏢 Facilities Query Detected');
+                    return [{
+                        type: 'facilities',
+                        content: {
+                            type: 'ser',
+                            facilities: {
+                                changingRooms: 'private',
+                                amenities: ['Sky Products', 'Private Shower', 'Hair Dryer']
+                            }
+                        }
+                    }];
+                }
             }
 
             // Then check English structure
