@@ -5078,11 +5078,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Early language detection
             const languageResult = {
                 hasDefiniteEnglish: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
-                                  userMessage.toLowerCase().includes('sorry') ||
-                                  userMessage.toLowerCase().includes('thanks') ||
-                                  userMessage.toLowerCase().includes('thank you')
+                                   userMessage.toLowerCase().includes('sorry') ||
+                                   userMessage.toLowerCase().includes('thanks') ||
+                                   userMessage.toLowerCase().includes('thank you')
             };
-            
+        
             // Get current session context
             const sessionId = conversationContext.get('currentSession');
             const context = sessionId ? conversationContext.get(sessionId) : null;
@@ -5135,11 +5135,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
             }
 
-            // Check for package upgrade or modification questions first
-            if (context?.lastTopic === 'packages' || 
-                userMessage.toLowerCase().includes('saman') || 
-                userMessage.toLowerCase().includes('sér')) {
+            // Initialize context if it doesn't exist
+            if (!context) {
+                context = {
+                    lastTopic: null,
+                    lastPackage: null,
+                    language: isIcelandic ? 'is' : 'en'
+                };
+            }
 
+            // Check for package upgrade or modification questions first
+            const isPackageContext = context?.lastTopic === 'packages';
+            const isSamanMention = userMessage.toLowerCase().includes('saman');
+            const isSerMention = userMessage.toLowerCase().includes('sér');
+
+            if (isPackageContext || isSamanMention || isSerMention) {
                 // Handle upgrade to private changing
                 if (userMessage.toLowerCase().match(/private|changing|sér|upgrade|better/)) {
                     console.log('\n📦 Package Upgrade Detected');
@@ -5155,20 +5165,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Handle dining within package context
                 if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|smakk|keimur|gelmir|matur|veitingar|innifalinn/)) {
+                    const currentPackage = context?.lastPackage || 'standard';
+                    
                     console.log('\n🍽️ Package Dining Query Detected:', {
-                        package: context?.lastPackage,
+                        package: currentPackage,
                         query: userMessage
                     });
                     
                     return [{
                         type: 'dining',
                         content: {
-                            packageType: context?.lastPackage || 'standard',
+                            packageType: currentPackage,
                             dining: {
                                 options: ['Smakk Bar', 'Keimur Café', 'Gelmir Bar'],
-                                packageInclusions: context?.lastPackage === 'ser' ? 
+                                packageInclusions: currentPackage === 'ser' ? 
                                     ['Premium Dining Access', 'Sky Products'] :
-                                    context?.lastPackage === 'stefnumot' ? 
+                                    currentPackage === 'stefnumot' ? 
                                     ['Sky Platter', 'Welcome Drink'] : []
                             },
                             isIncluded: userMessage.toLowerCase().includes('innifalinn'),
