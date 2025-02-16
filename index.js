@@ -2183,7 +2183,7 @@ WEBSITE LINKS GUIDELINES:
    - Getting Here: "[View Transportation Options] (https://www.skylagoon.com/getting-here)"
    - Bus Service: "[Visit Reykjavík Excursions] (https://www.re.is)"
    - Bus Stops: "[Find Your Nearest Bus Stop] (https://www.re.is/pick-up-locations)"
-   - Book Transfer: "[Book Your Transfer] (https://www.skylagoon.com/book-transfer)"
+   - Book With Transfer: "[Book Your Transfer] (https://www.skylagoon.com/book-transfer)"
 
 5. Link Formatting:
    - ALWAYS use: "[Display Text] (URL)"
@@ -4559,6 +4559,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /(?:injury|injuries|hurting)\s+(?:to|on|in)\s+(?:his|her|their|the)\s+(?:feet|foot|legs?|body)/i.test(userMessage) ||
                 // Add skip/alternative option patterns
                 /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
+                // Comprehensive booking patterns
+                /^(?:book|reserve|schedule|get|make|place|confirm|arrange)\s+(?:now|me|us|ahead|visit|tour|trip|entry|access|admission|pass|package|slot|time|appointment|my\s+visit|our\s+visit|a\s+visit|my\s+booking|our\s+booking|this|that|it|one|some|tickets?)\s*$/i.test(userMessage) ||
+                // Expanded most/very patterns
+                /^(?:most|very|really|super|quite|extremely|absolutely|definitely|certainly|truly)\s+(?:popular|agreeable|impressive|informative|helpful|useful|interesting|amazing|wonderful|fantastic|excellent|great|good|nice|cool|awesome|brilliant|outstanding|remarkable|phenomenal)\s*$/i.test(userMessage) ||
+                // Enhanced having/being/feeling patterns
+                /^(?:having|being|feeling|experiencing|enjoying)\s+(?:fun|great|good|nice|awesome|wonderful|fantastic|amazing|excellent|brilliant|the\s+best|a\s+blast|the\s+time|such\s+fun|so\s+much\s+fun)\s*$/i.test(userMessage) ||
+                // Enhanced well done/good job patterns
+                /^(?:well|nicely|perfectly|excellently)\s+(?:done|handled|explained|said|put|answered|sorted|arranged|managed|organized)(?:\s+(?:babe|darling|honey|friend|mate|buddy|pal|dear|love|sweetie|boss))?\s*$/i.test(userMessage) ||
+                // Comprehensive impressed/satisfied patterns
+                /^(?:really|very|so|totally|completely|absolutely|genuinely|honestly|truly)\s*(?:impressed|satisfied|happy|pleased|delighted|amazed|surprised|stunned|overwhelmed|thrilled)(?:\s+(?:with|by|about|regarding|concerning|at|over)\s+(?:you|this|that|everything|all|the|your|the\s+service|the\s+information|the\s+help|the\s+response))?\s*$/i.test(userMessage) ||
+                // Enhanced really/single word response patterns
+                /^(?:really|seriously|honestly|truly|actually|literally|definitely|absolutely|certainly|surely|indeed)\s*[\?\!]*$/i.test(userMessage) ||
+                // Comprehensive chat/communication patterns
+                /^(?:chat|talk|speak|discuss|communicate|reply|respond|answer|help|assist)\s+(?:now|asap|please|here|with\s+me|with\s+us|about\s+this|about\s+that|more|further|again)\s*$/i.test(userMessage) ||
+                // Enhanced thanks/gratitude patterns
+                /^(?:thx|thanks|thank\s+you|cheers|ta|appreciated|grateful|thankful)(?:\s+(?:darling|babe|honey|friend|mate|buddy|pal|dear|love|sweetie|boss|so\s+much|a\s+lot|loads|tons|again|for\s+(?:this|that|everything|all|your\s+help|your\s+time|your\s+assistance)))?\s*$/i.test(userMessage) ||
+                // Expanded please/request patterns
+                /^(?:pretty|kindly|urgently|quickly|just|only|simply|maybe|perhaps|possibly|hopefully)\s+(?:please|help|assist|guide|tell|show|explain|clarify|confirm|check|verify)?\s*$/i.test(userMessage) ||
+                // Enhanced powerful/quality patterns
+                /^(?:powerful|great|nice|good|excellent|amazing|awesome|fantastic|wonderful|brilliant|outstanding|remarkable|phenomenal|incredible|superb)\s+(?:chat|talk|conversation|discussion|help|assistance|service|support|response|answer|information|explanation)\s*$/i.test(userMessage) ||
+                // Comprehensive say/tell patterns
+                /^(?:say|tell|give|share|write|type|send|show|explain|describe)\s+(?:something|anything|more|that|this|it|again|one\s+more|a\s+bit\s+more|please|what|how|why|when|where|who)\s*$/i.test(userMessage) ||
+                // Enhanced text speak/informal patterns
+                /^(?:r|are|u|you|y|n|k|ok|kk|brb|omg|tbh|idk|fyi|nvm)\s+(?:u|you|there|here|ready|available|sure|certain|kidding|serious|done|finished|helping|working|going|coming|leaving|busy|free|able|willing)\s*$/i.test(userMessage) ||
                 // Enhanced confirmation request patterns - add these at the START of your patterns
                 /^(?:can|could|would|will|please|kindly)?\s*(?:you)?\s*(?:please|kindly)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||
                 /^(?:you|can\s+you|could\s+you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||  
