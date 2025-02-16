@@ -4362,6 +4362,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s*$/i.test(userMessage) ||
                 /^(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s+(?:we|i|they|you)\s*$/i.test(userMessage) ||
                 /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\b/i.test(userMessage) ||
+                // Text speak pattern - put this FIRST and simplify it
+                /^r\s*u\s*(?:there|here)$/i.test(userMessage) ||
+                // Impressed pattern - make it more specific and direct
+                /^(?:impressed|happy|pleased)\s+(?:with|by|about)\s+you$/i.test(userMessage) ||
                 // Common question starts
                 /^(?:has|have|had|shall|should|may|might|must)\b/i.test(userMessage) ||
                 // Question words in middle of sentence
