@@ -5135,19 +5135,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
             }
 
-            // Initialize context if it doesn't exist
-            if (!context) {
-                context = {
-                    lastTopic: null,
-                    lastPackage: null,
-                    language: isIcelandic ? 'is' : 'en'
-                };
-            }
-
             // Check for package upgrade or modification questions first
             const isPackageContext = context?.lastTopic === 'packages';
             const isSamanMention = userMessage.toLowerCase().includes('saman');
-            const isSerMention = userMessage.toLowerCase().includes('sér');
+            const isSerMention = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
 
             if (isPackageContext || isSamanMention || isSerMention) {
                 // Handle upgrade to private changing
