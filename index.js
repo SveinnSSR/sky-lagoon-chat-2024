@@ -5075,6 +5075,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
+            // Early language detection
+            const languageResult = {
+                hasDefiniteEnglish: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
+                                  userMessage.toLowerCase().includes('sorry') ||
+                                  userMessage.toLowerCase().includes('thanks') ||
+                                  userMessage.toLowerCase().includes('thank you')
+            };
+            
             // Get current session context
             const sessionId = conversationContext.get('currentSession');
             const context = sessionId ? conversationContext.get(sessionId) : null;
@@ -5665,7 +5673,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         "Láttu mig vita hvaða þáttur áhugaverðastur.";
                 }
             } else {
-                response += ` ${getContextualTransition(context.lastTopic, 'confirmation')}`;
+                response += ` ${'Would you like to know anything else about our offerings?'}`;
             }
 
             // Add broadcast with consistent language detection
