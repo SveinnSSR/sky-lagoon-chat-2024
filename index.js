@@ -5229,13 +5229,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 isLocation: !!isLocationQuestion,
                 isComparison: !!isComparisonQuestion,
                 isFollowUp: !!isContextQuestion,
-                lastTopic: context.lastTopic || null,
+                lastTopic: context?.lastTopic || null,  // Added optional chaining
                 isLateArrival: !!arrivalCheck,
                 lateArrivalType: arrivalCheck?.type || null
             });
             
             // If we have context and it's a follow-up question
-            if (context.lastTopic) {
+            if (context?.lastTopic) {  // Added optional chaining
                 console.log('\n🧠 Using Context:', {
                     lastTopic: context.lastTopic,
                     previousTopic: context.prevQuestions,
@@ -6130,8 +6130,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         return res.status(500).json({
             message: errorMessage,
             language: {
-                detected: languageResult?.hasDefiniteEnglish ? 'English' : 
-                         (isIcelandic ? 'Icelandic' : 'English'),
+                detected: isIcelandic ? 'Icelandic' : 'English',
                 confidence: 'high'
             }
         });
