@@ -4369,9 +4369,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     
     try {
         console.log('\n🔍 Full request body:', req.body);
-        console.log('\n📥 Incoming Message:', req.body.message);
-
-        const userMessage = req.body.message;
+        
+        // Get message from either question or message field
+        const userMessage = req.body.message || req.body.question;
+        
+        console.log('\n📥 Incoming Message:', userMessage);
         
         // Initialize session ONCE at the start
         const currentSession = conversationContext.get('currentSession');
@@ -5440,7 +5442,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         };
 
         // Use the smart context function instead of direct knowledge base calls
-        const knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
+        let knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
 
         // Log full results
         console.log('\n📝 Full Knowledge Base Results:', {
@@ -5857,27 +5859,49 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                   userMessage.toLowerCase().includes('price') ||
                                   userMessage.toLowerCase().includes('cost');
 
-        // If no knowledge base matches found, check if it's a simple response
+        // If no knowledge base matches found, check if it's a hours query first
         if (knowledgeBaseResults.length === 0) {
-            const simpleResponseLanguage = checkSimpleResponse(userMessage);
-            if (simpleResponseLanguage) {
-                const response = simpleResponseLanguage === 'is' ? 
-                    "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                    "Is there anything else you'd like to know about Sky Lagoon?";
+            const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
+                                userMessage.toLowerCase().includes('open') || 
+                                userMessage.toLowerCase().includes('close') ||
+                                userMessage.toLowerCase().includes('time') ||
+                                userMessage.toLowerCase().includes('opin') ||
+                                userMessage.toLowerCase().includes('opið') ||
+                                userMessage.toLowerCase().includes('lokað') ||
+                                userMessage.toLowerCase().includes('lokar') ||
+                                userMessage.toLowerCase().includes('opnun') ||
+                                userMessage.toLowerCase().includes('lokun') ||
+                                userMessage.toLowerCase().includes('í dag') ||
+                                userMessage.toLowerCase().includes('á morgun') ||
+                                userMessage.toLowerCase().includes('hvenær');
 
-                // Add broadcast
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    simpleResponseLanguage,
-                    'acknowledgment',
-                    'direct_response'
-                );
-                    
-                return res.status(200).json({
-                    message: response,
-                    language: simpleResponseLanguage
-                });
+            if (isHoursQuery) {
+                // Force a knowledge base lookup for hours
+                knowledgeBaseResults = getRelevantKnowledge_is(userMessage);
+            }
+
+            // Only check for simple response if it's not an hours query
+            if (!isHoursQuery) {
+                const simpleResponseLanguage = checkSimpleResponse(userMessage);
+                if (simpleResponseLanguage) {
+                    const response = simpleResponseLanguage === 'is' ? 
+                        "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                        "Is there anything else you'd like to know about Sky Lagoon?";
+
+                    // Add broadcast
+                    await broadcastConversation(
+                        userMessage,
+                        response,
+                        simpleResponseLanguage,
+                        'acknowledgment',
+                        'direct_response'
+                    );
+                            
+                    return res.status(200).json({
+                        message: response,
+                        language: simpleResponseLanguage
+                    });
+                }
             }
         }
 
@@ -6235,9 +6259,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
+        // Get language from context or detect it
+        const userMsg = req.body?.message || req.body?.question || '';
+        const languageResult = {
+            hasDefiniteEnglish: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMsg) ||
+                               userMsg.toLowerCase().includes('sorry') ||
+                               userMsg.toLowerCase().includes('thanks') ||
+                               userMsg.toLowerCase().includes('thank you')
+        };
+        
+        const detectedLanguage = !languageResult.hasDefiniteEnglish && detectLanguage(userMsg);
+
         // Add broadcast for error scenarios
         await broadcastConversation(
-            req.body?.message || 'unknown_message',
+            userMsg || 'unknown_message',
             errorMessage,
             'en',
             'error',
@@ -6247,7 +6282,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         return res.status(500).json({
             message: errorMessage,
             language: {
-                detected: isIcelandic ? 'Icelandic' : 'English',
+                detected: detectedLanguage ? 'Icelandic' : 'English',
                 confidence: 'high'
             }
         });
