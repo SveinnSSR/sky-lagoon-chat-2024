@@ -1397,6 +1397,58 @@ const getCurrentSeason = () => {
     };
 };
 
+// Time context tracking helper
+const detectTimeContext = (message, seasonInfo) => {
+    const msg = message.toLowerCase();
+    
+    // Check for hours queries first - add Icelandic terms
+    const isHoursQuery = msg.match(/hours?|open|close|time|opin|opið|lokað|lokar|opnun|lokun|opening|closing/) &&
+                        !msg.match(/how long|take|duration|hvað tekur|hversu lengi/);
+                        
+    // Check for duration queries - add ritual specific terms
+    const isDurationQuery = msg.match(/how long|take|duration|hvað tekur|hversu lengi|hve lengi|hversu langan|takes how long|how much time|does it take/);
+    
+    // Check for ritual timing sequence
+    const isRitualQuery = msg.match(/ritual|ritúal|skjol|skjól/);
+    
+    // Check for dining timing
+    const isDiningQuery = msg.match(/dining|restaurant|food|eating|matur|veitingar|borða/);
+    
+    console.log('\n⏰ Time Context Detection:', {
+        message: msg,
+        isHoursQuery,
+        isDurationQuery,
+        isRitualQuery,
+        isDiningQuery,
+        currentSeason: seasonInfo.season,
+        currentHours: seasonInfo.closingTime
+    });
+    
+    // Determine the context type based on query
+    let type = null;
+    let activity = null;
+    
+    if (isDurationQuery) {
+        type = 'duration';
+        if (isRitualQuery) activity = 'ritual';
+        else if (isDiningQuery) activity = 'dining';
+    } else if (isHoursQuery) {
+        type = 'hours';
+    }
+    
+    return {
+        type,
+        activity,
+        season: seasonInfo.season,
+        operatingHours: {
+            closing: seasonInfo.closingTime,
+            lastRitual: seasonInfo.lastRitual,
+            barClose: seasonInfo.barClose,
+            lagoonClose: seasonInfo.lagoonClose
+        }
+    };
+};
+
 const UNKNOWN_QUERY_TYPES = {
     COMPLETELY_UNKNOWN: 'completely_unknown',    // No relevant knowledge found
 };
@@ -5087,6 +5139,33 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const sessionId = conversationContext.get('currentSession');
             const context = sessionId ? conversationContext.get(sessionId) : null;
 
+            // Time context detection
+            const timeContext = detectTimeContext(userMessage, getCurrentSeason());
+            if (timeContext.type && context) {
+                // Update existing timeContext with new information
+                context.timeContext = {
+                    ...context.timeContext,
+                    lastDiscussedTime: {
+                        type: timeContext.type,
+                        activity: timeContext.activity,
+                        timestamp: Date.now()
+                    },
+                    // Keep existing sequence and activityDuration
+                    sequence: timeContext.activity ? 
+                        [...context.timeContext.sequence, timeContext.activity] :
+                        context.timeContext.sequence,
+                    // Keep existing durations
+                    activityDuration: context.timeContext.activityDuration
+                };
+                
+                console.log('\n⏰ Time Context Updated:', {
+                    type: timeContext.type,
+                    activity: timeContext.activity,
+                    sequence: context.timeContext.sequence,
+                    operatingHours: timeContext.operatingHours
+                });
+            }
+
             // Enhanced package detection
             const isSamanQuery = userMessage.toLowerCase().includes('saman');
             const isSerQuery = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
@@ -5318,6 +5397,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 types: results.map(r => r.type),
                 language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
             });
+
+            // Filter results based on time context
+            if (timeContext.type) {
+                // For duration questions about specific activities
+                if (timeContext.type === 'duration' && timeContext.activity) {
+                    return results.filter(r => r.type === timeContext.activity)
+                        .map(r => ({
+                            ...r,
+                            priority: 'duration',
+                            activityDuration: context.timeContext.activityDuration[timeContext.activity]
+                        }));
+                }
+
+                // For hours queries
+                if (timeContext.type === 'hours') {
+                    return results.filter(r => r.type === 'hours' || r.type === 'seasonal_information')
+                        .map(r => ({
+                            ...r,
+                            operatingHours: timeContext.operatingHours
+                        }));
+                }
+            }
 
             return results;
         };
