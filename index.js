@@ -5140,7 +5140,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // ADD NEW SMART CONTEXT CODE Right HERE 👇 
+        // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage, isIcelandic) => {
             // Early language detection
