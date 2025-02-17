@@ -2020,6 +2020,20 @@ const detectLateArrivalScenario = (message) => {
         });
 
         if (bookingTime !== null && arrivalTime !== null) {
+            // Check if trying to arrive earlier than booking
+            if (arrivalTime < bookingTime) {
+                console.log('\n⏰ Early Arrival Request:', {
+                    bookingTime,
+                    arrivalTime,
+                    difference: bookingTime - arrivalTime
+                });
+                // Not a late arrival scenario - early arrival request
+                return {
+                    type: 'early_arrival',
+                    minutes: bookingTime - arrivalTime
+                };
+            }
+
             const difference = arrivalTime - bookingTime;
             console.log('\n⏰ Time Difference Analysis:', {
                 bookingTime,
@@ -5099,6 +5113,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
             } else if (arrivalCheck.type === 'within_grace') {
                 response = getRandomResponse(BOOKING_RESPONSES.within_grace);
+            } else if (arrivalCheck.type === 'early_arrival') {
+                response = "We recommend booking for the actual time you plan to arrive. Our capacity is managed in real-time, and we cannot guarantee availability if you arrive earlier than your booked time. Please book directly for your preferred arrival time to ensure your spot.";    
             } else if (arrivalCheck.type === 'moderate_delay') {
                 response = getRandomResponse(context.soldOutStatus ? 
                     BOOKING_RESPONSES.moderate_delay.sold_out : 
