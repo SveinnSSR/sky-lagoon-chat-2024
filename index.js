@@ -1401,6 +1401,10 @@ const getCurrentSeason = () => {
 const detectTimeContext = (message, seasonInfo) => {
     const msg = message.toLowerCase();
     
+    // First check for follow-up time queries
+    const isFollowUpQuery = msg.match(/^and\s+(what|how|about)/i) ||
+                           msg.match(/^and\s+(dinner|food|eating|ritual)/i);
+    
     // Check for hours queries first - add Icelandic terms
     const isHoursQuery = msg.match(/hours?|open|close|time|opin|opið|lokað|lokar|opnun|lokun|opening|closing/) &&
                         !msg.match(/how long|take|duration|hvað tekur|hversu lengi/);
@@ -1411,8 +1415,9 @@ const detectTimeContext = (message, seasonInfo) => {
     // Check for ritual timing sequence
     const isRitualQuery = msg.match(/ritual|ritúal|skjol|skjól/);
     
-    // Check for dining timing
-    const isDiningQuery = msg.match(/dining|restaurant|food|eating|matur|veitingar|borða/);
+    // Check for dining timing - add follow-up patterns
+    const isDiningQuery = msg.match(/dining|restaurant|food|eating|matur|veitingar|borða|veitingastað|veitingarstað|veitingastaður|matseðil|eruði með|hafið þið|er hægt að fá mat|hægt að borða/) ||
+                         isFollowUpQuery && msg.includes('dinner');
     
     console.log('\n⏰ Time Context Detection:', {
         message: msg,
@@ -1420,6 +1425,7 @@ const detectTimeContext = (message, seasonInfo) => {
         isDurationQuery,
         isRitualQuery,
         isDiningQuery,
+        isFollowUp: isFollowUpQuery,
         currentSeason: seasonInfo.season,
         currentHours: seasonInfo.closingTime
     });
@@ -1428,12 +1434,22 @@ const detectTimeContext = (message, seasonInfo) => {
     let type = null;
     let activity = null;
     
-    if (isDurationQuery) {
+    if (isDurationQuery || isFollowUpQuery) {
         type = 'duration';
         if (isRitualQuery) activity = 'ritual';
         else if (isDiningQuery) activity = 'dining';
     } else if (isHoursQuery) {
         type = 'hours';
+    }
+    
+    // Log follow-up handling
+    if (isFollowUpQuery) {
+        console.log('\n🔄 Follow-up Query Detected:', {
+            original: message,
+            type,
+            activity,
+            isDining: isDiningQuery
+        });
     }
     
     return {
@@ -5875,9 +5891,35 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 userMessage.toLowerCase().includes('á morgun') ||
                                 userMessage.toLowerCase().includes('hvenær');
 
-            if (isHoursQuery) {
-                // Force a knowledge base lookup for hours
+            const isDiningQuery = userMessage.toLowerCase().includes('veitingastað') ||
+                                userMessage.toLowerCase().includes('veitingar') ||
+                                userMessage.toLowerCase().includes('veitingarstað') ||
+                                userMessage.toLowerCase().includes('veitingastaður') ||
+                                userMessage.toLowerCase().includes('restaurant') ||
+                                userMessage.toLowerCase().includes('food') ||
+                                userMessage.toLowerCase().includes('dining') ||
+                                userMessage.toLowerCase().includes('matur') ||
+                                userMessage.toLowerCase().includes('borða') ||
+                                userMessage.toLowerCase().includes('matseðil') ||
+                                // Add these crucial pattern checks
+                                userMessage.toLowerCase().includes('með veitinga') ||   // Catches "eruð þið með veitinga..."
+                                userMessage.toLowerCase().includes('sýna matseðil') ||  // Catches "getið þið sýnt matseðil..."
+                                userMessage.toLowerCase().includes('sýnt mér') ||       // Catches menu show requests
+                                userMessage.toLowerCase().includes('eruð þið með') ||
+                                userMessage.toLowerCase().includes('hafið þið') ||
+                                userMessage.toLowerCase().includes('er hægt að fá mat') ||
+                                userMessage.toLowerCase().includes('hægt að borða');
+
+            // The critical part - force knowledge base lookup for ANY dining query
+            if (isHoursQuery || isDiningQuery) {
                 knowledgeBaseResults = getRelevantKnowledge_is(userMessage);
+
+                // Add debug logging
+                console.log('\n🍽️ Dining Query Debug:', {
+                    message: userMessage,
+                    isDiningQuery,
+                    gotResults: knowledgeBaseResults.length > 0
+                });
             }
 
             // Only check for simple response if it's not an hours query

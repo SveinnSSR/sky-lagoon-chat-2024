@@ -2837,7 +2837,11 @@ if (message.includes('opið') ||
         message.includes('sælkera') ||    // Base form
         message.includes('matseðil') ||   // Catches matseðill, matseðilinn
         message.includes('veitingar') ||
-        message.includes('veitingastaður') ||
+        message.includes('veitingastað') ||     // Accusative
+        message.includes('veitingastaður') ||   // Nominative
+        message.includes('veitingastaðinn') ||  // Accusative with article
+        message.includes('veitingastaðnum') ||  // Dative with article
+        message.includes('veitingastaði') ||    // Multiple accusative
         message.includes('matsölustaður') ||
         message.includes('café') || 
         message.includes('kaffihús') ||
@@ -2910,8 +2914,26 @@ if (message.includes('opið') ||
 
         console.log('\n🍽️ Food & Beverage Match Found');
 
-        // Check for specific menu queries FIRST
-        if (message.match(/hvað er á|hvað er í|hvað inniheldur|hver er/i)) {
+        // Check for menu queries FIRST
+        if (message.includes('matseðil') || 
+            message.includes('matseðill') ||
+            message.includes('matseðilinn') ||
+            message.includes('sýna matseðil') ||
+            message.includes('sýnt matseðil') ||
+            message.match(/má sjá|getið þið sýnt|hvaða plattar|hvað er á/i)) {
+            
+            console.log('\n📋 Menu Request Detected');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'menu_details',
+                content: {
+                    small_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.small_platters,
+                    large_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters
+                }
+            });
+        }
+        // Then check for specific menu items
+        else if (message.match(/hvað er á|hvað er í|hvað inniheldur|hver er/i)) {
             console.log('\n📋 Menu Item Query Detected');
             
             // Check all menu items
@@ -2939,19 +2961,21 @@ if (message.includes('opið') ||
                     }
                 });
             }
-            // If asking about full menu
-            else if (message.includes('matseðil') || 
-                    message.match(/hvaða plattar|hvað er á/i)) {
-                console.log('\n📋 Full Menu Request Detected');
-                relevantInfo.push({
-                    type: 'dining',
-                    subtype: 'menu_details',
-                    content: {
-                        small_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.small_platters,
-                        large_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters
-                    }
-                });
-            }
+        }
+        // Check for general restaurant queries
+        else if (message.includes('eruð þið með') || 
+                message.includes('hafið þið') ||
+                message.includes('er hægt að fá') ||
+                message.match(/hvar er hægt að|hvar get ég|get ég fengið/i)) {
+            
+            console.log('\n🍽️ General Restaurant Query Detected');
+            relevantInfo.push({
+                type: 'dining',
+                content: {
+                    overview: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
+                    venues: knowledgeBase_is.dining.venues
+                }
+            });
         }
         // Check for dietary requirements 
         else if (message.includes('glúten') ||
@@ -2994,12 +3018,12 @@ if (message.includes('opið') ||
         }
         // Then check venue-specific info
         else if (message.includes('smakk') || 
-            message.includes('sælkera') || 
-            message.includes('plattar') ||
-            message.includes('plött') ||
-            message.includes('ostar') ||
-            message.includes('graflax') ||
-            message.includes('síld')) {
+                message.includes('sælkera') || 
+                message.includes('plattar') ||
+                message.includes('plött') ||
+                message.includes('ostar') ||
+                message.includes('graflax') ||
+                message.includes('síld')) {
             
             console.log('\n🍽️ Smakk Bar Match Found');
             relevantInfo.push({
@@ -3007,23 +3031,24 @@ if (message.includes('opið') ||
                 subtype: 'smakk_bar',
                 content: knowledgeBase_is.dining.venues.smakk_bar
             });
-        } else if (message.includes('keimur') || 
-                   message.includes('kaffi') ||
-                   message.includes('espresso') ||
-                   message.includes('latte') ||
-                   message.includes('cappuccino') ||
-                   message.includes('súrdeigssamloka') ||
-                   message.includes('súpa') ||
-                   message.includes('beygla') ||
-                   message.includes('skyr') ||
-                   message.includes('bakkelsi') ||
-                   // New patterns from website content
-                   message.includes('nýbakað') ||
-                   message.includes('te & kaffi') ||
-                   message.includes('sandholt') ||
-                   message.includes('kruðerí') ||
-                   message.includes('kaffibolla') ||
-                   (message.includes('notaleg') && message.includes('stund'))) {
+        } 
+        else if (message.includes('keimur') || 
+                message.includes('kaffi') ||
+                message.includes('espresso') ||
+                message.includes('latte') ||
+                message.includes('cappuccino') ||
+                message.includes('súrdeigssamloka') ||
+                message.includes('súpa') ||
+                message.includes('beygla') ||
+                message.includes('skyr') ||
+                message.includes('bakkelsi') ||
+                // New patterns from website content
+                message.includes('nýbakað') ||
+                message.includes('te & kaffi') ||
+                message.includes('sandholt') ||
+                message.includes('kruðerí') ||
+                message.includes('kaffibolla') ||
+                (message.includes('notaleg') && message.includes('stund'))) {
             
             console.log('\n☕ Keimur Café Match Found');
             relevantInfo.push({
@@ -3031,23 +3056,24 @@ if (message.includes('opið') ||
                 subtype: 'keimur_cafe',
                 content: knowledgeBase_is.dining.venues.keimur_cafe
             });
-        } else if (message.includes('gelmir') || 
-                   message.includes('áfengi') ||
-                   message.includes('bjór') ||
-                   message.includes('vín') ||
-                   message.includes('drykkir') ||
-                   message.includes('bar') ||
-                   message.includes('lóninu') ||
-                   // New patterns from website content
-                   message.includes('drykkja') ||
-                   message.includes('armband') ||
-                   message.includes('skanna') ||
-                   message.includes('búbblur') ||
-                   message.includes('áfengislaus') ||
-                   message.includes('heilsusafi') ||
-                   (message.includes('þrír') && message.includes('drykkir')) ||
-                   (message.includes('panta') && message.includes('drykk')) ||
-                   message.includes('freyðivín')) {
+        } 
+        else if (message.includes('gelmir') || 
+                message.includes('áfengi') ||
+                message.includes('bjór') ||
+                message.includes('vín') ||
+                message.includes('drykkir') ||
+                message.includes('bar') ||
+                message.includes('lóninu') ||
+                // New patterns from website content
+                message.includes('drykkja') ||
+                message.includes('armband') ||
+                message.includes('skanna') ||
+                message.includes('búbblur') ||
+                message.includes('áfengislaus') ||
+                message.includes('heilsusafi') ||
+                (message.includes('þrír') && message.includes('drykkir')) ||
+                (message.includes('panta') && message.includes('drykk')) ||
+                message.includes('freyðivín')) {
             
             console.log('\n🍷 Gelmir Bar Match Found');
             relevantInfo.push({
