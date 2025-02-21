@@ -1,17 +1,25 @@
-import { detectLanguage as newDetectLanguage } from './languageDetection.js';
+// Essential imports
 import dotenv from 'dotenv';
 dotenv.config();
+// Core dependencies
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import OpenAI from 'openai';
-import { getRelevantKnowledge } from './knowledgeBase.js';
-import { getRelevantKnowledge_is, detectLanguage, getLanguageContext } from './knowledgeBase_is.js';
-// Add these imports at the top of your index.js with your other imports
-import { WebSocketServer } from 'ws'; // propbably safe to remove this as we are using pusher now
 import { v4 as uuidv4 } from 'uuid';
-// Add Pusher import
 import Pusher from 'pusher';
+// Knowledge base and language detection
+import { getRelevantKnowledge } from './knowledgeBase.js';
+import { 
+    knowledgeBase_is,
+    getRelevantKnowledge_is, 
+    detectLanguage, 
+    getLanguageContext 
+} from './knowledgeBase_is.js';
+import { detectLanguage as newDetectLanguage } from './languageDetection.js';
+
+// WebSocket can be removed as noted
+// import { WebSocketServer } from 'ws';
 
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
@@ -3352,7 +3360,7 @@ IF user says "yes" to more information:
     }
   
     // Add Icelandic guidelines if Icelandic detected
-    if (languageDecision.isIcelandic) {
+    if (languageDecision.isIcelandic && knowledgeBase_is?.website_links) {
         basePrompt += `
 ICELANDIC RESPONSE GUIDELINES:
 WEBSITE LINKS GUIDELINES:
