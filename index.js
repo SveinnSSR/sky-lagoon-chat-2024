@@ -4163,6 +4163,15 @@ const handleCasualChat = (message, languageDecision) => {
     try {
         const msg = message.toLowerCase();
         
+        // Add early return for booking queries
+        if (msg.includes('bóka') || 
+            msg.includes('panta') || 
+            msg.includes('tíma') || 
+            msg.includes('stefnumót') ||
+            msg.includes('hvernig bóka')) {
+            return null;
+        }
+        
         // Log chat analysis
         console.log('\n💬 Casual Chat Analysis:', {
             message: msg,
@@ -5512,7 +5521,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                   userMessage.toLowerCase().includes('offer') ||
                                   userMessage.toLowerCase().includes('deal') ||
                                   userMessage.toLowerCase().includes('price') ||
-                                  userMessage.toLowerCase().includes('cost');
+                                  userMessage.toLowerCase().includes('cost') ||
+                                  // Add these booking-specific terms
+                                  userMessage.toLowerCase().includes('tíma') ||
+                                  userMessage.toLowerCase().includes('stefnumót') ||
+                                  userMessage.toLowerCase().includes('hvernig bóka') ||
+                                  userMessage.toLowerCase().includes('bóka tíma');
 
         // Add shouldBeUnknown check first
         const shouldBeUnknown = !knowledgeBaseResults.length && !isKnownBusinessTopic;
