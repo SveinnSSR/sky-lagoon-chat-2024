@@ -443,6 +443,15 @@ const GREETING_RESPONSES = {
     ]
 };
 
+const isBookingQuery = (message) => {
+    const msg = message.toLowerCase();
+    return msg.includes('bóka') || 
+           msg.includes('panta') || 
+           msg.includes('tíma') || 
+           msg.includes('stefnumót') ||
+           msg.includes('hvernig bóka');
+};
+
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -5532,14 +5541,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const shouldBeUnknown = !knowledgeBaseResults.length && !isKnownBusinessTopic;
 
         // Enhanced small talk handling with new language detection system
-        if (knowledgeBaseResults.length === 0 && !originalResults && !shouldBeUnknown && !isServiceQuestion(userMessage, languageDecision)) {
-            const simpleResponseType = checkSimpleResponse(msg, languageDecision);
-            const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
-            if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
-                Object.values(category).some(patterns => 
-                    patterns.some(pattern => msg.includes(pattern))
-                ))
-            ) {
+        if (knowledgeBaseResults.length === 0 && 
+            !originalResults && 
+            !shouldBeUnknown && 
+            !isServiceQuestion(userMessage, languageDecision) && 
+            !isBookingQuery(userMessage)) {
+                const simpleResponseType = checkSimpleResponse(msg, languageDecision);
+                const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
+                if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
+                    Object.values(category).some(patterns => 
+                        patterns.some(pattern => msg.includes(pattern))
+                    ))
+                ) {
                 context.lastTopic = 'small_talk';
                 context.conversationStarted = true;
                 
