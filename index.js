@@ -1605,7 +1605,9 @@ const calculateConfidence = (userMessage, relevantKnowledge, languageDecision) =
 
     // Check for direct matches in knowledge base sections
     relevantKnowledge.forEach(info => {
-        const contentStr = JSON.stringify(info.content).toLowerCase();
+        // Safety check for info.content
+        const contentToCheck = info.content || info;
+        const contentStr = JSON.stringify(contentToCheck).toLowerCase();
         
         // Calculate match percentage based on key terms
         const words = message.split(' ').filter(word => word.length > 3);

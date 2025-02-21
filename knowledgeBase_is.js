@@ -3433,6 +3433,16 @@ if (message.includes('opið') ||
 
     // Booking and late arrival related queries
     if (message.includes('mæta') || 
+        // General booking query patterns
+        message.includes('hvernig bóka') ||
+        message.includes('hvar bóka') ||
+        message.includes('langar að bóka') ||
+        message.includes('vil bóka') ||
+        message.includes('get ég bókað') ||
+        message.includes('er hægt að bóka') ||
+        message.includes('má bóka') ||
+        (message.includes('hvernig') && message.includes('panta')) ||
+        // Existing patterns
         message.includes('seinn') || 
         message.includes('sein') ||
         message.includes('endurbóka') ||
@@ -3463,6 +3473,25 @@ if (message.includes('opið') ||
         message.includes('tímanum')) {
         
         console.log('\n📅 Booking Related Query Match Found');
+
+        // Check for basic "how to book" queries first
+        if (message.includes('hvernig bóka') || 
+            message.includes('hvar bóka') ||
+            message.includes('langar að bóka') ||
+            message.includes('vil bóka') ||
+            message.includes('get ég bókað') ||
+            message.includes('er hægt að bóka') ||
+            message.includes('má bóka') ||
+            (message.includes('hvernig') && message.includes('panta'))) {
+            
+            console.log('\n📝 General Booking Instructions Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'how_to_book',
+                content: knowledgeBase_is.booking.general_info
+            });
+            return relevantInfo;  // Return immediately for basic booking queries
+        }
 
         // Check for booking changes first
         if (message.includes('breyta') || 
