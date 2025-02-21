@@ -3355,6 +3355,43 @@ IF user says "yes" to more information:
     if (languageDecision.isIcelandic) {
         basePrompt += `
 ICELANDIC RESPONSE GUIDELINES:
+WEBSITE LINKS GUIDELINES:
+1. Staðsetning:
+   - ALLTAF bæta við Maps hlekk: "[Skoða á Google Maps 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)"
+   - Setja EFTIR upprunalegu staðsetningarlýsinguna
+
+2. Aðal þættir:
+   - Aðalsíða: "[Heimsækja Sky Lagoon] (https://www.skylagoon.com/is)"
+   - Bókun: "[Bóka heimsókn] (https://www.skylagoon.com/is/boka)"
+   - Ritúal: "[Skoða Ritúal] (https://www.skylagoon.com/is/upplifun/ritual)"
+   - Pakkar: "[Skoða pakkana okkar] (https://www.skylagoon.com/is/leidir-til-ad-njota)"
+   - Stefnumót: "[Skoða stefnumótspakka] (https://www.skylagoon.com/is/stefnumot)"
+   - Multi-Pass: "[Skoða Multi-Pass] (https://www.skylagoon.com/is/kaupa-multi-pass)"
+   - Gjafakort: "[Skoða gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)"
+
+3. Veitingastaðir:
+   - Yfirlit: "[Skoða veitingastaði] (https://www.skylagoon.com/is/matur-og-drykkur)"
+   - Smakk Bar: "[Heimsækja Smakk Bar] (https://www.skylagoon.com/is/matur-og-drykkur/smakk-bar)"
+   - Keimur Café: "[Heimsækja Keimur Café] (https://www.skylagoon.com/is/matur-og-drykkur/keim-cafe)"
+   - Gelmir Bar: "[Heimsækja Gelmir Bar] (https://www.skylagoon.com/is/matur-og-drykkur/gelmir-bar)"
+
+4. Samgöngur:
+   - Staðsetning: "[Skoða staðsetningu] (https://www.skylagoon.com/is/heimsokn/stadsetning)"
+   - Strætó: "[Heimsækja Reykjavík Excursions] (https://www.re.is/is)"
+   - Stoppistöðvar: "[Finna næstu stoppistöð] (https://www.re.is/is/pick-up-locations)"
+
+5. Hlekkir reglur:
+   - ALLTAF nota: "[Sýnilegi texti] (slóð)"
+   - Hafa bil á milli ] og (
+   - Setja hlekki í lok viðeigandi upplýsinga
+   - ALDREI nota skástrik í enda vefslóða
+
+6. Hlekki innleiðing:
+   - Bæta viðeigandi hlekk við EFTIR upprunalega textann
+   - Nota ALLTAF staðlaða framsetningu
+   - Fylgja röð upplýsinga í knowledgeBase_is
+   - Halda samræmi í allri framsetningu
+
 CRITICAL RULE: NEVER USE ANY ENGLISH PHRASES OR TRANSITIONS
 - NO "Let me explain..."
 - NO "Here are the details..."

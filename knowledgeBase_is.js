@@ -251,6 +251,27 @@ export const getLanguageContext = (message) => {
 
 // Main knowledge base structure
 export const knowledgeBase_is = {
+    website_links: {
+        main: "https://www.skylagoon.com/is",
+        booking: "https://www.skylagoon.com/is/boka",
+        packages: "https://www.skylagoon.com/is/leidir-til-ad-njota",
+        ritual: "https://www.skylagoon.com/is/upplifun/ritual",
+        stefnumot: "https://www.skylagoon.com/is/stefnumot",
+        dining: {
+            overview: "https://www.skylagoon.com/is/matur-og-drykkur",
+            smakk_bar: "https://www.skylagoon.com/is/matur-og-drykkur/smakk-bar",
+            keimur_cafe: "https://www.skylagoon.com/is/matur-og-drykkur/keim-cafe",
+            gelmir_bar: "https://www.skylagoon.com/is/matur-og-drykkur/gelmir-bar"
+        },
+        transportation: {
+            overview: "https://www.skylagoon.com/is/heimsokn/stadsetning",
+            re_website: "https://www.re.is/is",
+            re_bus_stops: "https://www.re.is/is/pick-up-locations"
+        },
+        gift_tickets: "https://www.skylagoon.com/is/kaupa-gjafakort",
+        multi_pass: "https://www.skylagoon.com/is/kaupa-multi-pass"
+    },
+
     opening_hours: {
         questions: [
             "Hvernig eru opnunartímarnir?",
@@ -685,7 +706,7 @@ export const knowledgeBase_is = {
             "Hvernig er ritúalmeðferðin?"
         ],
         name: "Skjól Ritúal",
-        tagline: "Nærandi ferðalag fyrir öll skilningarvitin",
+        tagline: "Nærandi ferðalag fyrir öll skilningarvitin [Skoða Ritúal] (https://www.skylagoon.com/is/upplifun/ritual)",
         description: "Fullkomnaðu upplifunina í sjö nærandi skrefum.",
         answer: "Skjól Ritúal meðferðin er innifalin í Sér og Saman pössum. Fullt ferðalag í gegnum öll sjö skref Skjól Ritúalsins er í boði einusinni en þér er velkomið að hafa það notalegt í lóninu eins lengi og þig lystir. Skjól Ritúalið byggir á heilunarmátt heita og kalda vatnsins, við hvetjum þig að drekka nóg af vatni og njóta hvers skrefs til hins ýtrasta.",
         steps: {
@@ -771,7 +792,7 @@ export const knowledgeBase_is = {
         saman: {
             name: "Saman aðgangur",
             subtitle: "Almenn búningsaðstaða",
-            description: "Vinsælasta leiðin okkar. Hún veitir aðgang að almennri búningsaðstöðu ásamt sjö skrefa Skjól Ritúal meðferðinni.",
+            description: "Vinsælasta leiðin okkar. Hún veitir aðgang að almennri búningsaðstöðu ásamt sjö skrefa Skjól Ritúal meðferðinni. [Skoða Saman aðgang] (https://www.skylagoon.com/is/leidir-til-ad-njota)",
             pricing: {
                 weekday: {
                     range: "12.990 ISK",
@@ -806,7 +827,7 @@ export const knowledgeBase_is = {
         ser: {
             name: "Sér aðgangur",
             subtitle: "Vel búnir einkaklefar",
-            description: "Viltu aukið næði og meiri þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
+            description: "Viltu aukið næði og meiri þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu. [Skoða Sér aðgang] (https://www.skylagoon.com/is/leidir-til-ad-njota)",
             pricing: {
                 weekday: {
                     range: "15.990 ISK",
@@ -840,7 +861,7 @@ export const knowledgeBase_is = {
         },
         stefnumot: {
             name: "Stefnumót í Sky Lagoon",
-            tagline: "Njóttu Sky Lagoon með þeim sem þér þykir vænt um, hvort sem það er maki, foreldri eða vinur.",
+            tagline: "Njóttu Sky Lagoon með þeim sem þér þykir vænt um, hvort sem það er maki, foreldri eða vinur. [Skoða stefnumótspakka] (https://www.skylagoon.com/is/stefnumot)",
             important_note: "Athugið að Smakk Bar tekur síðustu pantanir 30 mínútum fyrir lokun.",
             ser: {
                 name: "Sér Stefnumót",
@@ -879,7 +900,7 @@ export const knowledgeBase_is = {
         ],
         marketing: {
             tagline: "Regluleg vellíðan",
-            description: "Settu vellíðan og heilsu í fyrsta sæti með Multi-Pass og fáðu sex skipti í Sky Lagoon á um helmings afslætti af hefðbundnu verði."
+            description: "Settu vellíðan og heilsu í fyrsta sæti með Multi-Pass og fáðu sex skipti í Sky Lagoon á um helmings afslætti af hefðbundnu verði. [Skoða Multi-Pass] (https://www.skylagoon.com/is/kaupa-multi-pass)"
         },
         general_info: {
             description: "Multi passi er persónulegt fjölnotakort sem veitir þér sex heimsóknir í Sky Lagoon.",
@@ -897,7 +918,7 @@ export const knowledgeBase_is = {
                 name: "Hefð Multi-Pass",
                 subtitle: "Skjól Ritúal",
                 tagline: "vel búnir einkaklefar",
-                description: "Njóttu Sér leiðarinnar með aðgangi að lóninu, sjö skrefa Skjól Ritúal meðferðinni og fullbúnum einkaklefa í sex skipti.",
+                description: "Njóttu Sér leiðarinnar með aðgangi að lóninu, sjö skrefa Skjól Ritúal meðferðinni og fullbúnum einkaklefa í sex skipti. [Kaupa Hefð Multi-Pass] (https://www.skylagoon.com/is/kaupa-multi-pass)",
                 visits: "6 skipti",
                 price: "44,970 ISK"
             },
@@ -905,7 +926,7 @@ export const knowledgeBase_is = {
                 name: "Venja Multi-Pass",
                 subtitle: "Skjól Ritúal",
                 visits: "6 skipti",
-                description: "Njóttu Saman leiðarinnar með aðgangi að lóninu og sjö skrefa Skjól Ritúal meðferðinni í sex skipti.",
+                description: "Njóttu Saman leiðarinnar með aðgangi að lóninu og sjö skrefa Skjól Ritúal meðferðinni í sex skipti. [Kaupa Venju Multi-Pass] (https://www.skylagoon.com/is/kaupa-multi-pass)",
                 price: "35,970 ISK"
             }
         },
@@ -913,7 +934,7 @@ export const knowledgeBase_is = {
             steps: [
                 {
                     title: "1. Finndu þér tíma",
-                    description: "Skipulegðu heimsóknina þína fyrir fram með því að velja dag- og tímasetningu."
+                    description: "Skipulegðu heimsóknina þína fyrir fram með því að velja dag- og tímasetningu. [Bóka heimsókn] (https://www.skylagoon.com/is/boka)"
                 },
                 {
                     title: "2. Ganga frá bókun",
@@ -1032,7 +1053,7 @@ export const knowledgeBase_is = {
             "Sky leiðin á íslensku"
         ],
         marketing: {
-            tagline: "Gjafakort frá Sky Lagoon",
+            tagline: "Gjafakort frá Sky Lagoon [Skoða gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)",
             description: "Gjafakort Sky Lagoon er fullkomið fyrir öll þau sem vilja gefa gjöf sem endurnærir bæði sál og líkama. Fátt er betra en að slaka á undir berum himni í heitu baðlóni í stórbrotnu umhverfi og anda að sér fersku sjávarlofti í amstri hversdagsins."
         },
         legacy_names: {
@@ -1084,18 +1105,18 @@ export const knowledgeBase_is = {
                 name: "Sér gjafakort",
                 subtitle: "Skjól Ritúal",
                 subtitle2: "vel búnir einkaklefar",
-                description: "Gefðu gjafakort í Sér leiðina sem veitir aðgang að lóninu, sjö skrefa Skjól Ritúal meðferðinni og vel búnum einkaklefa.",
+                description: "Gefðu gjafakort í Sér leiðina sem veitir aðgang að lóninu, sjö skrefa Skjól Ritúal meðferðinni og vel búnum einkaklefa. [Kaupa Sér gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)",
                 price: "ISK 14,990"
             },
             saman: {
                 name: "Saman gjafakort",
                 subtitle: "Skjól Ritúal",
-                description: "Gefðu gjafakort í klassísku Saman leiðina með aðgangi að lóninu og sjö skrefa Skjól Ritúal meðferðinni.",
+                description: "Gefðu gjafakort í klassísku Saman leiðina með aðgangi að lóninu og sjö skrefa Skjól Ritúal meðferðinni. [Kaupa Saman gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)",
                 price: "ISK 11,990"
             },
             stefnumot: {
                 name: "Stefnumót",
-                description: "Með Sér eða Saman stefnumóti geta tvö deilt sinni upplifun og notið bæði matar og drykkjar.",
+                description: "Með Sér eða Saman stefnumóti geta tvö deilt sinni upplifun og notið bæði matar og drykkjar. [Skoða stefnumótspakka] (https://www.skylagoon.com/is/stefnumot)",
                 important_note: "Athugið: Gjafakortin eru afhent sem tvö kort sem þarf að bóka saman til að njóta upplifunarinnar. Ekki er hægt að bóka í sitthvoru lagi.",
                 types: {
                     saman: {
@@ -1112,7 +1133,7 @@ export const knowledgeBase_is = {
             }
         },
         booking: {
-            instructions: "Til þess að innleysa gjafakortið þitt þá mælum við með að þú bókir tíma fyrirfram á netinu með góðum fyrirvara.",
+            instructions: "Til þess að innleysa gjafakortið þitt þá mælum við með að þú bókir tíma fyrirfram á netinu með góðum fyrirvara. [Bóka heimsókn] (https://www.skylagoon.com/is/boka)",
             steps: [
                 "Velur dagsetningu",
                 "Slærð inn kóða gjafakorts í viðeigandi dálk í næsta skrefi bókunarferlisins",
@@ -1146,13 +1167,13 @@ export const knowledgeBase_is = {
         overview: {
             // Enhanced with official website content
             tagline: "Sælkeraferðalag um Ísland",
-            description: "Keimur Café og Smakk Bar bjóða bragðlaukunum í spennandi ferðalag þar sem ferskt íslenskt hráefni er í aðalhlutverki.",
+            description: "Keimur Café og Smakk Bar bjóða bragðlaukunum í spennandi ferðalag þar sem ferskt íslenskt hráefni er í aðalhlutverki. [Skoða veitingastaði] (https://www.skylagoon.com/is/matur-og-drykkur)",
             encouragement: "Njóttu augnabliksins lengur með viðkomu á Keimur Café eða Smakk Bar eftir dvölina í lóninu."
         },
         venues: {
             smakk_bar: {
                 name: "Smakk Bar",
-                tagline: "Ferðalag fyrir bragðlaukana á Smakk Bar",
+                tagline: "Ferðalag fyrir bragðlaukana á Smakk Bar [Skoða Smakk Bar] (https://www.skylagoon.com/is/matur-og-drykkur/smakk-bar)",
                 // Enhanced description from website
                 description: "Á Smakk Bar bjóðum við upp á nokkra sérvalda íslenska sælkeraplatta ásamt frábæru úrvali af víni, bjór og öðrum drykkjum. Sælkeraplattarnir innihalda sérvalda bita sem mynda fullkomið jafnvægi og eru settir saman úr árstíðabundnu hráefni. Tilvalin leið til að ljúka góðri heimsókn í Sky Lagoon.",
                 dietary_options: "Boðið er upp á vegan og glútenlausa valkosti.",
@@ -1249,7 +1270,7 @@ export const knowledgeBase_is = {
             },      // This closes smakk_bar
             keimur_cafe: {
                 name: "Keimur Café",
-                tagline: "Notaleg stund á Keimur Café",
+                tagline: "Notaleg stund á Keimur Café [Skoða Keimur Café] (https://www.skylagoon.com/is/matur-og-drykkur/keim-cafe)",
                 description: "Á Keimur Café finnur þú gæðakaffi frá Te & Kaffi, frískandi drykki, ljúffengar súpur og nýbakað lostæti frá einu elsta bakarí landsins, Sandholt Bakarí.",
                 intro: "Eigðu ljúfa stund á Keim Café",
                 encouragement: "Njóttu augnabliksins lengur með viðkomu á Keimur Café eftir dvölina í lóninu",
@@ -1347,7 +1368,7 @@ export const knowledgeBase_is = {
             },
             gelmir_bar: {
                 name: "Gelmir Bar",
-                tagline: "Fullkomnaðu augnablikið á Gelmir Bar",
+                tagline: "Fullkomnaðu augnablikið á Gelmir Bar [Skoða Gelmir Bar] (https://www.skylagoon.com/is/matur-og-drykkur/gelmir-bar)",
                 description: "Gelmir bar er staðsettur ofan í lóninu. Þar er boðið upp á fjölbreytt úrval áfengra og óáfengra drykkja sem þú getur notið í heitu lóninu. Einfalt er að ganga frá pöntun með því að skanna armbandið þitt.",
                 menu: {
                     draft_beers: {
@@ -1491,7 +1512,7 @@ export const knowledgeBase_is = {
             // Enhanced with official website phrasing
             address: "Vesturvör 44-48, 200 Kópavogi",
             tagline: "Þú finnur okkur þar sem himinn og haf renna saman",
-            position: "Á ysta odda Kársness í Kópavogi",
+            position: "Á ysta odda Kársness í Kópavogi [Skoða á korti 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)",
             distance: "7 kilómetrar frá miðborg Reykjavíkur",
             landmark_distances: {
                 perlan: "9 mínútur",
@@ -1503,7 +1524,7 @@ export const knowledgeBase_is = {
         },
         transport_options: {
             car: {
-                directions_from_reykjavik: "Fylgdu Kringlumýrarbraut (leið 40) að Kársnesbraut, þaðan á Vesturvör",
+                directions_from_reykjavik: "Fylgdu Kringlumýrarbraut (leið 40) að Kársnesbraut, þaðan á Vesturvör [Skoða leiðarlýsingu] (https://www.skylagoon.com/is/heimsokn/stadsetning)",
                 driving_times: {
                     from_center: "13-15 mínútur frá miðborg Reykjavíkur",
                     from_perlan: "9 mínútur",
@@ -1513,6 +1534,7 @@ export const knowledgeBase_is = {
                 }
             },
             public_transport: {
+                description: "Auðvelt er að komast í Sky Lagoon með strætó [Skoða strætóleiðir] (https://www.straeto.is)",
                 bus: {
                     route_1: {
                         bus_number: "4",
@@ -1527,17 +1549,17 @@ export const knowledgeBase_is = {
                         duration: "4 mínútur"
                     },
                     final_leg: "Stutt ganga meðfram sjónum að Sky Lagoon",
-                    more_info: "Fyrir nánari upplýsingar um tímatöflur og leiðir, heimsækið: straeto.is"
+                    more_info: "Fyrir nánari upplýsingar um tímatöflur og leiðir, heimsækið: [straeto.is] (https://straeto.is)"
                 }
             },
             walking_cycling: {
-                description: "Stutt akstursleið liggur í Sky Lagoon hvaðanæva af höfuðborgarsvæðinu. Einnig liggja hjóla- og gönguleiðir að lóninu og því er tilvalið að velja umhverfisvæna ferðamáta sem eru að sama skapi góðir fyrir líkama og sál.",
+                description: "Stutt akstursleið liggur í Sky Lagoon hvaðanæva af höfuðborgarsvæðinu. Einnig liggja hjóla- og gönguleiðir að lóninu og því er tilvalið að velja umhverfisvæna ferðamáta sem eru að sama skapi góðir fyrir líkama og sál. [Skoða leiðir] (https://www.skylagoon.com/is/heimsokn/stadsetning)",
                 distance: "6 kílómetrar (3.7 mílur)",
                 duration: "um það bil 1,5 klukkustund",
                 route: "Fylgdu Rauðarárstíg (5.9km) → Suðurhlíð → Vesturvör"
             },
             shuttle_service: {
-                provider: "Reykjavík Excursions",
+                provider: "Reykjavík Excursions [Skoða Reykjavík Excursions] (https://www.re.is/is)",
                 from_bsi: {
                     departures: ["13:00", "15:00", "17:00", "19:00"],
                     location: "BSÍ rútumiðstöð",
@@ -2461,7 +2483,8 @@ if (message.includes('opið') ||
                 type: 'ritual_mandatory',
                 content: {
                     answer: "Skjól ritúal meðferðin er innifalin í öllum pökkum okkar og er órjúfanlegur hluti af Sky Lagoon upplifuninni. Þú getur valið á milli tveggja pakka - Saman eða Sér - sem báðir innihalda aðgang að lóninu og Skjól ritúal meðferðina.",
-                    details: knowledgeBase_is.ritual.answer
+                    details: knowledgeBase_is.ritual.answer,
+                    link: `[Skoða Ritúal] (${knowledgeBase_is.website_links.ritual})`
                 }
             });
         }
@@ -2470,7 +2493,10 @@ if (message.includes('opið') ||
             console.log('\n🧪 Ritual Allergies Match Found');
             relevantInfo.push({
                 type: 'ritual_allergies',
-                content: knowledgeBase_is.ritual.allergies
+                content: {
+                    ...knowledgeBase_is.ritual.allergies,
+                    link: `[Skoða Ritúal] (${knowledgeBase_is.website_links.ritual})`
+                }
             });
         }
         // For all other ritual queries (including steps), give full ritual information
@@ -2486,21 +2512,12 @@ if (message.includes('opið') ||
                         answer: knowledgeBase_is.ritual.answer
                     },
                     steps: knowledgeBase_is.ritual.steps,
-                    closing: "Láttu mig vita ef þú hefur fleiri spurningar!"
+                    closing: "Láttu mig vita ef þú hefur fleiri spurningar!",
+                    link: `[Skoða Skjól Ritúal] (${knowledgeBase_is.website_links.ritual})`
                 }
             });
         }
     }
-
-    // If specifically asking about allergies
-    if (message.includes('ofnæmi') || 
-        message.includes('innihaldsefn')) {
-        console.log('\n🧪 Ritual Allergies Match Found');
-        relevantInfo.push({
-            type: 'ritual_allergies',
-            content: knowledgeBase_is.ritual.allergies
-        });
-    } // End of full Ritual section
     
     // Pakkar - Saman, Sér, Stefnumót (Packages)
     if (message.includes('pakki') || 
@@ -2556,7 +2573,8 @@ if (message.includes('opið') ||
                     subtype: 'youth_ser',
                     content: {
                         youth_pricing: knowledgeBase_is.packages.ser.youth_pricing,
-                        age_policy: knowledgeBase_is.age_policy.general_rules
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða Sér aðgang] (${knowledgeBase_is.website_links.packages})`
                     }
                 });
             } else if (message.includes('saman')) {
@@ -2566,7 +2584,8 @@ if (message.includes('opið') ||
                     subtype: 'youth_saman',
                     content: {
                         youth_pricing: knowledgeBase_is.packages.saman.youth_pricing,
-                        age_policy: knowledgeBase_is.age_policy.general_rules
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða Saman aðgang] (${knowledgeBase_is.website_links.packages})`
                     }
                 });
             } else {
@@ -2578,7 +2597,8 @@ if (message.includes('opið') ||
                     content: {
                         saman: knowledgeBase_is.packages.saman.youth_pricing,
                         ser: knowledgeBase_is.packages.ser.youth_pricing,
-                        age_policy: knowledgeBase_is.age_policy.general_rules
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
                     }
                 });
             }
@@ -2592,27 +2612,39 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'packages',
                 subtype: 'stefnumot',
-                content: knowledgeBase_is.packages.stefnumot
+                content: {
+                    ...knowledgeBase_is.packages.stefnumot,
+                    link: `[Skoða stefnumótspakka] (${knowledgeBase_is.website_links.stefnumot})`
+                }
             });
         } else if (message.includes('sér')) {
             console.log('\n🌟 Sér Package Match Found');
             relevantInfo.push({
                 type: 'packages',
                 subtype: 'ser',
-                content: knowledgeBase_is.packages.ser
+                content: {
+                    ...knowledgeBase_is.packages.ser,
+                    link: `[Skoða Sér aðgang] (${knowledgeBase_is.website_links.packages})`
+                }
             });
         } else if (message.includes('saman')) {
             console.log('\n👥 Saman Package Match Found');
             relevantInfo.push({
                 type: 'packages',
                 subtype: 'saman',
-                content: knowledgeBase_is.packages.saman
+                content: {
+                    ...knowledgeBase_is.packages.saman,
+                    link: `[Skoða Saman aðgang] (${knowledgeBase_is.website_links.packages})`
+                }
             });
         } else {
             // Return all package info
             relevantInfo.push({
                 type: 'packages',
-                content: knowledgeBase_is.packages
+                content: {
+                    ...knowledgeBase_is.packages,
+                    link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
+                }
             });
         }
     }
@@ -2650,14 +2682,20 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'multipass',
                 subtype: 'hefd',
-                content: knowledgeBase_is.multipass.types.hefd
+                content: {
+                    ...knowledgeBase_is.multipass.types.hefd,
+                    link: `[Kaupa Hefð Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
             });
         } else if (message.includes('venja')) {
             console.log('\n👥 Venja Multi-Pass Match Found');
             relevantInfo.push({
                 type: 'multipass',
                 subtype: 'venja',
-                content: knowledgeBase_is.multipass.types.venja
+                content: {
+                    ...knowledgeBase_is.multipass.types.venja,
+                    link: `[Kaupa Venju Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
             });
         } else if (message.includes('bóka') || 
                    message.includes('panta') || 
@@ -2667,13 +2705,22 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'multipass',
                 subtype: 'booking',
-                content: knowledgeBase_is.multipass.booking_process
+                content: {
+                    ...knowledgeBase_is.multipass.booking_process,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        multi_pass: `[Skoða Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                    }
+                }
             });
         } else {
             // Return all multi-pass info
             relevantInfo.push({
                 type: 'multipass',
-                content: knowledgeBase_is.multipass
+                content: {
+                    ...knowledgeBase_is.multipass,
+                    link: `[Skoða Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
             });
         }
     }  // End of Multi-Pass section
@@ -2753,6 +2800,7 @@ if (message.includes('opið') ||
                 response += `${index + 1}. ${step}\n`;
             });
             response += "\nEf þú þarft aðstoð með eldri gjafakort eða bókun, ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma 527 6800.";
+            response += `\n\n[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`;
 
             relevantInfo.push({
                 type: 'gift_cards',
@@ -2775,7 +2823,8 @@ if (message.includes('opið') ||
                 content: {
                     marketing: knowledgeBase_is.gift_cards.marketing,  // Always include marketing
                     ...knowledgeBase_is.gift_cards,
-                    purchase_info: knowledgeBase_is.gift_cards.purchase_info
+                    purchase_info: knowledgeBase_is.gift_cards.purchase_info,
+                    link: `[Kaupa gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
                 }
             });
         }
@@ -2789,7 +2838,13 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'gift_cards',
                 subtype: 'booking',
-                content: knowledgeBase_is.gift_cards.booking
+                content: {
+                    ...knowledgeBase_is.gift_cards.booking,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        gift_cards: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                    }
+                }
             });
         }
         // Check for specific package types
@@ -2800,7 +2855,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'gift_cards',
                 subtype: 'stefnumot',
-                content: knowledgeBase_is.gift_cards.types.stefnumot
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.stefnumot,
+                    link: `[Skoða stefnumótspakka] (${knowledgeBase_is.website_links.stefnumot})`
+                }
             });
         }
         else if (message.includes('sér')) {
@@ -2808,7 +2866,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'gift_cards',
                 subtype: 'ser',
-                content: knowledgeBase_is.gift_cards.types.ser
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.ser,
+                    link: `[Kaupa Sér gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
             });
         }
         else if (message.includes('saman')) {
@@ -2816,14 +2877,20 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'gift_cards',
                 subtype: 'saman',
-                content: knowledgeBase_is.gift_cards.types.saman
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.saman,
+                    link: `[Kaupa Saman gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
             });
         }
         else {
             // Return all gift card info for general queries
             relevantInfo.push({
                 type: 'gift_cards',
-                content: knowledgeBase_is.gift_cards
+                content: {
+                    ...knowledgeBase_is.gift_cards,
+                    link: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
             });
         }
     }  // End of Gift Cards section
@@ -2928,7 +2995,8 @@ if (message.includes('opið') ||
                 subtype: 'menu_details',
                 content: {
                     small_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.small_platters,
-                    large_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters
+                    large_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
                 }
             });
         }
@@ -2957,7 +3025,8 @@ if (message.includes('opið') ||
                         name: requestedItem.name,
                         description: requestedItem.description,
                         price: requestedItem.price,
-                        categoryType: requestedItem.subtitle || null
+                        categoryType: requestedItem.subtitle || null,
+                        link: `[Skoða matseðil] (${knowledgeBase_is.website_links.dining.smakk_bar})`
                     }
                 });
             }
@@ -2973,7 +3042,8 @@ if (message.includes('opið') ||
                 type: 'dining',
                 content: {
                     overview: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
-                    venues: knowledgeBase_is.dining.venues
+                    venues: knowledgeBase_is.dining.venues,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
                 }
             });
         }
@@ -2990,7 +3060,8 @@ if (message.includes('opið') ||
                 subtype: 'dietary_options',
                 content: {
                     smakk_bar: knowledgeBase_is.dining.venues.smakk_bar.dietary_options,
-                    keimur_cafe: knowledgeBase_is.dining.venues.keimur_cafe.dietary_options
+                    keimur_cafe: knowledgeBase_is.dining.venues.keimur_cafe.dietary_options,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
                 }
             });
         }
@@ -3012,7 +3083,8 @@ if (message.includes('opið') ||
                 subtype: 'production',
                 content: {
                     about: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
-                    production: knowledgeBase_is.dining.venues.smakk_bar.menu.production
+                    production: knowledgeBase_is.dining.venues.smakk_bar.menu.production,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
                 }
             });
         }
@@ -3029,7 +3101,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'dining',
                 subtype: 'smakk_bar',
-                content: knowledgeBase_is.dining.venues.smakk_bar
+                content: {
+                    ...knowledgeBase_is.dining.venues.smakk_bar,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
+                }
             });
         } 
         else if (message.includes('keimur') || 
@@ -3054,7 +3129,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'dining',
                 subtype: 'keimur_cafe',
-                content: knowledgeBase_is.dining.venues.keimur_cafe
+                content: {
+                    ...knowledgeBase_is.dining.venues.keimur_cafe,
+                    link: `[Skoða Keimur Café] (${knowledgeBase_is.website_links.dining.keimur_cafe})`
+                }
             });
         } 
         else if (message.includes('gelmir') || 
@@ -3079,7 +3157,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'dining',
                 subtype: 'gelmir_bar',
-                content: knowledgeBase_is.dining.venues.gelmir_bar
+                content: {
+                    ...knowledgeBase_is.dining.venues.gelmir_bar,
+                    link: `[Skoða Gelmir Bar] (${knowledgeBase_is.website_links.dining.gelmir_bar})`
+                }
             });
         }
 
@@ -3100,7 +3181,8 @@ if (message.includes('opið') ||
                 type: 'dining',
                 content: {
                     overview: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
-                    venues: knowledgeBase_is.dining.venues
+                    venues: knowledgeBase_is.dining.venues,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
                 }
             });
         }
@@ -3157,7 +3239,10 @@ if (message.includes('opið') ||
             relevantInfo.push({
                 type: 'transportation',
                 subtype: 'parking',
-                content: knowledgeBase_is.transportation.parking
+                content: {
+                    ...knowledgeBase_is.transportation.parking,
+                    link: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
+                }
             });
         }
 
@@ -3176,7 +3261,11 @@ if (message.includes('opið') ||
                 subtype: 'public_transport',
                 content: {
                     public_transport: knowledgeBase_is.transportation.transport_options.public_transport,
-                    shuttle_service: knowledgeBase_is.transportation.transport_options.shuttle_service
+                    shuttle_service: knowledgeBase_is.transportation.transport_options.shuttle_service,
+                    links: {
+                        straeto: `[Skoða strætóleiðir] (${knowledgeBase_is.website_links.transportation.re_website})`,
+                        bus_stops: `[Finna næstu stoppistöð] (${knowledgeBase_is.website_links.transportation.re_bus_stops})`
+                    }
                 }
             });
         }
@@ -3194,7 +3283,8 @@ if (message.includes('opið') ||
                 subtype: 'eco_friendly',
                 content: {
                     walking_cycling: knowledgeBase_is.transportation.transport_options.walking_cycling,
-                    eco_friendly: knowledgeBase_is.transportation.eco_friendly
+                    eco_friendly: knowledgeBase_is.transportation.eco_friendly,
+                    link: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
                 }
             });
         }
@@ -3213,7 +3303,11 @@ if (message.includes('opið') ||
                 subtype: 'driving',
                 content: {
                     car: knowledgeBase_is.transportation.transport_options.car,
-                    location: knowledgeBase_is.transportation.location
+                    location: knowledgeBase_is.transportation.location,
+                    links: {
+                        map: `[Skoða á korti 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)`,
+                        directions: `[Skoða leiðarlýsingu] (${knowledgeBase_is.website_links.transportation.overview})`
+                    }
                 }
             });
         }
@@ -3229,7 +3323,13 @@ if (message.includes('opið') ||
             
             relevantInfo.push({
                 type: 'transportation',
-                content: knowledgeBase_is.transportation
+                content: {
+                    ...knowledgeBase_is.transportation,
+                    links: {
+                        map: `[Skoða á korti 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)`,
+                        overview: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
+                    }
+                }
             });
         }
     }  // End of Transportation section
