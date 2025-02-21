@@ -1,3 +1,4 @@
+import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
@@ -24,25 +25,36 @@ const pusher = new Pusher({
 // Add this right after your Pusher initialization
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
     try {
-        // Log incoming message for debugging
+        // First check if it's a simple Icelandic message
+        const languageCheck = newDetectLanguage(userMessage);
+        
+        // Enhanced logging with language info
         console.log('\n📨 Processing message:', {
             userMessage,
             language,
             type,
+            languageCheck,
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
         });
+
+        // Create language info object using our new detection
+        const languageInfo = {
+            isIcelandic: language === 'is' || languageCheck.isIcelandic,
+            confidence: languageCheck.confidence,
+            reason: languageCheck.reason
+        };
 
         const conversationData = {
             id: uuidv4(),
             timestamp: new Date().toISOString(),
             userMessage,
             botResponse,
-            language,
+            language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
             type
         };
 
-        return await handleConversationUpdate(conversationData);
+        return await handleConversationUpdate(conversationData, languageInfo);
     } catch (error) {
         console.error('❌ Error in broadcastConversation:', error);
         return false;
@@ -508,7 +520,7 @@ const SMALL_TALK_RESPONSES = {
 };
 
 // Enhanced follow-up greeting detection
-const isFollowUpGreeting = (message, languageResult = { hasDefiniteEnglish: false }) => {
+const isFollowUpGreeting = (message, languageDecision) => {
     const msg = message.toLowerCase().trim();
     
     // Log follow-up check
@@ -525,12 +537,12 @@ const isFollowUpGreeting = (message, languageResult = { hasDefiniteEnglish: fals
 
     // Check for explicit follow-up patterns first
     if (/^(?:hi|hello|hey)\s+(?:again|back)\b/i.test(msg)) {
-        return true;
+        return !languageDecision.isIcelandic;
     }
 
     // Check for Icelandic follow-up patterns
     if (/^(?:hæ|halló|sæl)\s+(?:aftur|enn)\b/i.test(msg)) {
-        return true;
+        return languageDecision.isIcelandic;
     }
 
     // Check for greetings with Rán's name
@@ -573,11 +585,15 @@ const FOLLOWUP_RESPONSES = {
 };
 
 // Add logging helper for response selection
-const logFollowUpResponse = (language, response) => {
+const logFollowUpResponse = (languageDecision, response) => {
     console.log('\n🗣️ Selected Follow-up Response:', {
-        language: language,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         response: response,
-        totalOptions: FOLLOWUP_RESPONSES[language].length
+        totalOptions: FOLLOWUP_RESPONSES[languageDecision.isIcelandic ? 'is' : 'en'].length
     });
 };
 
@@ -651,9 +667,14 @@ const simpleIcelandicGreetings = [
 ];
 
 // Add enhanced logging for greeting pattern usage
-const logGreetingMatch = (message, matches) => {
+const logGreetingMatch = (message, matches, languageDecision) => {
     console.log('\n👋 Greeting Pattern Match:', {
         message: message,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         matches: {
             simpleEnglish: simpleEnglishGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
             compositeIcelandic: compositeIcelandicGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
@@ -672,7 +693,7 @@ const icelandicQuestionStarters = [
     'geturðu ', 'mætti ', 'megið ', 'væri '
 ];
 
-const isSimpleGreeting = message => {
+const isSimpleGreeting = (message, languageDecision) => {
     // Remove emojis, emoticons, and extra punctuation, normalize repeated characters
     const msg = message.toLowerCase()
         .trim()
@@ -684,10 +705,15 @@ const isSimpleGreeting = message => {
         .replace(/\brán\b/gi, '')               // Remove mentions of Rán
         .trim();                                // Final trim
     
-    // Enhanced logging with more details
+    // Enhanced logging with language detection
     console.log('\n👋 Enhanced Greeting Check:', {
         original: message,
         cleaned: msg,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         patterns: {
             simpleEnglish: simpleEnglishGreetings.some(g => msg === g || msg === g + '!'),
             simpleIcelandic: simpleIcelandicGreetings.some(g => msg === g || msg === g + '!'),
@@ -716,9 +742,8 @@ const isSimpleGreeting = message => {
         return true;
     }
 
-    // Icelandic language check - if has Icelandic characters, prioritize Icelandic greetings
-    const hasIcelandicChars = /[þæðöáíúéó]/i.test(message);
-    if (hasIcelandicChars) {
+    // Icelandic language check using new detection
+    if (languageDecision.isIcelandic) {
         // Check for Icelandic greetings first
         if (/^(?:hæ|halló|sæl|sæll)\b$/i.test(msg)) {
             return true;
@@ -731,7 +756,7 @@ const isSimpleGreeting = message => {
     }
 
     // Check for exact greeting matches with punctuation variations
-    const exactGreetingMatch = hasIcelandicChars ?
+    const exactGreetingMatch = languageDecision.isIcelandic ?
         (simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
          compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) :
         simpleEnglishGreetings.some(g => msg === g || msg === g + '!');
@@ -744,7 +769,7 @@ const isSimpleGreeting = message => {
     }
 
     // Check for compound greetings that start with known greetings
-    const hasGreetingStart = hasIcelandicChars ?
+    const hasGreetingStart = languageDecision.isIcelandic ?
         simpleIcelandicGreetings.some(g => msg.startsWith(g + ' ')) :
         simpleEnglishGreetings.some(g => msg.startsWith(g + ' '));
     
@@ -778,28 +803,10 @@ const isSimpleGreeting = message => {
     if (msg.split(' ').length > 4) return false;
 
     // Final check - must explicitly match one of our greeting patterns or variations
-    return hasIcelandicChars ?
+    return languageDecision.isIcelandic ?
         (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|rán))?\s*$/i.test(msg)) :
         (/^(?:hi+|he+y+|hello+)\b(?:\s*(?:there|rán))?\s*$/i.test(msg));
 };
-
-// Test cases
-console.log('\n👋 Testing Greeting Detection:', {
-    'hello': isSimpleGreeting('hello'),
-    'hello!': isSimpleGreeting('hello!'),
-    'hæ': isSimpleGreeting('hæ'),
-    'góðan dag': isSimpleGreeting('góðan dag'),
-    'hello there': isSimpleGreeting('hello there'),
-    'hi, how are you': isSimpleGreeting('hi, how are you'),
-    'hello?': isSimpleGreeting('hello?'),
-    'hey can you': isSimpleGreeting('hey can you'),
-    'good morning': isSimpleGreeting('good morning'),
-    'sæl og blessuð': isSimpleGreeting('sæl og blessuð'),
-    // Add new test cases for questions
-    'er hægt að fá handklæði': isSimpleGreeting('er hægt að fá handklæði'),
-    'fylgja handklæði með': isSimpleGreeting('fylgja handklæði með'),
-    'kostar eitthvað': isSimpleGreeting('kostar eitthvað')
-});
 
 // Enhanced small talk patterns with better categorization
 const smallTalkPatterns = {
@@ -863,13 +870,17 @@ const smallTalkPatterns = {
 };
 
 // Add helper function for small talk detection
-const detectSmallTalk = (message, languageResult = { hasDefiniteEnglish: false }) => {
+const detectSmallTalk = (message, languageDecision) => {
     const msg = message.toLowerCase().trim();
 
     // Log detection attempt
     console.log('\n💬 Small Talk Pattern Check:', {
         message: msg,
-        hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         patterns: {
             enWellbeing: smallTalkPatterns.en.wellbeing.some(p => msg.includes(p)),
             enIdentity: smallTalkPatterns.en.identity.some(p => msg.includes(p)),
@@ -879,8 +890,8 @@ const detectSmallTalk = (message, languageResult = { hasDefiniteEnglish: false }
         }
     });
 
-    // Check English patterns first if definite English
-    if (languageResult.hasDefiniteEnglish) {
+    // Use language detection for initial check
+    if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
         for (const category in smallTalkPatterns.en) {
             if (smallTalkPatterns.en[category].some(pattern => msg.includes(pattern))) {
                 return { isSmallTalk: true, language: 'en', category };
@@ -888,7 +899,7 @@ const detectSmallTalk = (message, languageResult = { hasDefiniteEnglish: false }
         }
     }
 
-    // Then check both languages
+    // Then check both languages if not confident
     for (const lang of ['en', 'is']) {
         for (const category in smallTalkPatterns[lang]) {
             if (smallTalkPatterns[lang][category].some(pattern => msg.includes(pattern))) {
@@ -901,15 +912,18 @@ const detectSmallTalk = (message, languageResult = { hasDefiniteEnglish: false }
 };
 
 // Add response selector helper
-const getSmallTalkResponse = (result, languageResult = { hasDefiniteEnglish: false }) => {
-    // Use our early language detection
-    const useEnglish = languageResult.hasDefiniteEnglish || result.language === 'en';
+const getSmallTalkResponse = (result, languageDecision) => {
+    // Use our new language detection
+    const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
     
     // Log response selection
     console.log('\n💬 Small Talk Response Selection:', {
         category: result.category || 'casual',
-        language: useEnglish ? 'en' : 'is',
-        hasDefiniteEnglish: languageResult.hasDefiniteEnglish
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        }
     });
 
     // Get responses array with fallback to casual category
@@ -951,7 +965,7 @@ const acknowledgmentPatterns = {
             "that's excellent", "that's brilliant"
         ],
         is: [
-            'æði', 'takk', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
+            'æði', 'takk', 'takk fyrir', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
             'geggjað', 'næs', 'gott að vita', 'skil þetta', 'érna', 'einmitt',
             'ég skil', 'ókei', 'í góðu', 'allt skýrt', 'mhm', 'jebb', 'jepp',
             'akkúrat', 'nákvæmlega', 'nákvæmlega þetta', 'skil vel', 
@@ -1147,20 +1161,20 @@ const questionPatterns = {
 };
 
 // Helper functions for response handling
-const getContextualResponse = (type, previousResponses = []) => {
+const getContextualResponse = (type, previousResponses = [], languageDecision) => {
     let responses;
     switch(type) {
         case 'acknowledgment':
-            responses = ACKNOWLEDGMENT_RESPONSES;
+            responses = languageDecision.isIcelandic ? ACKNOWLEDGMENT_RESPONSES.is : ACKNOWLEDGMENT_RESPONSES.en;
             break;
         case 'small_talk':
-            responses = SMALL_TALK_RESPONSES;
+            responses = languageDecision.isIcelandic ? SMALL_TALK_RESPONSES.is : SMALL_TALK_RESPONSES.en;
             break;
         case 'confirmation':
-            responses = CONFIRMATION_RESPONSES;
+            responses = languageDecision.isIcelandic ? CONFIRMATION_RESPONSES.is : CONFIRMATION_RESPONSES.en;
             break;
         default:
-            responses = ACKNOWLEDGMENT_RESPONSES;
+            responses = languageDecision.isIcelandic ? ACKNOWLEDGMENT_RESPONSES.is : ACKNOWLEDGMENT_RESPONSES.en;
     }
     
     const availableResponses = responses.filter(r => !previousResponses.includes(r));
@@ -1168,7 +1182,7 @@ const getContextualResponse = (type, previousResponses = []) => {
 };
 
 // Add this with your other constants/helper functions, before the chat endpoint
-const checkSimpleResponse = (message) => {
+const checkSimpleResponse = (message, languageDecision) => {
     const strictIcelandicResponses = [
         // Basic responses
         'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg',  // Added æðisleg
@@ -1189,6 +1203,11 @@ const checkSimpleResponse = (message) => {
     
     const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
+    // Use languageDecision for initial check
+    if (languageDecision.isIcelandic && languageDecision.confidence === 'high') {
+        return 'is';
+    }
+
     // Handle 'gott að vita' specifically
     if (msg === 'gott að vita') {
         return 'is';
@@ -1222,6 +1241,11 @@ const checkSimpleResponse = (message) => {
     
     // Handle standalone 'ok' based on context - MOVED TO END
     if (msg === 'ok' || msg === 'okay') {
+        // First check language detection
+        if (languageDecision.isIcelandic) {
+            return 'is';
+        }
+        // Fall back to context checks
         const currentSession = conversationContext.get('currentSession');
         const context = currentSession ? conversationContext.get(currentSession) : null;
         if (context?.language === 'is') {
@@ -1242,7 +1266,8 @@ const checkSimpleResponse = (message) => {
         return 'is';
     }
     
-    return null;
+    // If no specific matches, use languageDecision
+    return languageDecision.isIcelandic ? 'is' : 'en';
 };
 
 // Late Arrival and Booking Constants
@@ -1398,29 +1423,47 @@ const getCurrentSeason = () => {
 };
 
 // Time context tracking helper
-const detectTimeContext = (message, seasonInfo) => {
+const detectTimeContext = (message, seasonInfo, languageDecision) => {
     const msg = message.toLowerCase();
     
-    // First check for follow-up time queries
-    const isFollowUpQuery = msg.match(/^and\s+(what|how|about)/i) ||
-                           msg.match(/^and\s+(dinner|food|eating|ritual)/i);
+    // First check for follow-up time queries (now language-aware)
+    const isFollowUpQuery = languageDecision.isIcelandic ?
+        msg.match(/^og\s+(hvað|hvernig|um)/i) || msg.match(/^og\s+(matur|borða|ritúal)/i) :
+        msg.match(/^and\s+(what|how|about)/i) || msg.match(/^and\s+(dinner|food|eating|ritual)/i);
     
-    // Check for hours queries first - add Icelandic terms
-    const isHoursQuery = msg.match(/hours?|open|close|time|opin|opið|lokað|lokar|opnun|lokun|opening|closing/) &&
-                        !msg.match(/how long|take|duration|hvað tekur|hversu lengi/);
+    // Check for hours queries with language-specific terms
+    const isHoursQuery = (
+        (languageDecision.isIcelandic ? 
+            msg.match(/opin|opið|lokað|lokar|opnun|lokun/) :
+            msg.match(/hours?|open|close|time|opening|closing/)) &&
+        !msg.match(/how long|take|duration|hvað tekur|hversu lengi/)
+    );
                         
-    // Check for duration queries - add ritual specific terms
-    const isDurationQuery = msg.match(/how long|take|duration|hvað tekur|hversu lengi|hve lengi|hversu langan|takes how long|how much time|does it take/);
+    // Check for duration queries with language-specific terms
+    const isDurationQuery = languageDecision.isIcelandic ?
+        msg.match(/hvað tekur|hversu lengi|hve lengi|hversu langan/) :
+        msg.match(/how long|take|duration|takes how long|how much time|does it take/);
     
     // Check for ritual timing sequence
-    const isRitualQuery = msg.match(/ritual|ritúal|skjol|skjól/);
+    const isRitualQuery = languageDecision.isIcelandic ?
+        msg.match(/ritúal|skjol|skjól/) :
+        msg.match(/ritual/);
     
-    // Check for dining timing - add follow-up patterns
-    const isDiningQuery = msg.match(/dining|restaurant|food|eating|matur|veitingar|borða|veitingastað|veitingarstað|veitingastaður|matseðil|eruði með|hafið þið|er hægt að fá mat|hægt að borða/) ||
-                         isFollowUpQuery && msg.includes('dinner');
+    // Check for dining timing with language-specific patterns
+    const isDiningQuery = languageDecision.isIcelandic ?
+        (msg.match(/matur|veitingar|borða|veitingastað|veitingarstað|veitingastaður|matseðil|eruði með|hafið þið|er hægt að fá mat|hægt að borða/) ||
+         isFollowUpQuery && msg.includes('matur')) :
+        (msg.match(/dining|restaurant|food|eating/) ||
+         isFollowUpQuery && msg.includes('dinner'));
     
+    // Enhanced logging with language detection
     console.log('\n⏰ Time Context Detection:', {
         message: msg,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         isHoursQuery,
         isDurationQuery,
         isRitualQuery,
@@ -1442,10 +1485,14 @@ const detectTimeContext = (message, seasonInfo) => {
         type = 'hours';
     }
     
-    // Log follow-up handling
+    // Enhanced follow-up logging with language info
     if (isFollowUpQuery) {
         console.log('\n🔄 Follow-up Query Detected:', {
             original: message,
+            language: {
+                isIcelandic: languageDecision.isIcelandic,
+                confidence: languageDecision.confidence
+            },
             type,
             activity,
             isDining: isDiningQuery
@@ -1487,7 +1534,8 @@ const getRandomResponse = (responses) => {
     return responses[Math.floor(Math.random() * responses.length)];
 };
 
-const calculateConfidence = (userMessage, relevantKnowledge) => {
+// Calculate Confidence Helper
+const calculateConfidence = (userMessage, relevantKnowledge, languageDecision) => {
     // Guard clause
     if (!userMessage || !relevantKnowledge) return 0;
 
@@ -1495,18 +1543,39 @@ const calculateConfidence = (userMessage, relevantKnowledge) => {
     let score = 0;
     let matchDetails = [];
     
-    // Enhanced acknowledgment check
-    const acknowledgmentWords = [
-        'great', 'good', 'helpful', 'comfortable', 'perfect',
-        'thanks', 'thank', 'thank you', 'okay', 'got it', 'understood',
-        'more questions', 'another question', 'few questions'
-    ];
+    // Enhanced acknowledgment check with language-specific words
+    const acknowledgmentWords = languageDecision.isIcelandic ? {
+        general: ['frábært', 'gott', 'hjálplegt', 'þægilegt', 'fullkomið', 'takk', 'skil', 'allt í lagi'],
+        questions: ['fleiri spurningar', 'önnur spurning', 'nokkrar spurningar'],
+        understood: ['skil', 'nákvæmlega', 'einmitt', 'allt skýrt']
+    } : {
+        general: ['great', 'good', 'helpful', 'comfortable', 'perfect', 'thanks', 'thank', 'understood', 'okay', 'got it'],
+        questions: ['more questions', 'another question', 'few questions'],
+        understood: ['understood', 'exactly', 'clear', 'makes sense']
+    };
     
     // Check for multi-part questions
     const isMultiPart = message.includes('?') && message.split('?').length > 2;
     
+    // Enhanced logging for acknowledgment check
+    console.log('\n📝 Acknowledgment Check:', {
+        message,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
+        wordCount: message.split(' ').length,
+        hasAcknowledgmentWords: Object.values(acknowledgmentWords).some(
+            wordList => wordList.some(word => message.includes(word))
+        )
+    });
+
+    // Check for short acknowledgments
     if (message.split(' ').length <= 6 && 
-        acknowledgmentWords.some(word => message.includes(word))) {
+        Object.values(acknowledgmentWords).some(
+            wordList => wordList.some(word => message.includes(word))
+        )) {
         console.log('📝 Acknowledgment detected');
         return 0.1;  // Small non-zero value to prevent unknown query handling
     }
@@ -1527,8 +1596,12 @@ const calculateConfidence = (userMessage, relevantKnowledge) => {
         let totalWords = 0;
         
         words.forEach(word => {
-            // Ignore common words
-            if (!['what', 'how', 'when', 'where', 'does', 'about'].includes(word)) {
+            // Language-specific common words to ignore
+            const commonWords = languageDecision.isIcelandic ? 
+                ['hvað', 'hvernig', 'hvenær', 'hvar', 'gerir', 'um'] :
+                ['what', 'how', 'when', 'where', 'does', 'about'];
+
+            if (!commonWords.includes(word)) {
                 totalWords++;
                 if (contentStr.includes(word)) {
                     matches++;
@@ -1554,9 +1627,14 @@ const calculateConfidence = (userMessage, relevantKnowledge) => {
         }
     });
 
-    // Log confidence calculation
+    // Enhanced logging with language info
     console.log('\n📊 Confidence Calculation:', {
         originalMessage: userMessage,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         score: score,
         level: score >= CONFIDENCE_THRESHOLDS.HIGH ? 'HIGH' : 
               score >= CONFIDENCE_THRESHOLDS.MEDIUM ? 'MEDIUM' : 
@@ -1568,11 +1646,17 @@ const calculateConfidence = (userMessage, relevantKnowledge) => {
     return score;
 };
 
-const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge) => {
+// Handle Unknown Query
+const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge, languageDecision) => {
     // Log analysis start
     console.log('\n❓ Unknown Query Analysis:', {
         message: userMessage,
         confidence: confidenceScore,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        },
         matchedTopics: relevantKnowledge.map(k => k.type)
     });
 
@@ -1582,19 +1666,18 @@ const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge) => 
         return null;
     }
 
-    // Skip unknown handling for acknowledgments
-    if (userMessage.length < 20 && userMessage.split(' ').length <= 4) {
-        console.log('📝 Short message detected, skipping unknown query handling');
+    // Only skip for very short acknowledgments (changed from 20/4 to 10/2)
+    if (userMessage.length < 10 && userMessage.split(' ').length <= 2) {
+        console.log('📝 Very short acknowledgment detected, skipping unknown query handling');
         return null;
     }
 
     // Only treat as completely unknown if we have zero knowledge and zero confidence
     if (confidenceScore === 0 && (!relevantKnowledge || relevantKnowledge.length === 0)) {
         console.log('📝 Query Type: COMPLETELY_UNKNOWN');
-        const isIcelandicQuery = detectLanguage(userMessage);
         return {
             type: UNKNOWN_QUERY_TYPES.COMPLETELY_UNKNOWN,
-            response: getRandomResponse(isIcelandicQuery ? 
+            response: getRandomResponse(languageDecision.isIcelandic ? 
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS : 
                 UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN)
         };
@@ -1602,6 +1685,14 @@ const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge) => 
 
     // In all other cases, let the normal response system handle it
     return null;
+};
+
+// Add the service question checker here
+const isServiceQuestion = (message, languageDecision) => {
+    const msg = message.toLowerCase();
+    return languageDecision.isIcelandic ?
+        msg.includes('bjóð') || msg.includes('með') || msg.includes('hafið') :
+        msg.includes('offer') || msg.includes('have') || msg.includes('with');
 };
 
 const ERROR_MESSAGES = {
@@ -1615,6 +1706,13 @@ const ERROR_MESSAGES = {
         general: "Ég biðst afsökunar, en ég er að lenda í vandræðum með að svara fyrirspurninni þinni. Vinsamlegast reyndu aftur.",
         connectionError: "Ég er að lenda í vandræðum með tengingu. Vinsamlegast reyndu aftur eftir smá stund."
     }
+};
+
+// Add helper function for error messages
+const getErrorMessage = (isIcelandic) => {
+    return isIcelandic ? 
+        ERROR_MESSAGES.is.general : 
+        ERROR_MESSAGES.en.general;
 };
 
 // ADD THE NEW CONSTANTS HERE 👇
@@ -1665,13 +1763,19 @@ const CONTEXT_PATTERNS = {
 };
 
 // Initialize context before any usage
-const initializeContext = (sessionId, language) => {
+const initializeContext = (sessionId, languageDecision) => {
     return {
         messages: [],
         bookingTime: null,
         lateArrival: null,
         lastInteraction: Date.now(),
-        language: language,  // Changed from isIcelandic ? 'is' : 'en' to use the parameter
+        language: languageDecision.isIcelandic ? 'is' : 'en',  // Use languageDecision
+        languageInfo: {  // Add new language tracking
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason,
+            lastUpdate: Date.now()
+        },
         conversationStarted: true,  // Initialize as true since ChatWidget handles first greeting
         messageCount: 0,
         lastTopic: null,
@@ -1680,9 +1784,14 @@ const initializeContext = (sessionId, language) => {
             topics: [],
             lastResponse: null,
             contextualQuestions: {},
-            previousInteractions: [], // Add this line
+            previousInteractions: [],
             addTopic: function(topic, details) {
-                this.topics.unshift({ topic, details, timestamp: Date.now() });
+                this.topics.unshift({ 
+                    topic, 
+                    details, 
+                    timestamp: Date.now(),
+                    language: languageDecision.isIcelandic ? 'is' : 'en'  // Add language tracking to topics
+                });
                 if (this.topics.length > 5) this.topics.pop();
             },
             getLastTopic: function() {
@@ -1701,7 +1810,8 @@ const initializeContext = (sessionId, language) => {
             addResponse: function(response) {
                 this.previousResponses.unshift({
                     response,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    language: languageDecision.isIcelandic ? 'is' : 'en'  // Add language tracking to responses
                 });
                 if (this.previousResponses.length > 3) this.previousResponses.pop();
             },
@@ -1767,46 +1877,77 @@ const EMOJI_MAPPING = {
     sunset: '🌅'
 };
 
-const getAppropriateSuffix = (message) => {
+// Get Appropriate Suffix helper
+const getAppropriateSuffix = (message, languageDecision) => {
     // Skip emojis for serious topics
     if (message.toLowerCase().includes('cancel') || 
         message.toLowerCase().includes('complaint') || 
         message.toLowerCase().includes('refund') || 
-        message.toLowerCase().includes('error')) {
+        message.toLowerCase().includes('error') ||
+        // Add Icelandic terms
+        (languageDecision.isIcelandic && (
+            message.toLowerCase().includes('hætta við') ||
+            message.toLowerCase().includes('kvörtun') ||
+            message.toLowerCase().includes('endurgreiðslu')
+        ))) {
         return "";
     }
 
     // Check for specific topics
     if (message.toLowerCase().includes('ritual') || 
-        message.toLowerCase().includes('skjól')) {
+        message.toLowerCase().includes('skjól') ||
+        message.toLowerCase().includes('ritúal')) {
         return " ✨";
     }
     if (message.toLowerCase().includes('where') || 
         message.toLowerCase().includes('location') || 
-        message.toLowerCase().includes('address')) {
+        message.toLowerCase().includes('address') ||
+        (languageDecision.isIcelandic && (
+            message.toLowerCase().includes('hvar') ||
+            message.toLowerCase().includes('staðsetning') ||
+            message.toLowerCase().includes('heimilisfang')
+        ))) {
         return " 📍";
     }
     if (message.toLowerCase().includes('summer') || 
         message.toLowerCase().includes('july') || 
-        message.toLowerCase().includes('august')) {
+        message.toLowerCase().includes('august') ||
+        (languageDecision.isIcelandic && (
+            message.toLowerCase().includes('sumar') ||
+            message.toLowerCase().includes('júlí') ||
+            message.toLowerCase().includes('ágúst')
+        ))) {
         return " 🌞";
     }
     if (message.toLowerCase().includes('weather') || 
-        message.toLowerCase().includes('temperature')) {
+        message.toLowerCase().includes('temperature') ||
+        (languageDecision.isIcelandic && (
+            message.toLowerCase().includes('veður') ||
+            message.toLowerCase().includes('hitastig')
+        ))) {
         return " ☁️";
     }
     if (message.toLowerCase().includes('evening') || 
-        message.toLowerCase().includes('sunset')) {
+        message.toLowerCase().includes('sunset') ||
+        (languageDecision.isIcelandic && (
+            message.toLowerCase().includes('kvöld') ||
+            message.toLowerCase().includes('sólsetur')
+        ))) {
         return " 🌅";
     }
-    if (message.match(/^(hi|hello|hey|good|welcome|hæ|halló|sæl)/i)) {
+    // Use language-aware greeting check
+    const greetingPattern = languageDecision.isIcelandic ?
+        /^(hæ|halló|sæl|sæll|góðan|komdu)/i :
+        /^(hi|hello|hey|good|welcome)/i;
+    
+    if (message.match(greetingPattern)) {
         return " 😊";
     }
     return "";
 };
 
 // Helper function for late arrival detection.
-const detectLateArrivalScenario = (message) => {
+const detectLateArrivalScenario = (message, languageDecision, context) => {
     const lowerMessage = message.toLowerCase();
 
     // Add time extraction helper at the top
@@ -1840,21 +1981,30 @@ const detectLateArrivalScenario = (message) => {
     // MOST IMPORTANT: Log what we're detecting
     console.log('\n🔍 Analyzing message for late arrival/booking change:', {
         message: lowerMessage,
-        hasDateChange: lowerMessage.includes('tomorrow') || lowerMessage.includes('next'),
-        hasTimePreference: lowerMessage.includes('instead') || lowerMessage.includes('possible'),
+        language: {
+            isIcelandic: languageDecision?.isIcelandic,
+            confidence: languageDecision?.confidence,
+            reason: languageDecision?.reason
+        },
+        hasDateChange: lowerMessage.includes('tomorrow') || lowerMessage.includes('next') ||
+                      (languageDecision?.isIcelandic && (lowerMessage.includes('á morgun') || lowerMessage.includes('næst'))),
         hasBSI: lowerMessage.includes('bsi') || lowerMessage.includes('transfer'),
         hasBookingReference: /SKY-[A-Z0-9]+/.test(message),
-        hasFlightDelay: lowerMessage.includes('flight') && lowerMessage.includes('delay'),
-        hasTransfer: lowerMessage.includes('transfer') || lowerMessage.includes('bsi')
+        hasFlightDelay: lowerMessage.includes('flight') || 
+                       (languageDecision?.isIcelandic && lowerMessage.includes('flug')),
+        hasTransfer: lowerMessage.includes('transfer') || 
+                    (languageDecision?.isIcelandic && lowerMessage.includes('rútu'))
     });
 
     // Add debug log here
     console.log('\n🔎 FLIGHT DELAY DEBUG:', {
         message: lowerMessage,
-        hasFlight: lowerMessage.includes('flight'),
-        hasDelay: lowerMessage.includes('delay') || lowerMessage.includes('delayed'),
-        hasAirport: lowerMessage.includes('airport'),
-        hasBook: lowerMessage.includes('book'),
+        hasFlight: lowerMessage.includes('flight') || 
+                  (languageDecision?.isIcelandic && lowerMessage.includes('flug')),
+        hasDelay: lowerMessage.includes('delay') || lowerMessage.includes('delayed') ||
+                 (languageDecision?.isIcelandic && (lowerMessage.includes('seinn') || lowerMessage.includes('töf'))),
+        hasAirport: lowerMessage.includes('airport') ||
+                   (languageDecision?.isIcelandic && lowerMessage.includes('flugvöll')),
         hasTime: lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/),
         fullMessage: message
     });
@@ -1862,17 +2012,23 @@ const detectLateArrivalScenario = (message) => {
     // FIRST: Check for flight delay situations 
     if (
         // Check for "just leave/left airport" patterns first
-        /just\s+(?:leave|left|leaving)\s+airport/.test(lowerMessage) ||
+        (/just\s+(?:leave|left|leaving)\s+airport/.test(lowerMessage) ||
+         (languageDecision?.isIcelandic && /rétt\s+(?:fór|farinn|farin)\s+(?:frá)?\s*flugvöll/.test(lowerMessage))) ||
         // Flight delay combination
-        (lowerMessage.includes('flight') && 
-         (lowerMessage.includes('delay') || 
-          lowerMessage.includes('delayed'))) ||
+        ((lowerMessage.includes('flight') || (languageDecision?.isIcelandic && lowerMessage.includes('flug'))) && 
+         (lowerMessage.includes('delay') || lowerMessage.includes('delayed') ||
+          (languageDecision?.isIcelandic && (lowerMessage.includes('seinn') || lowerMessage.includes('töf'))))) ||
         // Airport combination with leave/wait
-        (lowerMessage.includes('airport') && 
+        ((lowerMessage.includes('airport') || (languageDecision?.isIcelandic && lowerMessage.includes('flugvöll'))) && 
          (lowerMessage.includes('just leave') || 
           lowerMessage.includes('just left') ||
           lowerMessage.includes('waiting') ||
-          lowerMessage.includes('delayed')))
+          lowerMessage.includes('delayed') ||
+          (languageDecision?.isIcelandic && (
+              lowerMessage.includes('rétt farinn') ||
+              lowerMessage.includes('bíð') ||
+              lowerMessage.includes('seinn')
+          ))))
     ) {
         console.log('\n✈️ Flight delay detected');
         return {
@@ -1901,7 +2057,13 @@ const detectLateArrivalScenario = (message) => {
                 lowerMessage.includes('adjust') ||
                 lowerMessage.includes('change') ||
                 lowerMessage.includes('move') ||
-                lowerMessage.includes('instead')
+                lowerMessage.includes('instead') ||
+                (languageDecision?.isIcelandic && (
+                    lowerMessage.includes('fyrr') ||
+                    lowerMessage.includes('breyta') ||
+                    lowerMessage.includes('færa') ||
+                    lowerMessage.includes('í staðinn')
+                ))
             )) {
                 console.log('\n📅 Booking modification detected - significant time difference');
                 return null;
@@ -1914,11 +2076,20 @@ const detectLateArrivalScenario = (message) => {
         // BSÍ mentions
         lowerMessage.includes('bsi') ||
         lowerMessage.includes('transfer') ||
+        (languageDecision?.isIcelandic && (
+            lowerMessage.includes('rútu') ||
+            lowerMessage.includes('strætó')
+        )) ||
         // Transfer time changes
         (lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/) && 
          (lowerMessage.includes('shuttle') || 
           lowerMessage.includes('bus') || 
-          lowerMessage.includes('transport')))
+          lowerMessage.includes('transport') ||
+          (languageDecision?.isIcelandic && (
+              lowerMessage.includes('rútu') ||
+              lowerMessage.includes('strætó') ||
+              lowerMessage.includes('ferð')
+          ))))
     ) {
         console.log('\n🚌 Transfer change detected');
         return null;  // Let regular booking change handling take over
@@ -1941,9 +2112,14 @@ const detectLateArrivalScenario = (message) => {
         lowerMessage.includes('day after') ||
         lowerMessage.includes('different date') ||
         // Icelandic date changes
-        lowerMessage.includes('á morgun') ||
-        lowerMessage.includes('næsta dag') ||
-        lowerMessage.includes('annan dag')
+        (languageDecision?.isIcelandic && (
+            lowerMessage.includes('á morgun') ||
+            lowerMessage.includes('næsta dag') ||
+            lowerMessage.includes('næstu viku') ||
+            lowerMessage.includes('annan dag') ||
+            lowerMessage.includes('breyta dagsetningu') ||
+            lowerMessage.includes('færa daginn')
+        ))
     ) {
         console.log('\n📅 Future date change request detected');
         return null;
@@ -1952,45 +2128,69 @@ const detectLateArrivalScenario = (message) => {
     // FIFTH: Check for alternative time requests (not late arrival)
     if (
         // BSÍ transfer changes
-        (lowerMessage.includes('bsi') || lowerMessage.includes('transfer')) &&
-        (lowerMessage.includes('instead') || 
-         lowerMessage.includes('change') || 
-         lowerMessage.includes('earlier') ||
-         lowerMessage.includes('different') ||
-         lowerMessage.match(/(?:from|at)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+to/)) ||
+        ((lowerMessage.includes('bsi') || lowerMessage.includes('transfer') ||
+          (languageDecision?.isIcelandic && lowerMessage.includes('rútu'))) &&
+         (lowerMessage.includes('instead') || 
+          lowerMessage.includes('change') || 
+          lowerMessage.includes('earlier') ||
+          lowerMessage.includes('different') ||
+          (languageDecision?.isIcelandic && (
+              lowerMessage.includes('í staðinn') ||
+              lowerMessage.includes('breyta') ||
+              lowerMessage.includes('fyrr') ||
+              lowerMessage.includes('annan')
+          )) ||
+          lowerMessage.match(/(?:from|at)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+to/))) ||
         // Time preference queries
         (lowerMessage.includes('possible') && 
          lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/)) ||
         // Availability questions
-        (lowerMessage.includes('available') && 
+        ((lowerMessage.includes('available') || 
+          (languageDecision?.isIcelandic && lowerMessage.includes('laust'))) && 
          lowerMessage.includes('time')) ||
         // Clear booking changes
         lowerMessage.includes('earlier time') || 
         lowerMessage.includes('move up') ||
+        (languageDecision?.isIcelandic && (
+            lowerMessage.includes('fyrri tíma') ||
+            lowerMessage.includes('færa fram')
+        )) ||
         // Moving TO a specific time (booking change)
         lowerMessage.match(/(?:move|change).*to.*\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) ||
+        (languageDecision?.isIcelandic && 
+         lowerMessage.match(/(?:færa|breyta).*til.*\d{1,2}(?:\s*:\s*\d{2})?/)) ||
         // "Change booking" without late/delay context
-        (lowerMessage.includes('change') && 
-         lowerMessage.includes('booking') && 
-         !lowerMessage.includes('late') &&
-         !lowerMessage.includes('delay')) ||
+        ((lowerMessage.includes('change') && 
+          lowerMessage.includes('booking') && 
+          !lowerMessage.includes('late') &&
+          !lowerMessage.includes('delay')) ||
+         (languageDecision?.isIcelandic && (
+             lowerMessage.includes('breyta') && 
+             lowerMessage.includes('bókun') && 
+             !lowerMessage.includes('sein') &&
+             !lowerMessage.includes('töf')
+         ))) ||
         // Has booking reference
         /SKY-[A-Z0-9]+/.test(message) ||
         // Moving to earlier in day (booking change)
         (lowerMessage.match(/\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) && 
          (lowerMessage.includes('earlier') || 
           lowerMessage.includes('move') ||
-          lowerMessage.includes('change'))) ||
+          lowerMessage.includes('change') ||
+          (languageDecision?.isIcelandic && (
+              lowerMessage.includes('fyrr') ||
+              lowerMessage.includes('færa') ||
+              lowerMessage.includes('breyta')
+          )))) ||
         // Plans changed mentions
-        (lowerMessage.includes('plans') && 
-         lowerMessage.includes('changed') &&
-         !lowerMessage.includes('delay')) ||
-        // Icelandic booking changes
-        (lowerMessage.includes('færa') && 
-         (lowerMessage.includes('til') || lowerMessage.includes('tíma'))) ||
-        (lowerMessage.includes('breyta') && 
-         (lowerMessage.includes('bókun') || lowerMessage.includes('tíma'))) ||
-        (lowerMessage.includes('breyta') && !lowerMessage.includes('sein')) ||
+        ((lowerMessage.includes('plans') && 
+          lowerMessage.includes('changed') &&
+          !lowerMessage.includes('delay')) ||
+         (languageDecision?.isIcelandic && (
+             lowerMessage.includes('plön') && 
+             lowerMessage.includes('breyttust') &&
+             !lowerMessage.includes('töf')
+         ))) ||
         // Match Icelandic time change format (15:00, 17:00, etc.)
         (lowerMessage.match(/\d{1,2}[:;]\d{2}/) && 
          (lowerMessage.includes('færa') || lowerMessage.includes('breyta')))
@@ -2110,7 +2310,16 @@ const detectLateArrivalScenario = (message) => {
         /late\s(?:by\s)?(\d+)\s(?:minute|min|minutes|mins?)/i,
         
         // General time mentions WITH late/delay context only
-        /(?:minute|min|minutes|mins?)\s*(\d+)\s*(?:late|delay)/i
+        /(?:minute|min|minutes|mins?)\s*(\d+)\s*(?:late|delay)/i,
+
+        // Add Icelandic time patterns
+        ...(languageDecision?.isIcelandic ? [
+            /(\d+)\s*klst?\s*og\s*(\d+)\s*mín?/i,
+            /(\d+)\s*klst?/i,
+            /(\d+)\s*mín?/i,
+            /hálftími/i,
+            /korter/i
+        ] : [])
     ];
 
     let minutes = null;
@@ -2122,26 +2331,26 @@ const detectLateArrivalScenario = (message) => {
                 match: match
             });
 
-            if (pattern.toString().includes('hours? and')) {
+            if (pattern.toString().includes('hours? and') || pattern.toString().includes('klst?\\s*og')) {
                 // Handle "X hours and Y minutes" explicitly
                 const hours = parseInt(match[1]);
                 const mins = parseInt(match[2]);
                 minutes = (hours * TIME_CONVERSIONS.hour) + (mins * TIME_CONVERSIONS.minute);
-            } else if (pattern.toString().includes('half')) {
+            } else if (pattern.toString().includes('half') || pattern.toString().includes('hálf')) {
                 if (match[1]) {
                     // "2 and a half hours"
                     minutes = (parseInt(match[1]) * TIME_CONVERSIONS.hour) + TIME_CONVERSIONS.half;
                 } else {
-                    // "hour and a half" or "one and a half hours"
+                    // "hour and a half" or "one and a half hours" or "hálftími"
                     minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.half;
                 }
-            } else if (pattern.toString().includes('quarter')) {
+            } else if (pattern.toString().includes('quarter') || pattern.toString().includes('korter')) {
                 if (pattern.toString().includes('hour and')) {
                     minutes = TIME_CONVERSIONS.hour + TIME_CONVERSIONS.quarter;
                 } else {
                     minutes = TIME_CONVERSIONS.quarter;
                 }
-            } else if (pattern.toString().includes('hour')) {
+            } else if (pattern.toString().includes('hour') || pattern.toString().includes('klst')) {
                 if (match[1] === undefined && pattern.toString().includes('an|one|a')) {
                     minutes = TIME_CONVERSIONS.hour;
                 } else {
@@ -2165,9 +2374,16 @@ const detectLateArrivalScenario = (message) => {
     // ONLY process minutes if we have a clear late/delay context
     if (minutes !== null) {
         // Extra check - make sure we have late/delay context
-        if (!lowerMessage.includes('late') && 
-            !lowerMessage.includes('delay') && 
-            !lowerMessage.includes('sein')) {
+        const hasLateContext = lowerMessage.includes('late') || 
+                             lowerMessage.includes('delay') || 
+                             (languageDecision?.isIcelandic && (
+                                 lowerMessage.includes('sein') ||
+                                 lowerMessage.includes('töf')
+                             )) ||
+                             context?.lastTopic === 'late_arrival' ||  // Check context
+                             context?.lateArrivalContext?.isLate;      // Check late arrival state
+
+        if (!hasLateContext) {
             console.log('\n⚠️ Time found but no late/delay context - not treating as late arrival');
             return null;
         }
@@ -2192,8 +2408,11 @@ const detectLateArrivalScenario = (message) => {
     // For vague "late" mentions without specific time
     if (hasCompleteWord(lowerMessage, 'late') || 
         hasCompleteWord(lowerMessage, 'delay') ||
-        hasCompleteWord(lowerMessage, 'sein') || 
-        hasCompleteWord(lowerMessage, 'seint')) {
+        (languageDecision?.isIcelandic && (
+            hasCompleteWord(lowerMessage, 'sein') || 
+            hasCompleteWord(lowerMessage, 'seint') ||
+            hasCompleteWord(lowerMessage, 'töf')
+        ))) {
         console.log('\n❓ Unspecified delay detected');
         return {
             type: 'unspecified_delay',
@@ -2208,29 +2427,33 @@ const detectLateArrivalScenario = (message) => {
 const seasonInfo = getCurrentSeason();
 
 // System prompts
-const getSystemPrompt = (sessionId, isHoursQuery, userMessage) => {
+const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision) => {
     const context = getContext(sessionId);
     console.log('\n👀 Context Check:', {
         hasContext: !!context,
         sessionId,
-        message: userMessage
+        message: userMessage,
+        language: {
+            isIcelandic: languageDecision?.isIcelandic,
+            confidence: languageDecision?.confidence,
+            reason: languageDecision?.reason
+        }
     });
 
-//    // Enhanced language detection.
-//    const languageCheck = {
-//        hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-//        rawDetection: detectLanguage(userMessage),
-//        languageContext: getLanguageContext(userMessage)
-//    };
-
-    // Get isIcelandic from context
-    const isIcelandic = context?.language === 'is';
-    
-    const relevantKnowledge = isIcelandic ? 
+    // Use the passed in languageDecision
+    const relevantKnowledge = languageDecision?.isIcelandic ? 
         getRelevantKnowledge_is(userMessage) : 
         getRelevantKnowledge(userMessage);
     
-    console.log('\n📚 Knowledge Base Match:', JSON.stringify(relevantKnowledge, null, 2));
+    console.log('\n📚 Knowledge Base Selection:', {
+        message: userMessage,
+        language: {
+            isIcelandic: languageDecision?.isIcelandic,
+            confidence: languageDecision?.confidence,
+            reason: languageDecision?.reason
+        },
+        usingIcelandic: languageDecision?.isIcelandic
+    });
 
     let basePrompt = `You are Rán, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
 
@@ -2531,6 +2754,7 @@ CURRENT ACTIVITY CONTEXT:
     Total Time Needed: ${context.timeContext.sequence.reduce((total, activity) => 
         total + (context.timeContext.activityDuration[activity] || 0), 0)} minutes
     Booking Time: ${context.timeContext.bookingTime || 'not specified'}
+    Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
     
     ENSURE RESPONSE:
     1. Mentions specific duration for each activity
@@ -3111,6 +3335,7 @@ SEASONAL CONTEXT:
 - Current Season: ${context.seasonalContext.type}
 - Subtopic: ${context.seasonalContext.subtopic}
 - Last Follow-up: ${context.seasonalContext.lastFollowUp}
+- Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
 
 MAINTAIN THIS SEASONAL CONTEXT IN RESPONSES.
 IF user says "yes" to more information:
@@ -3126,8 +3351,8 @@ IF user says "yes" to more information:
         });
     }
   
-    // Add Icelandic guidelines if detected
-    if (detectLanguage(userMessage)) {
+    // Add Icelandic guidelines if Icelandic detected
+    if (languageDecision.isIcelandic) {
         basePrompt += `
 ICELANDIC RESPONSE GUIDELINES:
 CRITICAL RULE: NEVER USE ANY ENGLISH PHRASES OR TRANSITIONS
@@ -3797,9 +4022,16 @@ GIFT CARD RESPONSES:
    - "í gjafakorti"`;
 }
 
-    basePrompt += `\n\nRESPOND IN ${isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
+    basePrompt += `\n\nRESPOND IN ${languageDecision.isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
 
-    console.log('\n🤖 Final System Prompt:', basePrompt);
+    console.log('\n🤖 Final System Prompt:', {
+        prompt: basePrompt,
+        language: {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        }
+    });
     return basePrompt;
 };
 
@@ -3896,15 +4128,16 @@ const getMaxTokens = (userMessage) => {
 };
 
 // Enhanced casual chat handler with better language detection
-const handleCasualChat = (message, isIcelandic, languageResult = { hasDefiniteEnglish: false }) => {
+const handleCasualChat = (message, languageDecision) => {
     try {
         const msg = message.toLowerCase();
         
         // Log chat analysis
         console.log('\n💬 Casual Chat Analysis:', {
             message: msg,
-            hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
-            isIcelandic: isIcelandic,
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason,
             patterns: {
                 isGreeting: /^(?:hi|hello|hey|hæ|halló)\b/i.test(msg),
                 isCasualGreeting: msg.includes('bara heilsa') || msg.includes('bara að heilsa'),
@@ -3913,8 +4146,8 @@ const handleCasualChat = (message, isIcelandic, languageResult = { hasDefiniteEn
             }
         });
 
-        // Use early language detection first
-        const useEnglish = languageResult?.hasDefiniteEnglish || !isIcelandic;
+        // Use new language detection
+        const useEnglish = !languageDecision.isIcelandic;
 
         // Handle casual greetings first - keep existing functionality
         if (!useEnglish && (msg.includes('bara heilsa') || 
@@ -3960,10 +4193,10 @@ const handleCasualChat = (message, isIcelandic, languageResult = { hasDefiniteEn
             }
         }
 
-        // Check for enhanced small talk patterns
-        const smallTalkResult = detectSmallTalk(msg, languageResult || { hasDefiniteEnglish: false });
+        // Check for enhanced small talk patterns with new language detection
+        const smallTalkResult = detectSmallTalk(msg, languageDecision);
         if (smallTalkResult.isSmallTalk) {
-            return getSmallTalkResponse(smallTalkResult, languageResult);
+            return getSmallTalkResponse(smallTalkResult, languageDecision);
         }
 
         return null;
@@ -3974,8 +4207,7 @@ const handleCasualChat = (message, isIcelandic, languageResult = { hasDefiniteEn
             stack: error.stack,
             input: {
                 message,
-                isIcelandic,
-                languageResult
+                languageDecision
             }
         });
         return null;
@@ -4046,7 +4278,8 @@ const logError = (error, context = {}) => {
         type: error.name,
         context: {
             ...context,
-            language: context.isIcelandic ? 'Icelandic' : 'English',
+            // Update this line to use languageDecision
+            language: context.languageDecision?.isIcelandic ? 'Icelandic' : 'English',
             timestamp: new Date().toISOString()
         }
     });
@@ -4095,10 +4328,10 @@ app.get('/chat', (req, res) => {
 });
 
 // Add this new function before your chat endpoint
-const formatErrorMessage = (error, userMessage) => {
+const formatErrorMessage = (error, userMessage, languageDecision) => {
     const isDevelopment = process.env.NODE_ENV === 'development';
-    // Instead of declaring isIcelandic again, just use it
-    const messages = context.language === 'is' ? ERROR_MESSAGES.is : ERROR_MESSAGES.en;
+    // Update this line to use languageDecision
+    const messages = languageDecision?.isIcelandic ? ERROR_MESSAGES.is : ERROR_MESSAGES.en;
 
     if (error.message.includes('rate_limit_exceeded')) {
         return messages.rateLimited;
@@ -4110,9 +4343,9 @@ const formatErrorMessage = (error, userMessage) => {
 };
 
 // Context management
-const updateContext = (sessionId, message, response) => {
+const updateContext = (sessionId, message, response, languageDecision) => {
     let context = conversationContext.get(sessionId) || 
-                 initializeContext(sessionId, detectLanguage(message) ? 'is' : 'en');
+                 initializeContext(sessionId, languageDecision?.isIcelandic ? 'is' : 'en');
     
     // Enhanced language context maintenance
     const previousContext = conversationContext.get(sessionId);
@@ -4122,11 +4355,13 @@ const updateContext = (sessionId, message, response) => {
         context.language = previousContext.language;
     }
     
-    // Only override if current message has clear language indicators
-    if (detectLanguage(message)) {
-        context.language = 'is';
-    } else if (/^(hi|hello|thanks|thank you)$/i.test(message)) {
-        context.language = 'en';
+    // Only override if current message has clear language indicators from new system
+    if (languageDecision) {
+        if (languageDecision.isIcelandic && languageDecision.confidence === 'high') {
+            context.language = 'is';
+        } else if (!languageDecision.isIcelandic && languageDecision.confidence === 'high') {
+            context.language = 'en';
+        }
     }
 
     // Reset specific contexts when appropriate
@@ -4151,7 +4386,7 @@ const updateContext = (sessionId, message, response) => {
         !message.toLowerCase().includes('delay') &&
         !message.toLowerCase().includes('flight') &&
         context.lastTopic === 'late_arrival') {
-        const arrivalCheck = detectLateArrivalScenario(message);
+        const arrivalCheck = detectLateArrivalScenario(message, languageDecision, context);  // Added context
         if (!arrivalCheck && !message.match(/it|that|this|these|those|they|there/i)) {
             context.lateArrivalContext = {
                 ...context.lateArrivalContext,
@@ -4167,7 +4402,7 @@ const updateContext = (sessionId, message, response) => {
     }
 
     // Update late arrival context if detected
-    const arrivalCheck = detectLateArrivalScenario(message);
+    const arrivalCheck = detectLateArrivalScenario(message, languageDecision, context);  // Added context
     if (arrivalCheck) {
         context.lateArrivalContext = {
             ...context.lateArrivalContext,
@@ -4243,20 +4478,29 @@ const updateContext = (sessionId, message, response) => {
     context.messageCount++;
 
     // Track topics discussed in specific languages
+    // Track topics discussed in specific languages
     if (message) {
         const currentTopic = detectTopic(message, 
-            context.language === 'is' ? 
+            languageDecision?.isIcelandic ? 
             getRelevantKnowledge_is(message) : 
-            getRelevantKnowledge(message)
+            getRelevantKnowledge(message),
+            context,
+            languageDecision
         ).topic;
 
         if (currentTopic) {
-            if (context.language === 'is') {
+            if (languageDecision?.isIcelandic) {
                 context.icelandicTopics = [...new Set([
                     ...(context.icelandicTopics || []),
                     currentTopic
                 ])];
-                console.log('\n🌍 Updated Icelandic Topics:', context.icelandicTopics);
+                console.log('\n🌍 Updated Icelandic Topics:', {
+                    topics: context.icelandicTopics,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence
+                    }
+                });
             }
         }
     }
@@ -4381,9 +4625,13 @@ const getContext = (sessionId) => conversationContext.get(sessionId);
 
 // Enhanced chat endpoint with GPT-4 optimization
 app.post('/chat', verifyApiKey, async (req, res) => {
-    let context;  // Keep let for context since it's modified throughout
+    let context;  // Single declaration at the top
     
     try {
+        // Initialize session first
+        const currentSession = conversationContext.get('currentSession');
+        const sessionId = currentSession || `session_${Date.now()}`;
+        
         console.log('\n🔍 Full request body:', req.body);
         
         // Get message from either question or message field
@@ -4391,14 +4639,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // Initialize session ONCE at the start
-        const currentSession = conversationContext.get('currentSession');
-        const sessionId = currentSession || `session_${Date.now()}`;
-        
         // Store new session if needed
         if (!currentSession) {
             conversationContext.set('currentSession', sessionId);
             console.log('\n🆕 New Session Created:', sessionId);
+        }
+
+        // Get initial context
+        context = conversationContext.get(sessionId);
+
+        // Do language detection first, with null context if we don't have one yet
+        const languageDecision = newDetectLanguage(userMessage, context);
+        
+        // Keep old system during testing (modified to work without languageResult)
+        const oldSystemResult = {
+            isIcelandic: detectLanguage(userMessage),  // Simplified old system check
+            source: 'old_system'
+        };
+
+        // Now initialize context if it doesn't exist, using our language detection
+        if (!context) {
+            context = initializeContext(sessionId, languageDecision);
+            conversationContext.set(sessionId, context);
         }
 
         // Log session info for debugging
@@ -4408,591 +4670,57 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             currentSession: conversationContext.get('currentSession')
         });
 
-        // Early language detection - determines language before any other processing
-        const languageResult = {
-            hasDefiniteEnglish: (
-                // Expanded GET/REF booking number patterns with context
-                /^(?:it\s+is|this\s+is|that\s+is|here\s+is)?\s*(?:GET|REF|BOOK|BK|B)-\d{5,}\s*$/i.test(userMessage) ||
-                /^(?:GET|REF|BOOK|BK|B)-\d{5,}\s*(?:is\s+(?:my|the|our|a))?\s*(?:booking|reference|number|code)?\s*$/i.test(userMessage) ||
-                /^(?:my|the|our)\s*(?:booking|reference|number|code)\s*(?:is)?\s*(?:GET|REF|BOOK|BK|B)-\d{5,}\s*$/i.test(userMessage) ||
-                // Single booking number variations (add these BEFORE any other patterns)
-                /^\d{8}$/i.test(userMessage) ||  // Matches exactly 8 digits
-                /^(?:GET|REF|BOOK|BK|B)-?\d{8}$/i.test(userMessage) ||  // Matches prefixed 8-digit numbers
-                /^(?:GET|REF|BOOK|BK|B)-?\d{5,}$/i.test(userMessage) ||  // Matches prefixed 5+ digit numbers
-                // Booking number with context (add these after)
-                /^(?:this is|here is|my|the)?\s*(?:booking|reference|reservation|confirmation)?\s*(?:number|#|no|code|id)?\s*(?:is)?\s*(?:\d{5,}|(?:GET|REF|BOOK|BK|B)-\d{5,})\s*$/i.test(userMessage) ||
-                /^(?:GET|REF|BOOK|BK|B)?-?\d{5,}\s*(?:is my|is the|this is my)?\s*(?:booking|reference|reservation|confirmation)?\s*(?:number|#|no|code|id)?\s*$/i.test(userMessage) ||
-                // Highest priority booking change patterns - put these FIRST, before any other patterns
-                /^need\s+to\s+modify\s+reservation\s+\d{5,}/i.test(userMessage) ||
-                /^(?:hello|hi)?,?\s*(?:we|i)\s+would\s+like\s+to\s+change\s+our\s+(?:sky\s+lagoon)?\s*reservation/i.test(userMessage) ||
-                /^(?:would|want|need)\s+(?:like|to)\s+change\s+(?:sky\s+lagoon)?\s*booking.*?#?\d{5,}/i.test(userMessage) ||
-                // Add even higher priority booking change patterns (put these FIRST)
-                /^(?:need|would like|want)\s+to\s*(?:modify|change)\s+(?:reservation|booking)\s+\d{5,}/i.test(userMessage) ||
-                // Variation with number first
-                /^(?:reservation|booking)?\s*(?:number|#|no|id)?[:\s]*\d{5,}.*?(?:from)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?)/i.test(userMessage) ||
-                // Catch "modify/change reservation" at start
-                /^(?:modify|change|reschedule)\s+(?:reservation|booking).*?\d{5,}/i.test(userMessage) ||
-                // Add priority patterns for detailed reservation changes (put these BEFORE other patterns)
-                /(?:would|want|need)\s+(?:like|to)\s+(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot).*?(?:number|#|no|id)?[:\s]+\d{5,}/i.test(userMessage) ||
-                // Add pattern for full reservation change requests with details
-                /(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot).*?(?:from)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?).*?(?:to)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm]?)/i.test(userMessage) ||
-                // Add pattern for requests that include reservation numbers and names
-                /(?:change|modify|move|reschedule|shift).*?(?:reservation|booking).*?(?:number|#|no|id)?[:\s]+\d{5,}.*?(?:name)[:\s]+[A-Za-z\s]+/i.test(userMessage) ||
-                // Common English request patterns - ADD THESE
-                /^(?:please|tell me|let me|show me|explain|give me)\b/i.test(userMessage) ||
-                /^i\s+(?:would|want|need|would like|'d like)\b/i.test(userMessage) ||
-                // New patterns - Catches "i'd like", "i'd want", etc.
-                /^i(?:['']d|d)\s+(?:like|want|need|love|prefer|hope|wish|be interested in|appreciate)\b/i.test(userMessage) ||
-                // "want/need" variations
-                /^(?:wanted|needed|wanting|needing)\b.*|^(?:just|really)\s+(?:want|need)\b/i.test(userMessage) ||
-                // I'm/Im/im looking for, I'm/Im/im wondering about...
-                /^(?:i['']m|im|i\s+am)\s+(?:looking|trying|hoping|wondering|interested|curious|planning|going|heading|coming)\b/i.test(userMessage) ||
-                // "Ill take" type phrases
-                /^i(?:['']ll|ll)\s+(?:take|have|get|book|need|want|be)\b/i.test(userMessage) ||
-                // I was wondering if...
-                /^i\s+was\s+(?:wondering|hoping|thinking|looking)\b/i.test(userMessage) ||
-                // are there any..
-                /^(?:are|do|is|can)\s+(?:there|you|we|it)\b/i.test(userMessage) ||
-                // looking to book, trying to find... // looking for, searching for ...
-                /^(?:looking|trying|wanting)\s+to\b/i.test(userMessage) ||
-                /^(?:looking|searching|seeking|checking|asking)\s+(?:for|about|into)\b/i.test(userMessage) ||
-                // Add these bus stop and "can't find" patterns to your existing check
-                /(?:we|i|they)\s+(?:can['']?t|cannot|could\s+not|couldn['']t)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
-                /(?:can['']?t|cannot|could\s+not|couldn['']t)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
-                /(?:unable\s+to|having\s+trouble|having\s+difficulty)\s+(?:find|locate|see|spot|get\s+to)\b/i.test(userMessage) ||
-                // Bus stop patterns
-                /\b(?:bus|shuttle|transport)\s*(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\b/i.test(userMessage) ||
-                /\b(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\s+(?:for|of)\s+(?:bus|shuttle|transport)\b/i.test(userMessage) ||
-                /\b(?:where|which|what|is|at)\s+(?:the|your|sky\s+lagoon['']?s?)?\s*(?:bus|shuttle|transport)\s*(?:stop|station|terminal|pick[-\s]?up|area|location|spot)\b/i.test(userMessage) ||
-                // Missing/lost patterns
-                /(?:missing|lost|can['']?t\s+see|no\s+sign\s+of|looking\s+for)\s+(?:the|a|our|my|your)?\s*(?:bus|shuttle|transport|stop|pick[-\s]?up)\b/i.test(userMessage) ||
-                // Add these short inability patterns
-                /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s*$/i.test(userMessage) ||
-                /^(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\s+(?:we|i|they|you)\s*$/i.test(userMessage) ||
-                /^(?:we|i|they|you)\s+(?:can['']?t|cannot|couldn['']?t|won['']?t|will\s+not|would\s+not|wouldn['']?t)\b/i.test(userMessage) ||
-                // Text speak pattern - put this FIRST and simplify it
-                /^r\s*u\s*(?:there|here)$/i.test(userMessage) ||
-                // Impressed pattern - make it more specific and direct
-                /^(?:impressed|happy|pleased)\s+(?:with|by|about)\s+you$/i.test(userMessage) ||
-                // Common question starts
-                /^(?:has|have|had|shall|should|may|might|must)\b/i.test(userMessage) ||
-                // Question words in middle of sentence
-                /\b(?:which|whose|whom|who)\b.*\?$/i.test(userMessage) ||
-                // Booking inquiries
-                /^(?:about|regarding|concerning)\s+(?:my|your|the|a|this)\s+(?:booking|reservation|visit|tickets?)\b/i.test(userMessage) ||
-                // Add these booking modification patterns
-                /^(?:hi|hello|hey),?\s+(?:is|can|could|would)\s+(?:it|i|we|you)\s+(?:possible|able)\s+(?:to|for)\s+(?:swap|change|modify|move|reschedule|cancel)\b/i.test(userMessage) ||
-                /^(?:hi|hello|hey),?\s+(?:how|what|when)\s+(?:can|do|should|could|would)\s+(?:i|we)\s+(?:swap|change|modify|move|reschedule|cancel)\b/i.test(userMessage) ||
-                // Add these transport and location query patterns
-                /^(?:hi|hello|hey)?\.?\s*(?:can|could)\s+(?:you)?\s*(?:tell|let)\s+(?:me|us)\s+(?:about|know|understand)?/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\.?\s*(?:how|what)\s+(?:far|long|is|about)\s+(?:the|your|are)\s+(?:distance|location|address|you)\s+(?:from|to)\b/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\.?\s*(?:can|could|would|how)\s+(?:you)?\s*(?:help|advise|explain|describe)\s+(?:me|us)\s+(?:about|with|on|regarding)\b/i.test(userMessage) ||
-                // Add transport availability patterns
-                /(?:transport|transportation|transfer|shuttle|bus|taxi)\s+(?:is|are|available|options|possible|from|to)\b/i.test(userMessage) ||
-                // Add airport specific patterns
-                /(?:from|to)\s+(?:the\s+)?(?:airport|kef|keflavik|reykjavik)\b/i.test(userMessage) ||
-                // Flight and booking delay patterns
-                /(?:runway|aircraft|plane|flight)\s+(?:delay|delayed|issues?|problems?)/i.test(userMessage) ||
-                /(?:waiting|still|stuck)\s+(?:for|at|on)\s+(?:flight|plane|airport|runway)/i.test(userMessage) ||
-                /(?:technical|mechanical)\s+(?:issues?|problems?|difficulties)/i.test(userMessage) ||
-                /(?:miss|missing|cant make|cannot make)\s+(?:the|our|my)?\s*booking/i.test(userMessage) ||
-                // Enhanced time-related booking patterns
-                /(?:our|my|the)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+(?:booking|reservation|slot)/i.test(userMessage) ||
-                /(?:booked|reserved|have)\s+(?:for|at)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                // Transport and delay indications
-                /(?:in|at|from)\s+(?:Manchester|London|Edinburgh|Glasgow|Dublin|Paris|Amsterdam)/i.test(userMessage) ||
-                /(?:won'?t|will not|can'?t|cannot)\s+(?:make|reach|get to|arrive)/i.test(userMessage) ||
-                // Add near the transport/shuttle patterns
-                /(?:didn'?t|did not|couldn'?t|could not)\s+(?:see|find|spot|locate)\s+(?:the|your|a)?\s*(?:shuttle|bus|transport)/i.test(userMessage) ||
-                /(?:arrived|were|was|got there|made it)\s+(?:on|in)\s+(?:time|schedule|early)/i.test(userMessage) ||
-                // Add these language query patterns
-                /^(?:hi|hello|hey)?\s*(?:do|can|could|would)\s+(?:you|someone|anybody)\s+(?:speak|understand|know)\s+(?:english|icelandic|any english)\b/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\s*(?:is|are|does)\s+(?:there|anyone|somebody)\s+(?:who|that)\s+(?:speaks|understands)\s+(?:english|icelandic)\b/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\s*(?:english|icelandic)\s+(?:spoken|available|possible)\b/i.test(userMessage) ||
-                // Add optional 'please' variations
-                /^(?:hi|hello|hey)?\s*(?:please\s+)?(?:speak|talk)\s+(?:in\s+)?(?:english|icelandic)(?:\s+please)?\b/i.test(userMessage) ||
-                // Enhanced informal greetings and responses
-                /^(?:h[ie]+y+|h[ie]+|h[ie]{2,}|howdy|yo|heya|hiya|sup)\s*$/i.test(userMessage) ||
-                // First add short word/phrase patterns (put these FIRST)
-                /^(?:oh|we|us|im|me|for)\s*$/i.test(userMessage) ||
-                /^(?:for|about)\s+(?:us|me|our|you)\s*$/i.test(userMessage) ||
-                /^(?:im|i['']m)\s+(?:here|there|ready|waiting)\s*$/i.test(userMessage) ||
-                // Availability check patterns (add these AFTER short phrases)
-                /^(?:any|first|next|last)?\s*(?:time|slot|booking)?\s*(?:available|free|open)?\s*(?:tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
-                /^(?:any\s+)?available\s+(?:agents?|staff|times?|slots?)?\s*\??$/i.test(userMessage) ||
-                // Time/Availability patterns (enhanced to catch more variations)
-                /^(?:\d*(?:st|nd|rd|th))?\s*(?:time|slot|booking)?\s*(?:available|free|open|possible)?\s*(?:tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
-                /^(?:when|what)?\s*(?:is|are|will be)?\s*(?:the|your)?\s*(?:first|next|earliest|latest|last)?\s*(?:available|free|open)?\s*(?:time|slot|booking|space)?\s*(?:for|tomorrow|today|tonight|this\s+\w+)?\s*\??$/i.test(userMessage) ||
-                // Package/Date night patterns (enhanced)
-                /^(?:about|for|regarding)\s*(?:the)?\s*(?:date\s*night|sky|stefnu[mó]t)?\s*package/i.test(userMessage) ||
-                /(?:package|platter|date\s*night)\s*(?:include|come[s]?\s*with|contain|offer|give|get|have)\s*(?:food|drinks?|meal|platter)/i.test(userMessage) ||
-                // Youth/Price check patterns
-                /^(?:youth|price|pricing|cost)\s+(?:booking|prices?|info|information)?\s*$/i.test(userMessage) ||
-                /^(?:pricing|price|cost)\s+(?:for|of)?\s+(?:youths?|children|kids|teens)?\s*$/i.test(userMessage) ||
-                // Add these more flexible translation patterns to your hasDefiniteEnglish check
-                /(?:how|what)\s+(?:do|does|can|could|would|should|might|to)?\s*(?:i|you|we|they|one)?\s*(?:say|speak|talk|translate|write|spell|pronounce)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
-                /(?:what|how)\s+(?:is|are|would|does|do)?\s+(?:.*?)\s+(?:said|written|spelled|translated|pronounced|expressed|mean|means)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
-                /(?:what|how)\s+(?:is|are)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
-                /(?:translate|say|write|spell)\s+(?:.*?)\s+(?:in|into|to|for)\s*icelandic/i.test(userMessage) ||
-                /icelandic\s+(?:word|translation|term|meaning|version|way to say)\s+(?:of|for|to say)?\s+(?:.*)/i.test(userMessage) ||
-                /(?:in|into|to|for)\s+icelandic\s+(?:.*?)\s+(?:is|means|said|written|spelled|translated|pronounced)/i.test(userMessage) ||
-                /^(?:how|what)\s+(?:do|does|can|could|would|should|might)\s+(?:i|you|we|they|one)\s+(?:say|speak|translate|write|spell)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
-                /^(?:what|how)\s+(?:is|are)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
-                /^(?:translate|say)\s+\w+\s+(?:in|into|to)\s+icelandic/i.test(userMessage) ||
-                /^icelandic\s+(?:word|translation|term)\s+(?:for|of)\s+\w+/i.test(userMessage) ||
-                // Language/translation question patterns - ADD THESE FIRST
-                /(?:how|what)\s+(?:do|does|can|could|would|should|might|is|are|would be)?\s*(?:i|you|we|they|one|someone|anybody)?\s*(?:say|speak|translate|write|spell|mean|express|pronounce)\b/i.test(userMessage) ||
-                /(?:how|what)?\s*(?:is|are|would be)?\s*(?:the|that|this|it)\s+(?:said|written|spelled|pronounced|translated|expressed)\s+(?:in|into|to)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
-                // Expanded translation request patterns
-                /(?:translate|say|spell|write|mean|express|pronounce)\s+(?:this|that|it|something|anything|a\s+\w+|the\s+\w+)\s+(?:in|to|into|for)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
-                /\b(?:icelandic|iceland)\s+(?:word|phrase|saying|translation|version|meaning|equivalent|pronunciation|way|term)\s+(?:for|of|to|about)?\b/i.test(userMessage) ||
-                // Broader language question patterns
-                /(?:in|into|to|for)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
-                /(?:speak|say|write|translate)\s+(?:\w+)\s+(?:in|into|to)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
-                // Handle questions about specific words/phrases
-                /(?:what|how)\s+(?:do|does|would)?\s*(?:they|you|icelanders?|locals?|people)?\s*(?:say|call|name|pronounce|refer\s+to)\b/i.test(userMessage) ||
-                /(?:say|speak|translate|write|spell|pronounce)\s+(?:in|into|to)?\s*(?:icelandic|iceland)\b/i.test(userMessage) ||
-                // Add very short English phrase patterns - put these FIRST
-                /^(?:if|so|and|but|or)\s+(?:if|so|not|yet|then|that|this|we|i|you|they)\s*$/i.test(userMessage) ||
-                /^(?:if|so|and|but|or)\s+(?:if|so|not|yet|then|that|this|we|i|you|they)\b/i.test(userMessage) ||
-                // Add "our/my/your" possession patterns (for very short phrases)
-                /^(?:our|my|your|their|his|her)\s+(?:\w+)\s*$/i.test(userMessage) ||
-                // Add language question patterns
-                /(?:how|what|where|when)\s+(?:do|does|can|could|would|should|might)\s+(?:i|you|we|they|one)\s+(?:say|speak|translate|write|spell)\b/i.test(userMessage) ||
-                /(?:what|how)\s+(?:is|are|do|does)\s+(?:the|that|this|it|specific|certain)\s+(?:word|phrase|term|saying|expression)\s+(?:in|for|when|about)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
-                /(?:translate|say|spell|write)\s+(?:this|that|it|something|anything)\s+(?:in|to|into)\s+(?:icelandic|iceland)\b/i.test(userMessage) ||
-                // Add specific language reference patterns
-                /\b(?:icelandic|iceland|english|language)\s+(?:word|translation|version|meaning|equivalent|pronunciation)\b/i.test(userMessage) ||
-                /(?:in|to|into|from)\s+(?:icelandic|iceland|english)\b/i.test(userMessage) ||
-                // Add single possession word detection
-                /^(?:my|our|your|their|his|her)\s+\w+$/i.test(userMessage) ||
-                // Add two-word combinations with common English words
-                /^(?:if|so|and|but|or|yet|still|just|very|quite|rather|now|then|thus|hence|here|there)\s+(?:if|so|not|yet|then|that|this|we|i|you|they|here|there|now|good|bad|nice|far|close|near|right|wrong)\s*$/i.test(userMessage) ||
-                // Gift card patterns
-                /^(?:check|verify|what['']?s?)?\s*(?:the|my)?\s*(?:gift\s*card|card)?\s*(?:amount|balance|value)?\s*$/i.test(userMessage) ||
-                /^gift\s*card\s*$/i.test(userMessage) ||
-                // Gift card/amount check patterns (enhanced)
-                /^(?:check|verify|what['']?s?|how\s+much\s+is)?\s*(?:the|my)?\s*(?:gift\s*cards?|cards?)?\s*(?:amount|balance|value|worth)?\s*(?:left|remaining)?\s*$/i.test(userMessage) ||
-                /(?:check|verify|what['']?s?|how\s+much\s+is)\s*(?:the|my)?\s*(?:balance|amount|value)\s*(?:on|of|in)?\s*(?:the|my)?\s*(?:gift\s*cards?|cards?)/i.test(userMessage) ||
-                // Also/wondering patterns
-                /^(?:also|and)\s+(?:i\s+)?(?:was\s+)?wondering\s*(?:about)?\s*$/i.test(userMessage) ||
-                /^(?:also|and)\s+(?:i\s+)?(?:wanted|need|would like)\s+to\s+(?:ask|know|check)\s*$/i.test(userMessage) ||
-                // Also/wondering patterns with amenity questions (enhanced)
-                /^(?:also|and)\s+(?:i\s+)?(?:was\s+)?wondering[\s,]*(?:do|does|are|if|about|would|could|can)?\s*(?:you|we|there)?\s*(?:have|offer|provide|get|bring)\s*(?:robes?|towels?|amenities|facilities)/i.test(userMessage) ||
-                /(?:do|does)\s*(?:you|sky\s*lagoon)?\s*(?:have|offer|provide|give)\s*(?:robes?|towels?|amenities|facilities)/i.test(userMessage) ||
-                // Specific facility/amenity questions
-                /^(?:do\s+you\s+have|are\s+there)\s+(?:robes?|towels?|lockers?|amenities)\s*(?:for|available\s+to)?\s*(?:guests?|visitors?|customers?)?\s*\??$/i.test(userMessage) ||
-                // Package/platter questions
-                /^(?:for|about)\s+(?:the)?\s*(?:date\s+night|sky|stefnu[mó]t)?\s*package\s*$/i.test(userMessage) ||
-                /^(?:is|does)\s+(?:the|your)?\s*(?:sky\s*platter|platter|plate|food)\s+(?:shared|for\s+two|included)?\s*$/i.test(userMessage) ||
-                // Cold plunge/facility feature patterns
-                /^(?:cold\s*plunge|ice\s*bath|cold\s*pool|sauna|steam\s*room)\s*$/i.test(userMessage) ||
-                // Extended acknowledgment variations
-                /^(?:perfect|perfecto|amazing|amazin[g']+|solid|nice one|awesome|cool|brilliant|excellent)\s*$/i.test(userMessage) ||
-                // Enhanced acknowledgment variations with looser matching
-                /^(?:amazing|amazin[g']*|awesom[e']*|amaz[ing']*)\s*[!.]*$/i.test(userMessage) ||
-                // Multiple letter variations
-                /^(?:y[ae][sy]+|ok+a*y+|thx+|thanx+)\s*$/i.test(userMessage) ||
-                // Add near the awkward/unclear English patterns (for non-native speakers)
-                /(?:i'?m?\s+be|am\s+be)\s+(?:person|people|customer|guest)/i.test(userMessage) ||
-                /(?:know|see|understand)\s+(?:it|that|what)\s+(?:says|said|mentioned|stated)\s+(?:about|against|regarding)/i.test(userMessage) ||
-                // Add patterns for reservation changes and time modifications
-                /(?:hoping|want|wanted|trying|need|like)\s+to\s+(?:shift|change|modify|move|reschedule|adjust)\s+(?:the|my|our)?\s*(?:reservation|booking|time|slot|visit)/i.test(userMessage) ||
-                // Add more casual versions of time change requests
-                /(?:can|could|possible|possible to)\s+(?:shift|change|modify|move|reschedule)\s+(?:the|my|our)?\s*(?:time|booking|reservation|slot|visit)/i.test(userMessage) ||
-                // Add patterns for time-related modifications
-                /(?:different|another|new)\s+(?:time|slot|booking)\s+(?:slot|possible|available|instead)/i.test(userMessage) ||
-                // Add these booking statement and modification patterns
-                /^(?:i|we)(?:\s+(?:have|had|would|want|need))?\s+(?:a|the|my|our)\s+(?:booking|reservation|visit|ticket)/i.test(userMessage) ||
-                /^(?:i|we)\s+(?:would|want|need|would like|want to|need to)\s+(?:to\s+)?(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
-                /^(?:can|could)\s+(?:we|i|you)\s+(?:change|modify|move|swap|reschedule|update)\b/i.test(userMessage) ||
-                /(?:change|modify|move|swap|reschedule|update)\s+(?:t[op]|to|from|for|the|this|my|our)\s+(?:time|date|booking|slot)/i.test(userMessage) ||
-                // Add near the booking/scheduling patterns
-                /(?:possible|able)\s+(?:to|can|could)\s+(?:chance|change|modify|reschedule)\s+(?:the|your|our|my)\s+(?:day|booking|reservation)/i.test(userMessage) ||
-                /(?:excursion|tour|trip|booking|plan)\s+(?:needs|had|has|requires|needed)\s+(?:to be|been)\s+(?:rescheduled|changed|modified)/i.test(userMessage) ||
-                // Add near the booking/cancellation patterns
-                /(?:friend|person|guest|someone)\s+(?:is|was|just|recently|got)\s+(?:tested|found out|discovered)\s+(?:that|they|she|he)?\s*(?:is|are|was)\s+pregnant/i.test(userMessage) ||
-                /(?:cancel|refund|change)\s+(?:one|single|individual|specific)\s+(?:person'?s?|guest'?s?|friend'?s?)\s+(?:booking|reservation|ticket)/i.test(userMessage) ||
-                // Add patterns for specific reservation time changes
-                /(?:change|modify|move|reschedule|shift)\s+(?:the|my|our)?\s*(?:sky\s*lagoon)?\s*(?:reservation|booking|time|slot)\s+(?:from|to|at|for)?\s*(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                // Add patterns for reservation numbers and names
-                /(?:reservation|booking|confirmation|reference|order)\s*(?:number|#|no|id)?[:\s]+(?:\d{5,})/i.test(userMessage) ||
-                /(?:reservation|booking)\s+(?:name|under|for)[:\s]+(?:[A-Za-z\s]+)/i.test(userMessage) ||
-                // Add these for package references
-                /(?:the|a|any|which|what|your)?\s*(?:higher|better|upgraded|premium|special|different)\s+(?:package|option|pass|admission|tier)\s*(?:with|that|which|including)?\s+(?:the|some|any)?\s*(?:food|meal|dining|drinks?|refreshments?)\s+(?:included|offered|available|option)?\s*$/i.test(userMessage) ||
-                // Add patterns for time changes with specific details
-                /(?:from|changing)\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+to\s+(?:\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                // Time-related queries
-                /^(?:this|next|coming|tomorrow|today|tonight|weekend)\b/i.test(userMessage) ||
-                // Add these time-related and transfer patterns
-                /^(?:later|earlier|today|tomorrow|tonight|this)\s+(?:today|morning|afternoon|evening|night)\b/i.test(userMessage) ||
-                /^(?:need|want|looking)\s+(?:to get|to book|to arrange|for)\s+(?:a|the)?\s*(?:transfer|shuttle|bus|ride)\b/i.test(userMessage) ||
-                // Enhanced time reference patterns with variations
-                /(?:it['']?s|its|currently|have|booked|think\s+(?:it['']?s|its))\s+(?:an?)?\s*(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM|booking|slot|time)?\s*$/i.test(userMessage) ||
-                /(?:might|may|could|should)\s+(?:actually|probably|possibly)?\s+(?:be)\s+(?:an?)?\s*(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM|booking|slot|time)?\s*$/i.test(userMessage) ||
-                // Add these for time change requests
-                /(?:want|like|need|think|wish|hope)\s+to\s+(?:move|change|switch|shift)\s+(?:it|the\s+booking|the\s+time|the\s+slot)?\s+to\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM)?\s*$/i.test(userMessage) ||
-                /(?:move|change|switch|shift)\s+(?:it|the\s+booking|the\s+time|the\s+slot)?\s+to\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])\s*(?:[:.]?\d{2})?\s*(?:am|pm|AM|PM)?\s*$/i.test(userMessage) ||
-                // Time uncertainty patterns (add these as new patterns)
-                /^(?:it|this)\s+(?:might|may|could)\s+(?:actually|possibly|probably)?\s+be\s+(?:\d{1,2}[:.]?\d{2}|[1-9]|1[0-2])(?:[:.]?\d{2})?\s*(?:currently|now|at the moment|right now)?$/i.test(userMessage) ||
-                // Think/believe time change patterns (add these as new patterns)
-                /^(?:because|and|so|but)?\s*(?:i|we)\s+(?:think|believe|feel|guess)\s+(?:we|i|they)?\s+(?:want|would like|need|have|had)\s+to\s+(?:move|change|switch)\s+(?:it|this|that)?\s+to\s+(?:\d{1,2}(?::\d{2})?|[1-9]|1[0-2])\s*(?:am|pm|AM|PM)?/i.test(userMessage) ||
-                // Add these clarification patterns right after your time-related patterns
-                /^i\s+(?:mean|meant|think|thought|guess|suppose)\b/i.test(userMessage) ||
-                /^i\s+(?:was|am)\s+(?:talking|asking|wondering)\s+(?:about|regarding)\b/i.test(userMessage) ||
-                // Availability check patterns - add these BEFORE other patterns
-                /^(?:hi|hello|hey)?\s*(?:are|is)\s+there\s+(?:any|some)?\s*(?:openings?|availability|space|room)\s+(?:and|or)?\s*(?:availability)?\s+(?:to\s+(?:come|visit|book))?\s+(?:to|at|in)?\s*(?:the\s+)?sky\s*lagoon/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\s*(?:is|are)\s+(?:the\s+)?sky\s*lagoon\s+(?:open|available|taking\s+bookings?)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\s*(?:can|could)\s+(?:i|we)\s+(?:book|visit|come\s+to)\s+(?:the\s+)?sky\s*lagoon\s+(?:today|now|this\s+(?:morning|afternoon|evening))?/i.test(userMessage) ||
-                // Same-day availability patterns (add as new patterns)
-                /(?:are|is|any)\s+(?:there|you|still)?\s*(?:openings?|availability|space|slots?|room)\s+(?:to|for|and)?\s*(?:come|visit|book|enter)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                /(?:can|could|possible)\s+(?:we|i)\s+(?:come|visit|book|enter)\s+(?:today|now|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||                
-                // Enhanced availability check patterns (add as new patterns)
-                /^(?:hi|hello|hey)?\s*(?:are|is)\s+(?:there|you|it)?\s*(?:any|some)?\s*(?:openings?|availability|space|slots?|spots?|places?)\s+(?:available|left|remaining|to)?\s*(?:come|visit|book|enter)?\s*(?:(?:to|at|in|for)\s+(?:the\s+)?sky\s*lagoon)?\s*(?:today|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near|for)?\s*(?:noon|midday|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                /^(?:hi|hello|hey)?\s*(?:do|would|could)\s+(?:you|we)?\s*(?:have|got)?\s*(?:any)?\s*(?:openings?|availability|space|slots?|spots?)\s*(?:(?:at|in|for)\s+(?:the\s+)?sky\s*lagoon)?\s*(?:today|this\s+(?:morning|afternoon|evening))?\s*(?:at|around|near|for)?\s*(?:noon|midday|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                // Payment method patterns (add as new patterns)
-                /(?:don'?t|do\s+not|dont)\s+have\s+(?:a|any|the|credit|debit)?\s*card\s*(?:for|to|with)?\s*(?:payment|booking|reservation)?/i.test(userMessage) ||
-                /(?:can|could|may|possible)\s+(?:we|i)\s+(?:come|pay|book)\s+(?:there|in\s+person)?\s*(?:and|to)?\s*(?:pay)?\s*(?:by|with|in|using)?\s*(?:cash|euros?|money)/i.test(userMessage) ||
-                // Payment/booking method queries
-                /^(?:can|could|may|am\s+i\s+able)\s+(?:to|i)?\s*(?:come|pay|book|visit)\s+(?:and|to)?\s*(?:pay|book)?\s*(?:there|in\s+person|directly|at\s+location|on\s+site)\b/i.test(userMessage) ||
-                // Currency and payment acceptance patterns (add as new patterns)
-                /(?:do|does|can|could|will)\s+(?:you|they|we)?\s*(?:take|accept|allow|permit)\s+(?:cash|euros?|cards?|payments?\s+in)\b/i.test(userMessage) ||
-                /^(?:what\s+about|how\s+about|and|also)?\s*(?:do|does|will)?\s*(?:you)?\s*(?:accept|take)\s+(?:cash|euros?|cards?)\??$/i.test(userMessage) ||
-                // Add health condition and accommodation patterns
-                /(?:i|we)(?:\s+(?:cannot|can['']t|unable to|won['']t be able to))\s+(?:do|complete|participate in|take part in)\s+(?:the|your|a)?\s+(?:ritual|treatment|activity|experience)/i.test(userMessage) ||
-                // Add health-related patterns
-                /(?:due to|because of|have|with)\s+(?:health|medical|physical|personal)\s+(?:conditions?|reasons?|issues?|concerns?)/i.test(userMessage) ||
-                // Add near the health/medical condition patterns
-                /(?:diabetic|medical condition|health condition|nervous about|injury|feet|medical|health)\s+(?:allowed|can|wear|bring|use)/i.test(userMessage) ||
-                /(?:dad|father|parent|family member|relative)\s+(?:is|has|needs|requires)\s+(?:diabetic|medical|special)/i.test(userMessage) ||
-                // More comprehensive pattern for injury/health concerns
-                /(?:says?|mentioned|states?)\s+(?:about|against|regarding|that)\s+(?:etiquette|rules?|policy)/i.test(userMessage) ||
-                /(?:nervous|worried|concerned)\s+about\s+(?:injury|injuries|hurting|damage)/i.test(userMessage) ||
-                /(?:injury|injuries|hurting)\s+(?:to|on|in)\s+(?:his|her|their|the)\s+(?:feet|foot|legs?|body)/i.test(userMessage) ||
-                // Add skip/alternative option patterns
-                /(?:is there|are there|do you have)\s+(?:any|an|other)?\s+(?:options?|alternatives?|ways?)\s+(?:to|for|of)\s+(?:skip|bypass|avoid|miss)/i.test(userMessage) ||
-                // Comprehensive booking patterns
-                /^(?:book|reserve|schedule|get|make|place|confirm|arrange)\s+(?:now|me|us|ahead|visit|tour|trip|entry|access|admission|pass|package|slot|time|appointment|my\s+visit|our\s+visit|a\s+visit|my\s+booking|our\s+booking|this|that|it|one|some|tickets?)\s*$/i.test(userMessage) ||
-                // Expanded most/very patterns
-                /^(?:most|very|really|super|quite|extremely|absolutely|definitely|certainly|truly)\s+(?:popular|agreeable|impressive|informative|helpful|useful|interesting|amazing|wonderful|fantastic|excellent|great|good|nice|cool|awesome|brilliant|outstanding|remarkable|phenomenal)\s*$/i.test(userMessage) ||
-                // Enhanced having/being/feeling patterns
-                /^(?:having|being|feeling|experiencing|enjoying)\s+(?:fun|great|good|nice|awesome|wonderful|fantastic|amazing|excellent|brilliant|the\s+best|a\s+blast|the\s+time|such\s+fun|so\s+much\s+fun)\s*$/i.test(userMessage) ||
-                // Enhanced well done/good job patterns
-                /^(?:well|nicely|perfectly|excellently)\s+(?:done|handled|explained|said|put|answered|sorted|arranged|managed|organized)(?:\s+(?:babe|darling|honey|friend|mate|buddy|pal|dear|love|sweetie|boss))?\s*$/i.test(userMessage) ||
-                // Comprehensive impressed/satisfied patterns
-                /^(?:really|very|so|totally|completely|absolutely|genuinely|honestly|truly)\s*(?:impressed|satisfied|happy|pleased|delighted|amazed|surprised|stunned|overwhelmed|thrilled)(?:\s+(?:with|by|about|regarding|concerning|at|over)\s+(?:you|this|that|everything|all|the|your|the\s+service|the\s+information|the\s+help|the\s+response))?\s*$/i.test(userMessage) ||
-                // Enhanced really/single word response patterns
-                /^(?:really|seriously|honestly|truly|actually|literally|definitely|absolutely|certainly|surely|indeed)\s*[\?\!]*$/i.test(userMessage) ||
-                // Comprehensive chat/communication patterns
-                /^(?:chat|talk|speak|discuss|communicate|reply|respond|answer|help|assist)\s+(?:now|asap|please|here|with\s+me|with\s+us|about\s+this|about\s+that|more|further|again)\s*$/i.test(userMessage) ||
-                // Enhanced thanks/gratitude patterns
-                /^(?:thx|thanks|thank\s+you|cheers|ta|appreciated|grateful|thankful)(?:\s+(?:darling|babe|honey|friend|mate|buddy|pal|dear|love|sweetie|boss|so\s+much|a\s+lot|loads|tons|again|for\s+(?:this|that|everything|all|your\s+help|your\s+time|your\s+assistance)))?\s*$/i.test(userMessage) ||
-                // Expanded please/request patterns
-                /^(?:pretty|kindly|urgently|quickly|just|only|simply|maybe|perhaps|possibly|hopefully)\s+(?:please|help|assist|guide|tell|show|explain|clarify|confirm|check|verify)?\s*$/i.test(userMessage) ||
-                // Enhanced powerful/quality patterns
-                /^(?:powerful|great|nice|good|excellent|amazing|awesome|fantastic|wonderful|brilliant|outstanding|remarkable|phenomenal|incredible|superb)\s+(?:chat|talk|conversation|discussion|help|assistance|service|support|response|answer|information|explanation)\s*$/i.test(userMessage) ||
-                // Comprehensive say/tell patterns
-                /^(?:say|tell|give|share|write|type|send|show|explain|describe)\s+(?:something|anything|more|that|this|it|again|one\s+more|a\s+bit\s+more|please|what|how|why|when|where|who)\s*$/i.test(userMessage) ||
-                // Enhanced text speak/informal patterns
-                /^(?:r|are|u|you|y|n|k|ok|kk|brb|omg|tbh|idk|fyi|nvm)\s+(?:u|you|there|here|ready|available|sure|certain|kidding|serious|done|finished|helping|working|going|coming|leaving|busy|free|able|willing)\s*$/i.test(userMessage) ||
-                // Enhanced confirmation request patterns - add these at the START of your patterns
-                /^(?:can|could|would|will|please|kindly)?\s*(?:you)?\s*(?:please|kindly)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||
-                /^(?:you|can\s+you|could\s+you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check|validate)\s+(?:the|my|our|this)?\s*(?:reservation|booking|appointment|order)$/i.test(userMessage) ||  
-                // Add these descriptive/observational patterns
-                /^(?:there|it)\s+(?:seems?|appears?|looks?|feels?)\b/i.test(userMessage) ||
-                /^(?:seems?|appears?|looks?|feels?)\s+(?:like|that|as if)\b/i.test(userMessage) ||                
-                // Add "so if" and conditional patterns
-                /^(?:so|and|but|then)?\s*if\s+(?:i|we|you|they|it|there|that|this)\b/i.test(userMessage) ||
-                /^(?:what|how|where|when)\s+if\b/i.test(userMessage) ||
-                // Add "our/we" possession/status patterns
-                /^(?:our|my)\s+(?:\w+\s+)*(?:is|was|has|had|seems?|appears?|looks?|feels?)\b/i.test(userMessage) ||
-                /^(?:we|i)\s+(?:got|have|had|found|received|made it|arrived|reached)\b/i.test(userMessage) ||
-                // Add reaction/expression patterns
-                /^(?:ah|oh|wow|hmm|huh|aww?|ugh|ooh|well)\s+(?:what|that['']?s|this\s+is|i\s+see|okay|nice)\b/i.test(userMessage) ||
-                /^(?:what|that['']?s|this\s+is)\s+(?:a\s+)?(?:shame|pity|unfortunate|sad|great|good|nice|awesome)\b/i.test(userMessage) ||
-                // Add squeezing/fitting/capacity patterns
-                /(?:squeeze|fit|accommodate|add)\s+(?:in|more|extra|additional|another)?\s*(?:people|persons?|guests?|visitors?|spots?)/i.test(userMessage) ||
-                /(?:more|extra|additional|another)\s+(?:people|persons?|guests?|visitors?)\s+(?:in|into|for|during|at|during)/i.test(userMessage) ||
-                // Add hotel/location reference patterns
-                /^(?:my|our|the)\s+(?:hotel|place|accommodation|apartment|hostel|guesthouse)\s+(?:is|was|has|had|seems?|appears?|will be)\b/i.test(userMessage) ||
-                /(?:minutes?|hours?)\s+(?:away|from|to|between)\s+(?:the|your|sky)?\s*(?:lagoon|location|place|venue)/i.test(userMessage) ||
-                // Email and confirmation patterns - add these BEFORE other patterns
-                /^(?:can|could|would)\s+(?:you)?\s*(?:kindly|please)?\s*(?:confirm|verify|check)\s+(?:the)?\s*(?:reservation|booking|appointment)/i.test(userMessage) ||
-                /^(?:i|we)\s+(?:haven'?t|have\s+not|still\s+haven'?t)\s+(?:got|gotten|received)\s+(?:the|any|your|a)?\s*(?:mail|email|confirmation)(?:\s+yet)?$/i.test(userMessage) ||
-                /^(?:just|now)?\s*(?:received|got|gotten)\s+(?:it|them|the\s+mail|the\s+email|the\s+confirmation)$/i.test(userMessage) ||
-                // Add patterns for email confirmation issues with common typos
-                /^(?:i|we)?\s*(?:do|did|have|has|had|dont|havent|didnt)?\s*(?:not|nt)?\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen|recv|rcv)\s*(?:the|my|an?|any)?\s*(?:confirm\w*|email|mail|msg|message)/i.test(userMessage) ||
-                /(?:havnt|didnt|dont|havent|cant)\s*(?:reciev\w*|receiv\w*|recei\w*|get|got|seen)\s*(?:\w+)?\s*(?:mail|email|msg)/i.test(userMessage) ||
-                /^(?:can|could|would|pls|plz|please)?\s*(?:you|someone|anybody)?\s*(?:resend|send|forward|help)\s*(?:the|my|an?)?\s*(?:confirm\w*|email|mail)/i.test(userMessage) ||
-                /(?:confirm\w*|confrim\w*|confirmaton|confrmation)\s*(?:mail|email|message)/i.test(userMessage) ||
-                // Interest-based availability patterns - add after email patterns
-                /^(?:we|i)\s+(?:are|am|is|would\s+be)\s+(?:interested|looking|thinking|planning)\s+(?:in|about)\s+(?:coming|visiting|booking)\s+(?:there|to\s+sky\s+lagoon)?\s+(?:today|tomorrow|this\s+(?:morning|afternoon|evening))?\s*(?:around|at|near)?\s*(?:noon|\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                /^(?:we|i)\s+(?:are|am|would\s+be)\s+(?:interested|looking|thinking)\s+(?:in|about)\s+(?:coming|visiting|booking).*?(?:would|could|can|will)\s+(?:we|i)\s+(?:be\s+able\s+to)?\s*(?:get|have|book|reserve)\s+(?:a|any)?\s*(?:spot|space|place|slot|booking)/i.test(userMessage) ||
-                // Add patterns for requirements and items
-                /^(?:are|do|does)\s+(?:guests?|visitors?|people|you|we)\s+(?:need|have|required|supposed|allowed)\s+to\s+(?:wear|bring|use|have)/i.test(userMessage) ||
-                /^(?:what|which)\s+(?:items?|things?|equipment|gear|footwear|shoes)\s+(?:do|should|can|must)\s+(?:i|we|you|guests?)\s+(?:bring|wear|use|have)/i.test(userMessage) ||
-                /^(?:is|are)\s+(?:there|any|some)\s+(?:special|specific|required)\s+(?:items?|things?|equipment|gear|rules?)\b/i.test(userMessage) ||
-                // Add expanded patterns for footwear requirements
-                /(?:do|are|is|must|should)\s+(?:guests?|visitors?|people|we|you|i)\s+(?:need|have|required|supposed|allowed|permitted)\s+to\s+(?:wear|bring|use|have)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)/i.test(userMessage) ||
-                // Add patterns for bringing/providing items
-                /(?:do|does|are|can|should)\s+(?:guests?|visitors?|people|we|you|i)\s+(?:bring|provide|need|have)\s+(?:their|our|my|your|own)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)/i.test(userMessage) ||
-                // Add patterns for availability questions
-                /(?:is|are)\s+(?:foot\s*wear|shoes|slippers|sandals|water\s*shoes)\s+(?:provided|available|included|required|mandatory|needed)/i.test(userMessage) ||
-                // Website reference patterns
-                /^(?:oh\s+)?i(?:['']ve|ve)?\s+(?:just|already)?\s+(?:been|looked|checked)\s+(?:on|at|your)?\s*(?:the)?\s*website\s*$/i.test(userMessage) ||
-                // Add patterns for website/technical issues
-                /^(?:i['']m|im|i\s+am)\s+(?:on|at|trying|attempting|having|getting)\s+(?:the|your|a)\s+(?:website|webpage|booking|page|site)/i.test(userMessage) ||
-                // Add patterns for specific technical problems
-                /(?:can['']t|cannot|unable to|stuck|issues?|problems?)\s+(?:with|making|entering|selecting|choosing|proceeding|booking|paying)/i.test(userMessage) ||
-                // Add patterns for form field issues
-                /(?:field|dropdown|menu|selection|option|box|text|input)\s+(?:is|are|seems?|appears?|shows?)\s+(?:empty|blank|mandatory|required|not working)/i.test(userMessage) ||
-                // Add patterns for payment/processing issues
-                /(?:payment|checkout|purchase|booking|reservation)\s+(?:process|page|system|won['']t|not|isn['']t)\s+(?:working|proceeding|going through|completing)/i.test(userMessage) ||
-                // Add near the retail/shopping patterns
-                /(?:bought|purchased|got)\s+(?:souvenirs?|items?|things?|products?|gifts?)\s+(?:but|and|however)\s+(?:lost|missing|misplaced|left)/i.test(userMessage) ||
-                /(?:shipping|delivery|send|mail|post)\s+(?:option|available|possible)\s+(?:to|for)\s+(?:buy|purchase|get|order)\s+(?:things|items|products|souvenirs)/i.test(userMessage) ||
-                /(?:gift\s+shop|store|retail|shop)\s+(?:items?|products?|souvenirs?|things)/i.test(userMessage) ||
-                // Lost items patterns
-                /^(?:lost|missing|forgot|forgotten|left|misplaced)\s+(?:my|our|the)?\s*(?:phone|wallet|bag|purse|item|belongings?|stuff|things?|keys?)\b/i.test(userMessage) ||
-                // Add patterns for help requests with context
-                /(?:help|assist|guide|support)(?:\s+(?:me|please|needed|required))?\s*[!?.]*/i.test(userMessage) ||
-                // Add these complex booking story patterns
-                /^(?:hi|hello|hey)?,?\s*(?:i|we)\s+(?:had|have|made)\s+(?:a|the)\s+(?:booking|reservation)/i.test(userMessage) ||
-                // Add patterns for explanatory situations
-                /(?:my|our)\s+(?:plans?|schedule|timing)\s+(?:changed|shifted|got changed)/i.test(userMessage) ||
-                // Add patterns for missed transport
-                /(?:missed|left without|couldn't make)\s+(?:the|my|our|their)?\s+(?:bus|tour|transfer|shuttle)/i.test(userMessage) ||
-                // Add patterns for hopeful requests
-                /(?:is there|would there be|do you have)\s+(?:any|a)\s+(?:chance|possibility|way|option)/i.test(userMessage) ||
-                /(?:it|that)\s+would\s+(?:make|help|be)\s+(?:my|our)\s+(?:day|life|plans)/i.test(userMessage) ||
-                // Add these weather and contrasting statement patterns
-                /^(?:but|however|although|though)\s+(?:the|this|that|your|our|it|there)\s+(?:is|was|has|will be)\b/i.test(userMessage) ||
-                /^(?:but|however|although|though)\s+(?:the|this|that|your|our)\s+(?:weather|forecast|rain|snow|wind|storm)\b/i.test(userMessage) ||
-                /(?:weather|forecast|conditions?)\s+(?:is|are|looks?|seems?)\s+(?:bad|poor|terrible|awful|horrible|not good)\b/i.test(userMessage) ||
-                /(?:its|it is|its going to|it will be)\s+(?:raining|snowing|stormy|windy|bad|poor)\b/i.test(userMessage) ||
-                // Add patterns for weather-related concerns and conditions
-                /^(?:hi|hello|hey)?,?\s*(?:we|i)\s+(?:wanted|want|planned|planning)\s+to\s+(?:come|visit|go)\s+(?:to|at)\s+(?:sky\s+lagoon|the\s+lagoon)/i.test(userMessage) ||
-                // Add patterns for weather concerns
-                /(?:worried|concerned|unsure|wondering)\s+about\s+(?:the|your)?\s*(?:weather|conditions|forecast|wind|rain|storm)/i.test(userMessage) ||
-                // Add patterns for recommendations/advice
-                /(?:do|would|can|could)\s+(?:you)?\s*(?:recommend|suggest|advise)\s+(?:us|me|someone)?\s+to\s+(?:visit|come|go|book)/i.test(userMessage) ||
-                // Add patterns for "what happens if" scenarios
-                /(?:what|how)\s+(?:happens|about|if|with)\s+(?:our|the|my)\s+(?:tickets?|booking|reservation|visit)\s+if\s+(?:the|there)?\s+(?:weather|wind|storm|rain|conditions?)\s+(?:is|are|gets?|becomes?)/i.test(userMessage) ||
-                // Add these single-word response patterns
-                /^(?:yes|no|yeah|nope|yep|nah|yup)\b$/i.test(userMessage) ||
-                /^(?:yes|no|yeah|nope|yep|nah|yup)(?:\s+(?:please|thanks|thank you))?\b/i.test(userMessage) ||
-                // Add this pattern for common words with spelling variations
-                /^(?:hi|hello|hey),?\s+(?:cancel?l?ation|cancel?l?ing|cancel?l?ed|refund|booking|reserv[ae]tion)\b/i.test(userMessage) ||
-                // Add variation for email-related queries
-                /^(?:hi|hello|hey),?\s+(?:what|which|where)\s+(?:is|do|should|can|about)\s+(?:\w+\s+)*(?:email|mail|address|contact)\b/i.test(userMessage) ||
-                // Add near the error/technical issue patterns
-                /^(?:an?\s+error|error|problem|issue|something\s+wrong)\s+(?:occurred|happened|appeared|showing|popped up)/i.test(userMessage) ||
-                // Make ERROR pattern more flexible and case-insensitive
-                /(?:an?\s+)?error\s+(?:oc*ur*ed|happened|appeared|showing|popped\s+up)/i.test(userMessage) ||
-                /(?:ERROR|PROBLEM|ISSUE)[\s!]*$/i.test(userMessage) ||
-                // Add these ending/closing patterns to your early detection
-                /^(?:nothing|that's|thats|no|thanks|ok|okay)\s+(?:else|all|good|fine|needed|required)\b/i.test(userMessage) ||
-                /^(?:no\s+(?:other|more|further)|that(?:'s|\s+is)\s+(?:all|everything|it))\b/i.test(userMessage) ||
-                // Polite requests
-                /^(?:kindly|possibly|perhaps|maybe)\b/i.test(userMessage) ||
-                /^(?:was|were)\s+(?:hoping|wondering|thinking|planning)\b/i.test(userMessage) ||
-                // Time expressions
-                /^(?:for|at|around|about)?\s*(?:\d{1,2})(?::\d{2})?\s*(?:am|pm|AM|PM|a\.m\.|p\.m\.)?\s*(?:please|pls|plz)?\s*$/i.test(userMessage) ||
-                // Time preference/modification patterns
-                /^(?:\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:would|could|might|will|should)?\s*(?:actually|probably|maybe|definitely|certainly)?\s*(?:work|be|suit|fit)\s*(?:better|best|well|fine|okay|great)\b/i.test(userMessage) ||
-                // Time modification patterns - enhanced to catch more variations
-                 /^(?:\d{1,2}[:.]?\d{2})?(?:\s*[AaPp][Mm])?\s*(?:would|could|might|may|will|should|is|seems?)?\s*(?:actually|probably|maybe|definitely|certainly|really|just|also|perhaps)?\s*(?:work|be|suit|fit|better|best|easier|nicer|preferable)/i.test(userMessage) ||
-                /^(?:that|this|it)?\s*(?:time|slot)?\s*(?:would|could|might|will)?\s*(?:actually|probably|maybe|definitely)?\s*(?:work|be|suit|fit)\s*(?:better|best|well|fine|great)\b/i.test(userMessage) ||
-                // Group booking with time
-                /^(?:sky|saman|ser|sér)?\s*(?:package[ds]?|tick(?:et)?s?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?)?\s*(?:for|at|on)?\s*(?:\d{1,2}(?:[:.]?\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight)?\b/i.test(userMessage) ||
-                // Group booking patterns - enhanced for package variations
-                /^(?:sky|saman|ser|sér)?\s*(?:package[ds]?|tick(?:et)?s?|pass(?:es)?|admissions?|entries?|bookings?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:for|at|on)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
-                /^(?:booking|reservation)\s*(?:for)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:at|for)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)/i.test(userMessage) ||
-                /^(?:saman|ser|sér)\s*(?:package[ds]?|tick(?:et)?s?|pass(?:es)?|admissions?),?\s*(?:booking|reservation)?\s*(?:for|at|on)?\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
-                // Group booking patterns - significantly enhanced
-                /^(?:sky|saman|ser|sér)\s*(?:pack(?:age)?(?:ted|d|ed)?|tick(?:et)?s?),?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)?\s*(?:for|at|on)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\b/i.test(userMessage) ||
-                // Additional group booking variations
-                /^(?:group|party|booking|reservation)\s*(?:of)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:for|with)?\s*(?:the)?\s*(?:sky|saman|ser|sér)/i.test(userMessage) ||
-                // Updated package booking variations
-                /^(?:saman|ser|sér)\s*(?:package[ds]?|tick(?:et)?s?)\b/i.test(userMessage) ||
-                // Package type leading with number of people
-                /^(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?|visitors?|adults?|spots?)\s*(?:for|with)?\s*(?:the)?\s*(?:sky|saman|ser|sér)/i.test(userMessage) ||
-                // Package variations with misspellings
-                /^(?:sky|saman|ser|sér)\s*(?:pack|package|packeted|packaged|ticketed|tickets?),?/i.test(userMessage) ||
-                // Time-specific group bookings
-                /^(?:booking|reservation|group)\s*(?:for)?\s*(?:\d{1,2}[:.]?\d{2}|(?:\d{1,2})(?:\s*[AaPp][Mm])?)\s*(?:today|tomorrow|tonight|this\s+\w+)?\s*(?:for)?\s*(?:\d+|one|two|three|four|five|six)\s*(?:people|persons?|guests?)?/i.test(userMessage) ||
-                // Communication method queries
-                /^(?:via|through|by|using)?\s*(?:email|phone|call|text|message|booking)\?*$/i.test(userMessage) ||
-                // Let's/That's expressions
-                /^(?:let['']?s|that['']?s|this['']?s)\s+(?:do|try|book|get|make|would|will|might|could|should|be)\b/i.test(userMessage) ||
-                // Website references
-                /^(?:i['']?ve|i\s+have|just|oh)\s+(?:been|looked|checked|visited|seen)\s+(?:the|your)?\s*(?:website|site|page|booking)/i.test(userMessage) ||
-                // Looking at/for patterns
-                /^(?:looking|checking|thinking|wondering)\s+(?:at|about|into|for|if)\b/i.test(userMessage) ||
-                // Group size indicators
-                /^(?:its|it['']?s|this\s+is)\s+(?:for|about)?\s*\d+\s*(?:people|persons|guests|of us)?\s*(?:please|pls)?\s*$/i.test(userMessage) ||
-                // Confirmation and gratitude
-                /^(?:great|perfect|excellent|awesome|wonderful|fantastic|nice|good|ok|okay|sure|alright|thanks|thank you|thx|ty)\s*(?:!+|\.|,)?\s*(?:a lot|so much|very much|again)?(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Also/And patterns
-                /^(?:also|and)\s+(?:can|could|would|will|should|may|might|must|is|are|do|does)\b/i.test(userMessage) ||
-                // That/This would be patterns
-                /^(?:that|this)\s+would\s+be\b/i.test(userMessage) ||
-                // Time preference expressions
-                /^(?:would|could|can|may|might)\s+(?:we|i|you)?\s*(?:do|try|get|make|have)?\s*(?:it|the booking|the reservation|a booking)?\s*(?:at|for|around|about)?\s*(?:\d{1,2})(?::\d{2})?\s*(?:am|pm|AM|PM|a\.m\.|p\.m\.)?/i.test(userMessage) ||
-                // Casual question endings
-                /(?:at all|possible|available|doable|feasible)\s*\?*$/i.test(userMessage) ||
-                // If statements
-                /^if\s+(?:i|we|you|they|there)\s+(?:is|are|was|were|have|has|had|can|could|will|would|should|may|might)\b/i.test(userMessage) ||
-                // Enhanced transfer/entry patterns
-                /^if\s+i\s+(?:buy|get|purchase|have)\s+(?:an?\s+)?(?:entry|ticket|pass|admission|transfer|booking)\b/i.test(userMessage) ||
-                // Contractions and informal speech patterns (add these FIRST)
-                /^(?:ain'?t|isn'?t|aren'?t|wasn'?t|weren'?t|haven'?t|hasn'?t|won'?t|don'?t|doesn'?t|didn'?t|can'?t|couldn'?t|wouldn'?t|shouldn'?t)\b/i.test(userMessage) ||
-                /\b(?:something'?s|what'?s|that'?s|there'?s|here'?s|who'?s|where'?s|when'?s|how'?s|it'?s)\b/i.test(userMessage) ||
-                // "We are" patterns and variations
-                /^(?:we|they)\s+(?:are|were|will be|would be|might be|could be|should be|have been|had been)\b/i.test(userMessage) ||
-                /^(?:we|they)\s+(?:are|were|have been)\s+(?:here|there|coming|going|arriving|leaving|planning|thinking|wondering|looking)\b/i.test(userMessage) ||
-                // Common English adjective + noun combinations
-                /^(?:beautiful|nice|great|amazing|wonderful|lovely|stunning|incredible|fantastic|excellent)\s+(?:lagoon|view|place|location|facility|experience|spot)\b/i.test(userMessage) ||
-                // Common English phrases and assessments
-                /^(?:most|very|quite|rather|pretty|fairly|extremely|absolutely|definitely|probably)\s+(?:likely|possible|certain|sure|good|nice|beautiful|amazing)\b/i.test(userMessage) ||
-                // Enhanced website reference patterns (make more comprehensive)
-                /^(?:oh|ah|hey|hi|just|i|we|they)?\s*(?:i['']?ve|i\s+have|just|oh)?\s*(?:been|looked|checked|visited|seen|found|read)\s+(?:on|at|through|in|the|your)?\s*(?:website|site|page|booking|web|online)\b/i.test(userMessage) ||
-                // Enhanced gratitude/confirmation patterns (make more comprehensive)
-                /^(?:great|perfect|excellent|awesome|wonderful|fantastic|nice|good|ok|okay|sure|alright|cool|brilliant|amazing)\s*(?:!+|\.|,)?\s*(?:thanks|thank\s+you|thx|ty|cheers)?\s*(?:!+|\.|,)?\s*(?:a\s+lot|so\s+much|very\s+much|again|mate|everyone|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Standalone thanks patterns
-                /^(?:thanks|thank\s+you|thx|ty|cheers)\s*(?:!+|\.|,)?\s*(?:a\s+lot|so\s+much|very\s+much|again|mate|everyone|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Enhanced website reference pattern (made more flexible)
-                /^(?:oh|ah|hey|hi|well|just|i|we|they)?\s*(?:i['']?ve|i\s+have|have|just|oh)?\s*(?:been|looked|checked|visited|seen|found|read|checking|looking|visiting|searching|browsing)\s*(?:on|at|through|in|the|your|around|up)?\s*(?:website|site|page|booking|web|online|internet)?\b/i.test(userMessage) ||
-                // Expressions of affection/appreciation
-                /^(?:i|we|they|you|he|she)?\s*(?:really|truly|totally|absolutely|just)?\s*(?:love|loves|loved|appreciate|appreciate?s|appreciate?d|adore|adores|adored)\s*(?:you|it|this|that|the|everything|everyone|everybody|all)?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Additional affection variations
-                /^(?:you['']?re?|you\s+are|that['']?s|this\s+is|how)?\s*(?:so|very|really|truly|totally|absolutely)?\s*(?:loved|appreciated|amazing|wonderful|fantastic|great|awesome|brilliant|incredible|outstanding|remarkable|phenomenal)(?:\s+by\s+(?:me|us|everyone|everybody))?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Simple expression variations
-                /^(?:love|appreciate|adore|thanks|thank\s+you)\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // common English expressions
-                /^(?:just|quick|real quick|excuse me|pardon|sorry)\b/i.test(userMessage) ||
-                /^got\s+(?:any|some)?\s+(?:info|information|help|advice|guidance)|^getting\s+(?:some|any)\s+(?:info|information|help|advice|guidance)\b/i.test(userMessage) ||
-                // Question starters (now includes does) - with or without question mark
-                /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage) ||
-                // Thanks variations (simpler pattern)
-                /^(?:thanks|thank you)\b/i.test(userMessage) ||
-                // Package-specific patterns
-                /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage) ||
-                // Facility questions
-                /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage) ||
-                // Location patterns
-                /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage) ||
-                // Simple confirmations and status updates
-                /^(?:perfect|great|ok|okay|sure|alright|done|good)\s*(?:\.|\!)?(?:\s*(?:we|i|they)\s+(?:are|will|can|could)\s+(?:on|be|getting|coming|going|heading|making)\s+(?:our|my|the)?\s*way)?$/i.test(userMessage) ||
-                // Time slot requests
-                /^(?:any|is|are|have|got|get)?\s*(?:other|different|earlier|later|another|available|free|possible|better)?\s*(?:time|slot|booking|spots?|appointments?|availabilit(?:y|ies))?\s*(?:earlier|later|today|tomorrow|possible|available)?\s*\??$/i.test(userMessage) ||
-                // Change requests (including incomplete ones)
-                /^(?:change|switch|move|update|adjust|modify)\s*(?:to|the|my|our|this|that|it)?\s*\.{3,}?$/i.test(userMessage) ||
-                /^(?:change|switch|move|update|adjust|modify)\s+to$/i.test(userMessage) ||
-                // Knowledge acknowledgments
-                /^(?:now|ah|oh|i|we|they)\s*(?:i|we|they)?\s*(?:know|understand|see|got\s+it|understand\s+it|see\s+it|get\s+it)\b/i.test(userMessage) ||
-                // Single emoji detection (common positive emojis)
-                /^[👌👍✅💯🙏💪👏😊😉😄😃😀🥰😍🤗]$/u.test(userMessage) ||
-                // More comprehensive emoji detection (match any single emoji)
-                /^[\u{1F300}-\u{1F9FF}]$/u.test(userMessage) ||
-                // Single character responses
-                /^[✅✓✔️👍👌💯]$/u.test(userMessage) ||
-                // Time expressions with articles
-                /^(?:an|the|a|any)?\s*(?:earlier|later|different|other)\s*(?:time|slot|appointment|booking)?\s*(?:please|pls|plz|possible|available)?\s*\??$/i.test(userMessage) ||
-                // Additional time request variations
-                /^(?:got|have|there)\s*(?:an|any|some)?\s*(?:earlier|later)?\s*(?:times|slots|bookings|appointments)?\s*(?:available|possible|free|open)?\s*\??$/i.test(userMessage) ||
-                // Enhanced time slot requests (made more flexible)
-                /^(?:any|got|have|are\s+there|is\s+there)?\s*(?:other|different|earlier|later|free|open|available)?\s*(?:time|slot|slots|spot|spots|space|spaces|booking|bookings|times|availability|openings?)?\s*(?:earlier|later|today|tomorrow|now|possible|available|left|remaining|free|open)?\s*\??$/i.test(userMessage) ||
-                // Bot compliments
-                /^(?:best|nice|good|great|awesome|amazing|wonderful|excellent|helpful|smart|brilliant|beautiful|perfect)\s*(?:bot|assistant|helper|name)(?:\s+(?:ever|always|definitely|certainly|for\s+sure))?\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Short affirmative/status words
-                /^(?:affirmative|roger|copy|understood|confirmed|confirm|noted|noted|checking|working|processing|done|ready|set|yep|yup|yeah)\s*(?:!+|\.|,)?$/i.test(userMessage) ||
-                // Enhanced greeting detection - Split into simple greetings and greetings with questions
-                /^(?:hi|hello|hey|hi there)\b$/i.test(userMessage) ||  // Simple standalone greetings
-                /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage) ||
-                // Complex booking-related patterns
-                /^(?:i(?:['']ve)?\s+(?:booked|reserved|made|got|have)\s+(?:a|the|my)\s+(?:booking|reservation))/i.test(userMessage) ||
-                // Single word English patterns
-                /^(?:what|how|why|when|where|who|which|whose|hi|hello|hey|but|and|or|yes|no|ok|okay|thanks|thank|good|bad|me|too|the|a|an|this|that|these|those|it|its|i|my|mine|you|your|yours)\b/i.test(userMessage) ||
-                // Common English question starters
-                /^(?:what['']?s|how['']?s|who['']?s|where['']?s|when['']?s)\b/i.test(userMessage) ||
-                // Contracted forms
-                /^(?:i[''](?:ve|m|ll|d)|you[''](?:ve|re|ll|d)|we[''](?:ve|re|ll|d)|they[''](?:ve|re|ll|d)|he[''](?:s|d)|she[''](?:s|d)|it[''](?:s|d)|that['']s|there['']s|here['']s)\b/i.test(userMessage) ||
-                // Common English phrases
-                /^(?:can i|could i|may i|should i|would i|will i|do i|does it|is it|are you|was it|were you)\b/i.test(userMessage) ||
-                // Personal pronouns and possessives
-                /^(?:i\s+(?:have|had|want|need|would|will|am|was)|my\s+(?:friend|booking|reservation|ticket)|me\s+(?:too|and|or|but))\b/i.test(userMessage) ||
-                // Question words with "is/are/was/were"
-                /^(?:what|how|why|where|when|who)\s+(?:is|are|was|were|will|would|could|should|might|must)\b/i.test(userMessage) ||
-                // Random English letters/gibberish (more than 3 consecutive letters)
-                /^[a-zA-Z]{3,}$/i.test(userMessage) ||
-                // Common English phrases & Acknowledgments
-                /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage) ||
-                /^(?:nothing|maybe|not)\s+(?:right now|now|at the moment|later)\b/i.test(userMessage) ||
-                /(?:very|that was|this was|it was)\s+(?:helpful|good|great|useful)\b/i.test(userMessage) ||
-                // Question mark with English words
-                /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage) ||
-                // ENHANCED Acknowledgment check
-                (() => {
-                    const cleanedMsg = userMessage.toLowerCase().trim();
-                    return (
-                        // Basic acknowledgments (single word)
-                        /^(great|perfect|noted|understood|alright|good|fine|excellent|sure)$/i.test(cleanedMsg) ||
-                        // That's variations
-                        /^that'?s\s+(good|great|perfect|fine|clear|right|wonderful|excellent|brilliant)$/i.test(cleanedMsg) ||
-                        // Makes sense variations
-                        /^(makes|that makes)\s+(sense|perfect sense)$/i.test(cleanedMsg) ||
-                        // Use existing patterns for everything else
-                        acknowledgmentPatterns.simple.en.some(word => 
-                            cleanedMsg === word ||
-                            cleanedMsg.startsWith(word + ' ') ||
-                            cleanedMsg.endsWith(' ' + word)
-                        )
-                    );
-                })()
-            )
-        };
-
-        // Enhanced logging for language detection
-        console.log('\n🌍 Early Language Detection:', {
+        // Enhanced logging for language detection results
+        console.log('\n🔬 Enhanced Language Detection Test:', {
             message: userMessage,
-            isDefinitelyEnglish: languageResult.hasDefiniteEnglish,
+            newSystem: languageDecision,
             patterns: {
-                hasQuestionStarter: /^(?:what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage),
-                hasPackagePattern: /\b(?:pure|sky)\s+(?:pass|package|admission|voucher)\b/i.test(userMessage),
-                hasFacilityQuestion: /(?:thermal|pool|water|temperature|facility|changing)\s+(?:room|area|temperature|have|has)\b/i.test(userMessage),
-                hasLocationPattern: /(?:from|to)\s+(?:kef|airport|your\s+(?:address|location|premises))/i.test(userMessage),
-                hasGreetingWithQuestion: /^(?:hi|hello|hey)\b.+(?:open|close|have|has|need|want|looking|trying|help|book)\b/i.test(userMessage),
-                hasCommonEnglishPhrase: /^(?:one more|tell me|can you|do you|i want|i need|i would|i have)\b/i.test(userMessage),
-                hasEnglishQuestionMark: /\b(?:the|this|that|these|those|it|about)\b.*\?$/i.test(userMessage)
+                hasGreeting: /^(hi|hey|hello|good\s*(morning|afternoon|evening))/i.test(userMessage),
+                hasQuestion: /^(what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage),
+                hasPackageTerms: /\b(pure|sky|admission|pass|package|ritual|facilities)\b/i.test(userMessage),
+                isFollowUp: /^(and|or|but|so|also|what about|how about)/i.test(userMessage),
+                hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+                hasIcelandicWords: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún)\b/i.test(userMessage),
+                isPriceQuery: /\b(cost|price|how much|prices|pricing)\b/i.test(userMessage),
+                isTimeQuery: /\b(time|hours|when|open|close|opening|closing)\b/i.test(userMessage),
+                isLocationQuery: /\b(where|location|address|directions|find|get there)\b/i.test(userMessage),
+                hasPersonalPronouns: /\b(i|we|my|our|me|us)\b/i.test(userMessage),
+                hasAmenityTerms: /\b(towel|robe|locker|shower|changing room|food|drink)\b/i.test(userMessage)
             }
         });
 
-        // Set isIcelandic based on our early detection
-        const isIcelandic = !languageResult.hasDefiniteEnglish && detectLanguage(userMessage);
-
-        // Add this simplified languageCheck object 👇
-        const languageCheck = {
-            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-            hasIcelandicStructure: !languageResult.hasDefiniteEnglish && detectLanguage(userMessage),
-            hasEnglishStructure: languageResult.hasDefiniteEnglish,
-            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-            rawDetection: detectLanguage(userMessage)
-        };
-
-        // Log both detections
-        console.log('\n🌍 Language Decision:', {
+        // Enhanced logging to compare systems
+        console.log('\n🔍 Language Detection Comparison:', {
             message: userMessage,
-            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-            detectLanguageResult: detectLanguage(userMessage),
-            finalDecision: isIcelandic ? 'Icelandic' : 'English'
+            oldSystem: oldSystemResult,
+            newSystem: languageDecision,
+            match: oldSystemResult.isIcelandic === languageDecision.isIcelandic
         });
 
+        // During testing phase, still use old system result
+        const isIcelandic = oldSystemResult.isIcelandic;
+
+        // Add simplified languageCheck object using new system
+        const languageCheck = {
+            hasDefiniteEnglish: !languageDecision.isIcelandic && languageDecision.confidence === 'high',
+            hasIcelandicStructure: languageDecision.isIcelandic,
+            hasEnglishStructure: !languageDecision.isIcelandic,
+            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+            rawDetection: languageDecision
+        };
+
+        // Enhanced language decision logging
+        console.log('\n🌍 Language Decision:', {
+            message: userMessage,
+            decision: languageDecision,
+            finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
+        });
+        
         // Check for flight delays BEFORE any other processing
-        const lateScenario = detectLateArrivalScenario(userMessage);
+        const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);
         if (lateScenario && lateScenario.type === 'flight_delay') {
-            // Use our early detection for response selection
-            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+            // Use our new language detection for response selection
+            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
             const response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
 
             await broadcastConversation(
@@ -5010,29 +4738,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        let context = conversationContext.get(sessionId);
-        if (!context) {
-            // Use our consistent early language detection
-            const language = languageResult.hasDefiniteEnglish ? 'en' : 
-                           (isIcelandic ? 'is' : 'en');
-            context = initializeContext(sessionId, language);
-        }
-
         // Early greeting check
-        if (isSimpleGreeting(userMessage)) {
-            // Use our consistent early language detection
+        const isGreeting = isSimpleGreeting(userMessage, languageDecision);  // Pass languageDecision
+        if (isGreeting) {
             const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
-            const isEnglishGreeting = languageResult.hasDefiniteEnglish || 
-                                    (/^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)) ||
+            const isEnglishGreeting = !languageDecision.isIcelandic && 
+                                    (languageDecision.confidence === 'high' || 
+                                    /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg));
                                     (simpleEnglishGreetings.some(g => 
                                         msg === g || msg === g + '!' || msg.startsWith(g + ' ')
-                                    ) && !isIcelandic);
+                                    ));
 
-            // Log greeting detection
+            // Log greeting detection with pattern match (use stored result)
+            logGreetingMatch(userMessage, isGreeting, languageDecision);
+
+            // Log enhanced greeting check
             console.log('\n👋 Enhanced Greeting Check:', {
                 original: userMessage,
                 cleaned: msg,
-                hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+                isEnglishDetected: !languageDecision.isIcelandic,
+                confidence: languageDecision.confidence,
                 isEnglishGreeting: isEnglishGreeting,
                 patterns: {
                     isSimpleHi: /^(?:hi|hello|hey)\b$/i.test(msg),
@@ -5041,17 +4766,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
             
+            // Check for follow-up greeting with new language system
+            const isFollowUp = isFollowUpGreeting(userMessage, languageDecision) || context.conversationStarted;
+            
             // Always use follow-up responses since ChatWidget handles initial greeting
-            const response = isFollowUpGreeting(userMessage) || context.conversationStarted ? 
-                (isEnglishGreeting ? 
+            const response = isFollowUp ? 
+                (!languageDecision.isIcelandic ? 
                     FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
                     FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
-                (isEnglishGreeting ? 
+                (!languageDecision.isIcelandic ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0]);
 
+            // Log the follow-up response selection
+            if (isFollowUp) {
+                logFollowUpResponse(languageDecision, response);
+            }
+
             // Update context and save
-            context.language = isEnglishGreeting ? 'en' : 'is';
+            context.language = languageDecision.isIcelandic ? 'is' : 'en';
             context.conversationStarted = true;
             conversationContext.set(sessionId, context);
             
@@ -5059,14 +4792,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             await broadcastConversation(
                 userMessage,
                 response,
-                isEnglishGreeting ? 'en' : 'is',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'greeting',
                 'direct_response'
             );
     
             return res.status(200).json({
                 message: response,
-                language: isEnglishGreeting ? 'en' : 'is'
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                }
             });
         }
 
@@ -5113,7 +4850,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const msg = userMessage.toLowerCase();            
 
         // Add late arrival context tracking
-        const arrivalCheck = detectLateArrivalScenario(userMessage);
+        const arrivalCheck = detectLateArrivalScenario(userMessage, languageDecision, context);
         if (arrivalCheck) {
             context.lastTopic = 'late_arrival';
             context.lateArrivalContext = {
@@ -5125,7 +4862,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             };
 
             let response;
-            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
 
             if (arrivalCheck.type === 'unspecified_delay') {
                 response = getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
@@ -5154,27 +4891,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 lateArrivalHandled: true,
-                lateScenarioType: arrivalCheck.type
+                lateScenarioType: arrivalCheck.type,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                }
             });
         }
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
         // Smart context-aware knowledge base selection
-        const getRelevantContent = (userMessage, isIcelandic) => {
-            // Early language detection
-            const languageResult = {
-                hasDefiniteEnglish: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
-                                   userMessage.toLowerCase().includes('sorry') ||
-                                   userMessage.toLowerCase().includes('thanks') ||
-                                   userMessage.toLowerCase().includes('thank you')
-            };
-        
-            // Get current session context
-            const sessionId = conversationContext.get('currentSession');
-            const context = sessionId ? conversationContext.get(sessionId) : null;
+        const getRelevantContent = (userMessage) => {  // Remove isIcelandic parameter
+            // Use our new language detection with existing context
+            const contentLanguageDecision = newDetectLanguage(userMessage, context);
+
+            // Get knowledge base results immediately based on language decision
+            const baseResults = contentLanguageDecision.isIcelandic ? 
+                getRelevantKnowledge_is(userMessage) : 
+                getRelevantKnowledge(userMessage);
 
             // Time context detection
-            const timeContext = detectTimeContext(userMessage, getCurrentSeason());
+            const timeContext = detectTimeContext(userMessage, getCurrentSeason(), contentLanguageDecision);
             if (timeContext.type && context) {
                 // Update existing timeContext with new information
                 context.timeContext = {
@@ -5196,7 +4934,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     type: timeContext.type,
                     activity: timeContext.activity,
                     sequence: context.timeContext.sequence,
-                    operatingHours: timeContext.operatingHours
+                    operatingHours: timeContext.operatingHours,
+                    language: {
+                        isIcelandic: contentLanguageDecision.isIcelandic,
+                        confidence: contentLanguageDecision.confidence
+                    }
                 });
             }
 
@@ -5204,7 +4946,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isSamanQuery = userMessage.toLowerCase().includes('saman');
             const isSerQuery = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
             
-            // Update package context immediately
+            // Update package context
             if (context) {
                 // Update package type if explicitly mentioned
                 if (isSamanQuery) context.lastPackage = 'saman';
@@ -5220,7 +4962,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     context.previousPackage = context.lastPackage;
                 }
 
-                // Persist package context for follow-up questions and dining queries
+                // Persist package context for dining queries
                 if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|matur|veitingar/)) {
                     context.lastTopic = 'dining';
                     // Ensure package context carries over to dining
@@ -5230,12 +4972,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             }
 
+            // Enhanced context logging
             console.log('\n🧠 Context Analysis:', {
                 message: userMessage,
                 lastTopic: context?.lastTopic,
                 lastPackage: context?.lastPackage,
                 lastLocation: context?.lastLocation,
-                isIcelandic: isIcelandic,
+                language: {
+                    isIcelandic: contentLanguageDecision.isIcelandic,
+                    confidence: contentLanguageDecision.confidence,
+                    reason: contentLanguageDecision.reason
+                },
                 packageDetected: isSamanQuery ? 'saman' : isSerQuery ? 'ser' : null
             });
 
@@ -5244,7 +4991,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📦 Package Context:', {
                     current: context.lastPackage,
                     previous: context.previousPackage,
-                    topic: context.lastTopic
+                    topic: context.lastTopic,
+                    language: {
+                        isIcelandic: contentLanguageDecision.isIcelandic,
+                        confidence: contentLanguageDecision.confidence
+                    }
                 });
             }
 
@@ -5256,7 +5007,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (isPackageContext || isSamanMention || isSerMention) {
                 // Handle upgrade to private changing
                 if (userMessage.toLowerCase().match(/private|changing|sér|upgrade|better/)) {
-                    console.log('\n📦 Package Upgrade Detected');
+                    console.log('\n📦 Package Upgrade Detected:', {
+                        language: {
+                            isIcelandic: contentLanguageDecision.isIcelandic,
+                            confidence: contentLanguageDecision.confidence
+                        }
+                    });
                     return [{
                         type: 'packages',
                         content: {
@@ -5273,7 +5029,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     
                     console.log('\n🍽️ Package Dining Query Detected:', {
                         package: currentPackage,
-                        query: userMessage
+                        query: userMessage,
+                        language: {
+                            isIcelandic: contentLanguageDecision.isIcelandic,
+                            confidence: contentLanguageDecision.confidence
+                        }
                     });
                     
                     return [{
@@ -5300,7 +5060,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 userMessage.toLowerCase().includes('facilities')) {
                 
                 if (userMessage.toLowerCase().match(/where|location|facilities|changing|locker|shower|private/)) {
-                    console.log('\n🏢 Facilities Query Detected');
+                    console.log('\n🏢 Facilities Query Detected', {
+                        language: {
+                            isIcelandic: contentLanguageDecision.isIcelandic,
+                            confidence: contentLanguageDecision.confidence
+                        }
+                    });
                     return [{
                         type: 'facilities',
                         content: {
@@ -5314,16 +5079,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             }
 
-            // Then check English structure
-            const hasEnglishStructure = /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMessage) ||
-                                      userMessage.toLowerCase().includes('sorry') ||
-                                      userMessage.toLowerCase().includes('thanks') ||
-                                      userMessage.toLowerCase().includes('thank you');
-
-            if (hasEnglishStructure) {
-                return getRelevantKnowledge(userMessage);
-            }
-
             // Check for context-dependent words (follow-up questions)
             const contextWords = /it|that|this|these|those|they|there/i;
             const isContextQuestion = userMessage.toLowerCase().match(contextWords);
@@ -5335,33 +5090,39 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
             const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
 
-            // Log detected types including context and late arrival
+            // Enhanced logging for question type detection
             console.log('\n❓ Question Analysis:', {
                 isDuration: !!isDurationQuestion,
                 isPrice: !!isPriceQuestion,
                 isLocation: !!isLocationQuestion,
                 isComparison: !!isComparisonQuestion,
                 isFollowUp: !!isContextQuestion,
-                lastTopic: context?.lastTopic || null,  // Added optional chaining
-                isLateArrival: !!arrivalCheck,
-                lateArrivalType: arrivalCheck?.type || null
+                lastTopic: context?.lastTopic || null,
+                language: {
+                    isIcelandic: contentLanguageDecision.isIcelandic,
+                    confidence: contentLanguageDecision.confidence,
+                    reason: contentLanguageDecision.reason
+                }
             });
             
             // If we have context and it's a follow-up question
-            if (context?.lastTopic) {  // Added optional chaining
+            if (context?.lastTopic) {
                 console.log('\n🧠 Using Context:', {
                     lastTopic: context.lastTopic,
                     previousTopic: context.prevQuestions,
                     question: userMessage,
                     isDuration: isDurationQuestion,
-                    isLateArrival: context.lastTopic === 'late_arrival'
+                    isLateArrival: context.lastTopic === 'late_arrival',
+                    language: {
+                        isIcelandic: contentLanguageDecision.isIcelandic,
+                        confidence: contentLanguageDecision.confidence
+                    }
                 });
                 
-                // Use our early language detection result
-                const results = languageResult.hasDefiniteEnglish ? 
-                    getRelevantKnowledge(userMessage) :
-                    (isIcelandic ? getRelevantKnowledge_is(userMessage) : 
-                                 getRelevantKnowledge(userMessage));
+                // Use our new language detection system directly
+                const results = contentLanguageDecision.isIcelandic ? 
+                    getRelevantKnowledge_is(userMessage) : 
+                    getRelevantKnowledge(userMessage);
                     
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
@@ -5374,24 +5135,38 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         const lastTopic = context.conversationMemory.getLastTopic();
                         
                         if (lastTopic === 'ritual') {
-                            console.log('\n⏱️ Ritual Duration Question');
+                            console.log('\n⏱️ Ritual Duration Question:', {
+                                language: {
+                                    isIcelandic: contentLanguageDecision.isIcelandic,
+                                    confidence: contentLanguageDecision.confidence
+                                }
+                            });
                             return {
                                 type: 'ritual',
                                 content: {
                                     duration: {
-                                        answer: "Our Skjól ritual typically takes 45 minutes. You're welcome to take your time and fully enjoy each step at your own pace. ✨"
+                                        answer: contentLanguageDecision.isIcelandic ?
+                                            "Skjól ritúalið okkar tekur venjulega 45 mínútur. Þú getur tekið þinn tíma og notið hvers skrefs á þínum hraða. ✨" :
+                                            "Our Skjól ritual typically takes 45 minutes. You're welcome to take your time and fully enjoy each step at your own pace. ✨"
                                     }
                                 }
                             };
                         }
                         
                         if (lastTopic === 'packages') {
-                            console.log('\n⏱️ Package Duration Question');
+                            console.log('\n⏱️ Package Duration Question:', {
+                                language: {
+                                    isIcelandic: contentLanguageDecision.isIcelandic,
+                                    confidence: contentLanguageDecision.confidence
+                                }
+                            });
                             return {
                                 type: 'packages',
                                 content: {
                                     duration: {
-                                        answer: "A typical visit takes 1.5-2 hours, which includes the 45-minute ritual. You're welcome to stay longer and relax in our lagoon. ✨"
+                                        answer: contentLanguageDecision.isIcelandic ?
+                                            "Venjuleg heimsókn tekur 1,5-2 klukkustundir, sem felur í sér 45 mínútna ritúal. Þú getur að sjálfsögðu dvalið lengur og slakað á í lóninu okkar. ✨" :
+                                            "A typical visit takes 1.5-2 hours, which includes the 45-minute ritual. You're welcome to stay longer and relax in our lagoon. ✨"
                                     }
                                 }
                             };
@@ -5403,6 +5178,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
                 
                 if (contextualResults.length > 0) {
+                    // Enhanced logging for custom responses
+                    console.log('\n🎯 Using Contextual Results:', {
+                        count: contextualResults.length,
+                        types: contextualResults.map(r => r.type),
+                        language: {
+                            isIcelandic: contentLanguageDecision.isIcelandic,
+                            confidence: contentLanguageDecision.confidence,
+                            reason: contentLanguageDecision.reason
+                        }
+                    });
+
                     // If we have a custom response, prevent caching
                     if (contextualResults.some(r => r.forceCustomResponse)) {
                         console.log('\n🚫 Using custom response - bypassing cache');
@@ -5412,60 +5198,100 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             }
             
-            // Use our early language detection consistently
+            // Use our new language detection consistently
             console.log('\n🔍 Knowledge Base Selection:', {
                 message: userMessage,
-                hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-                isIcelandic: isIcelandic,
-                usingEnglish: languageResult.hasDefiniteEnglish || !isIcelandic
+                language: {
+                    isIcelandic: contentLanguageDecision.isIcelandic,
+                    confidence: contentLanguageDecision.confidence,
+                    reason: contentLanguageDecision.reason
+                }
             });
 
-            const results = languageResult.hasDefiniteEnglish ? 
-                getRelevantKnowledge(userMessage) :
-                (isIcelandic ? getRelevantKnowledge_is(userMessage) : 
-                             getRelevantKnowledge(userMessage));
+            // Get knowledge base results based on language
+            let results = contentLanguageDecision.isIcelandic ? 
+                getRelevantKnowledge_is(userMessage) : 
+                getRelevantKnowledge(userMessage);
 
-            // Log the results for debugging
+            // Store the original results length
+            const hasResults = results && results.length > 0;
+
+            // Enhanced results logging
             console.log('\n📚 Knowledge Base Results:', {
                 count: results.length,
                 types: results.map(r => r.type),
-                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+                language: {
+                    isIcelandic: contentLanguageDecision.isIcelandic,
+                    confidence: contentLanguageDecision.confidence,
+                    reason: contentLanguageDecision.reason
+                }
             });
 
-            // Filter results based on time context
-            if (timeContext.type) {
-                // For duration questions about specific activities
-                if (timeContext.type === 'duration' && timeContext.activity) {
-                    return results.filter(r => r.type === timeContext.activity)
-                        .map(r => ({
-                            ...r,
-                            priority: 'duration',
-                            activityDuration: context.timeContext.activityDuration[timeContext.activity]
-                        }));
-                }
+            // Only proceed with filtering if we have results
+            if (hasResults) {
+                // Filter results based on time context
+                if (timeContext.type) {
+                    // For duration questions about specific activities
+                    if (timeContext.type === 'duration' && timeContext.activity) {
+                        const filteredResults = results.filter(r => r.type === timeContext.activity)
+                            .map(r => ({
+                                ...r,
+                                priority: 'duration',
+                                activityDuration: context.timeContext.activityDuration[timeContext.activity],
+                                language: {
+                                    isIcelandic: contentLanguageDecision.isIcelandic,
+                                    confidence: contentLanguageDecision.confidence
+                                }
+                            }));
+                        // Only return filtered results if we found matches
+                        if (filteredResults.length > 0) {
+                            return filteredResults;
+                        }
+                    }
 
-                // For hours queries
-                if (timeContext.type === 'hours') {
-                    return results.filter(r => r.type === 'hours' || r.type === 'seasonal_information')
-                        .map(r => ({
-                            ...r,
-                            operatingHours: timeContext.operatingHours
-                        }));
+                    // For hours queries
+                    if (timeContext.type === 'hours') {
+                        const filteredResults = results.filter(r => r.type === 'hours' || r.type === 'seasonal_information')
+                            .map(r => ({
+                                ...r,
+                                operatingHours: timeContext.operatingHours,
+                                language: {
+                                    isIcelandic: contentLanguageDecision.isIcelandic,
+                                    confidence: contentLanguageDecision.confidence
+                                }
+                            }));
+                        // Only return filtered results if we found matches
+                        if (filteredResults.length > 0) {
+                            return filteredResults;
+                        }
+                    }
                 }
             }
 
-            return results;
+            // Return original results if we had them
+            return hasResults ? results : [];
         };
 
         // Use the smart context function instead of direct knowledge base calls
-        let knowledgeBaseResults = getRelevantContent(userMessage, isIcelandic);
+        let knowledgeBaseResults = getRelevantContent(userMessage);  // Remove isIcelandic parameter
+
+        // Preserve non-zero results by making a copy
+        let originalResults = null;
+        if (knowledgeBaseResults && knowledgeBaseResults.length > 0) {
+            originalResults = [...knowledgeBaseResults];
+            // Log to confirm we have results
+            console.log('\n📝 Preserving Knowledge Base Results:', {
+                count: originalResults.length,
+                types: originalResults.map(r => r.type)
+            });
+        }
 
         // Log full results
         console.log('\n📝 Full Knowledge Base Results:', {
             count: knowledgeBaseResults.length,
             message: userMessage,
-            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-            finalLanguage: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+            hasDefiniteEnglish: !languageDecision.isIcelandic && languageDecision.confidence === 'high',
+            finalLanguage: languageDecision.isIcelandic ? 'is' : 'en'
         });
 
         // Update conversation memory with current topic
@@ -5475,56 +5301,75 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.conversationMemory.addTopic(mainTopic, {
                 query: userMessage,
                 response: knowledgeBaseResults[0].content,
-                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+                language: languageDecision.isIcelandic ? 'is' : 'en'
             });
         }
 
         // Update context with the current message and language info
-        context = updateContext(sessionId, userMessage, null);
-        context.language = languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en');
+        let updatedContext = updateContext(sessionId, userMessage, null, languageDecision); // Pass languageDecision here
+        context = {
+            ...updatedContext,
+            language: languageDecision.isIcelandic ? 'is' : 'en'
+        };
 
-        // Add language info to cache key
-        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')}`;
+        // Add language info to cache key using new language detection
+        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageDecision.isIcelandic ? 'is' : 'en'}`;
         const cached = responseCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-            console.log('\n📦 Using cached response');
+            console.log('\n📦 Using cached response:', {
+                message: userMessage,
+                language: languageDecision.isIcelandic ? 'is' : 'en',
+                confidence: languageDecision.confidence
+            });
            return res.json(cached.response);
        }
 
-        // Enhanced question pattern detection
-        const hasBookingPattern = languageResult.hasDefiniteEnglish ? 
+        // Enhanced question pattern detection using new language system
+        const hasBookingPattern = !languageDecision.isIcelandic ? 
             questionPatterns.booking.en.some(pattern => msg.includes(pattern)) :
-            (isIcelandic ? 
+            (languageDecision.confidence === 'high' ? 
                 questionPatterns.booking.is.some(pattern => msg.includes(pattern)) :
                 questionPatterns.booking.en.some(pattern => msg.includes(pattern)));
 
-        // Check question words with early language detection
-        const hasQuestionWord = languageResult.hasDefiniteEnglish ?
+        // Check question words with new language detection
+        const hasQuestionWord = !languageDecision.isIcelandic ?
             questionPatterns.question.en.some(word => msg.includes(word)) :
-            (isIcelandic ? 
+            (languageDecision.confidence === 'high' ? 
                 questionPatterns.question.is.some(word => msg.includes(word)) :
                 questionPatterns.question.en.some(word => msg.includes(word)));
 
-        // Add logging for question detection
+        // Enhanced logging for question detection
         console.log('\n❓ Question Pattern Detection:', {
             message: userMessage,
-            hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
+            language: {
+                isIcelandic: languageDecision.isIcelandic,
+                confidence: languageDecision.confidence,
+                reason: languageDecision.reason
+            },
             hasBookingPattern,
             hasQuestionWord,
             patterns: {
                 booking: hasBookingPattern,
-                question: hasQuestionWord
+                question: hasQuestionWord,
+                detectedLanguage: languageDecision.isIcelandic ? 'is' : 'en'
             }
         });
 
         // Only proceed with acknowledgment check if no booking/question patterns detected
-        if (!hasBookingPattern && !hasQuestionWord) {
-            // Add knowledge base check BEFORE pattern check
-            const hasKnowledgeBaseMatch = knowledgeBaseResults.length > 0;
-            
-            if (!hasKnowledgeBaseMatch) {
-                // Use our early language detection consistently
-                const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+        if (knowledgeBaseResults.length === 0) {
+            if (!hasBookingPattern && !hasQuestionWord) {
+                // Use new language detection system for acknowledgments
+                const useEnglish = !languageDecision.isIcelandic && languageDecision.confidence === 'high';
+
+                // Enhanced logging for acknowledgment detection
+                console.log('\n🤝 Acknowledgment Pattern Check:', {
+                    message: msg,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    }
+                });
 
                 // Check all acknowledgment patterns
                 if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
@@ -5533,10 +5378,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         "Thanks for chatting! I'm here if you need any more information later." :
                         "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
                         
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
                         'finished', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
                 if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
@@ -5544,10 +5389,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     const response = useEnglish ? "Of course! Please go ahead and ask your questions." :
                         "Endilega spurðu!";
                         
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
                         'continuity', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
                 if (acknowledgmentPatterns.positive.en.some(pattern => msg.includes(pattern)) ||
@@ -5556,10 +5401,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
                         "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
                         
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
                         'positive', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
                 if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
@@ -5568,23 +5413,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         "Thank you! What else would you like to know about Sky Lagoon?" :
                         "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
                         
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
                         'general', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
                 // Finally check simple acknowledgments with word limit
                 if (userMessage.split(' ').length <= 4) {
-                    // Use consistent language detection for acknowledgments
-                    const useEnglish = languageResult.hasDefiniteEnglish || 
-                                     (/^(?:ok|okay|alright|sure|got it|right|perfect|great|thanks)\b/i.test(userMessage));
+                    // First check with checkSimpleResponse
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    const useEnglish = simpleResponseType === 'en' ||  
+                                    (!simpleResponseType && !languageDecision.isIcelandic && 
+                                    /^(?:ok|okay|alright|sure|got it|right|perfect|great|thanks)\b/i.test(userMessage));
 
                     // Enhanced logging for acknowledgment detection
                     console.log('\n🔍 Checking Simple Acknowledgment:', {
                         message: userMessage,
-                        hasDefiniteEnglish: languageResult.hasDefiniteEnglish,
-                        useEnglish: useEnglish,
+                        language: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence,
+                            reason: languageDecision.reason
+                        },
                         wordCount: userMessage.split(' ').length,
                         cleanedMessage: msg
                     });
@@ -5593,8 +5443,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         // Enhanced English acknowledgment check
                         (acknowledgmentPatterns.simple.en.some(word => msg === word.toLowerCase()) ||
                          /^(?:nothing|maybe|very|that was|one more|tell me)\b/i.test(msg)) :
-                        // Icelandic check only if not definitely English
-                        acknowledgmentPatterns.simple.is.some(word => msg === word.toLowerCase());
+                        // Icelandic check - JUST CHANGE THIS LINE:
+                        acknowledgmentPatterns.simple.is.some(word => msg.includes(word.toLowerCase())) ||
+                        msg === 'oki' || msg === 'okei' || msg === 'ókei';  // Add explicit checks
                             
                     if (isAcknowledgment) {
                         // Ensure English patterns get English responses
@@ -5603,86 +5454,114 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             "Is there anything else you'd like to know about Sky Lagoon?" :
                             "Láttu mig vita ef þú hefur fleiri spurningar!";
 
-                        await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
                             'acknowledgment', 'direct_response');
                         return res.status(200).json({ message: response, 
-                            language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: 'high' }});
+                            language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                     }
                 }
             }
         }
 
-        // Enhanced small talk handling with consistent language detection
-        const casualResponse = handleCasualChat(msg, languageResult.hasDefiniteEnglish ? false : isIcelandic, languageResult);
-        if (casualResponse || Object.values(smallTalkPatterns).some(category => 
-            Object.values(category).some(patterns => 
-                patterns.some(pattern => msg.includes(pattern))
-            ))
-        ) {
-            context.lastTopic = 'small_talk';
-            context.conversationStarted = true;
+        // Check if this is a completely unrelated query first
+        const isKnownBusinessTopic = userMessage.toLowerCase().includes('lagoon') ||
+                                  userMessage.toLowerCase().includes('ritual') ||
+                                  userMessage.toLowerCase().includes('package') ||
+                                  userMessage.toLowerCase().includes('booking') ||
+                                  userMessage.toLowerCase().includes('bóka') ||
+                                  userMessage.toLowerCase().includes('panta') ||
+                                  userMessage.toLowerCase().includes('pakk') ||
+                                  userMessage.toLowerCase().includes('ritúal') ||
+                                  userMessage.toLowerCase().includes('swim') ||
+                                  userMessage.toLowerCase().includes('pool') ||
+                                  userMessage.toLowerCase().includes('water') ||
+                                  userMessage.toLowerCase().includes('facilities') ||
+                                  // Add these discount-related terms
+                                  userMessage.toLowerCase().includes('discount') ||
+                                  userMessage.toLowerCase().includes('offer') ||
+                                  userMessage.toLowerCase().includes('deal') ||
+                                  userMessage.toLowerCase().includes('price') ||
+                                  userMessage.toLowerCase().includes('cost');
+
+        // Add shouldBeUnknown check first
+        const shouldBeUnknown = !knowledgeBaseResults.length && !isKnownBusinessTopic;
+
+        // Enhanced small talk handling with new language detection system
+        if (knowledgeBaseResults.length === 0 && !originalResults && !shouldBeUnknown && !isServiceQuestion(userMessage, languageDecision)) {
+            const simpleResponseType = checkSimpleResponse(msg, languageDecision);
+            const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
+            if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
+                Object.values(category).some(patterns => 
+                    patterns.some(pattern => msg.includes(pattern))
+                ))
+            ) {
+                context.lastTopic = 'small_talk';
+                context.conversationStarted = true;
+                
+                // Enhanced logging with new language system
+                console.log('\n💬 Small Talk Detection:', {
+                    message: msg,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
+                    simpleResponseType,
+                    patterns: {
+                        hasCasualResponse: !!casualResponse,
+                        matchesPattern: true
+                    }
+                });
             
-            // Log small talk detection
-            console.log('\n💬 Small Talk Detection:', {
-                message: msg,
-                hasDefiniteEnglish: languageResult?.hasDefiniteEnglish,
-                isIcelandic: isIcelandic,
-                patterns: {
-                    hasCasualResponse: !!casualResponse,
-                    matchesPattern: true
-                }
-            });
-        
-            const response = casualResponse || (() => {
-                // First check if we have a specific small talk match
-                const smallTalkResult = detectSmallTalk(msg, languageResult || { hasDefiniteEnglish: false });
-                if (smallTalkResult.isSmallTalk) {
-                    return getSmallTalkResponse(smallTalkResult, languageResult);
-                }
-        
-                // Fallback to casual responses
-                return languageResult?.hasDefiniteEnglish ? 
-                    SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
-                    (isIcelandic ? 
-                        SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
-                        SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
-            })();
-        
-            // Update context with confirmed language
-            context.language = languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en');
-        
-            // Broadcast the small talk conversation
-            await broadcastConversation(
-                userMessage,
-                response,
-                languageResult?.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
-                'small_talk',
-                'direct_response'
-            );    
-        
-            return res.status(200).json({
-                message: response,
-                language: {
-                    detected: languageResult?.hasDefiniteEnglish ? 'English' : 
-                             (isIcelandic ? 'Icelandic' : 'English'),
-                    confidence: 'high'
-                }
-            });
+                const response = casualResponse || (() => {
+                    // Check for specific small talk with new language system
+                    const smallTalkResult = detectSmallTalk(msg, languageDecision);
+                    if (smallTalkResult.isSmallTalk) {
+                        return getSmallTalkResponse(smallTalkResult, languageDecision);
+                    }
+            
+                    // Fallback to casual responses using new language system
+                    return !languageDecision.isIcelandic ? 
+                        SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
+                        (languageDecision.confidence === 'high' ? 
+                            SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
+                            SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
+                })();
+            
+                // Update context with new language detection
+                context.language = languageDecision.isIcelandic ? 'is' : 'en';
+            
+                // Broadcast the small talk conversation with new language system
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'small_talk',
+                    'direct_response'
+                );    
+            
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            }
         }
         
         // Acknowledgment and continuity handling
         // Check for conversation continuity first
         if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
             acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
-            const response = isIcelandic ?
+            const response = languageDecision.isIcelandic ?
                 "Endilega spurðu!" :
                 "Of course! Please go ahead and ask your questions.";
 
-            // Add broadcast
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'continuity',
                 'direct_response'
             );
@@ -5690,8 +5569,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
                 }
             });
         }
@@ -5699,15 +5578,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for positive feedback
         if (acknowledgmentPatterns.positive.en.some(word => msg.includes(word)) ||
             acknowledgmentPatterns.positive.is.some(word => msg.includes(word))) {
-            const response = isIcelandic ?
+            const response = languageDecision.isIcelandic ?
                 "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja." :
                 "I'm glad I could help! What else would you like to know about Sky Lagoon?";
     
-            // Add broadcast
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'acknowledgment',
                 'direct_response'
             );
@@ -5715,8 +5593,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
                 }
             });
         }
@@ -5724,15 +5602,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for general chat praise
         if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
             acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
-            const response = isIcelandic ?
+            const response = languageDecision.isIcelandic ?
                 "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?" :
                 "Thank you for the kind words! What else would you like to know about Sky Lagoon?";
 
-            // Add broadcast like your other acknowledgments
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'acknowledgment',
                 'direct_response'
             );
@@ -5740,8 +5617,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
                 }
             });
         }
@@ -5751,7 +5628,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern)) ||
             acknowledgmentPatterns.finished.is.some(pattern => 
             msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern))) {
-            const response = isIcelandic ?
+            const response = languageDecision.isIcelandic ?
                 msg.includes('heil') || msg.includes('bara að heilsa') ?
                     "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
                     "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna." :
@@ -5759,11 +5636,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Hi there! Feel free to ask if you have any questions about Sky Lagoon. I'm here to help! 😊" :
                     "Thanks for chatting! I'm here if you need any more information later.";
 
-            // Add broadcast
             await broadcastConversation(
                 userMessage,
                 response,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'finished',
                 'direct_response'
             );
@@ -5771,8 +5647,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
                 }
             });
         } 
@@ -5781,8 +5657,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
             let response = getContextualResponse('confirmation', context.messages.map(m => m.content));
             
-            // Use our early language detection to determine language
-            const useEnglish = languageResult.hasDefiniteEnglish || !isIcelandic;
+            // Use new language detection system
+            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
             
             if (context.lastTopic === 'seasonal') {
                 if (context.seasonalContext?.type === 'winter') {
@@ -5814,44 +5690,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 response += ` ${'Would you like to know anything else about our offerings?'}`;
             }
 
-            // Add broadcast with consistent language detection
             await broadcastConversation(
                 userMessage,
                 response,
-                useEnglish ? 'en' : 'is',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'confirmation',
                 'direct_response'
             );
 
             return res.status(200).json({
-                message: response
+                message: response,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
+                }
             });
         }
 
         // Check if it's a group booking query but DON'T return immediately
-        if (!languageResult.hasDefiniteEnglish && (
-            userMessage.toLowerCase().includes('hóp') || 
-            userMessage.toLowerCase().includes('manna') ||
-            userMessage.toLowerCase().includes('hópabókun') ||
-            userMessage.toLowerCase().includes('group') ||
-            userMessage.toLowerCase().includes('booking for') ||
-            userMessage.toLowerCase().includes('people'))) {
-            
+        const groupBookingTerms = ['hóp', 'manna', 'hópabókun', 'group', 'booking for', 'people'];
+        if (groupBookingTerms.some(term => userMessage.toLowerCase().includes(term))) {
             // Just set the context topic
             context.lastTopic = 'group_bookings';
             
-            // Log that we detected a group booking - use our consistent language detection
+            // Enhanced logging with complete language detection info
             console.log('\n👥 Group Booking Query Detected:', {
                 message: userMessage,
-                isIcelandic: !languageResult.hasDefiniteEnglish && isIcelandic,
-                language: languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en')
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason,
+                    patterns: languageDecision.patterns
+                }
             });
 
             // Add broadcast for tracking group booking queries
             await broadcastConversation(
                 userMessage,
                 'group_booking_detection',  // Not a response, just tracking the detection
-                languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'group_bookings',
                 'detection'
             );
@@ -5859,24 +5736,38 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Continue to normal flow to let GPT handle with knowledge base content
         }
 
-        // ADD NEW CODE HERE - Check if this is a completely unrelated query first
-        const isKnownBusinessTopic = userMessage.toLowerCase().includes('lagoon') ||
-                                  userMessage.toLowerCase().includes('ritual') ||
-                                  userMessage.toLowerCase().includes('package') ||
-                                  userMessage.toLowerCase().includes('booking') ||
-                                  userMessage.toLowerCase().includes('bóka') ||
-                                  userMessage.toLowerCase().includes('panta') ||
-                                  userMessage.toLowerCase().includes('pakk') ||
-                                  userMessage.toLowerCase().includes('ritúal');
-                                // Add these discount-related terms
-                                  userMessage.toLowerCase().includes('discount') ||
-                                  userMessage.toLowerCase().includes('offer') ||
-                                  userMessage.toLowerCase().includes('deal') ||
-                                  userMessage.toLowerCase().includes('price') ||
-                                  userMessage.toLowerCase().includes('cost');
-
         // If no knowledge base matches found, check if it's a hours query first
         if (knowledgeBaseResults.length === 0) {
+            // PASTE THE UNKNOWN QUERY BLOCK HERE FIRST
+            // If message has no relation to our business and no knowledge base matches
+            if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
+                const unknownResponse = languageDecision.isIcelandic ? 
+                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
+                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
+                    ] :
+                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
+                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
+                    ];
+
+                // Add broadcast with new language system
+                await broadcastConversation(
+                    userMessage,
+                    unknownResponse,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'unknown_query',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: unknownResponse,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            }
+
+            // THEN KEEP ALL THE EXISTING CODE HERE
             const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
                                 userMessage.toLowerCase().includes('open') || 
                                 userMessage.toLowerCase().includes('close') ||
@@ -5912,134 +5803,123 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
             // The critical part - force knowledge base lookup for ANY dining query
             if (isHoursQuery || isDiningQuery) {
-                knowledgeBaseResults = getRelevantKnowledge_is(userMessage);
+                // Use language detection with confidence check
+                knowledgeBaseResults = languageDecision.isIcelandic && languageDecision.confidence === 'high' ? 
+                    getRelevantKnowledge_is(userMessage) : 
+                    getRelevantKnowledge(userMessage);
 
-                // Add debug logging
+                // Enhanced debug logging
                 console.log('\n🍽️ Dining Query Debug:', {
                     message: userMessage,
                     isDiningQuery,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason,
+                        patterns: languageDecision.patterns
+                    },
                     gotResults: knowledgeBaseResults.length > 0
                 });
             }
 
-            // Only check for simple response if it's not an hours query
-            if (!isHoursQuery) {
-                const simpleResponseLanguage = checkSimpleResponse(userMessage);
-                if (simpleResponseLanguage) {
-                    const response = simpleResponseLanguage === 'is' ? 
-                        "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                        "Is there anything else you'd like to know about Sky Lagoon?";
+            // Only check for simple response if it's not an hours query or service question
+            if (!isHoursQuery && !isServiceQuestion(userMessage, languageDecision)) {
+                const simpleResponseLanguage = languageDecision.isIcelandic ? 'is' : 'en';
+                const response = simpleResponseLanguage === 'is' ? 
+                    "Láttu mig vita ef þú hefur fleiri spurningar!" :
+                    "Is there anything else you'd like to know about Sky Lagoon?";
 
-                    // Add broadcast
-                    await broadcastConversation(
-                        userMessage,
-                        response,
-                        simpleResponseLanguage,
-                        'acknowledgment',
-                        'direct_response'
-                    );
-                            
-                    return res.status(200).json({
-                        message: response,
-                        language: simpleResponseLanguage
-                    });
-                }
+                // Add broadcast with new language detection
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    simpleResponseLanguage,
+                    'acknowledgment',
+                    'direct_response'
+                );
+                        
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
             }
         }
 
-        // If message has no relation to our business and no knowledge base matches
-        if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
-            const unknownResponse = languageResult.hasDefiniteEnglish ? 
-                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
-                    Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
-                ] :
-                (isIcelandic ? 
-                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
-                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
-                    ] :
-                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
-                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
-                    ]);
-
-            // Add broadcast
-            await broadcastConversation(
-                userMessage,
-                unknownResponse,
-                isIcelandic ? 'is' : 'en',
-                'unknown_query',
-                'direct_response'
-            );
-
-            return res.status(200).json({
-                message: unknownResponse,
-                language: isIcelandic ? 'is' : 'en'
-            });
-        }
-
-        // Get relevant knowledge base content with better logging
-        // This line is now handled by the smart context function above
-        // const knowledgeBaseResults = languageCheck.hasEnglishStructure ?
-        //    getRelevantKnowledge(userMessage) :  // Force English for English structure
-        //    (isIcelandic ? getRelevantKnowledge_is(userMessage) : getRelevantKnowledge(userMessage));
-
+        // Enhanced logging with new language system
         console.log('\n📚 Knowledge Base Match:', {
-            language: languageCheck.hasEnglishStructure ? 'English (Forced)' : 
-                      (isIcelandic ? 'Icelandic' : 'English'),
+            language: {
+                isIcelandic: languageDecision.isIcelandic,
+                confidence: languageDecision.confidence,
+                reason: languageDecision.reason,
+                patterns: languageDecision.patterns
+            },
             matches: knowledgeBaseResults.length,
             types: knowledgeBaseResults.map(k => k.type),
             details: JSON.stringify(knowledgeBaseResults, null, 2)
         });
 
-        // ADD NEW CODE HERE - Unknown Query Check
-        const confidenceScore = calculateConfidence(userMessage, knowledgeBaseResults);
-        const shouldUseUnknownHandler = handleUnknownQuery(userMessage, confidenceScore, knowledgeBaseResults);
+        // Enhanced Unknown Query Check
+        const confidenceScore = calculateConfidence(userMessage, knowledgeBaseResults, languageDecision);
+        const shouldUseUnknownHandler = handleUnknownQuery(userMessage, confidenceScore, knowledgeBaseResults, languageDecision);       
         if (shouldUseUnknownHandler && !userMessage.toLowerCase().startsWith('welcome')) {
-            // Log that we're using unknown query handler response
-            console.log('\n📝 Using Unknown Query Handler Response');
+            // Enhanced logging
+            console.log('\n📝 Using Unknown Query Handler Response:', {
+                message: userMessage,
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                }
+            });
 
-            // Add broadcast
+            // Add broadcast with new language system
             await broadcastConversation(
                 userMessage,
                 shouldUseUnknownHandler.response,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'unknown_query',
                 'direct_response'
             );
 
-            // Update context and cache
+            // Update context and cache with new language information
             updateContext(sessionId, userMessage, shouldUseUnknownHandler.response);
             responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
                 response: {
                     message: shouldUseUnknownHandler.response,
                     language: {
-                        detected: isIcelandic ? 'Icelandic' : 'English',
-                        confidence: 'high'
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
                     }
                 },
                 timestamp: Date.now()
             });
 
-            // Return the unknown query response
+            // Return the unknown query response with enhanced language info
             return res.status(200).json({
                 message: shouldUseUnknownHandler.response,
                 language: {
-                    detected: isIcelandic ? 'Icelandic' : 'English',
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
                 }
             });
         }
 
         // Detect topic for appropriate transitions and follow-ups
-        const { topic, transition: topicTransition } = detectTopic(userMessage, knowledgeBaseResults, context);
+        const { topic } = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
         
         // Enhanced seasonal handling
         if (topic === 'seasonal') {
             let seasonalInfo = knowledgeBaseResults.find(k => k.type === 'seasonal_information');
             if (seasonalInfo) {
-                // Use consistent language check for seasonal terms
+                // Use new language detection for seasonal terms
                 const isWinter = userMessage.toLowerCase().includes('winter') || 
                                userMessage.toLowerCase().includes('northern lights') ||
-                               (!languageResult.hasDefiniteEnglish && (
+                               (languageDecision.isIcelandic && (
                                    userMessage.toLowerCase().includes('vetur') ||
                                    userMessage.toLowerCase().includes('vetrar') ||
                                    userMessage.toLowerCase().includes('norðurljós')
@@ -6072,13 +5952,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     type: newType,
                     subtopic: userMessage.toLowerCase().includes('northern lights') ? 'northern_lights' : 
                              userMessage.toLowerCase().includes('midnight sun') ? 'midnight_sun' : 'general',
-                    currentInfo: seasonalInfo.content
+                    currentInfo: seasonalInfo.content,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence
+                    }
                 };
 
                 console.log('\n🌍 Seasonal Context Updated:', {
                     newSeason: newType,
                     previousSeason: context.seasonalContext.previousSeason,
                     holiday: context.seasonalContext.holidayContext,
+                    language: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
                     transitionDate: context.seasonalContext.transitionDate ? 
                         new Date(context.seasonalContext.transitionDate).toLocaleString() : null
                 });
@@ -6089,19 +5978,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
                            userMessage.toLowerCase().includes('open') || 
                            userMessage.toLowerCase().includes('close') ||
-                           userMessage.toLowerCase().includes('time');
-                            // Add these Icelandic patterns
-                            userMessage.toLowerCase().includes('opin') ||
-                            userMessage.toLowerCase().includes('opið') ||
-                            userMessage.toLowerCase().includes('lokað') ||
-                            userMessage.toLowerCase().includes('lokar') ||
-                            userMessage.toLowerCase().includes('opnun') ||
-                            userMessage.toLowerCase().includes('lokun') ||
-                            userMessage.toLowerCase().includes('í dag') ||  // "today" often used with hours
-                            userMessage.toLowerCase().includes('á morgun');  // "tomorrow" often used with hours
+                           userMessage.toLowerCase().includes('time') ||
+                           // Add these Icelandic patterns
+                           userMessage.toLowerCase().includes('opin') ||
+                           userMessage.toLowerCase().includes('opið') ||
+                           userMessage.toLowerCase().includes('lokað') ||
+                           userMessage.toLowerCase().includes('lokar') ||
+                           userMessage.toLowerCase().includes('opnun') ||
+                           userMessage.toLowerCase().includes('lokun') ||
+                           userMessage.toLowerCase().includes('í dag') ||  // "today" often used with hours
+                           userMessage.toLowerCase().includes('á morgun');  // "tomorrow" often used with hours
 
         // Detect topic and get initial transitions
-        let topicResult = detectTopic(userMessage, knowledgeBaseResults, context);
+        let topicResult = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
 
         // Now handle first-time messages (moved here to check knowledge base first)
         if (!context.conversationStarted && 
@@ -6111,17 +6000,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.conversationStarted = true;
             const introResponse = `${getRandomResponse(SMALL_TALK_RESPONSES)} `;
 
-            // Add broadcast
+            // Add broadcast with new language system
             await broadcastConversation(
                 userMessage,
                 introResponse,
-                isIcelandic ? 'is' : 'en',
+                languageDecision.isIcelandic ? 'is' : 'en',
                 'first_time',
                 'direct_response'
             );
 
             return res.status(200).json({
-                message: introResponse
+                message: introResponse,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
+                }
             });
         }
 
@@ -6135,7 +6028,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Enhanced system prompt with all context
-        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage);
+        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision);
 
         // Get current season information
         const seasonInfo = getCurrentSeason();
@@ -6172,7 +6065,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             messages.push({
                 role: "system",
                 content: `CURRENT CONTEXT:
-                    Language: ${isIcelandic ? 'Icelandic' : 'English'}
+                    Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
                     Late Arrival: ${context.lateArrivalScenario ? JSON.stringify(context.lateArrivalScenario) : 'No'}
                     Sold Out Status: ${context.soldOutStatus ? 'Yes' : 'No'}
                     Booking Modification: ${context.bookingModification?.requested ? 'Requested' : 'No'}
@@ -6180,7 +6073,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Add user message
+        // Add user message with new language system
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
@@ -6189,8 +6082,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 Please provide a natural, conversational response using ONLY the information from the knowledge base. 
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                ${languageResult.hasDefiniteEnglish ? 'Response MUST be in English' : 
-                  (isIcelandic ? 'Response MUST be in Icelandic' : 'Response MUST be in English')}`  // Added closing backtick here
+                Response MUST be in ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}`
         });
 
         // Make GPT-4 request with retries
@@ -6198,13 +6090,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         let completion;
         while (attempt < MAX_RETRIES) {
             try {
-                // Remove timeout from OpenAI parameters
                 completion = await openai.chat.completions.create({
                     model: "gpt-4-1106-preview",
                     messages: messages,
                     temperature: 0.7,
                     max_tokens: getMaxTokens(userMessage)
-                    // Removed timeout parameter that was causing the error
                 });
                 break;
             } catch (error) {
@@ -6216,12 +6106,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     maxRetries: MAX_RETRIES
                 });
 
-                // If we've used all retries, throw the error
                 if (attempt === MAX_RETRIES) {
                     throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
                 }
 
-                // Calculate delay with exponential backoff
                 const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
                 console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
@@ -6233,12 +6121,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
-        // Broadcast the conversation update through Pusher
+        // Broadcast with new language system
         if (completion && req.body.message) {
             await broadcastConversation(
                 req.body.message,
                 completion.choices[0].message.content,
-                languageResult.hasDefiniteEnglish ? 'en' : (isIcelandic ? 'is' : 'en'),
+                languageDecision.isIcelandic ? 'is' : 'en',
                 context?.lastTopic || 'general',
                 'gpt_response'
             );
@@ -6260,34 +6148,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
 
-        // Cache the response with language
-        const languageChoice = languageResult.hasDefiniteEnglish ? 'English' : 
-                             (isIcelandic ? 'Icelandic' : 'English');
-        const languageCode = languageResult.hasDefiniteEnglish ? 'en' : 
-                           (isIcelandic ? 'is' : 'en');
-
+        // Cache the response with new language system
         responseCache.set(cacheKey, {
             response: {
                 message: enhancedResponse,
                 language: {
-                    detected: languageChoice,
-                    confidence: 'high'
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
                 }
             },
             timestamp: Date.now()
         });
 
-        // Update conversation context with language
+        // Update conversation context with new language system
         context.lastInteraction = Date.now();
-        context.language = languageCode;
+        context.language = languageDecision.isIcelandic ? 'is' : 'en';
         conversationContext.set(sessionId, context);
 
-        // Return enhanced response format
+        // Return enhanced response with new language system
         return res.status(200).json({
             message: enhancedResponse,
             language: {
-                detected: languageChoice,
-                confidence: 'high'
+                detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                confidence: languageDecision.confidence,
+                reason: languageDecision.reason
             }
         });
 
@@ -6301,22 +6186,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
-        // Get language from context or detect it
+        // Get language using new detection system
         const userMsg = req.body?.message || req.body?.question || '';
-        const languageResult = {
-            hasDefiniteEnglish: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does)/i.test(userMsg) ||
-                               userMsg.toLowerCase().includes('sorry') ||
-                               userMsg.toLowerCase().includes('thanks') ||
-                               userMsg.toLowerCase().includes('thank you')
-        };
-        
-        const detectedLanguage = !languageResult.hasDefiniteEnglish && detectLanguage(userMsg);
+        const errorLanguageDecision = newDetectLanguage(userMsg, context);
 
-        // Add broadcast for error scenarios
+        // Enhanced error logging
+        console.log('\n🚨 Error Language Detection:', {
+            message: userMsg,
+            language: {
+                isIcelandic: errorLanguageDecision.isIcelandic,
+                confidence: errorLanguageDecision.confidence,
+                reason: errorLanguageDecision.reason
+            }
+        });
+
+        // Add broadcast for error scenarios with proper language
         await broadcastConversation(
             userMsg || 'unknown_message',
             errorMessage,
-            'en',
+            errorLanguageDecision.isIcelandic ? 'is' : 'en',
             'error',
             'error_response'
         );
@@ -6324,24 +6212,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         return res.status(500).json({
             message: errorMessage,
             language: {
-                detected: detectedLanguage ? 'Icelandic' : 'English',
-                confidence: 'high'
+                detected: errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English',
+                confidence: errorLanguageDecision.confidence
             }
         });
     }
 });
 
-// Pusher broadcast function
-function handleConversationUpdate(conversationData) {
+// Pusher broadcast function with enhanced language detection
+function handleConversationUpdate(conversationData, languageInfo) {
     try {
         console.log('🚀 Broadcasting conversation via Pusher:', {
             event: 'conversation-update',
             channel: 'chat-channel',
-            data: conversationData,
+            data: {
+                ...conversationData,
+                language: languageInfo
+            },
             timestamp: new Date().toISOString()
         });
         
-        // Trigger without additional options
         return pusher.trigger('chat-channel', 'conversation-update', conversationData)
             .then(() => {
                 console.log('✅ Pusher message sent successfully');
@@ -6349,7 +6239,6 @@ function handleConversationUpdate(conversationData) {
             })
             .catch(error => {
                 console.error('❌ Pusher error:', error);
-                // Log environment variables (but mask sensitive values)
                 console.log('Environment check:', {
                     hasAppId: !!process.env.PUSHER_APP_ID,
                     hasKey: !!process.env.PUSHER_KEY,
@@ -6364,8 +6253,8 @@ function handleConversationUpdate(conversationData) {
     }
 }
 
-// Helper function to detect topic from message and knowledge base results
-const detectTopic = (message, knowledgeBaseResults, context) => {
+// Helper function to detect topic with enhanced language detection
+const detectTopic = (message, knowledgeBaseResults, context, languageDecision) => {
     const msg = message.toLowerCase();
     let topic = null;
     let transition = null;
@@ -6373,34 +6262,53 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
     // Check previous topic from context
     const previousTopic = context?.lastTopic;
     
-    // Detect current topic
-    if (msg.includes('package') || msg.includes('sér') || msg.includes('saman')) {
+    // Detect current topic with new language detection
+    const isIcelandic = languageDecision?.isIcelandic || false;
+    
+    // Detect current topic with language awareness
+    if (msg.includes('package') || msg.includes('sér') || msg.includes('saman') || 
+        (isIcelandic && msg.includes('pakki'))) {
         topic = 'packages';
-    } else if (msg.includes('ritual') || msg.includes('skjol') || msg.includes('skjól')) {
+    } else if (msg.includes('ritual') || msg.includes('skjol') || msg.includes('skjól') ||
+               (isIcelandic && msg.includes('meðferð'))) {
         topic = 'ritual';
-    } else if (msg.includes('transport') || msg.includes('bus') || msg.includes('drive')) {
+    } else if (msg.includes('transport') || msg.includes('bus') || msg.includes('drive') ||
+               (isIcelandic && (msg.includes('strætó') || msg.includes('keyra')))) {
         topic = 'transportation';
-    } else if (msg.includes('facilities') || msg.includes('changing') || msg.includes('amenities')) {
+    } else if (msg.includes('facilities') || msg.includes('changing') || msg.includes('amenities') ||
+               (isIcelandic && (msg.includes('aðstaða') || msg.includes('búningsklefar')))) {
         topic = 'facilities';
-    } else if (msg.includes('winter') || msg.includes('northern lights')) {
+    } else if (msg.includes('winter') || msg.includes('northern lights') ||
+               (isIcelandic && (msg.includes('vetur') || msg.includes('norðurljós')))) {
         topic = 'seasonal';
         if (context) {
             context.seasonalContext = {
                 type: 'winter',
-                subtopic: msg.includes('northern lights') ? 'northern_lights' : 'general'
+                subtopic: msg.includes('northern lights') || msg.includes('norðurljós') ? 'northern_lights' : 'general',
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
             };
         }
-    } else if (msg.includes('summer') || msg.includes('midnight sun')) {
+    } else if (msg.includes('summer') || msg.includes('midnight sun') ||
+               (isIcelandic && (msg.includes('sumar') || msg.includes('miðnætursól')))) {
         topic = 'seasonal';
         if (context) {
             context.seasonalContext = {
                 type: 'summer',
-                subtopic: msg.includes('midnight sun') ? 'midnight_sun' : 'general'
+                subtopic: msg.includes('midnight sun') || msg.includes('miðnætursól') ? 'midnight_sun' : 'general',
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
             };
         }
-    } else if (msg.includes('dining') || msg.includes('food') || msg.includes('restaurant')) {
+    } else if (msg.includes('dining') || msg.includes('food') || msg.includes('restaurant') ||
+               (isIcelandic && (msg.includes('matur') || msg.includes('veitingar')))) {
         topic = 'dining';
-    } else if (msg.includes('late') || msg.includes('delay')) {
+    } else if (msg.includes('late') || msg.includes('delay') ||
+               (isIcelandic && (msg.includes('seinn') || msg.includes('seinka')))) {
         topic = 'booking';
     }
     
@@ -6411,9 +6319,14 @@ const detectTopic = (message, knowledgeBaseResults, context) => {
         if (knowledgeBaseResults.some(r => r.type === 'transportation')) topic = 'transportation';
     }
     
-    // Update context with new topic
+    // Update context with new topic and language info
     if (context && topic) {
         context.lastTopic = topic;
+        context.topicLanguage = {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        };
     }
     
     return { topic };
