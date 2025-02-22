@@ -59,7 +59,8 @@ export async function createChat(customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_chat', {
+        // First create a customer
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -67,23 +68,45 @@ export async function createChat(customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                customer_id: customerId,
-                active: true,
-                properties: {
-                    source: 'ai_chat'
-                },
-                group_ids: SKY_LAGOON_GROUPS  // Add this to ensure chat is created in correct groups
+                name: `User ${customerId}`,
+                session_fields: [{
+                    name: "session_id",
+                    value: customerId
+                }]
             })
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Create chat error response:', errorText);
-            throw new Error(`Create chat failed: ${response.status}`);
+        if (!customerResponse.ok) {
+            const errorText = await customerResponse.text();
+            console.error('Create customer error response:', errorText);
+            throw new Error(`Create customer failed: ${customerResponse.status}`);
         }
 
-        const data = await response.json();
-        return data.chat_id;
+        const customerData = await customerResponse.json();
+
+        // Then start a chat with this customer
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                customer_id: customerData.customer_id,
+                active: true,
+                group_id: SKY_LAGOON_GROUPS[0] // Use the English group for now
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('Start chat error response:', errorText);
+            throw new Error(`Start chat failed: ${chatResponse.status}`);
+        }
+
+        const chatData = await chatResponse.json();
+        return chatData.chat_id;
 
     } catch (error) {
         console.error('Error creating chat:', error.message);
