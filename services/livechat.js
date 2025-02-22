@@ -59,7 +59,7 @@ export async function createChat(customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // First create a customer with correct session fields format
+        // Create a customer with minimal info
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -68,13 +68,8 @@ export async function createChat(customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                name: `User ${customerId}`,
-                session_fields: [
-                    {
-                        key: "session_id",  // Changed from 'name' to 'key'
-                        value: customerId
-                    }
-                ]
+                name: `User ${customerId}`
+                // Removed session_fields entirely for now
             })
         });
 
@@ -85,8 +80,9 @@ export async function createChat(customerId) {
         }
 
         const customerData = await customerResponse.json();
+        console.log('\n✅ Customer created:', customerData);  // Added logging
 
-        // Then start a chat with this customer
+        // Start chat with this customer
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -97,7 +93,7 @@ export async function createChat(customerId) {
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
                 active: true,
-                group_id: SKY_LAGOON_GROUPS[0] // Use the English group for now
+                group_id: SKY_LAGOON_GROUPS[0]
             })
         });
 
