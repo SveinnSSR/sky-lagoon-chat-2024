@@ -17,6 +17,8 @@ import {
     getLanguageContext 
 } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
+// LiveChat Integration
+import { checkAgentAvailability, transferChatToAgent } from './services/livechat.js';
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
@@ -431,6 +433,152 @@ const CONFIDENCE_THRESHOLDS = {
     HIGH: 0.8,
     MEDIUM: 0.4,
     LOW: 0.2  // Lower threshold to allow more knowledge base responses
+};
+
+// LiveChat Constants
+const LIVECHAT_HOURS = {
+    START: 9,  // 9 AM
+    END: 16    // 4 PM
+};
+
+// Transfer trigger patterns
+const AGENT_REQUEST_PATTERNS = {
+    en: [
+        'speak to agent',
+        'talk to agent',
+        'speak to human',
+        'talk to human',
+        'speak with someone',
+        'talk with someone',
+        'speak to representative',
+        'talk to representative',
+        'connect me with',
+        'transfer me to',
+        'live agent',
+        'live person',
+        'real person',
+        'human agent',
+        'human assistance',
+        'agent assistance'
+    ],
+    is: [
+        'tala við þjónustufulltrúa',
+        'tala við manneskju',
+        'fá að tala við',
+        'geta talað við',
+        'fá samband við',
+        'tala við starfsmann',
+        'fá þjónustufulltrúa',
+        'fá manneskju',
+        'vera í sambandi við'
+    ]
+};
+
+const BOOKING_CHANGE_PATTERNS = {
+    en: [
+        'change booking',
+        'modify booking',
+        'reschedule',
+        'change time',
+        'change date',
+        'different time',
+        'different date',
+        'another time',
+        'another date',
+        'move booking',
+        'cancel booking'
+    ],
+    is: [
+        'breyta bókun',
+        'breyta tíma',
+        'breyta dagsetningu',
+        'færa bókun',
+        'færa tíma',
+        'annan tíma',
+        'aðra dagsetningu',
+        'hætta við bókun',
+        'afbóka'
+    ]
+};
+
+// Helper function to check if within operating hours
+const isWithinOperatingHours = () => {
+    const now = new Date();
+    const hours = now.getUTCHours(); // Iceland is on UTC
+    return hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
+};
+
+// Helper function to check if agent transfer is needed
+const shouldTransferToAgent = async (message, languageDecision, context) => {
+    try {
+        const msg = message.toLowerCase();
+        const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
+
+        // Log transfer check
+        console.log('\n👥 Agent Transfer Check:', {
+            message: msg,
+            withinHours: isWithinOperatingHours(),
+            language: {
+                isIcelandic: languageDecision.isIcelandic,
+                confidence: languageDecision.confidence
+            }
+        });
+
+        // First check operating hours
+        if (!isWithinOperatingHours()) {
+            return {
+                shouldTransfer: false,
+                reason: 'outside_hours',
+                response: useEnglish ? 
+                    "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance." :
+                    "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð."
+            };
+        }
+
+        // Check for explicit agent request
+        const hasAgentRequest = (useEnglish ? 
+            AGENT_REQUEST_PATTERNS.en : 
+            AGENT_REQUEST_PATTERNS.is).some(pattern => msg.includes(pattern));
+
+        // Check for booking change request
+        const hasBookingChange = (useEnglish ? 
+            BOOKING_CHANGE_PATTERNS.en : 
+            BOOKING_CHANGE_PATTERNS.is).some(pattern => msg.includes(pattern));
+
+        if (hasAgentRequest || hasBookingChange) {
+            // Check agent availability
+            const { areAgentsAvailable, availableAgents } = await checkAgentAvailability();
+
+            if (!areAgentsAvailable) {
+                return {
+                    shouldTransfer: false,
+                    reason: 'no_agents',
+                    response: useEnglish ?
+                        "Our agents are currently assisting other customers. Please call us at +354 527 6800 or email reservations@skylagoon.is for help." :
+                        "Þjónustufulltrúar okkar eru uppteknir. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð."
+                };
+            }
+
+            return {
+                shouldTransfer: true,
+                reason: hasAgentRequest ? 'explicit_request' : 'booking_change',
+                agents: availableAgents
+            };
+        }
+
+        return {
+            shouldTransfer: false,
+            reason: 'no_trigger'
+        };
+
+    } catch (error) {
+        console.error('\n❌ Error in shouldTransferToAgent:', error);
+        return {
+            shouldTransfer: false,
+            reason: 'error',
+            error: error.message
+        };
+    }
 };
 
 // Greeting responses - Updated the constant to use Sky Lagoon's specific greetings
@@ -4700,8 +4848,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         context = conversationContext.get(sessionId);
 
         // Do language detection first, with null context if we don't have one yet
-        const languageDecision = newDetectLanguage(userMessage, context);
-        
+        const languageDecision = newDetectLanguage(userMessage, context);        
+
         // Keep old system during testing (modified to work without languageResult)
         const oldSystemResult = {
             isIcelandic: detectLanguage(userMessage),  // Simplified old system check
@@ -4766,7 +4914,74 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             decision: languageDecision,
             finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
         });
+
+        // Check if we should transfer to human agent
+        const transferCheck = await shouldTransferToAgent(userMessage, languageDecision, context);
         
+        console.log('\n🔄 Transfer Check Result:', {
+            shouldTransfer: transferCheck.shouldTransfer,
+            reason: transferCheck.reason,
+            withinHours: isWithinOperatingHours(),
+            availableAgents: transferCheck.agents?.length || 0
+        });
+
+        if (transferCheck.shouldTransfer) {
+            try {
+                // Get the first available agent for transfer
+                const agent = transferCheck.agents[0];
+                
+                // Prepare transfer message based on language
+                const transferMessage = languageDecision.isIcelandic ?
+                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
+                    "I'm connecting you with a customer service representative. One moment...";
+
+                // Broadcast the transfer message
+                await broadcastConversation(
+                    userMessage,
+                    transferMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'transfer',
+                    'direct_response'
+                );
+
+                // Attempt the transfer
+                const transferred = await transferChatToAgent(sessionId, agent.agent_id);
+
+                if (transferred) {
+                    return res.status(200).json({
+                        message: transferMessage,
+                        transferred: true,
+                        language: {
+                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('\n❌ Transfer Error:', error);
+                // Fall through to AI response if transfer fails
+            }
+        } else if (transferCheck.response) {
+            // If we have a specific response (e.g., outside hours), send it
+            await broadcastConversation(
+                userMessage,
+                transferCheck.response,
+                languageDecision.isIcelandic ? 'is' : 'en',
+                'transfer_unavailable',
+                'direct_response'
+            );
+
+            return res.status(200).json({
+                message: transferCheck.response,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
+                }
+            });
+        }
+
+        // If not transferring or transfer failed, continue with regular chatbot flow...        
+
         // Check for flight delays BEFORE any other processing
         const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);
         if (lateScenario && lateScenario.type === 'flight_delay') {
