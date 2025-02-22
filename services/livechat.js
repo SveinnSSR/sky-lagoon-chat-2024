@@ -69,7 +69,6 @@ export async function createChat(customerId) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`
-                // Removed session_fields entirely for now
             })
         });
 
@@ -80,9 +79,9 @@ export async function createChat(customerId) {
         }
 
         const customerData = await customerResponse.json();
-        console.log('\n✅ Customer created:', customerData);  // Added logging
+        console.log('\n✅ Customer created:', customerData);
 
-        // Start chat with this customer
+        // Start chat with this customer with active status
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -93,7 +92,11 @@ export async function createChat(customerId) {
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
                 active: true,
-                group_id: SKY_LAGOON_GROUPS[0]
+                assigned_agent: {
+                    id: 'david@svorumstrax.is'
+                },
+                group_id: SKY_LAGOON_GROUPS[0],
+                initial_state: 'open'  // Add this
             })
         });
 
