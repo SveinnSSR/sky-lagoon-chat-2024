@@ -524,18 +524,7 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // First check operating hours
-        if (!isWithinOperatingHours()) {
-            return {
-                shouldTransfer: false,
-                reason: 'outside_hours',
-                response: useEnglish ? 
-                    "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance." :
-                    "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð."
-            };
-        }
-
-        // Check for explicit agent request
+        // First check if it's a transfer request
         const hasAgentRequest = (useEnglish ? 
             AGENT_REQUEST_PATTERNS.en : 
             AGENT_REQUEST_PATTERNS.is).some(pattern => msg.includes(pattern));
@@ -545,7 +534,19 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             BOOKING_CHANGE_PATTERNS.en : 
             BOOKING_CHANGE_PATTERNS.is).some(pattern => msg.includes(pattern));
 
+        // Only check hours if they're requesting transfer
         if (hasAgentRequest || hasBookingChange) {
+            // Now check operating hours
+            if (!isWithinOperatingHours()) {
+                return {
+                    shouldTransfer: false,
+                    reason: 'outside_hours',
+                    response: useEnglish ? 
+                        "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance." :
+                        "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð."
+                };
+            }
+
             // Check agent availability
             const { areAgentsAvailable, availableAgents } = await checkAgentAvailability();
 
