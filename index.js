@@ -438,7 +438,7 @@ const CONFIDENCE_THRESHOLDS = {
 // LiveChat Constants
 const LIVECHAT_HOURS = {
     START: 9,    // 9 AM
-    END: 20    // 8 PM - Temporarily extended for testing
+    END: 21    // 9 PM - Temporarily extended for testing
 };
 
 // Transfer trigger patterns
@@ -4965,6 +4965,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         message: transferMessage,
                         transferred: true,
                         chatId: chatId,
+                        initiateWidget: true,  // Add this flag
                         language: {
                             detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                             confidence: languageDecision.confidence
