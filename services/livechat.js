@@ -117,6 +117,33 @@ export async function transferChatToAgent(chatId, agentId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
+        // First check if agent is already in chat
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('Get chat error response:', errorText);
+            throw new Error(`Get chat failed: ${chatResponse.status}`);
+        }
+
+        const chatData = await chatResponse.json();
+        
+        // If agent is already in chat, consider it a success
+        if (chatData.users?.some(user => user.id === agentId)) {
+            return true;
+        }
+
+        // If not, transfer the chat
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
@@ -125,7 +152,7 @@ export async function transferChatToAgent(chatId, agentId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                id: chatId,
+                chat_id: chatId,  // Changed from 'id' to 'chat_id'
                 target: {
                     type: 'agent',
                     ids: [agentId]
