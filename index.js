@@ -18,7 +18,7 @@ import {
 } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 // LiveChat Integration
-import { checkAgentAvailability, transferChatToAgent, createChat } from './services/livechat.js';
+import { checkAgentAvailability, transferChatToAgent, createChat, sendMessageToLiveChat } from './services/livechat.js';
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
@@ -4946,6 +4946,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
                     "I'm connecting you with a customer service representative. One moment...";
 
+                // Send initial message to LiveChat
+                await sendMessageToLiveChat(chatId, userMessage, sessionId);
+
                 // Broadcast the transfer message
                 await broadcastConversation(
                     userMessage,
@@ -4965,7 +4968,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         message: transferMessage,
                         transferred: true,
                         chatId: chatId,
-                        initiateWidget: true,  // Add this flag
+                        initiateWidget: true,
                         language: {
                             detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                             confidence: languageDecision.confidence
@@ -5018,6 +5021,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     confidence: languageDecision.confidence
                 }
             });
+        }
+        // Add the new agent mode handling here
+        if (req.body.chatId && req.body.isAgentMode) {
+            try {
+                // Send message to LiveChat
+                await sendMessageToLiveChat(req.body.chatId, userMessage, sessionId);
+                
+                return res.status(200).json({
+                    message: "Message sent to agent",
+                    chatId: req.body.chatId,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            } catch (error) {
+                console.error('\n❌ LiveChat Message Error:', error);
+                return res.status(500).json({
+                    message: languageDecision.isIcelandic ? 
+                        "Villa kom upp við að senda skilaboð" :
+                        "Error sending message to agent",
+                    error: error.message
+                });
+            }
         }
 
         // If not transferring or transfer failed, continue with regular chatbot flow...              

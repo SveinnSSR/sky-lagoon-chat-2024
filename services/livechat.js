@@ -173,3 +173,39 @@ export async function transferChatToAgent(chatId, agentId) {
         return false;
     }
 }
+
+// Add this at the end of livechat.js
+export async function sendMessageToLiveChat(chatId, message, customerId) {
+    try {
+        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                event: {
+                    type: 'message',
+                    text: message,
+                    author_id: customerId
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Send message error response:', errorText);
+            throw new Error(`Send message failed: ${response.status}`);
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('Error sending message to LiveChat:', error);
+        return false;
+    }
+}
