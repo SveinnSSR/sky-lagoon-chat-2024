@@ -4940,6 +4940,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
 
                 console.log('\n✅ Chat created successfully:', chatId);
+
+                // Send initial message to LiveChat
+                const messageSent = await sendMessageToLiveChat(chatId, userMessage, sessionId);
+                console.log('\n📝 Initial message sent:', messageSent);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?

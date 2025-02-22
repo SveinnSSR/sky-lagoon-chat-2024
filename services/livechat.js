@@ -179,6 +179,12 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
+        console.log('\n📨 Sending message to LiveChat:', {
+            chatId,
+            message,
+            customerId
+        });
+
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -191,7 +197,9 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
                 event: {
                     type: 'message',
                     text: message,
-                    author_id: customerId
+                    visibility: 'all',  // Add this
+                    author_id: customerId,
+                    created_at: new Date().toISOString()  // Add this
                 }
             })
         });
@@ -202,10 +210,11 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
             throw new Error(`Send message failed: ${response.status}`);
         }
 
+        console.log('\n✅ Message sent to LiveChat successfully');
         return true;
 
     } catch (error) {
-        console.error('Error sending message to LiveChat:', error);
+        console.error('\n❌ Error sending message to LiveChat:', error);
         return false;
     }
 }
