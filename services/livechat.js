@@ -54,6 +54,43 @@ export async function checkAgentAvailability() {
     }
 }
 
+// Function to create a new chat
+export async function createChat(customerId) {
+    try {
+        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                customer_id: customerId,
+                active: true,
+                properties: {
+                    source: 'ai_chat'
+                },
+                group_ids: SKY_LAGOON_GROUPS  // Add this to ensure chat is created in correct groups
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Create chat error response:', errorText);
+            throw new Error(`Create chat failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.chat_id;
+
+    } catch (error) {
+        console.error('Error creating chat:', error.message);
+        return null;
+    }
+}
+
 // Function to transfer chat to human agent
 export async function transferChatToAgent(chatId, agentId) {
     try {
@@ -76,6 +113,8 @@ export async function transferChatToAgent(chatId, agentId) {
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Transfer error response:', errorText);
             throw new Error(`Transfer failed: ${response.status}`);
         }
 

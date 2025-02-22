@@ -4930,6 +4930,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             try {
                 // Get the first available agent for transfer
                 const agent = transferCheck.agents[0];
+
+                // Create chat first
+                console.log('\n📝 Creating new LiveChat chat for:', sessionId);
+                const chatId = await createChat(sessionId);
+
+                if (!chatId) {
+                    throw new Error('Failed to create chat');
+                }
+
+                console.log('\n✅ Chat created successfully:', chatId);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -4945,22 +4955,50 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     'direct_response'
                 );
 
-                // Attempt the transfer
-                const transferred = await transferChatToAgent(sessionId, agent.agent_id);
+                // Now attempt the transfer with the new chat ID
+                console.log('\n🔄 Attempting transfer to agent:', agent.agent_id);
+                const transferred = await transferChatToAgent(chatId, agent.agent_id);
 
                 if (transferred) {
+                    console.log('\n✅ Transfer successful');
                     return res.status(200).json({
                         message: transferMessage,
                         transferred: true,
+                        chatId: chatId,
                         language: {
                             detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                             confidence: languageDecision.confidence
                         }
                     });
+                } else {
+                    throw new Error('Transfer returned false');
                 }
             } catch (error) {
                 console.error('\n❌ Transfer Error:', error);
                 // Fall through to AI response if transfer fails
+                
+                // Provide fallback response when transfer fails
+                const fallbackMessage = languageDecision.isIcelandic ?
+                    "Því miður er ekki hægt að tengja þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
+                    "I'm sorry, I couldn't connect you with an agent at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
+
+                await broadcastConversation(
+                    userMessage,
+                    fallbackMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'transfer_failed',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: fallbackMessage,
+                    transferred: false,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
             }
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
@@ -4981,7 +5019,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // If not transferring or transfer failed, continue with regular chatbot flow...        
+        // If not transferring or transfer failed, continue with regular chatbot flow...              
 
         // Check for flight delays BEFORE any other processing
         const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);
