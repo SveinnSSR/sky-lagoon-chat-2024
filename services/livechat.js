@@ -59,7 +59,7 @@ export async function createChat(customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // First create a customer
+        // First create a customer with correct session fields format
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -69,10 +69,12 @@ export async function createChat(customerId) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                session_fields: [{
-                    name: "session_id",
-                    value: customerId
-                }]
+                session_fields: [
+                    {
+                        key: "session_id",  // Changed from 'name' to 'key'
+                        value: customerId
+                    }
+                ]
             })
         });
 
