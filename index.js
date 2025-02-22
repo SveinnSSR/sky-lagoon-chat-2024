@@ -5026,15 +5026,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
         }
-        // Add the new agent mode handling here
+        // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
                 // Send message to LiveChat
                 await sendMessageToLiveChat(req.body.chatId, userMessage, sessionId);
                 
                 return res.status(200).json({
-                    message: "Message sent to agent",
+                    success: true,
                     chatId: req.body.chatId,
+                    suppressMessage: true,  // Add this flag
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
