@@ -185,8 +185,8 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
             customerId
         });
 
-        // Use send_rich_message endpoint instead
-        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/add_user_message', {
+        // Use send_event endpoint
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -195,10 +195,13 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
             },
             body: JSON.stringify({
                 chat_id: chatId,
-                message: {
-                    text: message
-                },
-                recipients: 'all'
+                event: {
+                    type: 'message',
+                    text: message,
+                    author_id: customerId,
+                    recipients: 'all',
+                    visibility: 'all'
+                }
             })
         });
 
