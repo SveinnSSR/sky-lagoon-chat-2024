@@ -82,8 +82,8 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Start with customer creation using customer endpoint
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/start_chat', {
+        // Create chat with exact properties from real widget
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,15 +92,30 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 license_id: "12638850",
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
                 },
-                url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/",
-                referrer: "https://skylagoon-chat-demo.vercel.app/",
-                initial_state: "routing",
-                chat_source: "widget"
+                properties: {
+                    embedded: true,
+                    themeName: "smooth",
+                    timeZone: "Atlantic/Reykjavik",
+                    source: {
+                        type: "widget",
+                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
+                    },
+                    widget: {
+                        mobile: false,
+                        chatWidgetWidth: 392,
+                        chatWidgetHeight: 714,
+                        clientChatNumber: 1,
+                        clientVisitNumber: 1,
+                        chatSource: "website",
+                        fromGreeting: false
+                    }
+                }
             })
         });
 
@@ -120,8 +135,8 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send customer message using customer endpoint
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/customer/send_event', {
+        // Send initial message
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -129,10 +144,11 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat.id,
+                chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
                     text: 'Customer requesting assistance with booking change',
+                    author_id: customerId,
                     visibility: 'all'
                 }
             })
@@ -140,7 +156,7 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n📨 Message sent:', await messageResponse.text());
 
-        return chatData.chat.id;
+        return chatData.chat_id;
 
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
