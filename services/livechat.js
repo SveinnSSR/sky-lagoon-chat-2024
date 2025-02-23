@@ -76,17 +76,18 @@ export async function checkAgentAvailability(isIcelandic = false) {
     }
 }
 
+// Create chat function
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-
+        
         // Check agent availability first
         const availabilityCheck = await checkAgentAvailability(isIcelandic);
         console.log('\n🌟 Agent availability:', availabilityCheck);
 
         // Create customer first
-        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/customer/create_customer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -95,19 +96,15 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`,
-                group_id: groupId  // Set group at customer level
+                email: `${customerId}@skylagoon.com`
             })
         });
 
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Get active agent
-        const activeAgent = availabilityCheck.availableAgents[0]?.agent_id;
-
-        // Start chat with group, source and agent
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+        // Start chat as customer
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -115,29 +112,22 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                customer_id: customerData.customer_id,
                 group_id: groupId,
-                assignee: {
-                    id: activeAgent,
-                    type: 'agent'
+                customer: {
+                    id: customerData.customer_id,
+                    name: `User ${customerId}`,
+                    email: `${customerId}@skylagoon.com`
                 },
-                properties: {
-                    source: {
-                        type: 'website',
-                        url: isIcelandic ? 'https://www.skylagoon.com/is/' : 'https://www.skylagoon.com/'
-                    },
-                    routing: {
-                        assigned_group: groupId
-                    }
-                }
+                referrer: isIcelandic ? 'https://www.skylagoon.com/is/' : 'https://www.skylagoon.com/',
+                welcome_message: "Customer requesting booking change assistance"
             })
         });
 
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial system message 
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Send message as customer
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/customer/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -145,36 +135,18 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat_id,
+                chat_id: chatData.chat.id,
                 event: {
                     type: 'message',
-                    text: 'Customer requesting booking change assistance',
-                    author_id: customerData.customer_id
+                    text: 'change booking',
+                    visibility: 'all'
                 }
             })
         });
 
         console.log('\n📨 Message response:', await messageResponse.text());
 
-        // Now assign the agent directly
-        if (activeAgent) {
-            const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_agent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${credentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    chat_id: chatData.chat_id,
-                    agent_id: activeAgent
-                })
-            });
-
-            console.log('\n👤 Agent assignment response:', await assignResponse.text());
-        }
-
-        return chatData.chat_id;
+        return chatData.chat.id;
 
     } catch (error) {
         console.error('Error in createChat:', error);
