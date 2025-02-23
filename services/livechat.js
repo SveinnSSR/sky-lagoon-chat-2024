@@ -95,14 +95,18 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`
+                email: `${customerId}@skylagoon.com`,
+                group_id: groupId  // Set group at customer level
             })
         });
 
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Start chat with minimal configuration
+        // Get active agent
+        const activeAgent = availabilityCheck.availableAgents[0]?.agent_id;
+
+        // Start chat with group, source and agent
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -113,10 +117,17 @@ export async function createChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
                 group_id: groupId,
+                assignee: {
+                    id: activeAgent,
+                    type: 'agent'
+                },
                 properties: {
                     source: {
                         type: 'website',
                         url: isIcelandic ? 'https://www.skylagoon.com/is/' : 'https://www.skylagoon.com/'
+                    },
+                    routing: {
+                        assigned_group: groupId
                     }
                 }
             })
@@ -125,7 +136,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message using the thread_id
+        // Send initial system message 
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -144,6 +155,24 @@ export async function createChat(customerId, isIcelandic = false) {
         });
 
         console.log('\n📨 Message response:', await messageResponse.text());
+
+        // Now assign the agent directly
+        if (activeAgent) {
+            const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_agent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${credentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    agent_id: activeAgent
+                })
+            });
+
+            console.log('\n👤 Agent assignment response:', await assignResponse.text());
+        }
 
         return chatData.chat_id;
 
