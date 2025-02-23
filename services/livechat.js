@@ -58,9 +58,11 @@ export async function checkAgentAvailability() {
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        const licenseId = '12638850';
+        const groupId = isIcelandic ? '70' : '69';
 
-        // Create customer first
-        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
+        // Start chat first - using direct chat API
+        const chatResponse = await fetch(`https://api.livechatinc.com/v3.5/customer/action/start_chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -68,49 +70,16 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`,
-                group_id: isIcelandic ? 70 : 69  // Explicitly set group at customer level
-            })
-        });
-
-        if (!customerResponse.ok) {
-            const errorText = await customerResponse.text();
-            console.error('Create customer error response:', errorText);
-            throw new Error(`Create customer failed: ${customerResponse.status}`);
-        }
-
-        const customerData = await customerResponse.json();
-        console.log('\n✅ Customer created:', customerData);
-
-        // Define group info from direct chat URLs
-        const groupInfo = {
-            id: isIcelandic ? 70 : 69,
-            name: isIcelandic ? "Sky Lagoon IS" : "Sky Lagoon"
-        };
-
-        // Start chat with explicit group info
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                customer_id: customerData.customer_id,
-                group_id: groupInfo.id,
-                properties: {
-                    group: groupInfo,
-                    source: {
-                        type: 'api',
-                        url: `https://direct.lc.chat/12638850/${groupInfo.id}`
-                    },
-                    routing: {
-                        group_id: groupInfo.id,
-                        group_name: groupInfo.name
-                    }
-                }
+                license_id: licenseId,
+                group_id: parseInt(groupId),
+                customer: {
+                    name: `User ${customerId}`,
+                    email: `${customerId}@skylagoon.com`
+                },
+                welcome_message: {
+                    text: 'Customer requesting booking change assistance'
+                },
+                continuous: true
             })
         });
 
@@ -123,8 +92,11 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Get the chat ID from the response
+        const chatId = chatData.chat.id;
+
+        // Now send the initial message
+        await fetch(`https://api.livechatinc.com/v3.5/customer/action/send_event`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -132,22 +104,16 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat_id,
+                chat_id: chatId,
                 event: {
                     type: 'message',
-                    text: '⚠️ Customer requesting booking change assistance',
-                    author_id: 'david@svorumstrax.is',
-                    visibility: 'all',
-                    properties: {
-                        group_id: groupInfo.id
-                    }
+                    text: 'change booking',
+                    visibility: 'all'
                 }
             })
         });
 
-        console.log('\n📨 Initial message response:', await messageResponse.text());
-
-        return chatData.chat_id;
+        return chatId;
 
     } catch (error) {
         console.error('Detailed error in createChat:', error);
