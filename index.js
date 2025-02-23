@@ -436,9 +436,10 @@ const CONFIDENCE_THRESHOLDS = {
 };
 
 // LiveChat Constants
+// And for testing, let's extend the hours:
 const LIVECHAT_HOURS = {
-    START: 9,    // 9 AM
-    END: 2,    // 2 AM - Temporarily extended for testing
+    START: 0,    // Midnight
+    END: 23     // 11 PM
 };
 
 // Transfer trigger patterns
@@ -504,7 +505,13 @@ const BOOKING_CHANGE_PATTERNS = {
 // Helper function to check if within operating hours
 const isWithinOperatingHours = () => {
     const now = new Date();
-    const hours = now.getUTCHours(); // Iceland is on UTC
+    const hours = now.getHours(); // Use local time instead of UTC
+    console.log('\n⏰ Hours Check:', {
+        currentHour: hours,
+        start: LIVECHAT_HOURS.START,
+        end: LIVECHAT_HOURS.END,
+        isWithin: hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END
+    });
     return hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
 };
 

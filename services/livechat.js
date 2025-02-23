@@ -96,7 +96,9 @@ export async function createChat(customerId) {
                     id: 'david@svorumstrax.is'
                 },
                 group_id: SKY_LAGOON_GROUPS[0],
-                initial_state: 'open'  // Add this
+                initial_state: 'open',
+                continuous: true,  // Add this
+                welcome_message: 'New chat started' // Add this
             })
         });
 
