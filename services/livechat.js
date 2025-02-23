@@ -55,11 +55,11 @@ export async function checkAgentAvailability() {
 }
 
 // Function to create a new chat
-export async function createChat(customerId) {
+export async function createChat(customerId, isIcelandic = false) {  // Add language parameter
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // First create a customer
+        // Create customer with minimal info first
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -69,7 +69,7 @@ export async function createChat(customerId) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `user_${customerId}@temp.com` // Add email to make customer more "complete"
+                email: `user_${customerId}@temp.com`
             })
         });
 
@@ -81,6 +81,10 @@ export async function createChat(customerId) {
 
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
+
+        // Select group based on language
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
+        console.log('\n📋 Using group ID:', groupId);
 
         // Start chat with more explicit settings
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
@@ -97,15 +101,18 @@ export async function createChat(customerId) {
                 assigned_agent: {
                     id: 'david@svorumstrax.is'
                 },
-                group_id: SKY_LAGOON_GROUPS[0],
-                initial_state: 'open',
+                group_id: groupId,
+                initial_state: 'chatting',  // Changed from 'open' to 'chatting'
                 started_by: 'customer',
                 properties: {
                     source: 'chatbot',
-                    routing_scope: 'agents'
+                    routing_scope: 'agents',
+                    requires_agent_response: true  // Add this
                 },
                 welcome_message: {
-                    text: 'New chat transfer from chatbot'
+                    text: isIcelandic ? 
+                        'Nýtt spjall frá spjallmenni' : 
+                        'New chat transfer from chatbot'
                 }
             })
         });

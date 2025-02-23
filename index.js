@@ -4940,7 +4940,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Create chat first
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatId = await createChat(sessionId);
+                const chatId = await createChat(sessionId, languageDecision.isIcelandic);
 
                 if (!chatId) {
                     throw new Error('Failed to create chat');
