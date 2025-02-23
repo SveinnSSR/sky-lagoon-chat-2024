@@ -82,10 +82,13 @@ export async function createChat(customerId, isIcelandic = false) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Select group based on language
-        const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
+        // Set up group info to match UI settings
+        const groupInfo = {
+            name: "Sky Lagoon",
+            id: isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0]
+        };
 
-        // Start chat with proper access and routing
+        // Start chat matching auto-assignment settings
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -95,23 +98,26 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
-                group_id: groupId,
-                access: {
-                    group_ids: [groupId]
+                group: groupInfo,
+                assignment: {
+                    type: 'auto',
+                    auto: {
+                        assignment_method: 'balanced'
+                    }
                 },
                 properties: {
-                    email: `${customerId}@skylagoon.com`,
-                    source: 'ai_assistant',
-                    priority: 'urgent',
-                    subject: 'Booking Change Request'
+                    source: {
+                        type: 'api',
+                        channel: 'chatbot'
+                    },
+                    group_info: {
+                        name: "Sky Lagoon",
+                        id: groupInfo.id
+                    },
+                    active: true,
+                    auto_assignment: true
                 },
-                chat_properties: {
-                    routing: {
-                        group_id: groupId,
-                        agent_id: 'david@svorumstrax.is',
-                        priority: 'urgent'
-                    }
-                }
+                active: true
             })
         });
 
@@ -124,7 +130,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
+        // Send initial system message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -136,7 +142,7 @@ export async function createChat(customerId, isIcelandic = false) {
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: '⚠️ Customer requesting urgent booking change assistance',
+                    text: '⚠️ Customer requesting booking change assistance',
                     author_id: 'david@svorumstrax.is',
                     visibility: 'all'
                 }
