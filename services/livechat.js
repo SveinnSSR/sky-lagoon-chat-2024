@@ -55,11 +55,11 @@ export async function checkAgentAvailability() {
 }
 
 // Function to create a new chat
-export async function createChat(customerId, isIcelandic = false) {  // Add language parameter
+export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // Create customer with minimal info first
+        // Create customer first
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -74,8 +74,6 @@ export async function createChat(customerId, isIcelandic = false) {  // Add lang
         });
 
         if (!customerResponse.ok) {
-            const errorText = await customerResponse.text();
-            console.error('Create customer error response:', errorText);
             throw new Error(`Create customer failed: ${customerResponse.status}`);
         }
 
@@ -84,10 +82,9 @@ export async function createChat(customerId, isIcelandic = false) {  // Add lang
 
         // Select group based on language
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
-        console.log('\n📋 Using group ID:', groupId);
 
-        // Start chat with more explicit settings
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+        // Start chat with proper activation
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -95,40 +92,42 @@ export async function createChat(customerId, isIcelandic = false) {  // Add lang
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                customer_id: customerData.customer_id,
                 active: true,
-                continuous: true,
-                assigned_agent: {
-                    id: 'david@svorumstrax.is'
-                },
                 group_id: groupId,
-                initial_state: 'chatting',  // Changed from 'open' to 'chatting'
-                started_by: 'customer',
-                properties: {
-                    source: 'chatbot',
-                    routing_scope: 'agents',
-                    requires_agent_response: true  // Add this
-                },
-                welcome_message: {
-                    text: isIcelandic ? 
-                        'Nýtt spjall frá spjallmenni' : 
-                        'New chat transfer from chatbot'
-                }
+                customers: [{
+                    customer_id: customerData.customer_id,
+                    present: true
+                }]
             })
         });
 
         if (!chatResponse.ok) {
-            const errorText = await chatResponse.text();
-            console.error('Start chat error response:', errorText);
-            throw new Error(`Start chat failed: ${chatResponse.status}`);
+            throw new Error(`Create chat failed: ${chatResponse.status}`);
         }
 
         const chatData = await chatResponse.json();
-        console.log('\n✅ Chat created with full details:', chatData);
+        console.log('\n✅ Chat created:', chatData);
+
+        // Explicitly activate the chat
+        const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                agent_id: 'david@svorumstrax.is'
+            })
+        });
+
+        console.log('\n📡 Activate chat response:', await activateResponse.text());
+
         return chatData.chat_id;
 
     } catch (error) {
-        console.error('Error creating chat:', error.message);
+        console.error('Error creating chat:', error);
         return null;
     }
 }
@@ -197,14 +196,44 @@ export async function transferChatToAgent(chatId, agentId) {
 export async function sendMessageToLiveChat(chatId, message, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        console.log('\n📨 Sending message to LiveChat:', {
-            chatId,
-            message,
-            customerId
+
+        // First check if chat is active
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId
+            })
         });
 
-        // Use send_event endpoint
+        if (!chatResponse.ok) {
+            throw new Error(`Get chat failed: ${chatResponse.status}`);
+        }
+
+        // If chat isn't active, activate it
+        const chatData = await chatResponse.json();
+        if (!chatData.active) {
+            const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${credentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatId,
+                    agent_id: 'david@svorumstrax.is'
+                })
+            });
+
+            console.log('\n📡 Reactivate chat response:', await activateResponse.text());
+        }
+
+        // Now send the message
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -218,7 +247,6 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
                     type: 'message',
                     text: message,
                     author_id: customerId,
-                    recipients: 'all',
                     visibility: 'all'
                 }
             })
@@ -230,7 +258,6 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
             throw new Error(`Send message failed: ${response.status}`);
         }
 
-        console.log('\n✅ Message sent to LiveChat successfully');
         return true;
 
     } catch (error) {
