@@ -81,12 +81,8 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-        
-        // First check agent availability to ensure proper routing
-        const availabilityCheck = await checkAgentAvailability(isIcelandic);
-        console.log('\n🌟 Agent availability:', availabilityCheck);
 
-        // Create chat
+        // Create initial chat session with correct properties
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -95,33 +91,33 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
+                group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
+                    email: `${customerId}@skylagoon.com`,
                 },
-                group_id: groupId,
-                active: true,
+                initial_state: "routing",
                 continuous: true,
+                active: true,
                 properties: {
                     routing: {
                         status: "active",
                         group_id: groupId
                     },
                     source: {
-                        type: "api",
-                        url: isIcelandic ? 
-                            "https://www.skylagoon.com/is/" : 
-                            "https://www.skylagoon.com/"
+                        type: "widget",
+                        platform: "web",
+                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     }
                 }
             })
         });
 
-        // Log raw response for debugging
+        // Log raw response
         const rawResponse = await chatResponse.text();
         console.log('\n📝 Raw chat response:', rawResponse);
 
-        // Try to parse JSON response
+        // Parse response
         let chatData;
         try {
             chatData = JSON.parse(rawResponse);
@@ -133,7 +129,27 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n✅ Chat created with details:', chatData);
 
-        // If we got here, chat was created successfully
+        // Send initial message indicating chat purpose
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'Customer requesting assistance with booking change',
+                    author_id: customerId,
+                    visibility: 'all'
+                }
+            })
+        });
+
+        console.log('\n📨 Message sent:', await messageResponse.text());
+
         return chatData.chat_id;
 
     } catch (error) {
