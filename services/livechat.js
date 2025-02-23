@@ -59,7 +59,7 @@ export async function createChat(customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // Create a customer with minimal info
+        // First create a customer
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -68,7 +68,8 @@ export async function createChat(customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                name: `User ${customerId}`
+                name: `User ${customerId}`,
+                email: `user_${customerId}@temp.com` // Add email to make customer more "complete"
             })
         });
 
@@ -81,7 +82,7 @@ export async function createChat(customerId) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Start chat with this customer with active status
+        // Start chat with more explicit settings
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -92,13 +93,20 @@ export async function createChat(customerId) {
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
                 active: true,
+                continuous: true,
                 assigned_agent: {
                     id: 'david@svorumstrax.is'
                 },
                 group_id: SKY_LAGOON_GROUPS[0],
                 initial_state: 'open',
-                continuous: true,  // Add this
-                welcome_message: 'New chat started' // Add this
+                started_by: 'customer',
+                properties: {
+                    source: 'chatbot',
+                    routing_scope: 'agents'
+                },
+                welcome_message: {
+                    text: 'New chat transfer from chatbot'
+                }
             })
         });
 
@@ -109,6 +117,7 @@ export async function createChat(customerId) {
         }
 
         const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created with full details:', chatData);
         return chatData.chat_id;
 
     } catch (error) {
