@@ -84,7 +84,17 @@ export async function createChat(customerId, isIcelandic = false) {
         // Select group based on language
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
 
-        // Try to start chat first
+        // Create chat with present:true for customer
+        const startChatBody = {
+            customer_id: customerData.customer_id,
+            group_id: groupId,
+            active: true,
+            continuous: true,
+            present: true
+        };
+
+        console.log('\n📝 Starting chat with:', startChatBody);
+
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -92,10 +102,7 @@ export async function createChat(customerId, isIcelandic = false) {
                 'Authorization': `Basic ${credentials}`,
                 'X-Region': 'fra'
             },
-            body: JSON.stringify({
-                customer_id: customerData.customer_id,
-                group_id: groupId
-            })
+            body: JSON.stringify(startChatBody)
         });
 
         if (!chatResponse.ok) {
@@ -107,11 +114,27 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat started with details:', chatData);
 
+        // Now join the chat as an agent
+        const joinResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/join_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                agent_id: 'david@svorumstrax.is'
+            })
+        });
+
+        console.log('\n🤝 Join chat response:', await joinResponse.text());
+
         return chatData.chat_id;
 
     } catch (error) {
         console.error('Detailed error in createChat:', error);
-        throw error;  // Let the caller handle the error
+        throw error;
     }
 }
 
@@ -180,8 +203,8 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // First check if chat is active
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+        // Attempt to join chat first
+        const joinResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/join_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -189,34 +212,14 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatId
+                chat_id: chatId,
+                agent_id: 'david@svorumstrax.is'
             })
         });
 
-        if (!chatResponse.ok) {
-            throw new Error(`Get chat failed: ${chatResponse.status}`);
-        }
+        console.log('\n🤝 Join attempt response:', await joinResponse.text());
 
-        // If chat isn't active, activate it
-        const chatData = await chatResponse.json();
-        if (!chatData.active) {
-            const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${credentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    id: chatId,
-                    agent_id: 'david@svorumstrax.is'
-                })
-            });
-
-            console.log('\n📡 Reactivate chat response:', await activateResponse.text());
-        }
-
-        // Now send the message
+        // Send the message
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
