@@ -80,13 +80,21 @@ export async function checkAgentAvailability(isIcelandic = false) {
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        // Use real production URLs even while testing
-        const sourceUrl = isIcelandic ? 
-            "https://www.skylagoon.com/is/" : 
-            "https://www.skylagoon.com/";
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Create chat to match website behavior exactly
+        // First, get license configuration
+        const licenseResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_license', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            }
+        });
+
+        const licenseData = await licenseResponse.json();
+        console.log('\n📄 License data:', licenseData);
+
+        // Create chat with full license context
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -97,21 +105,20 @@ export async function createChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 customer: {
                     name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`,
-                    widget_id: "skylagoon_widget"
+                    email: `${customerId}@skylagoon.com`
                 },
-                source: {
-                    type: "widget",
-                    platform: "web",
-                    url: sourceUrl,
-                    location: sourceUrl,
-                    title: "Sky Lagoon"
+                group_id: groupId,
+                status: "routing",
+                access: {
+                    group_ids: [groupId]
                 },
-                group_id: isIcelandic ? 70 : 69,
+                active: true,
                 properties: {
+                    license: licenseData.license,
+                    status: "routing",
                     routing: {
-                        source: "widget",
-                        url: sourceUrl
+                        status: "routing",
+                        group_id: groupId
                     }
                 }
             })
