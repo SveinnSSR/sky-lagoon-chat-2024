@@ -60,7 +60,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
         // Create customer first
-        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/create_customer', {
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,10 +69,7 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                session_fields: [{
-                    name: 'source',
-                    value: 'ai_assistant'
-                }]
+                email: `${customerId}@skylagoon.com`
             })
         });
 
@@ -85,8 +82,11 @@ export async function createChat(customerId, isIcelandic = false) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Start chat as customer
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/start_chat', {
+        // Select group based on language
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
+
+        // Start chat with proper access and routing
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -94,18 +94,22 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                group_id: isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0],
-                customer: {
-                    id: customerData.customer_id,
-                    name: `User ${customerId}`,
-                    session_fields: [{
-                        name: 'source',
-                        value: 'ai_assistant'
-                    }]
+                customer_id: customerData.customer_id,
+                group_id: groupId,
+                access: {
+                    group_ids: [groupId]
                 },
                 properties: {
-                    source: {
-                        type: "ai_assistant"
+                    email: `${customerId}@skylagoon.com`,
+                    source: 'ai_assistant',
+                    priority: 'urgent',
+                    subject: 'Booking Change Request'
+                },
+                chat_properties: {
+                    routing: {
+                        group_id: groupId,
+                        agent_id: 'david@svorumstrax.is',
+                        priority: 'urgent'
                     }
                 }
             })
@@ -120,8 +124,8 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message as customer
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+        // Send initial message
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -129,10 +133,11 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat.id,
+                chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: 'Customer needs help with booking change',
+                    text: '⚠️ Customer requesting urgent booking change assistance',
+                    author_id: 'david@svorumstrax.is',
                     visibility: 'all'
                 }
             })
@@ -140,7 +145,7 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n📨 Initial message response:', await messageResponse.text());
 
-        return chatData.chat.id;
+        return chatData.chat_id;
 
     } catch (error) {
         console.error('Detailed error in createChat:', error);
