@@ -81,35 +81,50 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-
-        // Create initial chat session with correct properties
+        
+        // Create chat with proper organization and URL details
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'X-Region': 'fra',
+                'X-User-Agent': 'LiveChat-AI-Bot'
             },
             body: JSON.stringify({
-                group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`,
+                    session_fields: [{
+                        name: "source",
+                        value: "website"
+                    }]
                 },
-                initial_state: "routing",
-                continuous: true,
-                active: true,
                 properties: {
+                    license_id: "12638850",
+                    organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                     routing: {
-                        status: "active",
+                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/",
                         group_id: groupId
                     },
                     source: {
-                        type: "widget",
-                        platform: "web",
+                        type: "widget",  
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
+                    },
+                    visit: {
+                        first_visit: false,
+                        timezone: "Atlantic/Reykjavik",
+                        language: isIcelandic ? "is" : "en"
+                    },
+                    widget: {
+                        width: 392,
+                        height: 714,
+                        theme: "smooth",
+                        embedded: true
                     }
-                }
+                },
+                group_id: groupId,
+                initial_state: "routing"
             })
         });
 
@@ -129,7 +144,7 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message indicating chat purpose
+        // Send initial message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
