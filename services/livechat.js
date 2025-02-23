@@ -81,50 +81,26 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-        
-        // Create chat with proper organization and URL details
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+
+        // Start with customer creation using customer endpoint
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra',
-                'X-User-Agent': 'LiveChat-AI-Bot'
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
+                license_id: "12638850",
+                group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`,
-                    session_fields: [{
-                        name: "source",
-                        value: "website"
-                    }]
+                    email: `${customerId}@skylagoon.com`
                 },
-                properties: {
-                    license_id: "12638850",
-                    organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
-                    routing: {
-                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/",
-                        group_id: groupId
-                    },
-                    source: {
-                        type: "widget",  
-                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
-                    },
-                    visit: {
-                        first_visit: false,
-                        timezone: "Atlantic/Reykjavik",
-                        language: isIcelandic ? "is" : "en"
-                    },
-                    widget: {
-                        width: 392,
-                        height: 714,
-                        theme: "smooth",
-                        embedded: true
-                    }
-                },
-                group_id: groupId,
-                initial_state: "routing"
+                url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/",
+                referrer: "https://skylagoon-chat-demo.vercel.app/",
+                initial_state: "routing",
+                chat_source: "widget"
             })
         });
 
@@ -144,8 +120,8 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Send customer message using customer endpoint
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/customer/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -153,11 +129,10 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat_id,
+                chat_id: chatData.chat.id,
                 event: {
                     type: 'message',
                     text: 'Customer requesting assistance with booking change',
-                    author_id: customerId,
                     visibility: 'all'
                 }
             })
@@ -165,7 +140,7 @@ export async function createChat(customerId, isIcelandic = false) {
 
         console.log('\n📨 Message sent:', await messageResponse.text());
 
-        return chatData.chat_id;
+        return chatData.chat.id;
 
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
