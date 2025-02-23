@@ -68,7 +68,8 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                name: `User ${customerId}`
+                name: `User ${customerId}`,
+                email: `${customerId}@temp.com`  // Added email
             })
         });
 
@@ -84,7 +85,7 @@ export async function createChat(customerId, isIcelandic = false) {
         // Select group based on language
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
 
-        // Start chat using minimal parameters
+        // Start chat with explicit settings
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -94,7 +95,19 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
-                group_id: groupId
+                group_id: groupId,
+                properties: {
+                    routing: {
+                        continuous: true,
+                        group_status_at_start: "online"
+                    },
+                    auto_close: {
+                        enabled: false
+                    },
+                    source: {
+                        type: "direct_chat"
+                    }
+                }
             })
         });
 
@@ -107,7 +120,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send an initial system message to keep chat active
+        // Send initial system message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -119,9 +132,14 @@ export async function createChat(customerId, isIcelandic = false) {
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: 'Chat transfer from AI assistant',
+                    text: 'Customer requesting booking change assistance',
                     author_id: 'david@svorumstrax.is',
-                    visibility: 'all'
+                    visibility: 'all',
+                    properties: {
+                        routing: {
+                            continuous: true
+                        }
+                    }
                 }
             })
         });
