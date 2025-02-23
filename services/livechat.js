@@ -189,8 +189,8 @@ export async function transferChatToAgent(chatId, agentId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // First get chat details
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+        // Get initial chat state for logging
+        const initialChatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -202,9 +202,57 @@ export async function transferChatToAgent(chatId, agentId) {
             })
         });
 
-        console.log('\n📝 Chat details response:', await chatResponse.text());
+        console.log('\n📝 Initial chat state:', await initialChatResponse.text());
 
-        // Then try to assign the agent using assign_agent
+        // First update the chat properties to ensure correct group and active status
+        const updateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatId,
+                access: {
+                    group_ids: [69] // English group
+                },
+                active: true,
+                continuous: true,
+                properties: {
+                    routing: {
+                        group_name: "Sky Lagoon",
+                        source: "chatbot_transfer"
+                    },
+                    prevent_archiving: true
+                }
+            })
+        });
+
+        if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            console.error('\n❌ Update chat error:', errorText);
+            throw new Error(`Update chat failed: ${updateResponse.status}`);
+        }
+
+        console.log('\n✅ Update chat response:', await updateResponse.text());
+
+        // Verify chat state after update
+        const postUpdateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId
+            })
+        });
+
+        console.log('\n📊 Chat state after update:', await postUpdateResponse.text());
+
+        // Then assign the agent
         const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_agent', {
             method: 'POST',
             headers: {
@@ -218,10 +266,16 @@ export async function transferChatToAgent(chatId, agentId) {
             })
         });
 
-        console.log('\n📡 Assign agent response:', await assignResponse.text());
+        if (!assignResponse.ok) {
+            const errorText = await assignResponse.text();
+            console.error('\n❌ Assign agent error:', errorText);
+            throw new Error(`Assign agent failed: ${assignResponse.status}`);
+        }
 
-        // Then try to deactivate the bot
-        const deactivateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/deactivate_chat', {
+        console.log('\n✅ Assign agent response:', await assignResponse.text());
+
+        // Final check of chat state
+        const finalCheckResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -229,17 +283,16 @@ export async function transferChatToAgent(chatId, agentId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                id: chatId,
-                ignore_requester_presence: true
+                chat_id: chatId
             })
         });
 
-        console.log('\n🔄 Deactivate response:', await deactivateResponse.text());
+        console.log('\n🔍 Final chat state:', await finalCheckResponse.text());
 
         return true;
 
     } catch (error) {
-        console.error('Error transferring chat:', error.message);
+        console.error('\n❌ Error in transferChatToAgent:', error);
         return false;
     }
 }
