@@ -69,7 +69,8 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`
+                email: `${customerId}@skylagoon.com`,
+                group_id: isIcelandic ? 70 : 69  // Explicitly set group at customer level
             })
         });
 
@@ -82,13 +83,13 @@ export async function createChat(customerId, isIcelandic = false) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Set up group info to match UI settings
+        // Define group info from direct chat URLs
         const groupInfo = {
-            name: "Sky Lagoon",
-            id: isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0]
+            id: isIcelandic ? 70 : 69,
+            name: isIcelandic ? "Sky Lagoon IS" : "Sky Lagoon"
         };
 
-        // Start chat matching auto-assignment settings
+        // Start chat with explicit group info
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -98,26 +99,18 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
-                group: groupInfo,
-                assignment: {
-                    type: 'auto',
-                    auto: {
-                        assignment_method: 'balanced'
-                    }
-                },
+                group_id: groupInfo.id,
                 properties: {
+                    group: groupInfo,
                     source: {
                         type: 'api',
-                        channel: 'chatbot'
+                        url: `https://direct.lc.chat/12638850/${groupInfo.id}`
                     },
-                    group_info: {
-                        name: "Sky Lagoon",
-                        id: groupInfo.id
-                    },
-                    active: true,
-                    auto_assignment: true
-                },
-                active: true
+                    routing: {
+                        group_id: groupInfo.id,
+                        group_name: groupInfo.name
+                    }
+                }
             })
         });
 
@@ -130,7 +123,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial system message
+        // Send initial message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -144,7 +137,10 @@ export async function createChat(customerId, isIcelandic = false) {
                     type: 'message',
                     text: '⚠️ Customer requesting booking change assistance',
                     author_id: 'david@svorumstrax.is',
-                    visibility: 'all'
+                    visibility: 'all',
+                    properties: {
+                        group_id: groupInfo.id
+                    }
                 }
             })
         });
