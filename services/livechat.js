@@ -61,7 +61,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const licenseId = '12638850';
         const groupId = isIcelandic ? 70 : 69;
 
-        // First create a presence
+        // First create a presence check
         const presenceResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
             method: 'POST',
             headers: {
@@ -76,9 +76,10 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
 
-        console.log('\n🌟 Presence check:', await presenceResponse.text());
+        const presenceData = await presenceResponse.json();
+        console.log('\n🌟 Presence check:', presenceData);
 
-        // Create customer with specific group
+        // Create customer with group info in a different way
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -89,10 +90,10 @@ export async function createChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 name: `User ${customerId}`,
                 email: `${customerId}@skylagoon.com`,
-                session_fields: [{
-                    name: 'group_id',
-                    value: groupId
-                }]
+                properties: {
+                    group_id: groupId,
+                    origin: 'chatbot_transfer'
+                }
             })
         });
 
@@ -105,7 +106,11 @@ export async function createChat(customerId, isIcelandic = false) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Start chat with minimal fields and clear group assignment
+        // Get active agent from presence check
+        const activeAgent = presenceData.find(agent => agent.status === 'accepting_chats');
+        const agentId = activeAgent ? activeAgent.agent_id : 'david@svorumstrax.is';
+
+        // Start chat with the active agent
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -117,15 +122,13 @@ export async function createChat(customerId, isIcelandic = false) {
                 customer_id: customerData.customer_id,
                 group_id: groupId,
                 active: true,
-                users: [{
-                    id: customerData.customer_id,
-                    type: 'customer',
-                    present: true
-                }, {
-                    id: 'david@svorumstrax.is',
-                    type: 'agent',
-                    present: true
-                }]
+                properties: {
+                    source: 'chatbot_transfer',
+                    assignee: {
+                        id: agentId,
+                        type: 'agent'
+                    }
+                }
             })
         });
 
@@ -138,7 +141,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send message immediately while chat is definitely active
+        // Send message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -151,7 +154,7 @@ export async function createChat(customerId, isIcelandic = false) {
                 event: {
                     type: 'message',
                     text: '⚠️ Customer requesting booking change assistance',
-                    author_id: 'david@svorumstrax.is',
+                    author_id: agentId,
                     visibility: 'all'
                 }
             })
