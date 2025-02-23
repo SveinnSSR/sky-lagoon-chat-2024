@@ -58,11 +58,10 @@ export async function checkAgentAvailability() {
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        const licenseId = '12638850';
-        const groupId = isIcelandic ? '70' : '69';
+        const groupId = isIcelandic ? 70 : 69;
 
-        // Start chat first - using direct chat API
-        const chatResponse = await fetch(`https://api.livechatinc.com/v3.5/customer/action/start_chat`, {
+        // Create customer first
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -70,16 +69,32 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                license_id: licenseId,
-                group_id: parseInt(groupId),
-                customer: {
-                    name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
-                },
-                welcome_message: {
-                    text: 'Customer requesting booking change assistance'
-                },
-                continuous: true
+                name: `User ${customerId}`,
+                email: `${customerId}@skylagoon.com`
+            })
+        });
+
+        if (!customerResponse.ok) {
+            const errorText = await customerResponse.text();
+            console.error('Create customer error response:', errorText);
+            throw new Error(`Create customer failed: ${customerResponse.status}`);
+        }
+
+        const customerData = await customerResponse.json();
+        console.log('\n✅ Customer created:', customerData);
+
+        // Start chat with minimal required fields
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                customer_id: customerData.customer_id,
+                group_id: groupId,
+                active: true
             })
         });
 
@@ -92,11 +107,8 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Get the chat ID from the response
-        const chatId = chatData.chat.id;
-
-        // Now send the initial message
-        await fetch(`https://api.livechatinc.com/v3.5/customer/action/send_event`, {
+        // First, activate the chat
+        const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -104,16 +116,34 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatId,
+                id: chatData.chat_id
+            })
+        });
+
+        console.log('\n📡 Activate response:', await activateResponse.text());
+
+        // Now send the message
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: 'change booking',
+                    text: '⚠️ Customer requesting booking change assistance',
+                    author_id: 'david@svorumstrax.is',
                     visibility: 'all'
                 }
             })
         });
 
-        return chatId;
+        console.log('\n📨 Message response:', await messageResponse.text());
+
+        return chatData.chat_id;
 
     } catch (error) {
         console.error('Detailed error in createChat:', error);
