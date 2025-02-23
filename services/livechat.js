@@ -81,20 +81,12 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
+        
+        // First check agent availability to ensure proper routing
+        const availabilityCheck = await checkAgentAvailability(isIcelandic);
+        console.log('\n🌟 Agent availability:', availabilityCheck);
 
-        // First, get license configuration
-        const licenseResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_license', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            }
-        });
-
-        const licenseData = await licenseResponse.json();
-        console.log('\n📄 License data:', licenseData);
-
-        // Create chat with full license context
+        // Create chat
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -108,29 +100,44 @@ export async function createChat(customerId, isIcelandic = false) {
                     email: `${customerId}@skylagoon.com`
                 },
                 group_id: groupId,
-                status: "routing",
-                access: {
-                    group_ids: [groupId]
-                },
                 active: true,
+                continuous: true,
                 properties: {
-                    license: licenseData.license,
-                    status: "routing",
                     routing: {
-                        status: "routing",
+                        status: "active",
                         group_id: groupId
+                    },
+                    source: {
+                        type: "api",
+                        url: isIcelandic ? 
+                            "https://www.skylagoon.com/is/" : 
+                            "https://www.skylagoon.com/"
                     }
                 }
             })
         });
 
-        const chatData = await chatResponse.json();
+        // Log raw response for debugging
+        const rawResponse = await chatResponse.text();
+        console.log('\n📝 Raw chat response:', rawResponse);
+
+        // Try to parse JSON response
+        let chatData;
+        try {
+            chatData = JSON.parse(rawResponse);
+        } catch (parseError) {
+            console.error('\n❌ JSON Parse Error:', parseError);
+            console.error('Raw response that failed to parse:', rawResponse);
+            throw new Error(`Failed to parse chat response: ${parseError.message}`);
+        }
+
         console.log('\n✅ Chat created with details:', chatData);
 
+        // If we got here, chat was created successfully
         return chatData.chat_id;
 
     } catch (error) {
-        console.error('Error in createChat:', error);
+        console.error('\n❌ Error in createChat:', error);
         throw error;
     }
 }
