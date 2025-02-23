@@ -80,27 +80,8 @@ export async function checkAgentAvailability(isIcelandic = false) {
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create customer first
-        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`,
-                session_fields: `source=www.skylagoon.com` // Match routing rules format
-            })
-        });
-
-        const customerData = await customerResponse.json();
-        console.log('\n✅ Customer created:', customerData);
-
-        // Start chat with URL that matches routing rules
+        // Create chat WITHOUT creating customer first
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -109,18 +90,24 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                customer_id: customerData.customer_id,
-                group_id: groupId,
-                properties: {
+                customer: {
+                    name: `User ${customerId}`,
+                    email: `${customerId}@skylagoon.com`,
+                    visit_ref: "https://www.skylagoon.com/",
+                    session_fields: [{
+                        name: "source",
+                        value: "website"
+                    }]
+                },
+                source: {
+                    type: "widget",
+                    url: "https://www.skylagoon.com/",
+                    title: "Sky Lagoon"
+                },
+                routing: {
                     source: {
-                        type: "website",
-                        url: "https://www.skylagoon.com/",  // Must match routing rules exactly
-                        location: {
-                            url: "https://www.skylagoon.com/"
-                        }
-                    },
-                    routing: {
-                        source: "website"
+                        type: "widget",
+                        url: "https://www.skylagoon.com/"
                     }
                 }
             })
@@ -128,27 +115,6 @@ export async function createChat(customerId, isIcelandic = false) {
 
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
-
-        // Send initial message
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                event: {
-                    type: 'message',
-                    text: 'change booking',
-                    author_id: customerData.customer_id,
-                    visibility: 'all'
-                }
-            })
-        });
-
-        console.log('\n📨 Message response:', await messageResponse.text());
 
         return chatData.chat_id;
 
