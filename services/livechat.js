@@ -84,29 +84,18 @@ export async function createChat(customerId, isIcelandic = false) {
         // Select group based on language
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
 
-        // Start chat using create_chat endpoint
-        const startChatBody = {
-            chat: {
-                group_id: groupId,
-                active: true,
-                users: [{
-                    id: customerData.customer_id,
-                    type: 'customer',
-                    present: true
-                }]
-            }
-        };
-
-        console.log('\n📝 Starting chat with:', startChatBody);
-
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_chat', {
+        // Start chat using minimal parameters
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`,
                 'X-Region': 'fra'
             },
-            body: JSON.stringify(startChatBody)
+            body: JSON.stringify({
+                customer_id: customerData.customer_id,
+                group_id: groupId
+            })
         });
 
         if (!chatResponse.ok) {
@@ -118,8 +107,8 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Resume the chat to make it active
-        const resumeResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/resume_chat', {
+        // Send an initial system message to keep chat active
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -127,11 +116,17 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatData.chat_id
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'Chat transfer from AI assistant',
+                    author_id: 'david@svorumstrax.is',
+                    visibility: 'all'
+                }
             })
         });
 
-        console.log('\n🔄 Resume chat response:', await resumeResponse.text());
+        console.log('\n📨 Initial system message response:', await messageResponse.text());
 
         return chatData.chat_id;
 
@@ -206,22 +201,7 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // Resume the chat before sending message
-        const resumeResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/resume_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId
-            })
-        });
-
-        console.log('\n🔄 Resume before message response:', await resumeResponse.text());
-
-        // Send the message
+        // Send message directly without any pre-checks
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
