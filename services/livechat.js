@@ -81,7 +81,12 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // Create chat WITHOUT creating customer first
+        // Use real production URLs even while testing
+        const sourceUrl = isIcelandic ? 
+            "https://www.skylagoon.com/is/" : 
+            "https://www.skylagoon.com/";
+
+        // Create chat to match website behavior exactly
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -93,21 +98,20 @@ export async function createChat(customerId, isIcelandic = false) {
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`,
-                    visit_ref: "https://www.skylagoon.com/",
-                    session_fields: [{
-                        name: "source",
-                        value: "website"
-                    }]
+                    widget_id: "skylagoon_widget"
                 },
                 source: {
                     type: "widget",
-                    url: "https://www.skylagoon.com/",
+                    platform: "web",
+                    url: sourceUrl,
+                    location: sourceUrl,
                     title: "Sky Lagoon"
                 },
-                routing: {
-                    source: {
-                        type: "widget",
-                        url: "https://www.skylagoon.com/"
+                group_id: isIcelandic ? 70 : 69,
+                properties: {
+                    routing: {
+                        source: "widget",
+                        url: sourceUrl
                     }
                 }
             })
