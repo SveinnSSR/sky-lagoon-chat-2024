@@ -58,9 +58,27 @@ export async function checkAgentAvailability() {
 export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        const licenseId = '12638850';
         const groupId = isIcelandic ? 70 : 69;
 
-        // Create customer first
+        // First create a presence
+        const presenceResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                filters: {
+                    group_ids: [groupId]
+                }
+            })
+        });
+
+        console.log('\n🌟 Presence check:', await presenceResponse.text());
+
+        // Create customer with specific group
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -70,7 +88,11 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`
+                email: `${customerId}@skylagoon.com`,
+                session_fields: [{
+                    name: 'group_id',
+                    value: groupId
+                }]
             })
         });
 
@@ -83,7 +105,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Start chat with source URL to trigger routing
+        // Start chat with minimal fields and clear group assignment
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -95,15 +117,15 @@ export async function createChat(customerId, isIcelandic = false) {
                 customer_id: customerData.customer_id,
                 group_id: groupId,
                 active: true,
-                properties: {
-                    source: {
-                        url: 'https://www.skylagoon.com/booking/',
-                        title: 'Sky Lagoon Booking'
-                    },
-                    routing: {
-                        group_name: isIcelandic ? "Sky Lagoon IS" : "Sky Lagoon"
-                    }
-                }
+                users: [{
+                    id: customerData.customer_id,
+                    type: 'customer',
+                    present: true
+                }, {
+                    id: 'david@svorumstrax.is',
+                    type: 'agent',
+                    present: true
+                }]
             })
         });
 
@@ -116,7 +138,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
+        // Send message immediately while chat is definitely active
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
