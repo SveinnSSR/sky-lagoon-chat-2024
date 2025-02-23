@@ -80,12 +80,12 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-        
+
         // Check agent availability first
         const availabilityCheck = await checkAgentAvailability(isIcelandic);
         console.log('\n🌟 Agent availability:', availabilityCheck);
 
-        // Create customer with group-specific info
+        // Create customer first
         const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
@@ -95,28 +95,14 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId}`,
-                email: `${customerId}@skylagoon.com`,
-                properties: {
-                    group_id: groupId,
-                    origin: 'chatbot_transfer',
-                    source_url: SKY_LAGOON_GROUPS.urls[groupId]
-                }
+                email: `${customerId}@skylagoon.com`
             })
         });
-
-        if (!customerResponse.ok) {
-            const errorText = await customerResponse.text();
-            console.error('Create customer error response:', errorText);
-            throw new Error(`Create customer failed: ${customerResponse.status}`);
-        }
 
         const customerData = await customerResponse.json();
         console.log('\n✅ Customer created:', customerData);
 
-        // Get active agent or default to first in list
-        const activeAgent = availabilityCheck.availableAgents[0]?.agent_id || LIVECHAT_AGENTS[0];
-
-        // Start chat with explicit source and routing
+        // Start chat with minimal configuration
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -127,32 +113,19 @@ export async function createChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 customer_id: customerData.customer_id,
                 group_id: groupId,
-                active: true,
                 properties: {
                     source: {
-                        url: SKY_LAGOON_GROUPS.urls[groupId],
-                        title: SKY_LAGOON_GROUPS.names[groupId]
-                    },
-                    routing: {
-                        assigned_agent: activeAgent,
-                        group_id: groupId,
-                        group_name: SKY_LAGOON_GROUPS.names[groupId]
-                    },
-                    continuous: true
+                        type: 'website',
+                        url: isIcelandic ? 'https://www.skylagoon.com/is/' : 'https://www.skylagoon.com/'
+                    }
                 }
             })
         });
 
-        if (!chatResponse.ok) {
-            const errorText = await chatResponse.text();
-            console.error('Start chat error response:', errorText);
-            throw new Error(`Start chat failed: ${chatResponse.status}`);
-        }
-
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
+        // Send initial message using the thread_id
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -164,12 +137,8 @@ export async function createChat(customerId, isIcelandic = false) {
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: '⚠️ Customer requesting booking change assistance',
-                    author_id: activeAgent,
-                    visibility: 'all',
-                    properties: {
-                        group_id: groupId
-                    }
+                    text: 'Customer requesting booking change assistance',
+                    author_id: customerData.customer_id
                 }
             })
         });
@@ -179,7 +148,7 @@ export async function createChat(customerId, isIcelandic = false) {
         return chatData.chat_id;
 
     } catch (error) {
-        console.error('Detailed error in createChat:', error);
+        console.error('Error in createChat:', error);
         throw error;
     }
 }
