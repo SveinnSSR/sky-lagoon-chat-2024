@@ -68,12 +68,13 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                name: `User ${customerId}`,
-                email: `user_${customerId}@temp.com`
+                name: `User ${customerId}`
             })
         });
 
         if (!customerResponse.ok) {
+            const errorText = await customerResponse.text();
+            console.error('Create customer error response:', errorText);
             throw new Error(`Create customer failed: ${customerResponse.status}`);
         }
 
@@ -83,8 +84,8 @@ export async function createChat(customerId, isIcelandic = false) {
         // Select group based on language
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS[1] : SKY_LAGOON_GROUPS[0];
 
-        // Start chat with proper activation
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_chat', {
+        // Try to start chat first
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,43 +93,25 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                active: true,
-                group_id: groupId,
-                customers: [{
-                    customer_id: customerData.customer_id,
-                    present: true
-                }]
+                customer_id: customerData.customer_id,
+                group_id: groupId
             })
         });
 
         if (!chatResponse.ok) {
-            throw new Error(`Create chat failed: ${chatResponse.status}`);
+            const errorText = await chatResponse.text();
+            console.error('Start chat error response:', errorText);
+            throw new Error(`Start chat failed: ${chatResponse.status}`);
         }
 
         const chatData = await chatResponse.json();
-        console.log('\n✅ Chat created:', chatData);
-
-        // Explicitly activate the chat
-        const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                agent_id: 'david@svorumstrax.is'
-            })
-        });
-
-        console.log('\n📡 Activate chat response:', await activateResponse.text());
+        console.log('\n✅ Chat started with details:', chatData);
 
         return chatData.chat_id;
 
     } catch (error) {
-        console.error('Error creating chat:', error);
-        return null;
+        console.error('Detailed error in createChat:', error);
+        throw error;  // Let the caller handle the error
     }
 }
 
