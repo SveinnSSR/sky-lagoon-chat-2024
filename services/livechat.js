@@ -82,29 +82,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // First initialize the chat session with proper group config
-        const initResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/initialize_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
-            },
-            body: JSON.stringify({
-                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
-                config: {
-                    group_id: groupId,
-                    license_id: "12638850",
-                    domain_allowed: true,
-                    client_limit_exceeded: false,
-                    language: isIcelandic ? "is" : "en"
-                }
-            })
-        });
-
-        const initData = await initResponse.json();
-        console.log('\n🔄 Init response:', initData);
-
-        // Then create the actual chat 
+        // Create chat with minimal configuration
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -112,7 +90,6 @@ export async function createChat(customerId, isIcelandic = false) {
                 'Authorization': `Basic ${credentials}`
             },
             body: JSON.stringify({
-                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
@@ -128,8 +105,7 @@ export async function createChat(customerId, isIcelandic = false) {
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
                     routing: {
-                        group_id: groupId,
-                        online_group_ids: [groupId]
+                        group_id: groupId
                     }
                 },
                 active: true,
@@ -143,7 +119,7 @@ export async function createChat(customerId, isIcelandic = false) {
         let chatData = JSON.parse(rawResponse);
         console.log('\n✅ Chat created with details:', chatData);
 
-        // Send initial message
+        // Send initial message only if chat was created successfully
         if (chatData.chat_id) {
             const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                 method: 'POST',
