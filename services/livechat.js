@@ -171,14 +171,16 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 // Add this at the end of livechat.js
-export async function sendMessageToLiveChat(chatId, message, token) {
+export async function sendMessageToLiveChat(chatId, message, token = null) {
     try {
-        // Just use basic auth for everything
+        // Always use agent credentials directly
+        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${token}`,
+                'Authorization': `Basic ${credentials}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({

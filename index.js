@@ -5025,13 +5025,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Send message to LiveChat using customer token
-                await sendMessageToLiveChat(req.body.chatId, userMessage, req.body.customerToken);
+                // Send message to LiveChat using agent credentials
+                await sendMessageToLiveChat(req.body.chatId, userMessage);
                 
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
-                    customerToken: req.body.customerToken, // Pass token back
                     suppressMessage: true,  // Add this flag
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
