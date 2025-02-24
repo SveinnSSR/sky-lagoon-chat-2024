@@ -82,7 +82,42 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Create chat with exact properties from real widget
+        // First create the chat log entry like the website does
+        const logResponse = await fetch('https://queue.livechatinc.com/logs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: new URLSearchParams({
+                licence_id: "12638850",
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
+                event_id: "chat_widget_chat_started",
+                message: JSON.stringify({
+                    userAgent: "Mozilla/5.0",
+                    mobile: false,
+                    timeZone: "Atlantic/Reykjavik",
+                    severity: "Informational",
+                    lc_env: "production",
+                    embedded: true,
+                    themeName: "smooth", 
+                    testGroup: "A",
+                    uniqueGroups: true,
+                    minimizedType: "circle",
+                    language: isIcelandic ? "is" : "en",
+                    integrationName: "potentially_gtm",
+                    mobileBridgeType: "none",
+                    chatSource: "other",
+                    chatWidgetWidth: 392,
+                    chatWidgetHeight: 714
+                })
+            })
+        });
+
+        console.log('\n📝 Log response:', await logResponse.text());
+
+        // Then create the actual chat
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -91,7 +126,7 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                license_id: "12638850",
+                license_id: "12638850", 
                 organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
                 customer: {
@@ -99,62 +134,24 @@ export async function createChat(customerId, isIcelandic = false) {
                     email: `${customerId}@skylagoon.com`
                 },
                 properties: {
-                    embedded: true,
-                    themeName: "smooth",
-                    timeZone: "Atlantic/Reykjavik",
                     source: {
                         type: "widget",
+                        integration: "potentially_gtm",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
-                    widget: {
-                        mobile: false,
-                        chatWidgetWidth: 392,
-                        chatWidgetHeight: 714,
-                        clientChatNumber: 1,
-                        clientVisitNumber: 1,
-                        chatSource: "website",
-                        fromGreeting: false
+                    routing: {
+                        group_id: groupId,
+                        assigned_group: groupId
                     }
                 }
             })
         });
 
-        // Log raw response
         const rawResponse = await chatResponse.text();
         console.log('\n📝 Raw chat response:', rawResponse);
 
-        // Parse response
-        let chatData;
-        try {
-            chatData = JSON.parse(rawResponse);
-        } catch (parseError) {
-            console.error('\n❌ JSON Parse Error:', parseError);
-            console.error('Raw response that failed to parse:', rawResponse);
-            throw new Error(`Failed to parse chat response: ${parseError.message}`);
-        }
-
+        let chatData = JSON.parse(rawResponse);
         console.log('\n✅ Chat created with details:', chatData);
-
-        // Send initial message
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                event: {
-                    type: 'message',
-                    text: 'Customer requesting assistance with booking change',
-                    author_id: customerId,
-                    visibility: 'all'
-                }
-            })
-        });
-
-        console.log('\n📨 Message sent:', await messageResponse.text());
 
         return chatData.chat_id;
 
