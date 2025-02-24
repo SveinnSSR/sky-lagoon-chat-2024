@@ -82,7 +82,26 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Create chat with proper settings to keep it active
+        // First, create customer identity to get proper customer_id
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/customer/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`
+            },
+            body: JSON.stringify({
+                license_id: "12638850",
+                customer: {
+                    name: `User ${customerId}`,
+                    email: `${customerId}@skylagoon.com`,
+                }
+            })
+        });
+
+        const customerData = await customerResponse.json();
+        console.log('\n👤 Customer created:', customerData);
+        
+        // Now create the chat using the customer's real ID
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -91,20 +110,25 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
+                license_id: "12638850",
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
+                customer_id: customerData.customer_id, // Use the real customer ID
                 continuous: true,
                 active: true,
-                customer: {
-                    name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
-                },
                 properties: {
                     source: {
                         type: "widget",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
                     routing: {
-                        group_id: groupId
+                        group_id: groupId,
+                        assigned_group: groupId
+                    },
+                    chat: {
+                        access: {
+                            group_ids: [groupId] // Explicitly define access
+                        }
                     }
                 }
             })
@@ -126,7 +150,7 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message
+        // Send initial customer message using customer's real ID
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -139,14 +163,14 @@ export async function createChat(customerId, isIcelandic = false) {
                 event: {
                     type: 'message',
                     text: 'Customer requesting assistance with booking change',
-                    author_id: chatData.customer_id || customerId,
+                    author_id: customerData.customer_id, // Use customer's real ID
                     visibility: 'all'
                 }
             })
         });
 
-        // Send a system message to keep the chat active
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Activate the chat explicitly
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -155,16 +179,14 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
-                event: {
-                    type: 'system_message',
-                    text: 'Chat is now active',
-                    system_message_type: 'system_info',
-                    recipients: 'all'
-                }
+                status: "active"
             })
         });
 
-        return chatData.chat_id;
+        return {
+            chat_id: chatData.chat_id,
+            customer_id: customerData.customer_id
+        };
 
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
@@ -234,7 +256,7 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
 
-        // Send message directly without any pre-checks
+        // Send message with proper customer ID
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -247,7 +269,7 @@ export async function sendMessageToLiveChat(chatId, message, customerId) {
                 event: {
                     type: 'message',
                     text: message,
-                    author_id: customerId,
+                    author_id: customerId, // This needs to be the real customer ID
                     visibility: 'all'
                 }
             })
