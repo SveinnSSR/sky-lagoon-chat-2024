@@ -96,45 +96,76 @@ export async function checkAgentAvailability(isIcelandic = false) {
 // Create chat function
 export async function createChat(customerId, isIcelandic = false) {
     try {
-        // Create a temporary access token for this customer
-        const tokenResponse = await fetch('https://accounts.livechatinc.com/customer/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                licence_id: "12638850",
-                client_id: customerId
-            })
-        });
-
-        const tokenData = await tokenResponse.json();
-        console.log('\n🔑 Customer token created:', tokenData);
-
-        // Use the customer token to start a chat
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/start_chat', {
+        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
+        
+        // Use the customer/chat API endpoint directly with basic auth
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/rtm/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenData.access_token}`
+                'Authorization': `Basic ${credentials}` // Using agent credentials for now
             },
             body: JSON.stringify({
                 license_id: "12638850",
-                group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737", // Required field
+                group_id: groupId,
                 customer: {
+                    id: customerId, // This will be the unique identifier
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
                 },
-                welcome_message: 'Customer requesting assistance with booking change'
+                properties: {
+                    source: {
+                        type: "other" // Use "other" instead of "widget"
+                    },
+                    routing: {
+                        group_id: groupId
+                    }
+                }
             })
         });
 
-        const chatData = await chatResponse.json();
-        console.log('\n✅ Chat created with details:', chatData);
+        const rawResponse = await chatResponse.text();
+        console.log('\n📝 Raw chat response:', rawResponse);
+
+        let chatData;
+        try {
+            chatData = JSON.parse(rawResponse);
+            console.log('\n✅ Chat created with details:', chatData);
+        } catch (e) {
+            console.error('\n❌ Error parsing response:', e);
+            throw new Error("Failed to parse chat response");
+        }
+
+        if (!chatData.chat_id) {
+            throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
+        }
+
+        // Save this token for future message sending
+        const customerToken = chatData.access_token || null;
+
+        // Send initial customer message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'Customer requesting assistance with booking change',
+                    visibility: 'all'
+                }
+            })
+        });
 
         return {
             chat_id: chatData.chat_id,
-            customer_token: tokenData.access_token
+            customer_token: customerToken || credentials // Fallback to agent credentials if no token
         };
 
     } catch (error) {
@@ -144,20 +175,25 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 // Add this at the end of livechat.js
-export async function sendMessageToLiveChat(chatId, message, customerToken) {
+export async function sendMessageToLiveChat(chatId, message, token) {
     try {
-        // Send message using the customer token
-        const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+        // Determine if this is a customer token or basic auth credentials
+        const isBearer = token && !token.includes(':');
+        
+        // Send message with appropriate authentication
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${customerToken}`
+                'Authorization': isBearer ? `Bearer ${token}` : `Basic ${token}`,
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 chat_id: chatId,
                 event: {
                     type: 'message',
-                    text: message
+                    text: message,
+                    visibility: 'all'
                 }
             })
         });
