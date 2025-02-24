@@ -4935,12 +4935,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Get the first available agent for transfer
-                const agent = transferCheck.agents[0];
-
-                // Create chat first
+                // Create chat as customer
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatData = await createChat(sessionId, languageDecision.isIcelandic)
+                const chatData = await createChat(sessionId, languageDecision.isIcelandic);
 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
@@ -4948,8 +4945,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
 
-                // Send initial message to LiveChat
-                const messageSent = await sendMessageToLiveChat(chatData.chat_id, userMessage, chatData.customer_id);
+                // Send initial message to LiveChat (if not already sent in welcome_message)
+                const messageSent = await sendMessageToLiveChat(chatData.chat_id, userMessage, chatData.customer_token);
                 console.log('\n📝 Initial message sent:', messageSent);
                 
                 // Prepare transfer message based on language
@@ -4966,25 +4963,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     'direct_response'
                 );
 
-                // Now attempt the transfer with the new chat ID
-                console.log('\n🔄 Attempting transfer to agent:', agent.agent_id);
-                const transferred = await transferChatToAgent(chatData.chat_id, agent.agent_id);
+                // No need to explicitly transfer - LiveChat's routing will handle it
+                console.log('\n✅ Chat created - LiveChat will handle routing');
 
-                if (transferred) {
-                    console.log('\n✅ Transfer successful');
-                    return res.status(200).json({
-                        message: transferMessage,
-                        transferred: true,
-                        chatId: chatData.chat_id,
-                        initiateWidget: true,
-                        language: {
-                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                } else {
-                    throw new Error('Transfer returned false');
-                }
+                return res.status(200).json({
+                    message: transferMessage,
+                    transferred: true,
+                    chatId: chatData.chat_id,
+                    customerToken: chatData.customer_token, // Include customer token
+                    initiateWidget: true,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
             } catch (error) {
                 console.error('\n❌ Transfer Error:', error);
                 // Fall through to AI response if transfer fails
@@ -5033,12 +5025,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Send message to LiveChat
-                await sendMessageToLiveChat(req.body.chatId, userMessage, sessionId);
+                // Send message to LiveChat using customer token
+                await sendMessageToLiveChat(req.body.chatId, userMessage, req.body.customerToken);
                 
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
+                    customerToken: req.body.customerToken, // Pass token back
                     suppressMessage: true,  // Add this flag
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -5056,7 +5049,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // If not transferring or transfer failed, continue with regular chatbot flow...          
+        // If not transferring or transfer failed, continue with regular chatbot flow...        
 
         // Check for flight delays BEFORE any other processing
         const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);
