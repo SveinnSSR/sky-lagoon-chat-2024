@@ -82,68 +82,58 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // First create the chat log entry like the website does
-        const logResponse = await fetch('https://queue.livechatinc.com/logs', {
+        // First initialize the chat session with proper group config
+        const initResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/initialize_chat', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`
             },
-            body: new URLSearchParams({
-                licence_id: "12638850",
+            body: JSON.stringify({
                 organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
-                event_id: "chat_widget_chat_started",
-                message: JSON.stringify({
-                    userAgent: "Mozilla/5.0",
-                    mobile: false,
-                    timeZone: "Atlantic/Reykjavik",
-                    severity: "Informational",
-                    lc_env: "production",
-                    embedded: true,
-                    themeName: "smooth", 
-                    testGroup: "A",
-                    uniqueGroups: true,
-                    minimizedType: "circle",
-                    language: isIcelandic ? "is" : "en",
-                    integrationName: "potentially_gtm",
-                    mobileBridgeType: "none",
-                    chatSource: "other",
-                    chatWidgetWidth: 392,
-                    chatWidgetHeight: 714
-                })
+                config: {
+                    group_id: groupId,
+                    license_id: "12638850",
+                    domain_allowed: true,
+                    client_limit_exceeded: false,
+                    language: isIcelandic ? "is" : "en"
+                }
             })
         });
 
-        console.log('\n📝 Log response:', await logResponse.text());
+        const initData = await initResponse.json();
+        console.log('\n🔄 Init response:', initData);
 
-        // Then create the actual chat
+        // Then create the actual chat 
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'Authorization': `Basic ${credentials}`
             },
             body: JSON.stringify({
-                license_id: "12638850", 
                 organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
+                    email: `${customerId}@skylagoon.com`,
+                    session_fields: [{
+                        name: "source",
+                        value: "website"
+                    }]
                 },
                 properties: {
                     source: {
                         type: "widget",
-                        integration: "potentially_gtm",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
                     routing: {
                         group_id: groupId,
-                        assigned_group: groupId
+                        online_group_ids: [groupId]
                     }
-                }
+                },
+                active: true,
+                continuous: true
             })
         });
 
@@ -152,6 +142,28 @@ export async function createChat(customerId, isIcelandic = false) {
 
         let chatData = JSON.parse(rawResponse);
         console.log('\n✅ Chat created with details:', chatData);
+
+        // Send initial message
+        if (chatData.chat_id) {
+            const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${credentials}`
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    event: {
+                        type: 'message',
+                        text: 'Customer requesting assistance with booking change',
+                        author_id: customerId,
+                        visibility: 'all'
+                    }
+                })
+            });
+
+            console.log('\n📨 Message sent:', await messageResponse.text());
+        }
 
         return chatData.chat_id;
 
