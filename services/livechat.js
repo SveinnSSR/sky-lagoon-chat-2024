@@ -195,16 +195,16 @@ export async function createChat(customerId, isIcelandic = false) {
 export async function transferChatToAgent(chatId, agentId, customerId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        const groupId = 69; // Default to English
+        const groupId = 69; // Default to English group
 
-        // Check if agent is available
+        // First check agent availability
         const availabilityCheck = await checkAgentAvailability(false);
         if (!availabilityCheck.areAgentsAvailable) {
             throw new Error("No available agents to transfer.");
         }
 
-        // Assign agent with explicit group
-        const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_agent', {
+        // Use transfer_chat instead of assign_agent (which appears to be unsupported)
+        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -213,15 +213,19 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
             },
             body: JSON.stringify({
                 chat_id: chatId,
-                agent_id: agentId,
+                target: {
+                    type: "agent", 
+                    ids: [agentId]
+                },
+                force: true,
                 group_id: groupId
             })
         });
 
-        const assignText = await assignResponse.text();
-        console.log('\n📡 Agent assignment response:', assignText);
+        const transferText = await transferResponse.text();
+        console.log('\n📡 Chat transfer response:', transferText);
 
-        // Keep chat active with a system message
+        // Send a system message to keep the chat alive
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -240,7 +244,21 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
             })
         });
 
-        console.log('\n💬 System message response:', await messageResponse.text());
+        // Also update the chat access explicitly to make sure it's in the right group
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                access: {
+                    group_ids: [groupId]
+                }
+            })
+        });
 
         return true;
 
