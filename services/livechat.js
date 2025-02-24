@@ -141,7 +141,7 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message
+        // Send initial customer message BEFORE deactivating
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -159,7 +159,7 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
 
-        // CRITICAL NEW STEP: Have the agent leave the chat
+        // THEN have the agent leave the chat
         const leaveResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/deactivate_chat', {
             method: 'POST',
             headers: {
@@ -191,6 +191,27 @@ export async function sendMessageToLiveChat(chatId, message, token = null) {
         // Always use agent credentials directly
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
+        // First, try to activate the chat (in case it's inactive)
+        try {
+            const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${credentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatId
+                })
+            });
+            
+            console.log('\n🔄 Chat activation response:', await activateResponse.text());
+        } catch (activateError) {
+            console.log('\n⚠️ Chat activation warning:', activateError.message);
+            // Continue even if activation fails
+        }
+        
+        // Now send the message
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
