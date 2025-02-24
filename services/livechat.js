@@ -99,29 +99,26 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create chat using agent API
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+        // Create chat using the visitor API endpoint - this should create a chat in the queue
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/visitor/chat/start', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'Authorization': `Basic ${credentials}`
             },
             body: JSON.stringify({
+                license_id: "12638850",
                 group_id: groupId,
-                customer: {
+                visitor: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
                 },
-                properties: {
-                    source: {
-                        type: "widget",
-                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
-                    },
-                    routing: {
-                        group_id: groupId
+                custom_variables: [
+                    {
+                        key: "Source",
+                        value: "SkyLagoon AI Chatbot"
                     }
-                }
+                ]
             })
         });
 
@@ -141,42 +138,25 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message BEFORE deactivating
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Send initial customer message using visitor endpoint
+        await fetch('https://api.livechatinc.com/v3.5/visitor/chat/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'Authorization': `Basic ${credentials}`
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: 'Customer requesting assistance with booking change',
-                    visibility: 'all'
+                    text: 'Customer requesting assistance with booking change'
                 }
             })
         });
 
-        // THEN have the agent leave the chat
-        const leaveResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/deactivate_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id
-            })
-        });
-
-        console.log('\n🚪 Agent leaving chat response:', await leaveResponse.text());
-
         return {
             chat_id: chatData.chat_id,
-            customer_token: credentials
+            license_id: "12638850"
         };
 
     } catch (error) {
@@ -186,45 +166,22 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 // Add this at the end of livechat.js
-export async function sendMessageToLiveChat(chatId, message, token = null) {
+export async function sendMessageToLiveChat(chatId, message) {
     try {
-        // Always use agent credentials directly
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // First, try to activate the chat (in case it's inactive)
-        try {
-            const activateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${credentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    id: chatId
-                })
-            });
-            
-            console.log('\n🔄 Chat activation response:', await activateResponse.text());
-        } catch (activateError) {
-            console.log('\n⚠️ Chat activation warning:', activateError.message);
-            // Continue even if activation fails
-        }
-        
-        // Now send the message
-        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Send message as visitor
+        const response = await fetch('https://api.livechatinc.com/v3.5/visitor/chat/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
+                'Authorization': `Basic ${credentials}`
             },
             body: JSON.stringify({
                 chat_id: chatId,
                 event: {
                     type: 'message',
-                    text: message,
-                    visibility: 'all'
+                    text: message
                 }
             })
         });
