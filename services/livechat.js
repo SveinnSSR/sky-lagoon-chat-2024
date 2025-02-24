@@ -81,40 +81,8 @@ export async function createChat(customerId, isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
-
-        // First, create customer identity to get proper customer_id
-        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/customer/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                license_id: "12638850",
-                customer: {
-                    name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
-                }
-            })
-        });
-
-        // Get raw response text first to debug
-        const customerResponseText = await customerResponse.text();
-        console.log('\n👤 Raw customer response:', customerResponseText);
         
-        // Try to parse the customer response
-        let customerData;
-        try {
-            customerData = JSON.parse(customerResponseText);
-            console.log('\n👤 Customer created:', customerData);
-        } catch (e) {
-            console.error('\n❌ Error parsing customer response:', e);
-            // Fall back to using a simple ID
-            customerData = { customer_id: `customer_${customerId}` };
-        }
-        
-        // Now create the chat using the customer's real ID
+        // Skip customer registration and just create the chat directly
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -126,20 +94,19 @@ export async function createChat(customerId, isIcelandic = false) {
                 license_id: "12638850",
                 organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737",
                 group_id: groupId,
+                continuous: true,
+                active: true,
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
                 },
-                continuous: true,
-                active: true,
                 properties: {
                     source: {
                         type: "widget",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
                     routing: {
-                        group_id: groupId,
-                        assigned_group: groupId
+                        group_id: groupId
                     },
                     chat: {
                         access: {
@@ -166,8 +133,8 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Activate the chat explicitly
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+        // Send initial customer message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -176,13 +143,18 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
-                status: "active"
+                event: {
+                    type: 'message',
+                    text: 'Customer requesting assistance with booking change',
+                    visibility: 'all'
+                }
             })
         });
 
+        // Keep using customerId as a string rather than trying to get a real customer_id
         return {
             chat_id: chatData.chat_id,
-            customer_id: customerData.customer_id || `customer_${customerId}`
+            customer_id: customerId
         };
 
     } catch (error) {
@@ -203,7 +175,7 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
             throw new Error("No available agents to transfer.");
         }
 
-        // Use transfer_chat instead of assign_agent (which appears to be unsupported)
+        // Use transfer_chat with correctly formatted target
         const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
@@ -212,13 +184,12 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatId,
+                id: chatId, // Add id at the root level
                 target: {
                     type: "agent", 
-                    ids: [agentId]
+                    id: agentId // Single id instead of ids array
                 },
-                force: true,
-                group_id: groupId
+                force: true
             })
         });
 
@@ -244,8 +215,8 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
             })
         });
 
-        // Also update the chat access explicitly to make sure it's in the right group
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
+        // Explicitly update the access groups
+        const accessResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -253,12 +224,14 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatId,
+                id: chatId, // Changed from chat_id to id
                 access: {
                     group_ids: [groupId]
                 }
             })
         });
+
+        console.log('\n📁 Access update response:', await accessResponse.text());
 
         return true;
 
