@@ -27,12 +27,14 @@ const SKY_LAGOON_GROUPS = {
     }
 };
 
+// Check agent availability
 export async function checkAgentAvailability(isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
+        // Get agents by license rather than by group to see all agents
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_agents', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -40,9 +42,7 @@ export async function checkAgentAvailability(isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                filters: {
-                    group_ids: [groupId]
-                }
+                fields: ["id", "name", "status", "groups"]
             })
         });
 
@@ -51,17 +51,26 @@ export async function checkAgentAvailability(isIcelandic = false) {
         }
 
         const data = await response.json();
+        console.log('\n👥 All agents:', JSON.stringify(data, null, 2));
         
-        // Filter for our specific agents who are accepting chats
+        // Filter for our agents that are online
         const availableAgents = data.filter(agent => 
-            LIVECHAT_AGENTS.includes(agent.agent_id) && 
-            agent.status === 'accepting_chats'
+            LIVECHAT_AGENTS.includes(agent.id) && 
+            agent.status === 'accepting_chats' || agent.status === 'online'
         );
 
+        // If none are accepting chats, just use any online agent
+        const fallbackAgents = data.filter(agent => 
+            LIVECHAT_AGENTS.includes(agent.id) && 
+            agent.status !== 'offline'
+        );
+
+        const agents = availableAgents.length > 0 ? availableAgents : fallbackAgents;
+
         return {
-            areAgentsAvailable: availableAgents.length > 0,
-            availableAgents: availableAgents,
-            agentCount: availableAgents.length,
+            areAgentsAvailable: agents.length > 0,
+            availableAgents: agents,
+            agentCount: agents.length,
             groupId: groupId
         };
 
@@ -164,18 +173,25 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 // Transfer chat to agent
-export async function transferChatToAgent(chatId, agentId, customerId) {
+export async function transferChatToAgent(chatId, agentId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = 69; // Default to English group
 
-        // First check agent availability
-        const availabilityCheck = await checkAgentAvailability(false);
-        if (!availabilityCheck.areAgentsAvailable) {
-            throw new Error("No available agents to transfer.");
-        }
+        // First make sure the chat is marked as active
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatId
+            })
+        });
 
-        // Use transfer_chat with correctly formatted target
+        // Fix the transfer format - using ids array as required
         const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
@@ -184,10 +200,10 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                id: chatId, // Add id at the root level
+                id: chatId,
                 target: {
                     type: "agent", 
-                    id: agentId // Single id instead of ids array
+                    ids: [agentId] // Use ids array as required
                 },
                 force: true
             })
@@ -196,8 +212,8 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
         const transferText = await transferResponse.text();
         console.log('\n📡 Chat transfer response:', transferText);
 
-        // Send a system message to keep the chat alive
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // System message for activity
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -215,8 +231,8 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
             })
         });
 
-        // Explicitly update the access groups
-        const accessResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
+        // Try a different approach - move the chat to a group explicitly
+        const moveResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/move_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -224,14 +240,12 @@ export async function transferChatToAgent(chatId, agentId, customerId) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                id: chatId, // Changed from chat_id to id
-                access: {
-                    group_ids: [groupId]
-                }
+                id: chatId,
+                group_id: groupId
             })
         });
 
-        console.log('\n📁 Access update response:', await accessResponse.text());
+        console.log('\n📁 Move chat response:', await moveResponse.text());
 
         return true;
 

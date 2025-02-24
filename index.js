@@ -4968,7 +4968,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Now attempt the transfer with the new chat ID
                 console.log('\n🔄 Attempting transfer to agent:', agent.agent_id);
-                const transferred = await transferChatToAgent(chatData.chat_id, agent.agent_id, chatData.customer_id);
+                const transferred = await transferChatToAgent(chatData.chat_id, agent.agent_id);
 
                 if (transferred) {
                     console.log('\n✅ Transfer successful');
