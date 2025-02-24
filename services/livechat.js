@@ -99,7 +99,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create chat using agent API but with special routing property
+        // Create chat using agent API with explicit routing
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -113,15 +113,6 @@ export async function createChat(customerId, isIcelandic = false) {
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
-                },
-                properties: {
-                    source: {
-                        type: "widget"
-                    },
-                    routing: {
-                        status: "requesting_agent",  // This is the key to make it show up in the queue
-                        group_id: groupId
-                    }
                 }
             })
         });
@@ -142,7 +133,7 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message using agent API (not visitor API)
+        // Send initial customer message
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -160,8 +151,8 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
 
-        // Explicitly update routing to request an agent
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
+        // First, set the chat access to the correct group
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -170,12 +161,41 @@ export async function createChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 id: chatData.chat_id,
-                properties: {
-                    routing: {
-                        status: "requesting_agent",
-                        group_id: groupId
-                    }
+                access: {
+                    group_ids: [groupId]
                 }
+            })
+        });
+
+        // Then, transfer the chat to the group
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                target: {
+                    type: "group",
+                    ids: [groupId]
+                }
+            })
+        });
+
+        // Finally, have the agent leave the chat
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/remove_user_from_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                user_id: "david@svorumstrax.is", // Use the agent's email
+                user_type: "agent"
             })
         });
 
