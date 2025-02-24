@@ -82,16 +82,18 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Create chat with proper region header
+        // Create chat with proper settings to keep it active
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'  // Explicitly set the region as required by the error message
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 group_id: groupId,
+                continuous: true,
+                active: true,
                 customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
@@ -100,6 +102,9 @@ export async function createChat(customerId, isIcelandic = false) {
                     source: {
                         type: "widget",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
+                    },
+                    routing: {
+                        group_id: groupId
                     }
                 }
             })
@@ -121,26 +126,44 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial message
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        // Send initial customer message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'  // Same region header
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
                     text: 'Customer requesting assistance with booking change',
-                    author_id: customerId,
+                    author_id: chatData.customer_id || customerId,
                     visibility: 'all'
                 }
             })
         });
 
-        console.log('\n📨 Message sent:', await messageResponse.text());
+        // Send a system message to keep the chat active
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'system_message',
+                    text: 'Chat is now active',
+                    system_message_type: 'system_info',
+                    recipients: 'all'
+                }
+            })
+        });
+
         return chatData.chat_id;
 
     } catch (error) {
@@ -149,27 +172,18 @@ export async function createChat(customerId, isIcelandic = false) {
     }
 }
 
-// Function to transfer chat to human agent
 export async function transferChatToAgent(chatId, agentId) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        const groupId = 69; // Default to English
 
-        // First get the chat state
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId
-            })
-        });
+        // Check if agent is available
+        const availabilityCheck = await checkAgentAvailability(false);
+        if (!availabilityCheck.areAgentsAvailable) {
+            throw new Error("No available agents to transfer.");
+        }
 
-        console.log('\n📝 Chat state:', await chatResponse.text());
-
-        // Then assign the agent
+        // Assign agent with explicit group
         const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_agent', {
             method: 'POST',
             headers: {
@@ -179,13 +193,14 @@ export async function transferChatToAgent(chatId, agentId) {
             },
             body: JSON.stringify({
                 chat_id: chatId,
-                agent_id: agentId
+                agent_id: agentId,
+                group_id: groupId
             })
         });
 
         console.log('\n📡 Agent assignment response:', await assignResponse.text());
 
-        // Keep chat active by sending a system message
+        // Keep chat active with a system message
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -197,7 +212,8 @@ export async function transferChatToAgent(chatId, agentId) {
                 chat_id: chatId,
                 event: {
                     type: 'system_message',
-                    text: 'Chat transferred to agent',
+                    text: 'An agent will be with you shortly.',
+                    system_message_type: 'system_info', 
                     recipients: 'all'
                 }
             })
