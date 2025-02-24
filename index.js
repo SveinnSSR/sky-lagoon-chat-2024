@@ -4957,9 +4957,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
                     "I'm connecting you with a customer service representative. One moment...";
 
-                // Send initial message to LiveChat
-                await sendMessageToLiveChat(chatId, userMessage, sessionId);
-
                 // Broadcast the transfer message
                 await broadcastConversation(
                     userMessage,
@@ -4971,14 +4968,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Now attempt the transfer with the new chat ID
                 console.log('\n🔄 Attempting transfer to agent:', agent.agent_id);
-                const transferred = await transferChatToAgent(chatId, agent.agent_id);
+                const transferred = await transferChatToAgent(chatData.chat_id, agent.agent_id, chatData.customer_id);
 
                 if (transferred) {
                     console.log('\n✅ Transfer successful');
                     return res.status(200).json({
                         message: transferMessage,
                         transferred: true,
-                        chatId: chatId,
+                        chatId: chatData.chat_id,
                         initiateWidget: true,
                         language: {
                             detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -5059,7 +5056,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // If not transferring or transfer failed, continue with regular chatbot flow...              
+        // If not transferring or transfer failed, continue with regular chatbot flow...          
 
         // Check for flight delays BEFORE any other processing
         const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);
