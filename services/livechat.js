@@ -82,65 +82,65 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Create chat with minimal configuration
+        // Create chat with proper region header
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'  // Explicitly set the region as required by the error message
             },
             body: JSON.stringify({
                 group_id: groupId,
                 customer: {
                     name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`,
-                    session_fields: [{
-                        name: "source",
-                        value: "website"
-                    }]
+                    email: `${customerId}@skylagoon.com`
                 },
                 properties: {
                     source: {
                         type: "widget",
                         url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
-                    },
-                    routing: {
-                        group_id: groupId
                     }
-                },
-                active: true,
-                continuous: true
+                }
             })
         });
 
         const rawResponse = await chatResponse.text();
         console.log('\n📝 Raw chat response:', rawResponse);
 
-        let chatData = JSON.parse(rawResponse);
-        console.log('\n✅ Chat created with details:', chatData);
-
-        // Send initial message only if chat was created successfully
-        if (chatData.chat_id) {
-            const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${credentials}`
-                },
-                body: JSON.stringify({
-                    chat_id: chatData.chat_id,
-                    event: {
-                        type: 'message',
-                        text: 'Customer requesting assistance with booking change',
-                        author_id: customerId,
-                        visibility: 'all'
-                    }
-                })
-            });
-
-            console.log('\n📨 Message sent:', await messageResponse.text());
+        let chatData;
+        try {
+            chatData = JSON.parse(rawResponse);
+            console.log('\n✅ Chat created with details:', chatData);
+        } catch (e) {
+            console.error('\n❌ Error parsing response:', e);
+            throw new Error("Failed to parse chat response");
         }
 
+        if (!chatData.chat_id) {
+            throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
+        }
+
+        // Send initial message
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'  // Same region header
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'Customer requesting assistance with booking change',
+                    author_id: customerId,
+                    visibility: 'all'
+                }
+            })
+        });
+
+        console.log('\n📨 Message sent:', await messageResponse.text());
         return chatData.chat_id;
 
     } catch (error) {
