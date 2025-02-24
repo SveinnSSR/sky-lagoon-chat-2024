@@ -99,7 +99,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create chat using agent API (simpler approach)
+        // Create chat using agent API
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -115,7 +115,8 @@ export async function createChat(customerId, isIcelandic = false) {
                 },
                 properties: {
                     source: {
-                        type: "widget"
+                        type: "widget",
+                        url: isIcelandic ? "https://www.skylagoon.com/is/" : "https://www.skylagoon.com/"
                     },
                     routing: {
                         group_id: groupId
@@ -158,9 +159,23 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
 
+        // CRITICAL NEW STEP: Have the agent leave the chat
+        const leaveResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/deactivate_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id
+            })
+        });
+
+        console.log('\n🚪 Agent leaving chat response:', await leaveResponse.text());
+
         return {
             chat_id: chatData.chat_id,
-            // Use agent credentials for everything
             customer_token: credentials
         };
 
