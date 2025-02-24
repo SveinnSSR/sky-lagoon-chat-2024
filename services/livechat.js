@@ -142,7 +142,7 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message
+        // Send initial customer message using agent API (not visitor API)
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -195,18 +195,20 @@ export async function sendMessageToLiveChat(chatId, message) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // Send message as visitor
-        const response = await fetch('https://api.livechatinc.com/v3.5/visitor/chat/send_event', {
+        // Send message using agent API (not visitor API)
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 chat_id: chatId,
                 event: {
                     type: 'message',
-                    text: message
+                    text: message,
+                    visibility: 'all'
                 }
             })
         });
