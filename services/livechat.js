@@ -99,26 +99,30 @@ export async function createChat(customerId, isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create chat using the visitor API endpoint - this should create a chat in the queue
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/visitor/chat/start', {
+        // Create chat using agent API but with special routing property
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
-                license_id: "12638850",
                 group_id: groupId,
-                visitor: {
+                active: true,
+                customer: {
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
                 },
-                custom_variables: [
-                    {
-                        key: "Source",
-                        value: "SkyLagoon AI Chatbot"
+                properties: {
+                    source: {
+                        type: "widget"
+                    },
+                    routing: {
+                        status: "requesting_agent",  // This is the key to make it show up in the queue
+                        group_id: groupId
                     }
-                ]
+                }
             })
         });
 
@@ -138,25 +142,46 @@ export async function createChat(customerId, isIcelandic = false) {
             throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
         }
 
-        // Send initial customer message using visitor endpoint
-        await fetch('https://api.livechatinc.com/v3.5/visitor/chat/send_event', {
+        // Send initial customer message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
                 event: {
                     type: 'message',
-                    text: 'Customer requesting assistance with booking change'
+                    text: 'Customer requesting assistance with booking change',
+                    visibility: 'all'
+                }
+            })
+        });
+
+        // Explicitly update routing to request an agent
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                properties: {
+                    routing: {
+                        status: "requesting_agent",
+                        group_id: groupId
+                    }
                 }
             })
         });
 
         return {
             chat_id: chatData.chat_id,
-            license_id: "12638850"
+            customer_token: credentials
         };
 
     } catch (error) {
