@@ -438,8 +438,8 @@ const CONFIDENCE_THRESHOLDS = {
 // LiveChat Constants
 // And for testing, let's extend the hours:
 const LIVECHAT_HOURS = {
-    START: 0,    // Midnight
-    END: 23     // 11 PM
+    START: 0.5,    // Midnight
+    END: 0,     // 11 PM
 };
 
 // Transfer trigger patterns
