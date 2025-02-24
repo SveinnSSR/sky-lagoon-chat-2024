@@ -18,7 +18,7 @@ import {
 } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 // LiveChat Integration
-import { checkAgentAvailability, transferChatToAgent, createChat, sendMessageToLiveChat } from './services/livechat.js';
+import { checkAgentAvailability, createChat, sendMessageToLiveChat } from './services/livechat.js';
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
