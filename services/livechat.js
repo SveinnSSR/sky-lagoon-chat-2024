@@ -107,7 +107,7 @@ export async function createChat(customerId, isIcelandic = false) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Region': 'fra' // Add this X-Region header
+                'X-Region': 'fra'
             },
             body: JSON.stringify({
                 bot_id: BOT_ID,
@@ -127,7 +127,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const botToken = tokenData.token;
         console.log('\n✅ Bot token acquired');
         
-        // Step 2: Bot creates a chat
+        // Step 2: Bot creates a chat without transferring
         console.log('\n🤖 Bot creating chat...');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
@@ -183,24 +183,7 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
         
-        // Step 4: Transfer chat to appropriate group
-        console.log('\n🤖 Transferring chat to group:', groupId);
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                target: {
-                    type: "group",
-                    ids: [groupId]
-                }
-            })
-        });
-        
+        // No transfer step - just return the chat info
         return {
             chat_id: chatData.chat_id,
             bot_token: botToken
@@ -214,9 +197,40 @@ export async function createChat(customerId, isIcelandic = false) {
 // Updated sendMessageToLiveChat function
 export async function sendMessageToLiveChat(chatId, message, botToken) {
     try {
-        console.log('\n📨 Sending message to LiveChat...');
+        console.log('\n📨 Trying to send message using bot token...');
         
-        // Always use agent credentials for sending messages
+        // Try bot token first if available
+        if (botToken) {
+            try {
+                const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${botToken}`,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        event: {
+                            type: 'message',
+                            text: message,
+                            visibility: 'all'
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('\n✅ Message sent with bot token');
+                    return true;
+                }
+                
+                console.log('\n⚠️ Bot token failed, trying agent credentials...');
+            } catch (error) {
+                console.log('\n⚠️ Bot token failed, trying agent credentials...');
+            }
+        }
+        
+        // Fallback to agent credentials
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
