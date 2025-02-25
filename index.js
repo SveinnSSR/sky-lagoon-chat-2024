@@ -4971,6 +4971,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     transferred: true,
                     chatId: chatData.chat_id,
                     bot_token: chatData.bot_token, // Include bot token
+                    agent_credentials: chatData.agent_credentials, // Add this line
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -5025,14 +5026,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Send message to LiveChat using bot token
-                await sendMessageToLiveChat(req.body.chatId, userMessage, req.body.bot_token);
+                // Try bot token first, fall back to agent credentials
+                const credentials = req.body.bot_token || req.body.agent_credentials;
+                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
-                    bot_token: req.body.bot_token, // Include bot token when sending back
-                    suppressMessage: true,  // Add this flag
+                    bot_token: req.body.bot_token,
+                    agent_credentials: req.body.agent_credentials,
+                    suppressMessage: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence

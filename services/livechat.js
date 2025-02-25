@@ -127,7 +127,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const botToken = tokenData.token;
         console.log('\n✅ Bot token acquired');
         
-        // Step 2: Bot creates a chat without transferring
+        // Step 2: Bot creates a chat
         console.log('\n🤖 Bot creating chat...');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
@@ -164,7 +164,7 @@ export async function createChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created with details:', chatData);
         
-        // Step 3: Send initial message via bot
+        // Step 3: Send initial message via bot (while we still have permission)
         console.log('\n🤖 Bot sending initial message...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
@@ -183,10 +183,31 @@ export async function createChat(customerId, isIcelandic = false) {
             })
         });
         
-        // No transfer step - just return the chat info
+        // Step 4: Transfer chat to appropriate group - THIS IS THE KEY STEP FOR PROPER GROUP ASSIGNMENT
+        console.log('\n🤖 Transferring chat to group:', groupId);
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                target: {
+                    type: "group",
+                    ids: [groupId]
+                }
+            })
+        });
+        
+        // Save agent credentials for fallback message sending
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
         return {
             chat_id: chatData.chat_id,
-            bot_token: botToken
+            bot_token: botToken,
+            agent_credentials: agentCredentials
         };
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
@@ -195,18 +216,18 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 // Updated sendMessageToLiveChat function
-export async function sendMessageToLiveChat(chatId, message, botToken) {
+// Updated sendMessageToLiveChat function with fallback
+export async function sendMessageToLiveChat(chatId, message, credentials) {
     try {
-        console.log('\n📨 Trying to send message using bot token...');
-        
-        // Try bot token first if available
-        if (botToken) {
+        // First try using bot token if it looks like a JWT (contains periods)
+        if (credentials && credentials.includes('.')) {
+            console.log('\n📨 Trying to send message using bot token...');
             try {
                 const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${botToken}`,
+                        'Authorization': `Bearer ${credentials}`,
                         'X-Region': 'fra'
                     },
                     body: JSON.stringify({
@@ -224,20 +245,26 @@ export async function sendMessageToLiveChat(chatId, message, botToken) {
                     return true;
                 }
                 
-                console.log('\n⚠️ Bot token failed, trying agent credentials...');
+                const errorText = await response.text();
+                console.log('\n⚠️ Bot token failed:', errorText);
             } catch (error) {
-                console.log('\n⚠️ Bot token failed, trying agent credentials...');
+                console.log('\n⚠️ Bot token failed:', error.message);
             }
         }
         
         // Fallback to agent credentials
-        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        console.log('\n📨 Using agent credentials to send message...');
+        
+        // Get agent credentials - either from params or generate fresh ones
+        const agentCreds = credentials && !credentials.includes('.') 
+            ? credentials 
+            : Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': `Basic ${agentCreds}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -256,6 +283,7 @@ export async function sendMessageToLiveChat(chatId, message, botToken) {
             throw new Error(`Send message failed: ${response.status}`);
         }
 
+        console.log('\n✅ Message sent with agent credentials');
         return true;
     } catch (error) {
         console.error('\n❌ Error sending message to LiveChat:', error);
