@@ -1713,7 +1713,8 @@ export const knowledgeBase_is = {
                 details: [
                     "Bókunarnúmer",
                     "Hvort þú viljir breyta dagsetningu eða fá endurgreiðslu"
-                ]
+                ],
+                cancel_wording: "afbóka" // Use "afbóka" instead of "afpanta"
             }
         },
         late_arrival: {
@@ -3546,6 +3547,13 @@ if (message.includes('opið') ||
         message.includes('færa tímann') ||  // Added
         message.includes('afbóka') ||
         message.includes('hætta við') ||
+        // Add English loan word and alternative phrasings
+        message.includes('cancella') ||
+        message.includes('cancel') ||
+        message.includes('hætt við') ||
+        (message.includes('get') && message.includes('hætt')) ||
+        (message.includes('getum') && message.includes('hætt')) ||
+        (message.includes('má') && message.includes('hætta')) ||        
         message.includes('veður') ||
         message.includes('veðrið') ||
         message.includes('greiðsla') ||
@@ -3642,24 +3650,37 @@ if (message.includes('opið') ||
             message.includes('fresta') ||
             message.includes('færa') ||
             message.includes('fært') ||  // Added this pattern
-            message.includes('færa tímann')) {  // Added this pattern too for good measure
+            message.includes('færa tímann') ||
+            message.includes('afbóka') ||
+            message.includes('hætta við') ||
+            message.includes('cancella') ||  // Add English loan word
+            message.includes('cancel') ||    // Add English term
+            (message.includes('get') && message.includes('hætt')) ||
+            (message.includes('getum') && message.includes('hætt'))) {
             
             console.log('\n🔄 Booking Change Query Match Found');
             const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
-            const response = `${bookingChangeInfo.policy}\n\n` +
-                           `${bookingChangeInfo.instructions}\n` +
-                           `1. ${bookingChangeInfo.methods.phone.text}\n` +
-                           `2. ${bookingChangeInfo.methods.email.text}\n\n` +
-                           `${bookingChangeInfo.requirements}\n` +
-                           bookingChangeInfo.details.map(detail => `• ${detail}`).join('\n');
+            let verb = message.includes('afbóka') ||
+                       message.includes('hætta við') || 
+                       message.includes('cancella') || 
+                       message.includes('cancel') || 
+                       (message.includes('get') && message.includes('hætt')) ||
+                       (message.includes('getum') && message.includes('hætt'))
+                       ? bookingChangeInfo.cancel_wording : "breyta"; // Use "afbóka" for cancellation
+
+            const response = `Til að ${verb} eða breyta bókun, þá eru hér skrefin sem þú þarft að fylgja:\n` +
+                          `1. ${bookingChangeInfo.methods.email.text}\n` +
+                          `2. Taktu fram ${bookingChangeInfo.details[0]}\n` +
+                          `3. ${bookingChangeInfo.details[1]}\n\n` +
+                          `${bookingChangeInfo.policy}`;
             
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'booking_changes',
-                content: response
-            });
-            return relevantInfo;  // Return immediately for booking changes
-        }
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_changes',
+                    content: response
+                });
+                return relevantInfo;  // Return immediately for booking changes
+            }
 
         // Check for single person booking queries
         if (message.includes('bóka fyrir einn') || 
