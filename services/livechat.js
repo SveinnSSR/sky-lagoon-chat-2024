@@ -106,13 +106,14 @@ export async function createChat(customerId, isIcelandic = false) {
         const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Region': 'fra' // Add this X-Region header
             },
             body: JSON.stringify({
                 bot_id: BOT_ID,
                 bot_secret: BOT_SECRET,
                 client_id: CLIENT_ID,
-                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737" // We'll need to verify this
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737"
             })
         });
 
