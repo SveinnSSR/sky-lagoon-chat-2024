@@ -1700,9 +1700,9 @@ export const knowledgeBase_is = {
                 instructions: "Til að breyta bókun þinni getur þú:",
                 methods: {
                     phone: {
-                        text: "Hringt í okkur í síma +354 527 6800 (opið 9:00-19:00)",
+                        text: "Hringt í okkur í síma +354 527 6800 (opið 9:00-18:00)",
                         number: "+354 527 6800",
-                        hours: "9:00 - 19:00"
+                        hours: "9:00 - 18:00"
                     },
                     email: {
                         text: "Sent tölvupóst á reservations@skylagoon.is",
@@ -1727,8 +1727,20 @@ export const knowledgeBase_is = {
             },
             contact: {
                 phone: "+354 527 6800",
-                hours: "9:00 - 19:00",
+                hours: "9:00 - 18:00",
                 email: "reservations@skylagoon.is"
+            }
+        },
+        refund_policy: {
+            missed_booking: {
+                policy: "Ef upprunaleg bókun er liðin og þú mættir ekki, getum við því miður ekki boðið endurgreiðslu.",
+                reason: "Bókunarstefna okkar krefst 24 klst fyrirvara fyrir breytingar eða afbókanir.",
+                recommendation: "Við mælum þó með að hafa samband við bókunarteymið okkar á reservations@skylagoon.is til að ræða mögulegar lausnir. Þau geta veitt aðstoð byggt á aðstæðum í þínu tilfelli.",
+                contact: {
+                    email: "reservations@skylagoon.is",
+                    phone: "+354 527 6800",
+                    hours: "9:00 - 18:00"
+                }
             }
         },
         weather_policy: {
@@ -2465,7 +2477,7 @@ if (message.includes('opið') ||
 
         relevantInfo.push(accessibilityInfo);
     } // End of full Accessibility section
-    
+
     // Stay Duration specific check
     if (message.includes('lengi') || 
         message.includes('tímatakmörkun') ||
@@ -3551,9 +3563,56 @@ if (message.includes('opið') ||
         (message.includes('ná') && message.includes('tíma')) ||
         message.includes('breytt') ||
         message.includes('bókuninni') ||
-        message.includes('tímanum')) {
+        message.includes('tímanum') ||
+        // Add new patterns for refund and missed booking queries
+        message.includes('endurgreiðsla') ||
+        message.includes('endurgreitt') ||
+        message.includes('endurgreiða') ||
+        message.includes('fá endurgreitt') ||
+        message.includes('fengið endurgreitt') ||
+        message.includes('komst ekki') ||
+        message.includes('komumst ekki') ||
+        message.includes('gat ekki mætt') ||
+        message.includes('gátum ekki mætt') ||
+        message.includes('náði ekki') ||
+        message.includes('náðum ekki') ||
+        message.includes('mætti ekki') ||
+        message.includes('mættum ekki') ||
+        (message.includes('bókun') && message.includes('í gær')) ||
+        (message.includes('bókun') && message.includes('í fyrradag')) ||
+        (message.includes('bókun') && message.includes('átti')) ||
+        message.includes('peningana') ||
+        message.includes('til baka')) {
         
         console.log('\n📅 Booking Related Query Match Found');
+
+        // Check for missed booking and refund queries first
+        if (message.includes('endurgreiðsla') ||
+            message.includes('endurgreitt') ||
+            message.includes('endurgreiða') ||
+            message.includes('fá endurgreitt') ||
+            message.includes('fengið endurgreitt') ||
+            message.includes('komst ekki') ||
+            message.includes('komumst ekki') ||
+            message.includes('gat ekki mætt') ||
+            message.includes('gátum ekki mætt') ||
+            message.includes('náði ekki') ||
+            message.includes('náðum ekki') ||
+            message.includes('mætti ekki') ||
+            message.includes('mættum ekki') ||
+            (message.includes('bókun') && message.includes('í gær')) ||
+            (message.includes('bókun') && message.includes('í fyrradag')) ||
+            message.includes('peningana') ||
+            message.includes('til baka')) {
+            
+            console.log('\n💰 Missed Booking Refund Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'refund_policy',
+                content: knowledgeBase_is.booking.refund_policy.missed_booking
+            });
+            return relevantInfo;  // Return immediately for refund queries
+        }
 
         // Check for basic "how to book" queries first
         if (message.includes('hvernig bóka') || 

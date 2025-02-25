@@ -480,7 +480,7 @@ export const knowledgeBase = {
                 instructions: "To modify your booking, you can:",
                 methods: {
                     phone: {
-                        text: "Call us at +354 527 6800 (open 9 AM - 7 PM) (GMT)",
+                        text: "Call us at +354 527 6800 (open 9 AM - 6 PM) (GMT)",
                         note: "Best option for same-day changes"
                     },
                     email: {
