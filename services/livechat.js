@@ -214,12 +214,16 @@ export async function createChat(customerId, isIcelandic = false) {
 // Updated sendMessageToLiveChat function
 export async function sendMessageToLiveChat(chatId, message, botToken) {
     try {
-        console.log('\n🤖 Bot sending message...');
+        console.log('\n📨 Sending message to LiveChat...');
+        
+        // Always use agent credentials for sending messages
+        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
+                'Authorization': `Basic ${credentials}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
