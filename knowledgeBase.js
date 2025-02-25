@@ -1677,6 +1677,11 @@ export const knowledgeBase = {
                     }
                 }
             },
+            stay_duration: {
+                info: "There is no time limit for your visit to Sky Lagoon. Once you enter, you can stay and enjoy our facilities until closing time on the day of your booking. Your reservation guarantees entry at your selected time slot, but you're welcome to relax and enjoy the experience at your own pace.",
+                closing_reminder: "Please note that the lagoon area closes 30 minutes before our advertised closing time, and the Skjól Ritual and Gelmir Bar close one hour before facility closing.",
+                recommendation: "We recommend allowing at least 2-3 hours for your visit to fully enjoy all our amenities including the lagoon, ritual, and dining options."
+            },
             rules: {
                 photography: {
                     policy: "To truly immerse in the authentic Icelandic bathing culture, we encourage you to unplug, connect with nature, and embrace the serenity of gathering in warm waters",
@@ -3672,11 +3677,51 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('what facilities') ||
         message.includes('can i bring') ||
         message.includes('is there') ||
-        message.includes('do you have')) {
+        message.includes('do you have') ||
+        // Stay duration patterns
+        message.includes('how long') || 
+        message.includes('stay as long') ||
+        message.includes('time limit') ||
+        message.includes('duration') ||
+        message.includes('unlimited time') ||
+        message.includes('as long as') ||
+        message.includes('leave') ||
+        message.includes('entire day') ||
+        message.includes('reservation last') ||
+        (message.includes('how') && message.includes('long')) ||
+        (message.includes('can') && message.includes('stay')) ||
+        (message.includes('limit') && message.includes('time')) ||
+        (message.includes('whole') && message.includes('day')) ||
+        (message.includes('reservation') && message.includes('last'))) {
+        
         relevantInfo.push({
             type: 'facilities',
             content: knowledgeBase.facilities
         });
+        
+        // Specific check for stay duration queries
+        if (message.includes('how long') || 
+            message.includes('stay as long') ||
+            message.includes('time limit') ||
+            message.includes('duration') ||
+            message.includes('unlimited time') ||
+            message.includes('as long as') ||
+            message.includes('leave') ||
+            message.includes('entire day') ||
+            message.includes('reservation last') ||
+            (message.includes('how') && message.includes('long')) ||
+            (message.includes('can') && message.includes('stay')) ||
+            (message.includes('limit') && message.includes('time')) ||
+            (message.includes('whole') && message.includes('day')) ||
+            (message.includes('reservation') && message.includes('last'))) {
+            
+            console.log('\n⏱️ Stay Duration Query Match Found');
+            relevantInfo.push({
+                type: 'facilities',
+                subtype: 'stay_duration',
+                content: knowledgeBase.facilities.lagoon.stay_duration
+            });
+        }
     }
 
     // View and landmark related queries (add this section near other facility queries)

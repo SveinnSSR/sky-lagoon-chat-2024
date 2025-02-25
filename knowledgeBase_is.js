@@ -459,8 +459,25 @@ export const knowledgeBase_is = {
                 answer: "Lónið er u.þ.b. 38--40° heitt. Okkar breytilega veðurfar getur þó auðvitað haft töluverð áhrif á hitastigið og upplifunina almennt.",
                 degrees: "38-40°C",
                 weather_note: "Okkar breytilega veðurfar getur þó auðvitað haft töluverð áhrif á hitastigið og upplifunina almennt."
+            },
+            stay_duration: {
+                questions: [
+                    "Hversu lengi má ég vera?",
+                    "Get ég verið allan daginn?",
+                    "Er takmörkun á tíma?",
+                    "Hversu lengi get ég verið?",
+                    "Get ég verið eins lengi og ég vil?",
+                    "Hvað má vera lengi?",
+                    "Er tímatakmörkun?",
+                    "Má ég vera allan daginn?",
+                    "Þarf ég að fara á ákveðnum tíma?",
+                    "Hvenær þarf ég að fara?"
+                ],
+                info: "Það er engin tímatakmörkun á heimsókn þinni í Sky Lagoon. Þegar þú kemur inn getur þú dvalið og notið aðstöðunnar okkar þar til lokað er þann dag sem þú bókaðir. Bókunin þín tryggir þér aðgang á völdum tíma, en þú mátt slaka á og njóta upplifunarinnar á þínum eigin hraða.",
+                closing_reminder: "Vinsamlegast athugaðu að lónið lokar 30 mínútum fyrir auglýstan lokunartíma og Skjól ritúalið og Gelmir bar loka klukkutíma fyrir lokun.",
+                recommendation: "Við mælum með að þú gefir þér að minnsta kosti 2-3 klukkustundir fyrir heimsóknina til að njóta að fullu allra þæginda okkar, þar á meðal lónsins, ritúalsins og veitingastaðanna."
             }
-        },    
+        },
         amenities: {
             handklaedi: {
                 questions: [
@@ -2447,6 +2464,27 @@ if (message.includes('opið') ||
         }
 
         relevantInfo.push(accessibilityInfo);
+    } // End of full Accessibility section
+    
+    // Stay Duration specific check
+    if (message.includes('lengi') || 
+        message.includes('tímatakmörkun') ||
+        message.includes('allan dag') ||
+        message.includes('allan daginn') ||
+        message.includes('þarf ég að fara') ||
+        message.includes('hversu lengi') ||
+        message.includes('hvað má vera lengi') ||
+        (message.includes('vera') && message.includes('eins lengi')) ||
+        (message.includes('get') && message.includes('verið')) ||
+        (message.includes('má') && message.includes('vera')) ||
+        (message.includes('hvenær') && message.includes('fara'))) {
+        
+        console.log('\n⏱️ Stay Duration Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'stay_duration',
+            content: knowledgeBase_is.facilities.lagoon_info.stay_duration
+        });
     } // End of full Facilities section
 
     // Ritual related queries
