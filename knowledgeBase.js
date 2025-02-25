@@ -456,6 +456,19 @@ export const knowledgeBase = {
                 notice_required: "24 hours",
                 contact: "reservations@skylagoon.is"
             }
+        },
+        upgrade_info: {
+            ser_from_saman: {
+                possible: true,
+                instructions: "Yes, you can use your Saman gift card towards a Sér Package. When making your booking, simply select the Sér Package, enter your Saman gift card code during checkout, and you'll be able to pay the difference with a credit card.",
+                process: [
+                    "Choose Sér Package when booking on our website",
+                    "Enter your Saman gift card code during checkout",
+                    "The system will automatically calculate the difference",
+                    "Pay the remaining balance with a credit card to complete your booking"
+                ],
+                contact: "If you encounter any issues, please contact us at reservations@skylagoon.is or call +354 527 6800."
+            }
         }
     },
 
@@ -3039,7 +3052,16 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('use my gift') ||
         // Legacy gift card detection
         message.toLowerCase().includes('pure') ||
-        message.toLowerCase().includes('sky')) {
+        message.toLowerCase().includes('sky') ||
+        // New patterns for upgrade queries
+        message.includes('upgrade') ||
+        message.includes('upgrading') ||
+        (message.includes('use') && message.includes('gift') && message.includes('different')) ||
+        (message.includes('use') && message.includes('saman') && message.includes('sér')) ||
+        (message.includes('pay') && message.includes('difference')) ||
+        (message.includes('change') && message.includes('package')) ||
+        (message.includes('more expensive')) ||
+        (message.includes('premium'))) {
 
         // First check for legacy gift card queries
         if (message.toLowerCase().includes('pure') || 
@@ -3068,7 +3090,30 @@ export const getRelevantKnowledge = (userMessage) => {
                 subtype: 'legacy',
                 content: response
             });
-        } else {
+        } 
+        // New section: Check for upgrade-related queries
+        else if (message.includes('upgrade') || 
+                 (message.includes('use') && message.includes('saman') && message.includes('sér')) ||
+                 (message.includes('pay') && message.includes('difference')) ||
+                 (message.includes('change') && message.includes('package')) ||
+                 (message.includes('more expensive')) ||
+                 (message.includes('premium'))) {
+            
+            console.log('\n🔄 Gift Card Upgrade Query Found');
+            relevantInfo.push({
+                type: 'gift_tickets',
+                subtype: 'upgrade',
+                content: {
+                    upgrade_info: knowledgeBase.gift_tickets.upgrade_info.ser_from_saman,
+                    links: {
+                        booking: `[Book your visit] (${knowledgeBase.website_links.booking})`,
+                        gift_tickets: `[View Gift Tickets] (${knowledgeBase.website_links.gift_tickets})`
+                    }
+                }
+            });
+        } 
+        // Original else clause for standard gift ticket queries
+        else {
             relevantInfo.push({
                 type: 'gift_tickets',
                 content: {

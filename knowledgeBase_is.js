@@ -1139,8 +1139,21 @@ export const knowledgeBase_is = {
                 "Slærð inn kóða gjafakorts í viðeigandi dálk í næsta skrefi bókunarferlisins",
                 "Færð senda bókunarstaðfestingu í tölvupósti"
             ],
-            upgrade_info: "Já það er ekkert mál. Þú velur þann aðgang sem þú vilt bóka á heimasíðunni, þegar kóðarnir eru komnir inn geturðu greitt eftirstöðvarnar."
+            upgrade_info: {
+                ser_from_saman: {
+                    possible: true,
+                    instructions: "Já, þú getur notað Saman gjafabréfið þitt upp í Sér aðgang. Þegar þú bókar, veldu Sér aðgang á heimasíðunni, sláðu inn gjafakortsnúmerið þitt í bókunarferlinu og þú getur greitt eftirstöðvarnar með greiðslukorti.",
+                    process: [
+                        "Veldu Sér aðgang þegar þú bókar á heimasíðunni",
+                        "Sláðu inn gjafakortsnúmerið þitt í bókunarferlinu",
+                        "Kerfið reiknar sjálfkrafa mismuninn",
+                        "Greiddu eftirstöðvarnar með greiðslukorti til að ljúka bókuninni"
+                    ],
+                    contact: "Ef þú lendir í vandræðum, ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma +354 527 6800."
+                }
+            }
         }
+
     },
     dining: {
         questions: [
@@ -2775,7 +2788,15 @@ if (message.includes('opið') ||
         message.includes('kóði') ||
         message.includes('kóða') ||
         message.toLowerCase().includes('pure') ||
-        message.toLowerCase().includes('sky')) {
+        message.toLowerCase().includes('sky') ||
+        // Add new upgrade-related patterns for Icelandic
+        message.includes('uppfæra') ||
+        message.includes('uppfærsla') ||
+        (message.includes('nota') && message.includes('saman') && message.includes('sér')) ||
+        (message.includes('breyta') && message.includes('pakka')) ||
+        (message.includes('greiða') && message.includes('mismun')) ||
+        (message.includes('dýrari')) ||
+        (message.includes('upp í'))) {
 
         console.log('\n🎁 Gift Card Match Found');
 
@@ -2806,6 +2827,28 @@ if (message.includes('opið') ||
                 type: 'gift_cards',
                 subtype: 'legacy',
                 content: response
+            });
+        }
+        // New section: Check for upgrade-related queries
+        else if (message.includes('uppfæra') || 
+                 message.includes('uppfærsla') ||
+                 (message.includes('nota') && message.includes('saman') && message.includes('sér')) ||
+                 (message.includes('breyta') && message.includes('pakka')) ||
+                 (message.includes('greiða') && message.includes('mismun')) ||
+                 (message.includes('dýrari')) ||
+                 (message.includes('upp í'))) {
+            
+            console.log('\n🔄 Gift Card Upgrade Query Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'upgrade',
+                content: {
+                    upgrade_info: knowledgeBase_is.gift_cards.booking.upgrade_info.ser_from_saman,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        gift_cards: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                    }
+                }
             });
         }
         // Then check for purchase-related queries
