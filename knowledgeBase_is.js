@@ -3733,14 +3733,33 @@ if (message.includes('opið') ||
         if (message.includes('seinn') || 
             message.includes('sein') || 
             message.includes('mæta') || 
-            message.includes('svigrúm')) {
+            message.includes('svigrúm') ||
+            message.includes('korter') ||  // Add "korter" (quarter hour)
+            message.includes('mínútur') ||
+            message.includes('seinna') ||
+            (message.includes('of') && message.includes('sein')) ||
+            (message.includes('verð') && message.includes('sein')) ||
+            (message.includes('verðum') && message.includes('sein')) ||
+            (message.includes('er') && message.includes('lagi') && message.includes('seint')) ||
+            (message.includes('getum') && message.includes('seint')) ||
+            (message.includes('gert') && message.includes('sein'))) {
             
-            console.log('\n⏰ Late Arrival Query Match Found');
+            console.log('\n⏰ Late Arrival Query Match Found IN ICELANDIC');
+            
+            // Create a clear Icelandic response with beyond grace period information
+            const lateArrivalInfo = knowledgeBase_is.booking.late_arrival;
+            const response = `Ekki hafa áhyggjur - við höfum 30 mínútna svigrúm fyrir allar bókanir. ${lateArrivalInfo.grace_period.main} Þú getur farið beint í móttökuna þegar þú mætir.\n\n` +
+                             `Ef þú verður meira en 30 mínútum seinn: ${lateArrivalInfo.beyond_grace.instructions}\n\n` + 
+                             `${lateArrivalInfo.beyond_grace.sold_out}\n\n` +
+                             `Þú getur hringt í okkur í síma ${lateArrivalInfo.contact.phone} (opið ${lateArrivalInfo.contact.hours}) eða sent tölvupóst á ${lateArrivalInfo.contact.email}.`;
+            
             relevantInfo.push({
                 type: 'booking',
                 subtype: 'late_arrival',
-                content: knowledgeBase_is.booking.late_arrival
+                content: response
             });
+            
+            return relevantInfo;  // Important: Return immediately to prevent English detection
         }
 
         if (message.includes('veður') || 
