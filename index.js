@@ -4935,7 +4935,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat as customer
+                // Create chat using bot
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
                 const chatData = await createChat(sessionId, languageDecision.isIcelandic);
 
@@ -4946,7 +4946,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
 
                 // Send initial message to LiveChat (if not already sent in welcome_message)
-                const messageSent = await sendMessageToLiveChat(chatData.chat_id, userMessage, chatData.customer_token);
+                const messageSent = await sendMessageToLiveChat(chatData.chat_id, userMessage, chatData.bot_token);
                 console.log('\n📝 Initial message sent:', messageSent);
                 
                 // Prepare transfer message based on language
@@ -4963,14 +4963,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     'direct_response'
                 );
 
-                // No need to explicitly transfer - LiveChat's routing will handle it
+                // Chat has been created and transferred by the bot
                 console.log('\n✅ Chat created - LiveChat will handle routing');
 
                 return res.status(200).json({
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    customerToken: chatData.customer_token, // Include customer token
+                    bot_token: chatData.bot_token, // Include bot token
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -5025,12 +5025,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Send message to LiveChat using agent credentials
-                await sendMessageToLiveChat(req.body.chatId, userMessage);
+                // Send message to LiveChat using bot token
+                await sendMessageToLiveChat(req.body.chatId, userMessage, req.body.bot_token);
                 
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
+                    bot_token: req.body.bot_token, // Include bot token when sending back
                     suppressMessage: true,  // Add this flag
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -5048,7 +5049,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // If not transferring or transfer failed, continue with regular chatbot flow...        
+        // If not transferring or transfer failed, continue with regular chatbot flow...
 
         // Check for flight delays BEFORE any other processing
         const lateScenario = detectLateArrivalScenario(userMessage, languageDecision, context);

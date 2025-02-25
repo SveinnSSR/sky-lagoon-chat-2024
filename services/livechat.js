@@ -5,6 +5,12 @@ import fetch from 'node-fetch';
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
+// Bot credentials
+const BOT_ID = '702cdd1781c4bb131db4f56bd57db913';
+const BOT_SECRET = '600d0b708538d7c0e2a52a2b84c7b5b8';
+const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
+const CLIENT_SECRET = 'ca6020736f61d29b88bc130ca9e7240f4eb15d6f';
+
 // Agent and group configurations
 const LIVECHAT_AGENTS = [
     'david@svorumstrax.is',
@@ -33,7 +39,6 @@ export async function checkAgentAvailability(isIcelandic = false) {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
 
-        // Go back to the routing statuses endpoint that worked
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
             method: 'POST',
             headers: {
@@ -43,7 +48,6 @@ export async function checkAgentAvailability(isIcelandic = false) {
             },
             body: JSON.stringify({
                 filters: {
-                    // Include both groups to maximize agent detection
                     group_ids: [SKY_LAGOON_GROUPS.EN, SKY_LAGOON_GROUPS.IS]
                 }
             })
@@ -82,7 +86,7 @@ export async function checkAgentAvailability(isIcelandic = false) {
         console.error('Error checking agent status:', error.message);
         // IMPORTANT: Return hardcoded agent even if check fails
         return {
-            areAgentsAvailable: true,  // Always say yes to attempt transfer
+            areAgentsAvailable: true,
             availableAgents: [{
                 agent_id: 'david@svorumstrax.is',
                 status: 'online'
@@ -93,52 +97,79 @@ export async function checkAgentAvailability(isIcelandic = false) {
     }
 }
 
-// Create chat function
+// Create chat function (new implementation using bot)
 export async function createChat(customerId, isIcelandic = false) {
     try {
-        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        console.log('\n🤖 Getting bot token...');
+        
+        // Step 1: Get a bot token
+        const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bot_id: BOT_ID,
+                bot_secret: BOT_SECRET,
+                client_id: CLIENT_ID,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737" // We'll need to verify this
+            })
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('\n❌ Bot token error:', errorText);
+            throw new Error('Failed to get bot token');
+        }
+
+        const tokenData = await tokenResponse.json();
+        const botToken = tokenData.token;
+        console.log('\n✅ Bot token acquired');
+        
+        // Step 2: Bot creates a chat
+        console.log('\n🤖 Bot creating chat...');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Create chat using agent API with explicit routing
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': `Bearer ${botToken}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                group_id: groupId,
                 active: true,
-                customer: {
+                continuous: true,
+                group_id: groupId,
+                customers: [{
+                    id: customerId,
                     name: `User ${customerId}`,
                     email: `${customerId}@skylagoon.com`
+                }],
+                properties: {
+                    source: {
+                        type: "other"
+                    }
                 }
             })
         });
 
-        const rawResponse = await chatResponse.text();
-        console.log('\n📝 Raw chat response:', rawResponse);
-
-        let chatData;
-        try {
-            chatData = JSON.parse(rawResponse);
-            console.log('\n✅ Chat created with details:', chatData);
-        } catch (e) {
-            console.error('\n❌ Error parsing response:', e);
-            throw new Error("Failed to parse chat response");
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Chat creation error:', errorText);
+            throw new Error('Failed to create chat');
         }
 
-        if (!chatData.chat_id) {
-            throw new Error(`Failed to create chat: ${JSON.stringify(chatData)}`);
-        }
-
-        // Send initial customer message
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created with details:', chatData);
+        
+        // Step 3: Send initial message via bot
+        console.log('\n🤖 Bot sending initial message...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': `Bearer ${botToken}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -150,29 +181,14 @@ export async function createChat(customerId, isIcelandic = false) {
                 }
             })
         });
-
-        // First, set the chat access to the correct group
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_access', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                access: {
-                    group_ids: [groupId]
-                }
-            })
-        });
-
-        // Then, transfer the chat to the group
+        
+        // Step 4: Transfer chat to appropriate group
+        console.log('\n🤖 Transferring chat to group:', groupId);
         await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': `Bearer ${botToken}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -183,44 +199,26 @@ export async function createChat(customerId, isIcelandic = false) {
                 }
             })
         });
-
-        // Finally, have the agent leave the chat
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/remove_user_from_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                user_id: "david@svorumstrax.is", // Use the agent's email
-                user_type: "agent"
-            })
-        });
-
+        
         return {
             chat_id: chatData.chat_id,
-            customer_token: credentials
+            bot_token: botToken
         };
-
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
         throw error;
     }
 }
 
-// Add this at the end of livechat.js
-export async function sendMessageToLiveChat(chatId, message) {
+// Updated sendMessageToLiveChat function
+export async function sendMessageToLiveChat(chatId, message, botToken) {
     try {
-        const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        // Send message using agent API (not visitor API)
+        console.log('\n🤖 Bot sending message...');
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`,
+                'Authorization': `Bearer ${botToken}`,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -240,7 +238,6 @@ export async function sendMessageToLiveChat(chatId, message) {
         }
 
         return true;
-
     } catch (error) {
         console.error('\n❌ Error sending message to LiveChat:', error);
         return false;
