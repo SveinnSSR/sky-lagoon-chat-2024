@@ -592,10 +592,10 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
 // Greeting responses - Updated the constant to use Sky Lagoon's specific greetings
 const GREETING_RESPONSES = {
     english: [
-        "Hello! I'm Rán your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
+        "Hello! I'm Sólrún your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
     ],
     icelandic: [
-        "Hæ! Ég heiti Rán og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?"
+        "Hæ! Ég heiti Sólrún og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?"
     ]
 };
 
@@ -654,10 +654,10 @@ const SMALL_TALK_RESPONSES = {
         ],
         // For identity questions (who are you, etc.)
         identity: [
-            "I'm Rán, an AI assistant dedicated to helping guests discover Sky Lagoon. What would you like to know?",
-            "I'm Rán, your AI guide to Sky Lagoon. What aspects of our experience would you like to learn about?",
-            "I'm Rán, an AI assistant here to help you learn about Sky Lagoon. What interests you most?",
-            "I'm Rán, your AI assistant for all things Sky Lagoon. How can I help you today?"
+            "I'm Sólrún, an AI assistant dedicated to helping guests discover Sky Lagoon. What would you like to know?",
+            "I'm Sólrún, your AI guide to Sky Lagoon. What aspects of our experience would you like to learn about?",
+            "I'm Sólrún, an AI assistant here to help you learn about Sky Lagoon. What interests you most?",
+            "I'm Sólrún, your AI assistant for all things Sky Lagoon. How can I help you today?"
         ]
     },
     is: {
@@ -684,10 +684,10 @@ const SMALL_TALK_RESPONSES = {
         ],
         // For identity questions (who are you, etc.)
         identity: [
-            "Ég er Rán, gervigreindaraðstoðarmaður sem hjálpar gestum að kynnast Sky Lagoon. Hvernig get ég aðstoðað þig?",
-            "Ég er Rán, gervigreindin þín fyrir Sky Lagoon. Hvað viltu vita um upplifunina okkar?",
-            "Ég er Rán, gervigreindaraðstoðarmaður fyrir Sky Lagoon. Hvað langar þig að fræðast um?",
-            "Ég er Rán, gervigreindarráðgjafinn þinn fyrir allt sem viðkemur Sky Lagoon. Hvernig get ég hjálpað?"
+            "Ég er Sólrún, gervigreindaraðstoðarmaður sem hjálpar gestum að kynnast Sky Lagoon. Hvernig get ég aðstoðað þig?",
+            "Ég er Sólrún, gervigreindin þín fyrir Sky Lagoon. Hvað viltu vita um upplifunina okkar?",
+            "Ég er Sólrún, gervigreindaraðstoðarmaður fyrir Sky Lagoon. Hvað langar þig að fræðast um?",
+            "Ég er Sólrún, gervigreindarráðgjafinn þinn fyrir allt sem viðkemur Sky Lagoon. Hvernig get ég hjálpað?"
         ]
     }
 };
@@ -700,10 +700,10 @@ const isFollowUpGreeting = (message, languageDecision) => {
     console.log('\n👋 Follow-up Greeting Check:', {
         message: msg,
         patterns: {
-            hasName: msg.includes('rán'),
+            hasName: msg.includes('Sólrún'),
             startsWithEnglish: simpleEnglishGreetings.some(g => msg.startsWith(g)),
             startsWithIcelandic: simpleIcelandicGreetings.some(g => msg.startsWith(g)),
-            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|rán)\b/i.test(msg),
+            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|Sólrún)\b/i.test(msg),
             hasFollowUpWord: /\b(?:again|back|now|once more)\b/i.test(msg)
         }
     });
@@ -718,15 +718,15 @@ const isFollowUpGreeting = (message, languageDecision) => {
         return languageDecision.isIcelandic;
     }
 
-    // Check for greetings with Rán's name
-    const hasRánWithGreeting = (
-        // English greetings with Rán
-        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && msg.includes('rán')) ||
-        // Icelandic greetings with Rán
-        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && msg.includes('rán'))
+    // Check for greetings with Sólrún's name
+    const hasSólrúnWithGreeting = (
+        // English greetings with Sólrún
+        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && msg.includes('sólrún')) ||
+        // Icelandic greetings with Sólrún
+        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && msg.includes('sólrún'))
     );
 
-    if (hasRánWithGreeting) {
+    if (hasSólrúnWithGreeting) {
         return true;
     }
 
@@ -797,7 +797,7 @@ const simpleEnglishGreetings = [
     // Double greetings
     'hi hi', 'hello hello',
     // With name
-    'hi rán', 'hello rán', 'hey rán'
+    'hi sólrún', 'hello sólrún', 'hey sólrún'
 ];
 
 // Composite Icelandic greetings - ordered by complexity
@@ -875,7 +875,7 @@ const isSimpleGreeting = (message, languageDecision) => {
         .replace(/[!.,?]+$/, '')                // Remove trailing punctuation
         .replace(/(.)\1{2,}/g, '$1$1')          // Normalize repeated characters (e.g., hiii -> hii)
         .replace(/\s+/g, ' ')                   // Normalize spaces
-        .replace(/\brán\b/gi, '')               // Remove mentions of Rán
+        .replace(/\bsólrún\b/gi, '')               // Remove mentions of Sólrún
         .trim();                                // Final trim
     
     // Enhanced logging with language detection
@@ -977,8 +977,8 @@ const isSimpleGreeting = (message, languageDecision) => {
 
     // Final check - must explicitly match one of our greeting patterns or variations
     return languageDecision.isIcelandic ?
-        (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|rán))?\s*$/i.test(msg)) :
-        (/^(?:hi+|he+y+|hello+)\b(?:\s*(?:there|rán))?\s*$/i.test(msg));
+        (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg)) :
+        (/^(?:hi+|he+y+|hello+)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg));
 };
 
 // Enhanced small talk patterns with better categorization
@@ -2630,7 +2630,7 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision)
         usingIcelandic: languageDecision?.isIcelandic
     });
 
-    let basePrompt = `You are Rán, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
+    let basePrompt = `You are Sólrún, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
 
 CRITICAL RESPONSE RULES:
 1. NEVER mention "knowledge base", "database", or that you are "checking information"
@@ -5079,7 +5079,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early greeting check
         const isGreeting = isSimpleGreeting(userMessage, languageDecision);  // Pass languageDecision
         if (isGreeting) {
-            const msg = userMessage.toLowerCase().replace(/\brán\b/gi, '').trim();
+            const msg = userMessage.toLowerCase().replace(/\bsólrún\b/gi, '').trim();
             const isEnglishGreeting = !languageDecision.isIcelandic && 
                                     (languageDecision.confidence === 'high' || 
                                     /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg));
@@ -6571,19 +6571,24 @@ app.post('/chat/feedback', async (req, res) => {
     try {
       const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
       
+      // Determine message type
+      const messageType = determineMessageType(messageContent, language);
+      
       console.log('\n📝 Feedback received:', {
         messageId,
         isPositive,
+        messageType,
         timestamp: new Date().toISOString(),
         chatId,
         language
       });
       
-      // Store feedback in your database
+      // Store feedback in your database with message type
       await db.collection('message_feedback').insertOne({
         messageId,
         isPositive,
         messageContent,
+        messageType,  // Add the message type
         timestamp: new Date(timestamp),
         chatId,
         language,
@@ -6601,7 +6606,8 @@ app.post('/chat/feedback', async (req, res) => {
       
       return res.status(200).json({
         success: true,
-        message: 'Feedback received'
+        message: 'Feedback received',
+        messageType: messageType
       });
     } catch (error) {
       console.error('\n❌ Error saving feedback:', {
@@ -6617,6 +6623,83 @@ app.post('/chat/feedback', async (req, res) => {
       });
     }
   });
+  
+  // Add this helper function right after the feedback endpoint
+  function determineMessageType(content, language) {
+    // Ensure we have content to analyze
+    if (!content) return 'unknown';
+    
+    // Convert to lowercase for easier pattern matching
+    const lowerContent = content.toLowerCase();
+    const isIcelandic = language === 'is';
+    
+    // Check for patterns that indicate message type
+    if (lowerContent.includes('opening hour') || lowerContent.includes('close') || 
+        lowerContent.includes('open') || 
+        (isIcelandic && (lowerContent.includes('opnunartím') || lowerContent.includes('lokunartím')))) {
+      return 'hours';
+    }
+    
+    if (lowerContent.includes('price') || lowerContent.includes('cost') || lowerContent.includes('fee') || 
+        (isIcelandic && (lowerContent.includes('verð') || lowerContent.includes('gjald')))) {
+      return 'pricing';
+    }
+    
+    if (lowerContent.includes('ritual') || lowerContent.includes('skjól') || 
+        lowerContent.includes('treatment') || 
+        (isIcelandic && lowerContent.includes('meðferð'))) {
+      return 'ritual';
+    }
+    
+    if (lowerContent.includes('package') || lowerContent.includes('bundle') ||
+        (isIcelandic && (lowerContent.includes('pakki') || lowerContent.includes('pakka')))) {
+      return 'packages';
+    }
+    
+    if (lowerContent.includes('transport') || lowerContent.includes('bus') || 
+        lowerContent.includes('get to') || lowerContent.includes('arrive') ||
+        (isIcelandic && (lowerContent.includes('strætó') || lowerContent.includes('komast')))) {
+      return 'transportation';
+    }
+    
+    if (lowerContent.includes('restaurant') || lowerContent.includes('food') || 
+        lowerContent.includes('eat') || lowerContent.includes('drink') ||
+        (isIcelandic && (lowerContent.includes('matur') || lowerContent.includes('veitinga')))) {
+      return 'dining';
+    }
+    
+    if (lowerContent.includes('locker') || lowerContent.includes('changing') || 
+        lowerContent.includes('shower') || lowerContent.includes('amenities') ||
+        (isIcelandic && (lowerContent.includes('skáp') || lowerContent.includes('sturtu')))) {
+      return 'facilities';
+    }
+    
+    if (lowerContent.includes('booking') || lowerContent.includes('reservation') || 
+        lowerContent.includes('cancel') || 
+        (isIcelandic && (lowerContent.includes('bókun') || lowerContent.includes('pöntun')))) {
+      return 'booking';
+    }
+    
+    if (lowerContent.includes('northern light') || lowerContent.includes('midnight sun') ||
+        (isIcelandic && (lowerContent.includes('norðurljós') || lowerContent.includes('miðnætursól')))) {
+      return 'natural_phenomena';
+    }
+    
+    if (lowerContent.includes('weather') || lowerContent.includes('cold') || 
+        lowerContent.includes('rain') || lowerContent.includes('snow') ||
+        (isIcelandic && (lowerContent.includes('veður') || lowerContent.includes('rigning')))) {
+      return 'weather';
+    }
+    
+    if (lowerContent.includes('towel') || lowerContent.includes('swimsuit') || 
+        lowerContent.includes('bring') || lowerContent.includes('need to') ||
+        (isIcelandic && (lowerContent.includes('handklæði') || lowerContent.includes('sundföt')))) {
+      return 'items_needed';
+    }
+    
+    // Default category for messages that don't fit specific patterns
+    return 'general';
+  }
 
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
