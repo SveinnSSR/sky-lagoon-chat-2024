@@ -1705,7 +1705,7 @@ export const knowledgeBase_is = {
                         hours: "9:00 - 18:00"
                     },
                     email: {
-                        text: "Sent tölvupóst á reservations@skylagoon.is",
+                        text: "Sendu tölvupóst á reservations@skylagoon.is",
                         address: "reservations@skylagoon.is"
                     }
                 },

@@ -185,7 +185,7 @@ export async function createChat(customerId, isIcelandic = false) {
         
         // Step 4: Transfer chat to appropriate group - THIS IS THE KEY STEP FOR PROPER GROUP ASSIGNMENT
         console.log('\n🤖 Transferring chat to group:', groupId);
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -200,6 +200,14 @@ export async function createChat(customerId, isIcelandic = false) {
                 }
             })
         });
+
+        // Check transfer response
+        const transferText = await transferResponse.text();
+        console.log('\n📡 Transfer response:', transferText);
+
+        if (!transferResponse.ok) {
+            console.error('\n❌ Transfer failed:', transferText);
+        }
         
         // Save agent credentials for fallback message sending
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
