@@ -6566,6 +6566,58 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     }
 });
 
+// Feedback endpoint - Add this right after your main chat endpoint
+app.post('/chat/feedback', async (req, res) => {
+    try {
+      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
+      
+      console.log('\n📝 Feedback received:', {
+        messageId,
+        isPositive,
+        timestamp: new Date().toISOString(),
+        chatId,
+        language
+      });
+      
+      // Store feedback in your database
+      await db.collection('message_feedback').insertOne({
+        messageId,
+        isPositive,
+        messageContent,
+        timestamp: new Date(timestamp),
+        chatId,
+        language,
+        createdAt: new Date()
+      });
+      
+      // Use your existing broadcast function if you want to track in real-time
+      await broadcastConversation(
+        '',  // No user message for feedback events
+        isPositive ? 'Positive feedback received' : 'Negative feedback received',
+        language === 'is' ? 'is' : 'en',
+        'feedback',  // Use 'feedback' as the topic
+        'feedback_event'  // Use a new event type for feedback
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Feedback received'
+      });
+    } catch (error) {
+      console.error('\n❌ Error saving feedback:', {
+        message: error.message,
+        stack: error.stack,
+        type: error.constructor.name,
+        timestamp: new Date().toISOString()
+      });
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save feedback'
+      });
+    }
+  });
+
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
     try {
