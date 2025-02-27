@@ -1903,6 +1903,37 @@ export const knowledgeBase_is = {
             }
         }
     },
+    sunset: {
+        questions: [
+            "Hvenær er sólsetur í júlí?",
+            "Hvenær sest sólin?",
+            "Hvenær get ég séð sólarlagið í Sky Lagoon?",
+            "Hvað er sólin lengi að setjast?",
+            "Hvernig er sólarlagið í júní?",
+            "Hvenær er best að sjá sólarlagið?",
+            "Hvaða tíma sest sólin í desember?",
+            "Er hægt að sjá sólarlag á veturna?"
+        ],
+        topic: "sunset",
+        keywords: ["sólsetur", "sólarlag", "kvöldroði", "rökkur", "gyllta stund", "himinlitur", "kvöldbirta", "sólarlagsútsýni", "sólarlagstímar", "hvenær sest sólin", "sólarlagstími"],
+        content: `
+    Sky Lagoon býður upp á stórkostlegt útsýni yfir sólarlagið yfir Norður-Atlantshafinu. Sólarlagsupplifunin er mismunandi eftir árstíðum vegna nyrðri breiddargráðu Íslands:
+    
+    - Vetur (nóvember-febrúar): Snemma sólsetur milli 15:40-16:45
+    - Vor (mars-apríl): Kvöldsólsetur milli 18:00-20:30
+    - Sumar (maí-ágúst): Seint sólsetur milli 20:30-22:15 með langvarandi rökkri
+    - Haust (september-október): Kvöldsólsetur milli 17:00-19:45
+    
+    Sumarsólstöður (í kringum 21. júní) bjóða upp á næstum 24 tíma dagsbirtu þar sem sólin sest eftir kl. 22:00 og rís aftur um kl. 3:00 að morgni, sem skapar töfrandi gyllna stund sem getur varað í margar klukkustundir.
+    
+    Í desember og janúar er mjög takmarkað dagsljós og sólin sest fyrir kl. 16:00.
+    
+    Fyrir nákvæmastan sólarlagstíma á fyrirhuguðum heimsóknardegi þínum, vinsamlegast athugaðu sólarlagstímagagnagrunninn okkar eða spurðu um tiltekinn mánuð.
+    
+    Vestlæg stefna lónsins gerir það að kjörstað til að horfa á sólarlagið á meðan þú nýtur þér í jarðhitavatninu okkar. Margir gestir telja samsetningu heita vatnsins, svala loftsins og stórkostlegra sólarlagsliða vera hápunkt heimsóknar sinnar.
+    
+    Fyrir bestu sólarlagsupplifunina mælum við með að koma 1-2 klukkustundum fyrir sólsetur til að njóta lónsins áður en himininn umbreytist með litum.`
+    },    
     lost_found: {
         questions: [
             "Ég týndi einhverju í Sky Lagoon",

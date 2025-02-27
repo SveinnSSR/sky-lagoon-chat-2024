@@ -22,6 +22,13 @@ import {
     getLanguageContext 
 } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
+// Sunset times functionality
+import { 
+    getMonthAverageSunset, 
+    getTodaySunset,
+    matchMonthInQuery,
+    icelandicMonths 
+} from './sunsetTimes.js';
 // LiveChat Integration
 import { checkAgentAvailability, createChat, sendMessageToLiveChat } from './services/livechat.js';
 
@@ -591,6 +598,89 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             reason: 'error',
             error: error.message
         };
+    }
+};
+
+// Add this helper function to detect sunset-related queries
+const isSunsetQuery = (message, languageDecision) => {
+    const msg = message.toLowerCase();
+    
+    // English sunset patterns
+    const englishSunsetPatterns = [
+        'sunset', 'sun set', 'sun sets', 'sundown', 
+        'watch the sunset', 'see the sunset',
+        'sunset time', 'sun go down', 'golden hour',
+        'evening sky', 'twilight'
+    ];
+    
+    // Icelandic sunset patterns
+    const icelandicSunsetPatterns = [
+        'sólsetur', 'sólarlag', 'sólin sest', 
+        'horfa á sólarlagið', 'sjá sólarlagið',
+        'sólarlagstími', 'sólin fer niður', 'gyllta stund',
+        'kvöldroði', 'rökkur'
+    ];
+    
+    // Check patterns based on language
+    const patternsToCheck = languageDecision.isIcelandic ? 
+        icelandicSunsetPatterns : 
+        englishSunsetPatterns;
+    
+    // Check if any patterns match
+    return patternsToCheck.some(pattern => msg.includes(pattern));
+};
+
+// Add this function to generate sunset responses
+const generateSunsetResponse = (message, languageDecision) => {
+    const msg = message.toLowerCase();
+    const isIcelandic = languageDecision.isIcelandic;
+    
+    // Get today's sunset time
+    const todaySunset = getTodaySunset();
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' }).toLowerCase();
+    
+    // Check if query is about a specific month
+    const monthInQuery = matchMonthInQuery(msg, isIcelandic);
+    
+    let sunsetTime;
+    let monthName;
+    
+    if (monthInQuery) {
+        sunsetTime = getMonthAverageSunset(monthInQuery);
+        monthName = isIcelandic ? 
+            icelandicMonths[monthInQuery] : 
+            monthInQuery.charAt(0).toUpperCase() + monthInQuery.slice(1);
+    } else {
+        // Default to today's sunset
+        sunsetTime = todaySunset;
+        monthName = isIcelandic ? 
+            icelandicMonths[currentMonth] : 
+            currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+    }
+    
+    if (!sunsetTime) {
+        return isIcelandic ?
+            "Því miður get ég ekki fundið nákvæmar upplýsingar um sólarlagstíma fyrir þennan tíma. Vinsamlegast spurðu um annan mánuð eða hafðu samband við þjónustuver okkar fyrir nákvæmari upplýsingar." :
+            "I'm sorry, I couldn't find precise sunset time information for that period. Please ask about a different month or contact our service desk for more accurate information.";
+    }
+    
+    // Generate response based on language
+    if (isIcelandic) {
+        // For specific month query
+        if (monthInQuery) {
+            return `Í ${monthName} sest sólin að meðaltali um klukkan ${sunsetTime.formatted} í Reykjavík. Í Sky Lagoon er frábært útsýni yfir sólarlagið þar sem þú getur notið þess að horfa á himininn fyllast af litum á meðan þú slærð af í heitu lóninu okkar. Mælt er með að koma 1-2 klukkustundum fyrir sólsetur til að ná sem bestri upplifun. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+        }
+        
+        // For today/general query
+        return `Í dag sest sólin um klukkan ${sunsetTime.formatted} í Reykjavík. Sky Lagoon býður upp á einstakt útsýni yfir sólarlagið þar sem þú getur notið töfrandi litbrigða himinsins á meðan þú slærð af í jarðhitavatninu. Við mælum með að koma 1-2 klukkustundum fyrir sólsetur til að fá sem mesta upplifun. Opnunartími okkar í dag er 09:00-22:00.`;
+    } else {
+        // For specific month query
+        if (monthInQuery) {
+            return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+        }
+        
+        // For today/general query
+        return `Today, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers a spectacular view of the sunset where you can enjoy the magical colors of the sky while relaxing in our geothermal waters. We recommend arriving 1-2 hours before sunset to get the full experience. Our opening hours today are 09:00-22:00.`;
     }
 };
 
@@ -6886,6 +6976,66 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
         }
+        
+        // Check for sunset queries
+        if (isSunsetQuery(userMessage, languageDecision)) {
+            console.log('\n🌅 Sunset query detected');
+            
+            // Generate sunset response
+            const sunsetResponse = generateSunsetResponse(userMessage, languageDecision);
+            
+            // Apply brand terminology enforcement
+            const formattedResponse = enforceTerminology(sunsetResponse);
+            
+            // Add appropriate emoji suffix
+            const formattedResponseWithEmoji = formattedResponse + " 🌅";
+            
+            // Log the response
+            console.log('\n✅ Providing sunset information:', {
+                query: userMessage,
+                response: formattedResponseWithEmoji,
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                }
+            });
+            
+            // Update context with this interaction
+            updateContext(sessionId, userMessage, formattedResponseWithEmoji);
+            
+            // Add to response cache
+            responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
+                response: {
+                    message: formattedResponseWithEmoji,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    }
+                },
+                timestamp: Date.now()
+            });
+            
+            // Broadcast conversation with the sunset response
+            await broadcastConversation(
+                userMessage,
+                formattedResponseWithEmoji,
+                languageDecision.isIcelandic ? 'is' : 'en',
+                'sunset',
+                'direct_response'
+            );
+            
+            // Return the response to the client
+            return res.status(200).json({
+                message: formattedResponseWithEmoji,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                }
+            });
+        }        
 
         // Detect topic for appropriate transitions and follow-ups
         const { topic } = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);

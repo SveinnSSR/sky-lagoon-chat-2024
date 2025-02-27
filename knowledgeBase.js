@@ -780,6 +780,28 @@ export const knowledgeBase = {
         }
     },
 
+    sunset: {
+        topic: "sunset",
+        keywords: ["sunset", "sundown", "dusk", "twilight", "golden hour", "sky colors", "evening light", "sunset view", "sunset times", "when does the sun set", "sunset hour"],
+        content: `
+    Sky Lagoon offers a spectacular view of the sunset over the North Atlantic Ocean. The sunset experience varies throughout the year due to Iceland's northern latitude:
+    
+    - Winter (November-February): Early sunsets between 15:40-16:45
+    - Spring (March-April): Evening sunsets between 18:00-20:30
+    - Summer (May-August): Late sunsets between 20:30-22:15 with extended twilight
+    - Fall (September-October): Evening sunsets between 17:00-19:45
+    
+    The summer solstice (around June 21) offers nearly 24 hours of daylight with the sun setting after 22:00 and rising again around 3:00 AM, creating a magical golden hour that can last for hours.
+    
+    December and January have very limited daylight with the sun setting before 16:00.
+    
+    For the most accurate sunset time on your planned visit date, please check our sunset time database or ask about a specific month.
+    
+    The lagoon's westward orientation makes it an ideal spot to watch the sunset while immersed in our geothermal waters. Many guests find the combination of the warm water, cool air, and spectacular sunset colors to be a highlight of their visit.
+    
+    For the best sunset experience, we recommend arriving 1-2 hours before sunset to enjoy the lagoon before the sky transforms with colors.`
+    },    
+
     dining: {
         introduction: {
             main_tagline: "Indulge in Icelandic Cuisine - A Taste of our Island Nation",
