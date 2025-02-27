@@ -83,6 +83,37 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
     }
 };
 
+// Add this right after your broadcastConversation function
+const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
+    try {
+        console.log('\n📨 Broadcasting feedback:', {
+            messageId,
+            isPositive,
+            messageType: determineMessageType(messageContent, language),
+            timestamp: new Date().toISOString()
+        });
+
+        const feedbackData = {
+            id: uuidv4(),
+            messageId,
+            rating: isPositive,
+            comment: messageContent,
+            messageType: determineMessageType(messageContent, language),
+            timestamp: new Date().toISOString(),
+            conversationId: chatId,
+            language
+        };
+
+        // Use the same pusher channel and event name that your WebSocketContext is listening for
+        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
+        console.log('✅ Feedback broadcast successful');
+        return true;
+    } catch (error) {
+        console.error('❌ Error broadcasting feedback:', error);
+        return false;
+    }
+};
+
 // Cache and state management
 const responseCache = new Map();
 const conversationContext = new Map();
@@ -7473,7 +7504,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 // Feedback endpoint - Add this right after your main chat endpoint
 app.post('/chat/feedback', async (req, res) => {
     try {
-      const { messageId, isPositive, messageContent, timestamp, chatId, language, broadcastToPusher } = req.body;
+      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
       
       // Determine message type
       const messageType = determineMessageType(messageContent, language);
@@ -7484,8 +7515,7 @@ app.post('/chat/feedback', async (req, res) => {
         messageType,
         timestamp: new Date().toISOString(),
         chatId,
-        language,
-        broadcastToPusher
+        language
       });
       
       // Store feedback in your database with message type
@@ -7500,24 +7530,8 @@ app.post('/chat/feedback', async (req, res) => {
         createdAt: new Date()
       });
       
-      // If the broadcastToPusher flag is set, broadcast to Pusher
-      if (broadcastToPusher) {
-        // Create the data object for Pusher
-        const feedbackData = {
-          messageId,
-          isPositive,
-          messageContent,
-          messageType,
-          timestamp: new Date().toISOString(),
-          chatId,
-          language
-        };
-        
-        console.log('\n📡 Broadcasting feedback via Pusher:', feedbackData);
-        
-        // Trigger the feedback_event on the Pusher channel
-        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
-      }
+      // Always broadcast feedback - don't make it conditional
+      await broadcastFeedback(messageId, isPositive, messageContent, chatId, language);
       
       return res.status(200).json({
         success: true,
