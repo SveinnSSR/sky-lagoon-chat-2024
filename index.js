@@ -6836,25 +6836,32 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
 //
 // Added: February 2025 to fix feedback system
 // =====================================================================
-app.post('/analytics-proxy', async (req, res) => {
-    try {
-      console.log('Proxying request to analytics system:', req.body);
-      const response = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(req.body)
-      });
-      
-      const data = await response.json();
-      console.log('Analytics system response:', data);
-      res.json(data);
-    } catch (error) {
-      console.error('Error proxying to analytics:', error);
-      res.status(500).json({ error: 'Proxy error' });
-    }
-});
+// Test GET endpoint
+app.get('/analytics-proxy', (req, res) => {
+    console.log('GET request received on analytics-proxy');
+    res.send('Analytics proxy endpoint is working!');
+  });
+  
+  // Make sure to add proper CORS headers for the proxy
+  app.post('/analytics-proxy', async (req, res) => {
+      console.log('POST request received on analytics-proxy:', req.body);
+      try {
+        const response = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(req.body)
+        });
+        
+        const data = await response.json();
+        console.log('Analytics system response:', data);
+        res.json(data);
+      } catch (error) {
+        console.error('Error proxying to analytics:', error);
+        res.status(500).json({ error: 'Proxy error', message: error.message });
+      }
+  });
 
 // Cleanup old contexts and cache
 setInterval(() => {
