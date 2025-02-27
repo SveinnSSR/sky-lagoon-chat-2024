@@ -6574,7 +6574,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 // Feedback endpoint - Add this right after your main chat endpoint
 app.post('/chat/feedback', async (req, res) => {
     try {
-      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
+      const { messageId, isPositive, messageContent, timestamp, chatId, language, broadcastToPusher } = req.body;
       
       // Determine message type
       const messageType = determineMessageType(messageContent, language);
@@ -6585,7 +6585,8 @@ app.post('/chat/feedback', async (req, res) => {
         messageType,
         timestamp: new Date().toISOString(),
         chatId,
-        language
+        language,
+        broadcastToPusher
       });
       
       // Store feedback in your database with message type
@@ -6593,21 +6594,31 @@ app.post('/chat/feedback', async (req, res) => {
         messageId,
         isPositive,
         messageContent,
-        messageType,  // Add the message type
+        messageType,
         timestamp: new Date(timestamp),
         chatId,
         language,
         createdAt: new Date()
       });
       
-      // Use your existing broadcast function if you want to track in real-time
-      await broadcastConversation(
-        '',  // No user message for feedback events
-        isPositive ? 'Positive feedback received' : 'Negative feedback received',
-        language === 'is' ? 'is' : 'en',
-        'feedback',  // Use 'feedback' as the topic
-        'feedback_event'  // Use a new event type for feedback
-      );
+      // If the broadcastToPusher flag is set, broadcast to Pusher
+      if (broadcastToPusher) {
+        // Create the data object for Pusher
+        const feedbackData = {
+          messageId,
+          isPositive,
+          messageContent,
+          messageType,
+          timestamp: new Date().toISOString(),
+          chatId,
+          language
+        };
+        
+        console.log('\n📡 Broadcasting feedback via Pusher:', feedbackData);
+        
+        // Trigger the feedback_event on the Pusher channel
+        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
+      }
       
       return res.status(200).json({
         success: true,
@@ -6627,7 +6638,7 @@ app.post('/chat/feedback', async (req, res) => {
         message: 'Failed to save feedback'
       });
     }
-  });
+});
   
   // Add this helper function right after the feedback endpoint
   function determineMessageType(content, language) {
