@@ -6814,6 +6814,48 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
     return { topic };
 };
 
+// =====================================================================
+// ANALYTICS SYSTEM CORS PROXY
+// =====================================================================
+// This endpoint solves cross-origin resource sharing (CORS) issues between 
+// the chat widget and the analytics system (https://hysing.svorumstrax.is).
+//
+// PROBLEM SOLVED:
+// - Browser blocks direct cross-domain requests from skylagoon-chat-demo to hysing.svorumstrax.is
+// - All previous CORS configuration attempts in the analytics system were insufficient
+//
+// HOW IT WORKS:
+// 1. Frontend sends feedback data to this proxy endpoint instead of directly to analytics
+// 2. This proxy forwards the request server-side (no CORS restrictions apply)
+// 3. Analytics system processes the data and responds
+// 4. This proxy returns the response to the frontend
+//
+// RELATED FILES:
+// - Frontend: ChatWidget.jsx (handleMessageFeedback function)
+// - Analytics: src/app/api/public-feedback/route.ts
+//
+// Added: February 2025 to fix feedback system
+// =====================================================================
+app.post('/analytics-proxy', async (req, res) => {
+    try {
+      console.log('Proxying request to analytics system:', req.body);
+      const response = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(req.body)
+      });
+      
+      const data = await response.json();
+      console.log('Analytics system response:', data);
+      res.json(data);
+    } catch (error) {
+      console.error('Error proxying to analytics:', error);
+      res.status(500).json({ error: 'Proxy error' });
+    }
+  });
+
 // Cleanup old contexts and cache
 setInterval(() => {
     const oneHourAgo = Date.now() - CACHE_TTL;
