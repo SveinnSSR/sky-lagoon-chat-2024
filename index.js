@@ -1,6 +1,11 @@
 // Essential imports
 import dotenv from 'dotenv';
 dotenv.config();
+
+console.log('███████████████████████████████████████████');
+console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
+console.log('███████████████████████████████████████████');
+
 // Core dependencies
 import express from 'express';
 import cors from 'cors';
@@ -6814,6 +6819,10 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
     return { topic };
 };
 
+console.log('███████████████████████████████████████████');
+console.log('███████ REGISTERING ANALYTICS PROXY ROUTES ███████');
+console.log('███████████████████████████████████████████');
+
 // =====================================================================
 // ANALYTICS SYSTEM CORS PROXY
 // =====================================================================
@@ -6836,32 +6845,41 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
 //
 // Added: February 2025 to fix feedback system
 // =====================================================================
-// Test GET endpoint
+// Test GET endpoint for the analytics proxy
 app.get('/analytics-proxy', (req, res) => {
     console.log('GET request received on analytics-proxy');
     res.send('Analytics proxy endpoint is working!');
-  });
+});
+
+// Special test endpoint with a unique name
+app.get('/skylagoon-test-2025', (req, res) => {
+    console.log('Special test route accessed!');
+    res.send('Special test route is working!');
+});
   
-  // Make sure to add proper CORS headers for the proxy
-  app.post('/analytics-proxy', async (req, res) => {
-      console.log('POST request received on analytics-proxy:', req.body);
-      try {
-        const response = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(req.body)
-        });
-        
-        const data = await response.json();
-        console.log('Analytics system response:', data);
-        res.json(data);
-      } catch (error) {
-        console.error('Error proxying to analytics:', error);
-        res.status(500).json({ error: 'Proxy error', message: error.message });
-      }
-  });
+// POST endpoint for the analytics proxy
+app.post('/analytics-proxy', async (req, res) => {
+    console.log('POST request received on analytics-proxy:', req.body);
+    try {
+      // Node.js 18+ has fetch built-in, for older versions you might need:
+      // const fetch = (await import('node-fetch')).default;
+      
+      const response = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(req.body)
+      });
+      
+      const data = await response.json();
+      console.log('Analytics system response:', data);
+      res.json(data);
+    } catch (error) {
+      console.error('Error proxying to analytics:', error);
+      res.status(500).json({ error: 'Proxy error', message: error.message });
+    }
+});
 
 // Cleanup old contexts and cache
 setInterval(() => {
