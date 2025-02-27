@@ -86,38 +86,29 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 // Add this right after your broadcastConversation function
 const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
     try {
-        console.log('\n📢 broadcastFeedback CALLED with:', {
-            messageId,
-            isPositive,
-            chatId,
-            language
-        });
+        console.log('\n🔔 BROADCASTING FEEDBACK - START');
         
-        // Determine message type using your existing function
         const messageType = determineMessageType(messageContent, language);
         
         const feedbackData = {
             messageId,
-            isPositive: isPositive,  // CHANGED: 'rating' to 'isPositive' to match WebSocketContext
-            messageContent: messageContent, // ADDED: to match field names
-            messageType: messageType,
+            isPositive,
+            messageContent,
+            messageType,
             timestamp: new Date().toISOString(),
-            chatId: chatId,        // Using chatId as expected by WebSocketContext
+            chatId,
             language
         };
         
-        console.log('\n📦 Feedback data prepared:', feedbackData);
+        console.log('\n📦 Feedback data:', JSON.stringify(feedbackData));
         
-        // Log Pusher connection state
-        console.log('\n🔌 Pusher connection state:', pusher.connection.state);
-        
-        // Trigger Pusher event
+        // Trigger the event
         pusher.trigger('chat-channel', 'feedback_event', feedbackData);
         
-        console.log('✅ Feedback broadcast successful');
+        console.log('\n✅ FEEDBACK BROADCAST COMPLETE');
         return true;
     } catch (error) {
-        console.error('\n❌ Error broadcasting feedback:', error);
+        console.error('\n❌ FEEDBACK BROADCAST ERROR:', error);
         return false;
     }
 };
