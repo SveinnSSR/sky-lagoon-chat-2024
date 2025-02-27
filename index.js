@@ -6854,7 +6854,7 @@ app.post('/analytics-proxy', async (req, res) => {
       console.error('Error proxying to analytics:', error);
       res.status(500).json({ error: 'Proxy error' });
     }
-  });
+});
 
 // Cleanup old contexts and cache
 setInterval(() => {
