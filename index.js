@@ -1486,8 +1486,8 @@ const BOOKING_RESPONSES = {
         "To help you best, could you tell us roughly how late you expect to be? We have a 30-minute grace period, but for longer delays we'll need to find you a more suitable time."
     ],
     flight_delay: [
-        "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you.",
-        "Due to your flight delay situation, let's help you arrange a better time. Please call +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we're experienced in handling flight delays and will find the best solution for your visit."
+        "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you.",
+        "Due to your flight delay situation, let's help you arrange a better time. Please call +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is - we're experienced in handling flight delays and will find the best solution for your visit."
     ],
     within_grace: [
         "Don't worry - we have a 30-minute grace period for all bookings. You can proceed directly to our reception when you arrive. You might experience a brief wait during busy periods, but our reception team will accommodate you.",
@@ -1496,17 +1496,17 @@ const BOOKING_RESPONSES = {
     ],
     moderate_delay: {
         normal: [
-            "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email: reservations@skylagoon.is.",
-            "As you'll be delayed by more than 30 minutes, we recommend changing your booking. Our team can help find a perfect new time - just call +354 527 6800 (9 AM - 7 PM) or email us."
+            "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 6 PM) or email: reservations@skylagoon.is.",
+            "As you'll be delayed by more than 30 minutes, we recommend changing your booking. Our team can help find a perfect new time - just call +354 527 6800 (9 AM - 6 PM) or email us."
         ],
         sold_out: [
-            "Since we're fully booked today and you'll be more than 30 minutes late, we recommend changing your booking to ensure the best experience. Please call us at +354 527 6800 (9 AM - 7 PM) to find a suitable time.",
-            "As today is sold out and you'll be more than 30 minutes delayed, let's find you a better time. Call us at +354 527 6800 (9 AM - 7 PM) and we'll help arrange this."
+            "Since we're fully booked today and you'll be more than 30 minutes late, we recommend changing your booking to ensure the best experience. Please call us at +354 527 6800 (9 AM - 6 PM) to find a suitable time.",
+            "As today is sold out and you'll be more than 30 minutes delayed, let's find you a better time. Call us at +354 527 6800 (9 AM - 6 PM) and we'll help arrange this."
         ]
     },
     significant_delay: [
-        "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at: reservations@skylagoon.is.",
-        "Let's find you a more suitable time since you'll be significantly delayed. Please call us at +354 527 6800 (9 AM - 7 PM) or email us, and we'll gladly help arrange this."
+        "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 6 PM) or via email at: reservations@skylagoon.is.",
+        "Let's find you a more suitable time since you'll be significantly delayed. Please call us at +354 527 6800 (9 AM - 6 PM) or email us, and we'll gladly help arrange this."
     ]
 };
 
@@ -1691,9 +1691,9 @@ const UNKNOWN_QUERY_TYPES = {
 
 const UNKNOWN_QUERY_RESPONSES = {
     COMPLETELY_UNKNOWN: [
-        "I'm still learning about that aspect of Sky Lagoon. Would you like to speak with a team member? You can reach us at +354 527 6800 (available 9 AM - 7 PM local time) or by email at: reservations@skylagoon.is.",
-        "I'm not fully familiar with that yet. Would you like me to connect you with our team? You can reach them at +354 527 6800 (9 AM - 7 PM local time) or by email at: reservations@skylagoon.is",
-        "I want to make sure you receive accurate information. For this specific query, please contact our team at +354 527 6800 (9 AM - 7 PM local time) or by email at: reservations@skylagoon.is"
+        "I'm still learning about that aspect of Sky Lagoon. Would you like to speak with a team member? You can reach us at +354 527 6800 (available 9 AM - 6 PM local time) or by email at: reservations@skylagoon.is.",
+        "I'm not fully familiar with that yet. Would you like me to connect you with our team? You can reach them at +354 527 6800 (9 AM - 6 PM local time) or by email at: reservations@skylagoon.is",
+        "I want to make sure you receive accurate information. For this specific query, please contact our team at +354 527 6800 (9 AM - 6 PM local time) or by email at: reservations@skylagoon.is"
     ],
     COMPLETELY_UNKNOWN_IS: [
         "Ég er enn að læra um þennan þátt hjá Sky Lagoon. Viltu ræða við einhvern úr teyminu okkar? Þú getur haft samband við okkur í síma 527 6800 eða gegnum netfangið: reservations@skylagoon.is",
@@ -3185,20 +3185,20 @@ CRITICAL RESPONSE RULES:
 20. For Late Arrivals and Booking Changes:
     - IF context.lateArrivalScenario exists:
       - FOR 'flight_delay' type:
-        RESPOND WITH: "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you."
+        RESPOND WITH: "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you."
       - FOR 'within_grace' type:
         RESPOND WITH: "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our reception team will accommodate you."
       - FOR 'moderate_delay' type:
         - IF context.soldOutStatus is true:
-          RESPOND WITH: "Since we're fully booked today and you'll be more than 30 minutes late, we recommend changing your booking to ensure the best experience. Please call us at +354 527 6800 (9 AM - 7 PM) to find a suitable time."
+          RESPOND WITH: "Since we're fully booked today and you'll be more than 30 minutes late, we recommend changing your booking to ensure the best experience. Please call us at +354 527 6800 (9 AM - 6 PM) to find a suitable time."
         - ELSE:
-          RESPOND WITH: "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 7 PM) or email reservations@skylagoon.is."
+          RESPOND WITH: "Since you'll be more than 30 minutes late, we'd be happy to help change your booking to a time that works better. You can call us at +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is."
       - FOR 'significant_delay' type:
-        RESPOND WITH: "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 7 PM) or via email at reservations@skylagoon.is."
+        RESPOND WITH: "For a delay of this length, we recommend rebooking for a time that works better for you. Our team is ready to help at +354 527 6800 (9 AM - 6 PM) or via email at reservations@skylagoon.is."
     
     - IF context.bookingModification.requested is true:
       - MUST EXPLAIN: "We're flexible with booking changes as long as your original booking hasn't passed and there's availability for your preferred new time."
-      - IF during business hours (9 AM - 7 PM):
+      - IF during business hours (9 AM - 6 PM):
         - Emphasize phone support: "Please call us at +354 527 6800 and we'll help you find a perfect new time."
       - IF outside business hours:
         - Emphasize email: "Please email reservations@skylagoon.is and our team will help arrange this."
@@ -3210,12 +3210,12 @@ CRITICAL RESPONSE RULES:
       - THEN suggest alternatives:
         - "Our team can help find the next available time."
       - PROVIDE contact options:
-        - "Call us at +354 527 6800 (9 AM - 7 PM)"
+        - "Call us at +354 527 6800 (9 AM - 6 PM)"
         - "Email reservations@skylagoon.is"
       - NEVER suggest walk-ins during sold-out periods
 
     - PHONE SUPPORT HOURS:
-      - ALWAYS mention "9 AM - 7 PM" when providing phone number
+      - ALWAYS mention "9 AM - 6 PM" when providing phone number
       - Outside these hours, emphasize email support first
 
     - FLIGHT DELAY HANDLING:
