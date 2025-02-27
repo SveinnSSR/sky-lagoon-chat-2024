@@ -2483,7 +2483,12 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
 
     // Icelandic specific late minutes detection
     if (languageDecision?.isIcelandic) {
-        const icelandicLateMinutesMatch = lowerMessage.match(/(?:mæta|koma).*?(?:allt að)?\s+(\d+)\s+mínútum?\s+(?:seint|seinn)/i);
+        // Enhanced pattern to detect abbreviations like "uþb" (um það bil) 
+        const icelandicLateMinutesMatch = lowerMessage.match(/(?:mæta|koma).*?(?:allt að|uþb|u\.þ\.b\.|um það bil)?\s+(\d+)\s+mínútum?\s+(?:seint|seinn)/i);
+
+        // Also add a standalone pattern for just the time with abbreviations
+        const icelandicStandaloneTimeMatch = lowerMessage.match(/^(?:uþb|u\.þ\.b\.|um það bil)?\s*(\d+)\s+mín(?:útur)?$/i);
+
         if (icelandicLateMinutesMatch) {
             const minutes = parseInt(icelandicLateMinutesMatch[1]);
             console.log('\n⏰ Icelandic specific late minutes detected:', minutes);
@@ -2495,6 +2500,23 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
                 minutes: minutes,
                 isIcelandic: true
             };
+        }
+
+        // Handle standalone time responses (like "uþb 30 mín")
+        if (icelandicStandaloneTimeMatch) {
+            const minutes = parseInt(icelandicStandaloneTimeMatch[1]);
+            console.log('\n⏰ Icelandic standalone time detected:', minutes);
+
+            // If there's context that this is about late arrival
+            if (context?.lastTopic === 'late_arrival' || context?.lateArrivalContext?.isLate) {
+                return {
+                    type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                          minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                        'significant_delay',
+                    minutes: minutes,
+                    isIcelandic: true
+                };
+            }
         }
     }
 
