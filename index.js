@@ -87,6 +87,84 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 const responseCache = new Map();
 const conversationContext = new Map();
 
+// Seasonal opening hours object
+const OPENING_HOURS = {
+    // Winter (Nov-May)
+    winter: {
+        weekdays: { open: 11, close: 22 },
+        weekends: { open: 10, close: 22 }
+    },
+    // June
+    earlyJune: {
+        weekdays: { open: 9, close: 23 },
+        weekends: { open: 9, close: 23 }
+    },
+    // July-August
+    summer: {
+        weekdays: { open: 8, close: 23 },
+        weekends: { open: 8, close: 23 }
+    },
+    // September
+    september: {
+        weekdays: { open: 9, close: 23 },
+        weekends: { open: 9, close: 23 }
+    },
+    // October
+    october: {
+        weekdays: { open: 10, close: 23 },
+        weekends: { open: 10, close: 23 }
+    }
+};
+
+// Add a function to get current opening hours
+const getCurrentOpeningHours = () => {
+    const today = new Date();
+    const month = today.getMonth(); // 0-11 (Jan-Dec)
+    const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
+    
+    let season;
+    if (month >= 10 || month <= 4) { // Nov-May (10=Nov, 0=Jan, 4=May)
+        season = 'winter';
+    } else if (month === 5) { // June
+        season = 'earlyJune';
+    } else if (month === 6 || month === 7) { // July-August
+        season = 'summer';
+    } else if (month === 8) { // September
+        season = 'september';
+    } else if (month === 9) { // October
+        season = 'october';
+    }
+    
+    return isWeekend ? OPENING_HOURS[season].weekends : OPENING_HOURS[season].weekdays;
+};
+
+// Function to get opening hours for a specific month
+const getMonthOpeningHours = (monthName) => {
+    const monthIndex = {
+        'january': 0, 'february': 1, 'march': 2, 'april': 3, 'may': 4,
+        'june': 5, 'july': 6, 'august': 7, 'september': 8,
+        'october': 9, 'november': 10, 'december': 11
+    }[monthName.toLowerCase()];
+    
+    let season;
+    if (monthIndex >= 10 || monthIndex <= 4) { // Nov-May
+        season = 'winter';
+    } else if (monthIndex === 5) { // June
+        season = 'earlyJune';
+    } else if (monthIndex === 6 || monthIndex === 7) { // July-August
+        season = 'summer';
+    } else if (monthIndex === 8) { // September
+        season = 'september';
+    } else if (monthIndex === 9) { // October
+        season = 'october';
+    }
+    
+    return {
+        weekdays: OPENING_HOURS[season].weekdays,
+        weekends: OPENING_HOURS[season].weekends
+    };
+};
+
 // Brand Guidelines and Constants
 const SKY_LAGOON_GUIDELINES = {
     emojis: ['😊', '☁️', '✨', '🌞', '🌅', '📍'],    
@@ -674,31 +752,58 @@ const generateSunsetResponse = (message, languageDecision) => {
             "I'm sorry, I couldn't find precise sunset time information for that period. Please ask about a different month or contact our service desk for more accurate information.";
     }
     
+    // Get today's opening hours
+    const todayHours = getCurrentOpeningHours();
+    const todayHoursString = `${todayHours.open}:00-${todayHours.close}:00`;
+    
+    // Get month-specific opening hours if needed
+    let monthHours;
+    let monthHoursString;
+    if (monthInQuery) {
+        monthHours = getMonthOpeningHours(monthInQuery);
+        
+        if (monthInQuery === 'june' || monthInQuery === 'july' || 
+            monthInQuery === 'august' || monthInQuery === 'september' || 
+            monthInQuery === 'october') {
+            // For months with same hours all week
+            const openHour = monthHours.weekdays.open;
+            const closeHour = monthHours.weekdays.close;
+            monthHoursString = isIcelandic ? 
+                `${openHour}:00-${closeHour}:00 alla daga` : 
+                `${openHour}:00-${closeHour}:00 every day`;
+        } else {
+            // For winter months with different weekend/weekday hours
+            monthHoursString = isIcelandic ? 
+                `${monthHours.weekdays.open}:00-${monthHours.weekdays.close}:00 á virkum dögum og ${monthHours.weekends.open}:00-${monthHours.weekends.close}:00 um helgar` : 
+                `${monthHours.weekdays.open}:00-${monthHours.weekdays.close}:00 on weekdays and ${monthHours.weekends.open}:00-${monthHours.weekends.close}:00 on weekends`;
+        }
+    }
+    
     // Generate response based on language
     if (isIcelandic) {
         // For specific month query
         if (monthInQuery) {
             if (isCurrentMonth) {
-                return `Í dag, ${currentDay}. ${monthName}, sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+                return `Í dag, ${currentDay}. ${monthName}, sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er ${todayHoursString}.`;
             } else {
-                return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+                return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er ${monthHoursString}.`;
             }
         }
         
         // For today/general query
-        return `Í dag sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er einstakt útsýni yfir sólarlagið, þar sem þú getur slakað á í jarðhitavatninu og notið töfrandi litbrigða himinsins. Til að upplifa þetta sem best mælum við með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar í dag er 09:00-22:00.`;
+        return `Í dag sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er einstakt útsýni yfir sólarlagið, þar sem þú getur slakað á í jarðhitavatninu og notið töfrandi litbrigða himinsins. Til að upplifa þetta sem best mælum við með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar í dag er ${todayHoursString}.`;
     } else {
         // For specific month query
         if (monthInQuery) {
             if (isCurrentMonth) {
-                return `Today, ${monthName} ${currentDay}, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+                return `Today, ${monthName} ${currentDay}, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours today are ${todayHoursString}.`;
             } else {
-                return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+                return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are ${monthHoursString}.`;
             }
         }
         
         // For today/general query
-        return `Today, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers a spectacular view of the sunset where you can enjoy the magical colors of the sky while relaxing in our geothermal waters. We recommend arriving 1-2 hours before sunset to get the full experience. Our opening hours today are 09:00-22:00.`;
+        return `Today, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers a spectacular view of the sunset where you can enjoy the magical colors of the sky while relaxing in our geothermal waters. We recommend arriving 1-2 hours before sunset to get the full experience. Our opening hours today are ${todayHoursString}.`;
     }
 };
 
