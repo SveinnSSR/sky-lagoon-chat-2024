@@ -86,30 +86,38 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 // Add this right after your broadcastConversation function
 const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
     try {
-        console.log('\n📨 Broadcasting feedback:', {
+        console.log('\n📢 broadcastFeedback CALLED with:', {
             messageId,
             isPositive,
-            messageType: determineMessageType(messageContent, language),
-            timestamp: new Date().toISOString()
+            chatId,
+            language
         });
-
+        
+        // Determine message type using your existing function
+        const messageType = determineMessageType(messageContent, language);
+        
         const feedbackData = {
-            id: uuidv4(),
             messageId,
-            rating: isPositive,
-            comment: messageContent,
-            messageType: determineMessageType(messageContent, language),
+            isPositive: isPositive,  // CHANGED: 'rating' to 'isPositive' to match WebSocketContext
+            messageContent: messageContent, // ADDED: to match field names
+            messageType: messageType,
             timestamp: new Date().toISOString(),
-            conversationId: chatId,
+            chatId: chatId,        // Using chatId as expected by WebSocketContext
             language
         };
-
-        // Use the same pusher channel and event name that your WebSocketContext is listening for
+        
+        console.log('\n📦 Feedback data prepared:', feedbackData);
+        
+        // Log Pusher connection state
+        console.log('\n🔌 Pusher connection state:', pusher.connection.state);
+        
+        // Trigger Pusher event
         pusher.trigger('chat-channel', 'feedback_event', feedbackData);
+        
         console.log('✅ Feedback broadcast successful');
         return true;
     } catch (error) {
-        console.error('❌ Error broadcasting feedback:', error);
+        console.error('\n❌ Error broadcasting feedback:', error);
         return false;
     }
 };
@@ -7506,17 +7514,15 @@ app.post('/chat/feedback', async (req, res) => {
     try {
       const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
       
-      // Determine message type
-      const messageType = determineMessageType(messageContent, language);
-      
-      console.log('\n📝 Feedback received:', {
+      console.log('\n📝 /chat/feedback endpoint CALLED with:', {
         messageId,
         isPositive,
-        messageType,
-        timestamp: new Date().toISOString(),
         chatId,
         language
       });
+      
+      // Determine message type
+      const messageType = determineMessageType(messageContent, language);
       
       // Store feedback in your database with message type
       await db.collection('message_feedback').insertOne({
@@ -7530,31 +7536,37 @@ app.post('/chat/feedback', async (req, res) => {
         createdAt: new Date()
       });
       
-      // Always broadcast feedback - don't make it conditional
-      await broadcastFeedback(messageId, isPositive, messageContent, chatId, language);
+      console.log('\n💾 Feedback saved to MongoDB, now broadcasting...');
+      
+      // Always call broadcastFeedback - this is critical!
+      const broadcastResult = await broadcastFeedback(
+        messageId, 
+        isPositive, 
+        messageContent, 
+        chatId, 
+        language
+      );
+      
+      console.log('\n📣 Broadcast result:', broadcastResult ? 'Success' : 'Failed');
       
       return res.status(200).json({
         success: true,
-        message: 'Feedback received',
-        messageType: messageType
+        message: 'Feedback received and broadcast',
+        messageType: messageType,
+        broadcastSuccess: broadcastResult
       });
     } catch (error) {
-      console.error('\n❌ Error saving feedback:', {
-        message: error.message,
-        stack: error.stack,
-        type: error.constructor.name,
-        timestamp: new Date().toISOString()
-      });
+      console.error('\n❌ Error in /chat/feedback endpoint:', error);
       
       return res.status(500).json({
         success: false,
-        message: 'Failed to save feedback'
+        message: 'Failed to process feedback'
       });
     }
 });
   
-  // Add this helper function right after the feedback endpoint
-  function determineMessageType(content, language) {
+// Add this helper function right after the feedback endpoint
+function determineMessageType(content, language) {
     // Ensure we have content to analyze
     if (!content) return 'unknown';
     
@@ -7628,7 +7640,7 @@ app.post('/chat/feedback', async (req, res) => {
     
     // Default category for messages that don't fit specific patterns
     return 'general';
-  }
+}
 
 // =====================================================================
 // FEEDBACK PUSHER ENDPOINT
