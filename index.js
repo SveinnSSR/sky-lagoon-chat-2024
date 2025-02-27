@@ -668,11 +668,11 @@ const generateSunsetResponse = (message, languageDecision) => {
     if (isIcelandic) {
         // For specific month query
         if (monthInQuery) {
-            return `Í ${monthName} sest sólin að meðaltali um klukkan ${sunsetTime.formatted} í Reykjavík. Í Sky Lagoon er frábært útsýni yfir sólarlagið þar sem þú getur notið þess að horfa á himininn fyllast af litum á meðan þú slærð af í heitu lóninu okkar. Mælt er með að koma 1-2 klukkustundum fyrir sólsetur til að ná sem bestri upplifun. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+            return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
         }
         
         // For today/general query
-        return `Í dag sest sólin um klukkan ${sunsetTime.formatted} í Reykjavík. Sky Lagoon býður upp á einstakt útsýni yfir sólarlagið þar sem þú getur notið töfrandi litbrigða himinsins á meðan þú slærð af í jarðhitavatninu. Við mælum með að koma 1-2 klukkustundum fyrir sólsetur til að fá sem mesta upplifun. Opnunartími okkar í dag er 09:00-22:00.`;
+        return `Í dag sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er einstakt útsýni yfir sólarlagið, þar sem þú getur slakað á í jarðhitavatninu og notið töfrandi litbrigða himinsins. Til að upplifa þetta sem best mælum við með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar í dag er 09:00-22:00.`;
     } else {
         // For specific month query
         if (monthInQuery) {

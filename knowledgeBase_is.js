@@ -1917,22 +1917,22 @@ export const knowledgeBase_is = {
         topic: "sunset",
         keywords: ["sólsetur", "sólarlag", "kvöldroði", "rökkur", "gyllta stund", "himinlitur", "kvöldbirta", "sólarlagsútsýni", "sólarlagstímar", "hvenær sest sólin", "sólarlagstími"],
         content: `
-    Sky Lagoon býður upp á stórkostlegt útsýni yfir sólarlagið yfir Norður-Atlantshafinu. Sólarlagsupplifunin er mismunandi eftir árstíðum vegna nyrðri breiddargráðu Íslands:
+        Frá Sky Lagoon er stórbrotin sýn yfir sólarlagið yfir Norður-Atlantshafinu. Upplifunin breytist eftir árstíðum vegna legu Íslands á nyrðri breiddargráðu:  
     
-    - Vetur (nóvember-febrúar): Snemma sólsetur milli 15:40-16:45
-    - Vor (mars-apríl): Kvöldsólsetur milli 18:00-20:30
-    - Sumar (maí-ágúst): Seint sólsetur milli 20:30-22:15 með langvarandi rökkri
-    - Haust (september-október): Kvöldsólsetur milli 17:00-19:45
+        - Vetur (nóvember-febrúar): Snemma sólsetur milli 15:40-16:45  
+        - Vor (mars-apríl): Kvöldsólsetur milli 18:00-20:30  
+        - Sumar (maí-ágúst): Seint sólsetur milli 20:30-22:15 með langvarandi rökkri  
+        - Haust (september-október): Kvöldsólsetur milli 17:00-19:45  
     
-    Sumarsólstöður (í kringum 21. júní) bjóða upp á næstum 24 tíma dagsbirtu þar sem sólin sest eftir kl. 22:00 og rís aftur um kl. 3:00 að morgni, sem skapar töfrandi gyllna stund sem getur varað í margar klukkustundir.
+        Í kringum sumarsólstöður (21. júní) er nær óslitin dagsbirta, þar sem sólin sest eftir kl. 22:00 og rís aftur um kl. 03:00. Þetta skapar töfrandi gyllna stund sem getur varað í margar klukkustundir.  
     
-    Í desember og janúar er mjög takmarkað dagsljós og sólin sest fyrir kl. 16:00.
+        Í desember og janúar er hins vegar mjög takmarkað dagsljós, og sólin sest fyrir kl. 16:00.  
     
-    Fyrir nákvæmastan sólarlagstíma á fyrirhuguðum heimsóknardegi þínum, vinsamlegast athugaðu sólarlagstímagagnagrunninn okkar eða spurðu um tiltekinn mánuð.
+        Fyrir nákvæmasta sólseturstíma á heimsóknardegi þínum skaltu skoða sólarlagstímagagnagrunninn okkar eða spyrja um tiltekinn mánuð.  
     
-    Vestlæg stefna lónsins gerir það að kjörstað til að horfa á sólarlagið á meðan þú nýtur þér í jarðhitavatninu okkar. Margir gestir telja samsetningu heita vatnsins, svala loftsins og stórkostlegra sólarlagsliða vera hápunkt heimsóknar sinnar.
+        Lónið snýr í vestur og er því fullkominn staður til að horfa á sólarlagið á meðan þú slakar á í jarðhitavatninu okkar. Margir gestir lýsa því sem hápunkti heimsóknarinnar þegar heita vatnið, ferska loftið og stórkostlegt sólarlagið renna saman í eina ógleymanlega upplifun.  
     
-    Fyrir bestu sólarlagsupplifunina mælum við með að koma 1-2 klukkustundum fyrir sólsetur til að njóta lónsins áður en himininn umbreytist með litum.`
+        Til að njóta sólarlagsins sem best mælum við með að koma 1-2 klukkustundum fyrir sólsetur og upplifa breytinguna á himninum í kyrrð lónsins.`      
     },    
     lost_found: {
         questions: [
