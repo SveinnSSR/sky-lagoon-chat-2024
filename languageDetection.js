@@ -10,6 +10,42 @@ export const detectLanguage = (message, context = null) => {
         .replace(packageExclusionRegex, '')
         .trim();
     
+    // Early check for Icelandic special characters - give higher priority
+    if (/[þæðöáíúéó]/i.test(cleanMessage)) {
+        return {
+            isIcelandic: true,
+            confidence: 'high',
+            reason: 'icelandic_special_chars',
+            patterns: {
+                hasChars: true
+            }
+        };
+    }
+    
+    // Early check for Icelandic questions at the start
+    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i.test(cleanMessage)) {
+        return {
+            isIcelandic: true,
+            confidence: 'high',
+            reason: 'icelandic_question_start',
+            patterns: {
+                hasQuestion: true
+            }
+        };
+    }
+    
+    // Early check for Icelandic discount terms - specifically check for common discount terms
+    if (/\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: true,
+            confidence: 'high',
+            reason: 'icelandic_discount_terms',
+            patterns: {
+                hasDiscountTerms: true
+            }
+        };
+    }
+    
     // Enhanced English patterns
     const englishPatterns = {
         common_words: /\b(temperature|time|price|cost|open|close|hours|towel|food|drink|ritual|pass|package|admission|facilities|parking|booking|reservation|location|directions|transport|shuttle|bus|pure|water|pool|shower|changing|room|ticket|gift|card|stay|long|can|how)\b/i,
@@ -20,15 +56,16 @@ export const detectLanguage = (message, context = null) => {
         follow_ups: /^(and|or|but|so|also|what about)/i
     };
 
-    // Enhanced Icelandic patterns with additional common words
+    // Enhanced Icelandic patterns with additional common words and discount terms
     const icelandicPatterns = {
         chars: /[þæðöáíúéó]/i,
-        words: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún|vera|hafa|vilja|þetta|góðan|daginn|kvöld|morgun|takk|fyrir|kemst|bóka|langar|vil|hvaða|strætó|fer|með|tíma|bílastæði|kaupa|multi|pass)\b/i,
+        words: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún|vera|hafa|vilja|þetta|góðan|daginn|kvöld|morgun|takk|fyrir|kemst|bóka|langar|vil|hvaða|strætó|fer|með|tíma|bílastæði|kaupa|multi|pass|þið|einhverja|eruð|eruði|þið|með)\b/i,
         greetings: /^(góðan|halló|hæ|sæl|sæll|bless)/i,
-        questions: /^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|geturðu)/i,
+        questions: /^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i,
         acknowledgments: /^(takk|já|nei|ok|oki|okei|flott|gott|bara|allt|snilld|snillingur|jam|jamm|geggjað|geggjuð|magnað|hjálpsamt|snilldin|skil|æði|æðislegt|æðisleg)\b/i,
         common_verbs: /\b(kemst|bóka|langar|vil|fer)\b/i,
-        booking_terms: /\b(bóka|panta|tíma|stefnumót)\b/i
+        booking_terms: /\b(bóka|panta|tíma|stefnumót)\b/i,
+        discount_terms: /\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i
     };
 
     // Check if the message has clear English sentence structure
@@ -52,7 +89,8 @@ export const detectLanguage = (message, context = null) => {
     const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected)\b/gi) || []).length;
     const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
     
-    if (englishWordCount >= 3 || (messageWords > 0 && englishWordCount / messageWords > 0.4)) {
+    // Make this check more stringent - require more English words
+    if (englishWordCount >= 4 || (messageWords > 0 && englishWordCount / messageWords > 0.5)) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -61,7 +99,6 @@ export const detectLanguage = (message, context = null) => {
         };
     }
 
-    // Your existing checks follow
     // Check for "multi pass" variations specifically
     if (/multi\s*-?\s*pass/i.test(cleanMessage)) {
         return {
@@ -80,7 +117,8 @@ export const detectLanguage = (message, context = null) => {
     // Check Icelandic words using the filtered message
     if (icelandicPatterns.words.test(messageForDetection) || 
         icelandicPatterns.common_verbs.test(messageForDetection) ||
-        icelandicPatterns.booking_terms.test(messageForDetection)) {
+        icelandicPatterns.booking_terms.test(messageForDetection) ||
+        icelandicPatterns.discount_terms.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -137,8 +175,9 @@ export const detectLanguage = (message, context = null) => {
     const hasIcelandicWord = icelandicPatterns.words.test(messageForDetection);
     const hasIcelandicGreeting = icelandicPatterns.greetings.test(messageForDetection);
     const hasIcelandicQuestion = icelandicPatterns.questions.test(messageForDetection);
+    const hasIcelandicDiscountTerms = icelandicPatterns.discount_terms.test(messageForDetection);
 
-    if (hasIcelandicChar || hasIcelandicWord || hasIcelandicGreeting || hasIcelandicQuestion) {
+    if (hasIcelandicChar || hasIcelandicWord || hasIcelandicGreeting || hasIcelandicQuestion || hasIcelandicDiscountTerms) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -147,7 +186,8 @@ export const detectLanguage = (message, context = null) => {
                 hasChars: hasIcelandicChar,
                 hasWords: hasIcelandicWord,
                 hasGreeting: hasIcelandicGreeting,
-                hasQuestion: hasIcelandicQuestion
+                hasQuestion: hasIcelandicQuestion,
+                hasDiscountTerms: hasIcelandicDiscountTerms
             }
         };
     }
