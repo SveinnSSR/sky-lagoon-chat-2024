@@ -6706,6 +6706,28 @@ app.post('/chat/feedback', async (req, res) => {
     return 'general';
   }
 
+// =====================================================================
+// FEEDBACK PUSHER ENDPOINT
+// =====================================================================
+// This endpoint triggers Pusher events for feedback, which are listened for
+// by the analytics system through the WebSocketContext
+// =====================================================================
+app.post('/feedback-pusher', verifyApiKey, async (req, res) => {
+    try {
+        const feedbackData = req.body;
+        console.log('Feedback pusher event received:', feedbackData);
+
+        // Trigger the Pusher event for the feedback
+        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
+        console.log('Feedback sent to Pusher');
+
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error processing feedback event:', error);
+        res.status(500).json({ error: 'Failed to process feedback' });
+    }
+});
+
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
     try {
