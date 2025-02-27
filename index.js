@@ -637,16 +637,26 @@ const generateSunsetResponse = (message, languageDecision) => {
     
     // Get today's sunset time
     const todaySunset = getTodaySunset();
-    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' }).toLowerCase();
+    const currentDate = new Date();
+    const currentMonth = currentDate.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+    const currentDay = currentDate.getDate();
     
     // Check if query is about a specific month
     const monthInQuery = matchMonthInQuery(msg, isIcelandic);
     
     let sunsetTime;
     let monthName;
+    let isCurrentMonth = false;
     
     if (monthInQuery) {
-        sunsetTime = getMonthAverageSunset(monthInQuery);
+        // If asking about the current month, use today's sunset time instead of average
+        if (monthInQuery === currentMonth) {
+            sunsetTime = todaySunset;
+            isCurrentMonth = true;
+        } else {
+            sunsetTime = getMonthAverageSunset(monthInQuery);
+        }
+        
         monthName = isIcelandic ? 
             icelandicMonths[monthInQuery] : 
             monthInQuery.charAt(0).toUpperCase() + monthInQuery.slice(1);
@@ -668,7 +678,11 @@ const generateSunsetResponse = (message, languageDecision) => {
     if (isIcelandic) {
         // For specific month query
         if (monthInQuery) {
-            return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+            if (isCurrentMonth) {
+                return `Í dag, ${currentDay}. ${monthName}, sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+            } else {
+                return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er 09:00-22:00 á virkum dögum og 09:00-23:00 um helgar.`;
+            }
         }
         
         // For today/general query
@@ -676,7 +690,11 @@ const generateSunsetResponse = (message, languageDecision) => {
     } else {
         // For specific month query
         if (monthInQuery) {
-            return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+            if (isCurrentMonth) {
+                return `Today, ${monthName} ${currentDay}, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+            } else {
+                return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are 09:00-22:00 on weekdays and 09:00-23:00 on weekends.`;
+            }
         }
         
         // For today/general query
