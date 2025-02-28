@@ -5253,7 +5253,7 @@ const config = {
     API_KEY: process.env.API_KEY
 };
 
-// Initialize Express.
+// Initialize Express..
 const app = express();
 app.set('trust proxy', 1);  // Add this line to fix X-Forwarded-For error
 
