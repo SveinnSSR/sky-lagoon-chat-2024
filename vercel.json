@@ -36,6 +36,10 @@
             "dest": "index.js"
         },
         {
+            "src": "/ping",
+            "dest": "index.js"
+        },
+        {
             "src": "/(.*)",
             "dest": "public/$1"
         }
