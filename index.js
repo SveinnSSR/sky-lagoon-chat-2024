@@ -7655,7 +7655,10 @@ app.post('/feedback', verifyApiKey, async (req, res) => {
         messageType
       });
       
-      // Store feedback in your database with message type
+      // Connect to MongoDB
+      const { db } = await connectToDatabase();
+      
+      // Store feedback in MongoDB
       await db.collection('message_feedback').insertOne({
         messageId,
         isPositive,
@@ -7666,6 +7669,37 @@ app.post('/feedback', verifyApiKey, async (req, res) => {
         language,
         createdAt: new Date()
       });
+      
+      console.log('💾 Feedback saved to MongoDB');
+      
+      // Forward feedback to analytics system
+      try {
+        console.log('📤 Forwarding feedback to analytics system');
+        
+        const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messageId: messageId,
+            rating: isPositive, // Field name expected by analytics
+            comment: messageContent,
+            messageType: messageType
+          })
+        });
+        
+        const responseText = await analyticsResponse.text();
+        
+        if (analyticsResponse.ok) {
+          console.log('✅ Feedback successfully forwarded to analytics');
+        } else {
+          console.error('❌ Error from analytics:', responseText);
+        }
+      } catch (forwardError) {
+        console.error('❌ Error forwarding feedback:', forwardError);
+        // We don't fail the request if forwarding fails
+      }
       
       return res.status(200).json({
         success: true,
