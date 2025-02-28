@@ -102,11 +102,22 @@ const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, 
         
         console.log('\n📦 Feedback data:', JSON.stringify(feedbackData));
         
-        // Trigger the event
-        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
-        
-        console.log('\n✅ FEEDBACK BROADCAST COMPLETE');
-        return true;
+        // Use promise handling like in handleConversationUpdate
+        return pusher.trigger('chat-channel', 'feedback_event', feedbackData)
+            .then(() => {
+                console.log('\n✅ FEEDBACK BROADCAST COMPLETE');
+                return true;
+            })
+            .catch(error => {
+                console.error('\n❌ Pusher error in feedback:', error);
+                console.log('Environment check:', {
+                    hasAppId: !!process.env.PUSHER_APP_ID,
+                    hasKey: !!process.env.PUSHER_KEY,
+                    hasSecret: !!process.env.PUSHER_SECRET,
+                    hasCluster: !!process.env.PUSHER_CLUSTER
+                });
+                return false;
+            });
     } catch (error) {
         console.error('\n❌ FEEDBACK BROADCAST ERROR:', error);
         return false;
