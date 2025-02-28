@@ -86,7 +86,12 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 // Add this right after your broadcastConversation function
 const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
     try {
-        console.log('\n🔔 BROADCASTING FEEDBACK - START');
+        console.log('\n📢 broadcastFeedback CALLED with:', {
+            messageId,
+            isPositive,
+            chatId,
+            language
+        });
         
         const messageType = determineMessageType(messageContent, language);
         
@@ -100,26 +105,9 @@ const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, 
             language
         };
         
-        console.log('\n📦 Feedback data:', JSON.stringify(feedbackData));
-        
-        // Use promise handling like in handleConversationUpdate
-        return pusher.trigger('chat-channel', 'feedback_event', feedbackData)
-            .then(() => {
-                console.log('\n✅ FEEDBACK BROADCAST COMPLETE');
-                return true;
-            })
-            .catch(error => {
-                console.error('\n❌ Pusher error in feedback:', error);
-                console.log('Environment check:', {
-                    hasAppId: !!process.env.PUSHER_APP_ID,
-                    hasKey: !!process.env.PUSHER_KEY,
-                    hasSecret: !!process.env.PUSHER_SECRET,
-                    hasCluster: !!process.env.PUSHER_CLUSTER
-                });
-                return false;
-            });
+        return await handleFeedbackUpdate(feedbackData);
     } catch (error) {
-        console.error('\n❌ FEEDBACK BROADCAST ERROR:', error);
+        console.error('❌ Error in broadcastFeedback:', error);
         return false;
     }
 };
@@ -5263,6 +5251,12 @@ const config = {
 const app = express();
 app.set('trust proxy', 1);  // Add this line to fix X-Forwarded-For error
 
+// Add request logging middleware
+app.use((req, res, next) => {
+    console.log(`⚡ REQUEST: ${req.method} ${req.path}`);
+    next();
+  });
+
 // Initialize OpenAI
 const openai = new OpenAI({
     apiKey: config.OPENAI_API_KEY
@@ -7650,21 +7644,21 @@ function determineMessageType(content, language) {
 // This endpoint triggers Pusher events for feedback, which are listened for
 // by the analytics system through the WebSocketContext
 // =====================================================================
-app.post('/feedback-pusher', verifyApiKey, async (req, res) => {
-    try {
-        const feedbackData = req.body;
-        console.log('Feedback pusher event received:', feedbackData);
-
-        // Trigger the Pusher event for the feedback
-        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
-        console.log('Feedback sent to Pusher');
-
-        res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Error processing feedback event:', error);
-        res.status(500).json({ error: 'Failed to process feedback' });
-    }
-});
+// app.post('/feedback-pusher', verifyApiKey, async (req, res) => {
+//    try {
+//        const feedbackData = req.body;
+//        console.log('Feedback pusher event received:', feedbackData);
+//
+//        // Trigger the Pusher event for the feedback
+//        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
+//        console.log('Feedback sent to Pusher');
+//
+//        res.status(200).json({ success: true });
+//    } catch (error) {
+//        console.error('Error processing feedback event:', error);
+//        res.status(500).json({ error: 'Failed to process feedback' });
+//    }
+// });
 
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
@@ -7697,6 +7691,37 @@ function handleConversationUpdate(conversationData, languageInfo) {
     } catch (error) {
         console.error('❌ Error in handleConversationUpdate:', error);
         return Promise.resolve();
+    }
+}
+
+// Add this right near the handleConversationUpdate function
+function handleFeedbackUpdate(feedbackData) {
+    try {
+        console.log('🚀 Broadcasting feedback via Pusher:', {
+            event: 'feedback_event',
+            channel: 'chat-channel',
+            data: feedbackData,
+            timestamp: new Date().toISOString()
+        });
+        
+        return pusher.trigger('chat-channel', 'feedback_event', feedbackData)
+            .then(() => {
+                console.log('✅ Feedback Pusher message sent successfully');
+                return true;
+            })
+            .catch(error => {
+                console.error('❌ Pusher error in feedback:', error);
+                console.log('Environment check:', {
+                    hasAppId: !!process.env.PUSHER_APP_ID,
+                    hasKey: !!process.env.PUSHER_KEY,
+                    hasSecret: !!process.env.PUSHER_SECRET,
+                    hasCluster: !!process.env.PUSHER_CLUSTER
+                });
+                throw error;
+            });
+    } catch (error) {
+        console.error('❌ Error in handleFeedbackUpdate:', error);
+        return Promise.resolve(false);
     }
 }
 
