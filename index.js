@@ -41,6 +41,45 @@ console.log('██████████████████████�
 console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
 console.log('███████████████████████████████████████████');
 
+// MongoDB integration - add this after imports but before Pusher initialization
+import { MongoClient } from 'mongodb';
+
+// MongoDB Connection
+let cachedClient = null;
+let cachedDb = null;
+
+async function connectToDatabase() {
+  try {
+    // If we already have a connection, use it
+    if (cachedClient && cachedDb) {
+      console.log('Using cached database connection');
+      return { client: cachedClient, db: cachedDb };
+    }
+
+    // Check for MongoDB URI
+    if (!process.env.MONGODB_URI) {
+      console.error('MONGODB_URI environment variable not set');
+      throw new Error('Please define the MONGODB_URI environment variable');
+    }
+
+    // Connect to MongoDB
+    console.log('Connecting to MongoDB...');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    
+    // Cache the connection
+    cachedClient = client;
+    cachedDb = db;
+    
+    console.log('MongoDB connected successfully');
+    return { client, db };
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
+
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
     appId: process.env.PUSHER_APP_ID,
@@ -5358,6 +5397,32 @@ app.get('/ping', (req, res) => {
       mongodb_uri_exists: !!process.env.MONGODB_URI,
       timestamp: new Date().toISOString()
     });
+  });
+
+// MongoDB test endpoint
+app.get('/mongo-test', async (req, res) => {
+    try {
+      console.log('MongoDB test endpoint accessed');
+      const { db } = await connectToDatabase();
+      
+      // Check if connection works by listing collections
+      const collections = await db.listCollections().toArray();
+      const collectionNames = collections.map(c => c.name);
+      
+      res.status(200).json({
+        success: true,
+        message: 'MongoDB connected successfully',
+        collections: collectionNames,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('MongoDB test endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to connect to MongoDB',
+        error: error.message
+      });
+    }
   });
 
 // Health check endpoint for chat path

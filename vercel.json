@@ -40,6 +40,10 @@
             "dest": "index.js"
         },
         {
+            "src": "/mongo-test",
+            "dest": "index.js"
+        },
+        {
             "src": "/(.*)",
             "dest": "public/$1"
         }
