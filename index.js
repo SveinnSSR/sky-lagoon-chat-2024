@@ -2,10 +2,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('███████████████████████████████████████████');
-console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
-console.log('███████████████████████████████████████████');
-
 // Core dependencies
 import express from 'express';
 import cors from 'cors';
@@ -34,6 +30,11 @@ import { checkAgentAvailability, createChat, sendMessageToLiveChat } from './ser
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
+
+// Add this startup logging at the top after imports
+console.log('███████████████████████████████████████████');
+console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
+console.log('███████████████████████████████████████████');
 
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
@@ -84,33 +85,33 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 };
 
 // Add this right after your broadcastConversation function
-const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
-    try {
-        console.log('\n📢 broadcastFeedback CALLED with:', {
-            messageId,
-            isPositive,
-            chatId,
-            language
-        });
-        
-        const messageType = determineMessageType(messageContent, language);
-        
-        const feedbackData = {
-            messageId,
-            isPositive,
-            messageContent,
-            messageType,
-            timestamp: new Date().toISOString(),
-            chatId,
-            language
-        };
-        
-        return await handleFeedbackUpdate(feedbackData);
-    } catch (error) {
-        console.error('❌ Error in broadcastFeedback:', error);
-        return false;
-    }
-};
+// const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
+//    try {
+//        console.log('\n📢 broadcastFeedback CALLED with:', {
+//            messageId,
+//            isPositive,
+//            chatId,
+//            language
+//        });
+//        
+//        const messageType = determineMessageType(messageContent, language);
+//        
+//        const feedbackData = {
+//            messageId,
+//            isPositive,
+//            messageContent,
+//            messageType,
+//            timestamp: new Date().toISOString(),
+//            chatId,
+//            language
+//        };
+//        
+//        return await handleFeedbackUpdate(feedbackData);
+//    } catch (error) {
+//        console.error('❌ Error in broadcastFeedback:', error);
+//        return false;
+//    }
+//};
 
 // Cache and state management
 const responseCache = new Map();
@@ -7506,19 +7507,74 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 });
 
 // Feedback endpoint - Add this right after your main chat endpoint
-app.post('/chat/feedback', async (req, res) => {
+//app.post('/chat/feedback', async (req, res) => {
+//    try {
+//      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
+//      
+//      console.log('\n📝 /chat/feedback endpoint CALLED with:', {
+//        messageId,
+//        isPositive,
+//        chatId,
+//        language
+//      });
+//      
+//      // Determine message type
+//      const messageType = determineMessageType(messageContent, language);
+//      
+//      // Store feedback in your database with message type
+//      await db.collection('message_feedback').insertOne({
+//        messageId,
+//        isPositive,
+//        messageContent,
+//        messageType,
+//        timestamp: new Date(timestamp),
+//        chatId,
+//        language,
+//        createdAt: new Date()
+//      });
+//      
+//      console.log('\n💾 Feedback saved to MongoDB, now broadcasting...');
+//      
+//      // Always call broadcastFeedback - this is critical!
+//      const broadcastResult = await broadcastFeedback(
+//        messageId, 
+//        isPositive, 
+//        messageContent, 
+//        chatId, 
+//        language
+//     );
+//      
+//      console.log('\n📣 Broadcast result:', broadcastResult ? 'Success' : 'Failed');
+//      
+//      return res.status(200).json({
+//        success: true,
+//        message: 'Feedback received and broadcast',
+//        messageType: messageType,
+//        broadcastSuccess: broadcastResult
+//      });
+//    } catch (error) {
+//      console.error('\n❌ Error in /chat/feedback endpoint:', error);
+//      
+//      return res.status(500).json({
+//        success: false,
+//        message: 'Failed to process feedback'
+//      });
+//    }
+//});
+
+// Keep your /feedback endpoint for MongoDB storage
+app.post('/feedback', verifyApiKey, async (req, res) => {
     try {
       const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
       
-      console.log('\n📝 /chat/feedback endpoint CALLED with:', {
-        messageId,
-        isPositive,
-        chatId,
-        language
-      });
-      
       // Determine message type
       const messageType = determineMessageType(messageContent, language);
+      
+      console.log('\n📝 Feedback received for storage:', {
+        messageId,
+        isPositive,
+        messageType
+      });
       
       // Store feedback in your database with message type
       await db.collection('message_feedback').insertOne({
@@ -7532,35 +7588,20 @@ app.post('/chat/feedback', async (req, res) => {
         createdAt: new Date()
       });
       
-      console.log('\n💾 Feedback saved to MongoDB, now broadcasting...');
-      
-      // Always call broadcastFeedback - this is critical!
-      const broadcastResult = await broadcastFeedback(
-        messageId, 
-        isPositive, 
-        messageContent, 
-        chatId, 
-        language
-      );
-      
-      console.log('\n📣 Broadcast result:', broadcastResult ? 'Success' : 'Failed');
-      
       return res.status(200).json({
         success: true,
-        message: 'Feedback received and broadcast',
-        messageType: messageType,
-        broadcastSuccess: broadcastResult
+        message: 'Feedback stored successfully',
+        messageType: messageType
       });
     } catch (error) {
-      console.error('\n❌ Error in /chat/feedback endpoint:', error);
-      
+      console.error('\n❌ Error storing feedback:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to process feedback'
+        message: 'Failed to store feedback'
       });
     }
 });
-  
+
 // Add this helper function right after the feedback endpoint
 function determineMessageType(content, language) {
     // Ensure we have content to analyze
@@ -7804,10 +7845,6 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
     return { topic };
 };
 
-console.log('███████████████████████████████████████████');
-console.log('███████ REGISTERING ANALYTICS PROXY ROUTES ███████');
-console.log('███████████████████████████████████████████');
-
 // =====================================================================
 // ANALYTICS SYSTEM CORS PROXY
 // =====================================================================
@@ -7831,18 +7868,35 @@ console.log('██████████████████████�
 // Added: February 2025 to fix feedback system
 // =====================================================================
 // Test GET endpoint for the analytics proxy
+
+// Cleanup old contexts and cache
+setInterval(() => {
+    const oneHourAgo = Date.now() - CACHE_TTL;
+    for (const [key, value] of conversationContext.entries()) {
+        if (value.lastInteraction < oneHourAgo) conversationContext.delete(key);
+    }
+    for (const [key, value] of responseCache.entries()) {
+        if (Date.now() - value.timestamp > CACHE_TTL) responseCache.delete(key);
+    }
+}, CACHE_TTL);
+
+console.log('███████████████████████████████████████████');
+console.log('███████ REGISTERING ANALYTICS PROXY ROUTES ███████');
+console.log('███████████████████████████████████████████');
+
+
+// Special test endpoint with a unique name - use this to test route registration
+app.get('/skylagoon-test-2025', (req, res) => {
+    console.log('Special test route accessed!');
+    res.send('Special test route is working!');
+});
+
+// Consolidated analytics proxy endpoints (remove any duplicates)
 app.get('/analytics-proxy', (req, res) => {
     console.log('GET request received on analytics-proxy');
     res.send('Analytics proxy endpoint is working!');
 });
 
-// Special test endpoint with a unique name
-app.get('/skylagoon-test-2025', (req, res) => {
-    console.log('Special test route accessed!');
-    res.send('Special test route is working!');
-});
-  
-// POST endpoint for the analytics proxy
 app.post('/analytics-proxy', async (req, res) => {
     console.log('POST request received on analytics-proxy:', req.body);
     try {
@@ -7865,17 +7919,6 @@ app.post('/analytics-proxy', async (req, res) => {
       res.status(500).json({ error: 'Proxy error', message: error.message });
     }
 });
-
-// Cleanup old contexts and cache
-setInterval(() => {
-    const oneHourAgo = Date.now() - CACHE_TTL;
-    for (const [key, value] of conversationContext.entries()) {
-        if (value.lastInteraction < oneHourAgo) conversationContext.delete(key);
-    }
-    for (const [key, value] of responseCache.entries()) {
-        if (Date.now() - value.timestamp > CACHE_TTL) responseCache.delete(key);
-    }
-}, CACHE_TTL);
 
 // Start server with enhanced logging
 const PORT = config.PORT;
