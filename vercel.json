@@ -44,6 +44,10 @@
             "dest": "index.js"
         },
         {
+            "src": "/feedback",
+            "dest": "index.js"
+        },
+        {
             "src": "/(.*)",
             "dest": "public/$1"
         }
