@@ -31,6 +31,11 @@ import { checkAgentAvailability, createChat, sendMessageToLiveChat } from './ser
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
 
+// Add near the top after imports
+console.log('🚀 SERVER STARTING - ' + new Date().toISOString());
+console.log('Environment check - NODE_ENV:', process.env.NODE_ENV);
+console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI);
+
 // Add this startup logging at the top after imports
 console.log('███████████████████████████████████████████');
 console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
@@ -5345,6 +5350,15 @@ app.get('/', (req, res) => {
         }
     });
 });
+
+// Test endpoint for server status (add this before your main routes)
+app.get('/ping', (req, res) => {
+    res.status(200).json({
+      message: 'Server is running',
+      mongodb_uri_exists: !!process.env.MONGODB_URI,
+      timestamp: new Date().toISOString()
+    });
+  });
 
 // Health check endpoint for chat path
 app.get('/chat', (req, res) => {
