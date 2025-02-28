@@ -7506,7 +7506,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     }
 });
 
-// Feedback endpoint - Add this right after your main chat endpoint
+// Feedback endpoint - Add this right after your main chat endpoint.
 //app.post('/chat/feedback', async (req, res) => {
 //    try {
 //      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
