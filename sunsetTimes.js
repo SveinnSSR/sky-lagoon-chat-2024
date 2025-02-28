@@ -1,27 +1,32 @@
 // sunsetTimes.js - Comprehensive database of sunset times in Iceland
 // Based on Reykjavik coordinates (64.1466° N, 21.9426° W)
 
+// IMPORTANT: These values need to be manually updated each year as sunset times shift.
+// Last updated: February 2025 - using data from timeanddate.com
+// UPDATE SCHEDULE: At the beginning of each month, update values for upcoming months
+// with precise data for the current year.
+
 // Format: day: [hour, minute]
 // Times are in 24-hour format
 
 export const SUNSET_TIMES = {
     january: {
-        1: [15, 43],
-        5: [15, 49],
-        10: [15, 57],
-        15: [16, 6],
-        20: [16, 17],
-        25: [16, 28],
-        31: [16, 43]
+        1: [15, 48],
+        5: [15, 55],
+        10: [16, 4],    // Not [16, 04]
+        15: [16, 15],
+        20: [16, 27],
+        25: [16, 39],
+        31: [16, 55]
     },
     february: {
-        1: [16, 45],
-        5: [16, 54],
-        10: [17, 6],
-        15: [17, 19],
-        20: [17, 32],
-        25: [17, 45],
-        28: [17, 52]
+        1: [17, 0],     // Not [17, 00]
+        5: [17, 10],
+        10: [17, 23],
+        15: [17, 37],
+        20: [17, 51],
+        25: [18, 5],    // Not [18, 05]
+        28: [18, 43]
     },
     march: {
         1: [17, 55],
