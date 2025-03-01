@@ -1486,38 +1486,16 @@ const acknowledgmentPatterns = {
     },
     continuity: {
         en: [
-            'a few more questions', 'can i ask', 'actually',
-            'have questions', 'want to ask', 'few more',
-            'another question', 'one more thing', 'one more question',
-            'something else', 'also wanted to ask', 'also wondering',
-            'while i have you', 'since i have you', 'before you go',
-            'just one more', 'quick question', 'quick follow up',
-            'follow up question', 'related question', 'similar question',
-            'on that note', 'speaking of that', 'that reminds me',
-            'that made me think', 'that brings up', 'that leads me to',
-            // Remove 'wondering about' and similar general inquiry patterns
-            'could i also ask', 'mind if i ask', 'if i could ask',
-            'one other thing', 'couple more things', 'few other things',
-            'additional question', 'furthermore', 'additionally',
-            'on a related note', 'in addition', 'moreover'
+            'another question', 
+            'one more question',
+            'quick question', 
+            'quick follow up',
+            'follow up question'
         ],
         is: [
-            'fleiri spurningar', 'má ég spyrja', 'reyndar',
-            'er með spurningar', 'vil spyrja', 'aðra spurningu',
-            'spyrja meira', 'ein spurning í viðbót', 'ein spurning enn',
-            'eitthvað annað', 'vildi líka spyrja', 'er líka að pæla',
-            'fyrst ég er kominn', 'áður en þú ferð', 'bara ein í viðbót',
-            'stutt spurning', 'svona tengt þessu', 'tengd spurning',
-            'sambærileg spurning', 'það minnir mig á', 'það fær mig til að hugsa',
-            'það leiðir mig að', 'er að velta fyrir mér', 'forvitinn um',
-            'langar að vita', 'þarf að vita', 'vil vita meira um',
-            'mætti ég líka spyrja', 'ef ég mætti spyrja',
-            'eitt annað', 'nokkur önnur atriði', 'aðeins meira',
-            'aukaleg spurning', 'að auki', 'ennfremur',
-            'í framhaldi af því', 'annað svipað', 'samt sem áður',
-            'þó að lokum', 'ein síðasta spurning', 'þegar ég hugsa um það',
-            'það kom mér í hug', 'mér datt í hug', 'hélt ég myndi spyrja',
-            'úr því að ég er kominn', 'úr því að við erum að ræða þetta'
+            'ein spurning í viðbót',
+            'ein spurning enn',
+            'stutt spurning'
         ]
     },
     general: {
