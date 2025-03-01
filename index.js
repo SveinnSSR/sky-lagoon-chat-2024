@@ -1279,7 +1279,7 @@ const smallTalkPatterns = {
         wellbeing: [
             'how are you',
             'how\'s it going',
-            'how do you do',
+            // 'how do you do' - removed
             'how are things',
             'what\'s up',
             'how you doing',
@@ -2454,6 +2454,9 @@ const getAppropriateSuffix = (message, languageDecision) => {
 const detectLateArrivalScenario = (message, languageDecision, context) => {
     const lowerMessage = message.toLowerCase();
 
+    // No need to redefine the constants since they're already in the global scope
+    // Just reference the global LATE_ARRIVAL_THRESHOLDS, TIME_CONVERSIONS, and LATE_QUALIFIERS directly
+
     // Add time extraction helper at the top
     const extractTimeInMinutes = (timeStr) => {
         const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:([AaPp][Mm])|([Hh]))?/);
@@ -2507,18 +2510,125 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
         
         return null;
     };
-
-    // Early check for "bara" greetings using regex
-    if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
-        console.log('\n👋 Bara greeting detected');
-        return null;
-    }    
     
     // Helper function to check if a word exists as a complete word
     const hasCompleteWord = (text, word) => {
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         return regex.test(text);
     };
+
+    // NEW: Early rejection for unrelated scenarios to prevent false positives
+    
+    // 1. Check for price/purchase queries - these should never trigger late arrival
+    if (
+        lowerMessage.includes('price') || 
+        lowerMessage.includes('cost') || 
+        lowerMessage.includes('isk') || 
+        lowerMessage.includes('package') ||
+        lowerMessage.includes('purchase') ||
+        lowerMessage.includes('buy') ||
+        /\d+,\d+/.test(lowerMessage) || // Price format with commas
+        (lowerMessage.includes('child') && /\d+/.test(lowerMessage)) || // Children pricing
+        (lowerMessage.includes('adult') && /\d+/.test(lowerMessage))   // Adult pricing
+    ) {
+        console.log('\n💰 Price query detected - not a late arrival scenario');
+        return null;
+    }
+    
+    // 2. Check for transportation queries without booking context
+    if (
+        (lowerMessage.includes('bus') || lowerMessage.includes('transfer') || lowerMessage.includes('shuttle')) &&
+        (lowerMessage.includes('arrived') || lowerMessage.includes('waiting') || lowerMessage.includes('stop')) &&
+        !lowerMessage.includes('booking') && 
+        !lowerMessage.includes('reservation')
+    ) {
+        console.log('\n🚌 Transportation status query detected - not a late arrival scenario');
+        return null;
+    }
+
+    // NEW: Check for "booking at X but [want to] arrive at Y" pattern
+    const bookingArrivePattern = lowerMessage.match(/(?:book(?:ed|ing)?|reservation|have\s+(?:a|an)\s+booking).*?(?:at|for)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?).*?(?:but|and).*?(?:(?:want\s+to|will|going\s+to)\s+)?arrive.*?(?:at)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i);
+
+    if (bookingArrivePattern) {
+        const bookingTime = extractTimeInMinutes(bookingArrivePattern[1]) || extractComplexTimeInMinutes(bookingArrivePattern[1]);
+        const arrivalTime = extractTimeInMinutes(bookingArrivePattern[2]) || extractComplexTimeInMinutes(bookingArrivePattern[2]);
+        
+        if (bookingTime !== null && arrivalTime !== null) {
+            console.log('\n⏰ Booking vs Arrival time detected:', {
+                bookingTime,
+                arrivalTime,
+                difference: bookingTime - arrivalTime,
+                pattern: 'booking_arrive'
+            });
+            
+            // Early arrival
+            if (arrivalTime < bookingTime) {
+                return {
+                    type: 'early_arrival',
+                    minutes: bookingTime - arrivalTime,
+                    bookingTimeRaw: bookingArrivePattern[1],
+                    arrivalTimeRaw: bookingArrivePattern[2],
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+            // Late arrival
+            else if (arrivalTime > bookingTime) {
+                const difference = arrivalTime - bookingTime;
+                return {
+                    type: difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                          difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                          'significant_delay',
+                    minutes: difference,
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+        }
+    }
+
+    // NEW: Enhanced check for "arrive at X instead of Y" pattern
+    const arriveInsteadPattern = lowerMessage.match(/(?:can|could|may)\s+(?:i|we|you)?\s*(?:arrive|come|get there|be there)\s+(?:at)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+(?:instead of)\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i);
+
+    if (arriveInsteadPattern) {
+        const arrivalTime = extractTimeInMinutes(arriveInsteadPattern[1]) || extractComplexTimeInMinutes(arriveInsteadPattern[1]);
+        const bookingTime = extractTimeInMinutes(arriveInsteadPattern[2]) || extractComplexTimeInMinutes(arriveInsteadPattern[2]);
+        
+        if (arrivalTime !== null && bookingTime !== null) {
+            console.log('\n⏰ Arrive Instead Pattern detected:', {
+                arrivalTime,
+                bookingTime,
+                difference: bookingTime - arrivalTime,
+                pattern: 'arrive_instead'
+            });
+            
+            // Early arrival - requesting to arrive before booked time
+            if (arrivalTime < bookingTime) {
+                return {
+                    type: 'early_arrival',
+                    minutes: bookingTime - arrivalTime,
+                    bookingTimeRaw: arriveInsteadPattern[2],
+                    arrivalTimeRaw: arriveInsteadPattern[1],
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+            // Late arrival - requesting to arrive after booked time 
+            else if (arrivalTime > bookingTime) {
+                const difference = arrivalTime - bookingTime;
+                return {
+                    type: difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                          difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                          'significant_delay',
+                    minutes: difference,
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+        }
+    }
+
+    // Early check for "bara" greetings using regex
+    if (/^bara\s+(heilsa|að heilsa|prufa)$/i.test(lowerMessage)) {
+        console.log('\n👋 Bara greeting detected');
+        return null;
+    }    
 
     // NEW: Check for confirmation email queries - exclude these from late arrival detection
     const hasConfirmationQuery = 
@@ -2913,8 +3023,64 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
         }
     }
 
+    // NEW: Check specifically for complex time format booking with late arrival
+    // Like "booking at quarter past 6" and arriving at "half past 7"
+    const complexTimeBookingPattern = /(?:book|reservation|booking).*?(?:at|for|is|was)?\s*(?:quarter|half)\s+(?:past|to)\s+(\d{1,2})/i;
+    const complexArrivalPattern = /(?:arrive|coming|get there|be there).*?(?:at|by)?\s*(?:quarter|half)\s+(?:past|to)\s+(\d{1,2})/i;
+    
+    const complexBookingMatch = lowerMessage.match(complexTimeBookingPattern);
+    const complexArrivalMatch = lowerMessage.match(complexArrivalPattern);
+    
+    if (complexBookingMatch && complexArrivalMatch) {
+        const bookingTimeText = complexBookingMatch[0];
+        const arrivalTimeText = complexArrivalMatch[0];
+        
+        const bookingTime = extractComplexTimeInMinutes(bookingTimeText);
+        const arrivalTime = extractComplexTimeInMinutes(arrivalTimeText);
+        
+        if (bookingTime !== null && arrivalTime !== null) {
+            console.log('\n⏰ Complex time format detected:', {
+                bookingTime,
+                arrivalTime,
+                difference: arrivalTime - bookingTime,
+                bookingText: bookingTimeText,
+                arrivalText: arrivalTimeText
+            });
+            
+            // Check if arriving early
+            if (arrivalTime < bookingTime) {
+                return {
+                    type: 'early_arrival',
+                    minutes: bookingTime - arrivalTime,
+                    bookingTimeRaw: bookingTimeText,
+                    arrivalTimeRaw: arrivalTimeText,
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+            
+            // Check if arriving late but within grace period
+            const difference = arrivalTime - bookingTime;
+            if (difference > 0 && difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD) {
+                return {
+                    type: 'within_grace',
+                    minutes: difference,
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+            
+            // Later arrivals
+            if (difference > LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD) {
+                return {
+                    type: difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' : 'significant_delay',
+                    minutes: difference,
+                    isIcelandic: languageDecision?.isIcelandic || false
+                };
+            }
+        }
+    }
+
     // ENHANCED TIME DIFFERENCE: Check for direct time comparisons
-    const timeComparisonPattern = /(?:for|at)\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+but\s+(?:will|won't|can't|cannot|cant|wont)?\s+(?:arrive|be there|get there|make it|be|come)\s+(?:at|until|by|before)?\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i;
+    const timeComparisonPattern = /(?:for|at)\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\s+(?:but|instead of)\s+(?:will|won't|can't|cannot|cant|wont)?\s*(?:arrive|be there|get there|make it|be|come)\s+(?:at|until|by|before)?\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i;
     const comparisonMatch = lowerMessage.match(timeComparisonPattern);
 
     if (comparisonMatch) {
@@ -2930,28 +3096,73 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
                 difference: Math.abs(time2 - time1)
             });
             
-            // Assume time1 is booking and time2 is arrival if they're in sequence
-            if (time2 > time1) {
-                const difference = time2 - time1;
-                return {
-                    type: difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-                          difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-                          'significant_delay',
-                    minutes: difference,
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
+            // Check if we have words that indicate which is booking and which is arrival
+            const isBookingFirst = lowerMessage.includes('instead of');
+            
+            // For "instead of" pattern - first time is arrival, second is booking
+            if (isBookingFirst) {
+                if (time1 < time2) {
+                    // Early arrival - arriving before booking time
+                    return {
+                        type: 'early_arrival',
+                        minutes: time2 - time1,
+                        bookingTimeRaw: comparisonMatch[2],
+                        arrivalTimeRaw: comparisonMatch[1],
+                        isIcelandic: languageDecision?.isIcelandic || false
+                    };
+                } else {
+                    // Late arrival - arriving after booking time
+                    const difference = time1 - time2;
+                    return {
+                        type: difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                              difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                              'significant_delay',
+                        minutes: difference,
+                        isIcelandic: languageDecision?.isIcelandic || false
+                    };
+                }
             }
-            // Otherwise, it might be an early arrival
-            else if (time1 > time2) {
-                return {
-                    type: 'early_arrival',
-                    minutes: time1 - time2,
-                    bookingTimeRaw: comparisonMatch[1],
-                    arrivalTimeRaw: comparisonMatch[2],
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
+            
+            // For other patterns, assume first time is booking, second is arrival
+            else {
+                if (time2 > time1) {
+                    // Late arrival - arriving after booking time
+                    const difference = time2 - time1;
+                    return {
+                        type: difference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                              difference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                              'significant_delay',
+                        minutes: difference,
+                        isIcelandic: languageDecision?.isIcelandic || false
+                    };
+                } else if (time1 > time2) {
+                    // Early arrival - arriving before booking time
+                    return {
+                        type: 'early_arrival',
+                        minutes: time1 - time2,
+                        bookingTimeRaw: comparisonMatch[1],
+                        arrivalTimeRaw: comparisonMatch[2],
+                        isIcelandic: languageDecision?.isIcelandic || false
+                    };
+                }
             }
         }
+    }
+
+    // NEW: Perform a strict booking context check before proceeding with general time detection
+    const hasBookingContext = 
+        lowerMessage.includes('book') || 
+        lowerMessage.includes('booking') || 
+        lowerMessage.includes('reservation') || 
+        lowerMessage.includes('appointment') ||
+        /my\s+time/i.test(lowerMessage) ||
+        context?.lastTopic === 'booking' ||
+        context?.lastTopic === 'late_arrival';
+    
+    // MODIFIED: Only proceed with general time detection if we have booking context
+    if (!hasBookingContext) {
+        console.log('\n🛑 No booking context detected - skipping general time extraction');
+        return null;
     }
 
     // ENHANCED BOOKING CHANGE CHECK: Now check for large time differences = booking change
@@ -2968,19 +3179,52 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
                 difference: difference
             });
             
-            // INCREASED threshold to 120 minutes (2 hours) for booking change
-            if (difference >= 120 && 
-                !(lowerMessage.includes('late') || 
-                  lowerMessage.includes('delay') || 
-                  lowerMessage.includes('behind schedule') || 
-                  lowerMessage.includes('early') || 
-                  (languageDecision?.isIcelandic && (
-                      lowerMessage.includes('sein') || 
-                      lowerMessage.includes('seint') || 
-                      lowerMessage.includes('töf') || 
-                      lowerMessage.includes('fyrr')
-                  ))
-                )) {
+            // NEW: Check if we're dealing with "Can I arrive at X instead of Y?"
+            if (lowerMessage.includes('instead of') && 
+               (lowerMessage.includes('arrive') || lowerMessage.includes('come') || lowerMessage.includes('check'))) {
+                
+                // Check if times are reasonable arrival times (not prices or other numbers)
+                const isReasonableTime = (time) => {
+                    const hours = Math.floor(time / 60);
+                    return hours >= 8 && hours <= 23; // Between 8 AM and 11 PM
+                };
+                
+                if (isReasonableTime(time1) && isReasonableTime(time2)) {
+                    const arrivalTime = time1; // First time is arrival time
+                    const bookingTime = time2; // Second time is booking time
+                    
+                    if (arrivalTime < bookingTime) {
+                        // Early arrival
+                        return {
+                            type: 'early_arrival',
+                            minutes: bookingTime - arrivalTime,
+                            bookingTimeRaw: times[1],
+                            arrivalTimeRaw: times[0],
+                            isIcelandic: languageDecision?.isIcelandic || false
+                        };
+                    } else {
+                        // Late arrival
+                        const lateDifference = arrivalTime - bookingTime;
+                        return {
+                            type: lateDifference <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                                  lateDifference <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                                  'significant_delay',
+                            minutes: lateDifference,
+                            isIcelandic: languageDecision?.isIcelandic || false
+                        };
+                    }
+                }
+            }
+            
+            // NEW: More stringent check for booking changes
+            // Only detect booking change if explicitly mentioned AND time difference is large
+            if (difference >= 120 && (
+                lowerMessage.includes('change booking') || 
+                lowerMessage.includes('reschedule') ||
+                lowerMessage.includes('different day') ||
+                lowerMessage.includes('move appointment') ||
+                lowerMessage.includes('switch time')
+            )) {
                 console.log('\n📅 Complete booking change detected - significant time difference:', difference);
                 return {
                     type: 'booking_change',
@@ -3027,49 +3271,21 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
                     };
                 }
             }
-            
-            // Only then check for booking modifications
-            if (difference > 30 && (
-                lowerMessage.includes('earlier') ||
-                lowerMessage.includes('adjust') ||
-                lowerMessage.includes('change') ||
-                lowerMessage.includes('move') ||
-                lowerMessage.includes('instead') ||
-                (languageDecision?.isIcelandic && (
-                    lowerMessage.includes('fyrr') ||
-                    lowerMessage.includes('breyta') ||
-                    lowerMessage.includes('færa') ||
-                    lowerMessage.includes('í staðinn')
-                ))
-            )) {
-                console.log('\n📅 Booking modification detected - significant time difference');
-                return null;
-            }
         }
     }
 
-    // THIRD: Check for BSÍ/transfer changes
-    if (
-        // BSÍ mentions
-        lowerMessage.includes('bsi') ||
-        lowerMessage.includes('transfer') ||
-        (languageDecision?.isIcelandic && (
-            lowerMessage.includes('rútu') ||
-            lowerMessage.includes('strætó')
-        )) ||
-        // Transfer time changes
-        (lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/) && 
-         (lowerMessage.includes('shuttle') || 
-          lowerMessage.includes('bus') || 
-          lowerMessage.includes('transport') ||
-          (languageDecision?.isIcelandic && (
-              lowerMessage.includes('rútu') ||
-              lowerMessage.includes('strætó') ||
-              lowerMessage.includes('ferð')
-          ))))
-    ) {
-        console.log('\n🚌 Transfer change detected');
-        return null;  // Let regular booking change handling take over
+    // THIRD: Check for BSÍ/transfer changes - more specific to avoid false positives
+    const transferKeywords = ['bsi', 'transfer', 'shuttle', 'bus'];
+    const hasTransferKeywords = transferKeywords.some(keyword => lowerMessage.includes(keyword));
+    const hasTransferContext = 
+        hasTransferKeywords && 
+        (lowerMessage.includes('change') || lowerMessage.includes('modify') || lowerMessage.includes('update')) &&
+        !lowerMessage.includes('delay') && 
+        !lowerMessage.includes('late');
+    
+    if (hasTransferContext) {
+        console.log('\n🚌 Transfer change detected - not a late arrival scenario');
+        return null;
     }
 
     // FOURTH: Check for future date/time changes (not late arrival)
@@ -3101,241 +3317,11 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
             ))
         )
     ) {
-        console.log('\n📅 Future date change request detected');
+        console.log('\n📅 Future date change request detected - not a late arrival scenario');
         return null;
     }
 
-    // FIFTH: Check for alternative time requests (not late arrival)
-    if (
-        // BSÍ transfer changes
-        ((lowerMessage.includes('bsi') || lowerMessage.includes('transfer') ||
-          (languageDecision?.isIcelandic && lowerMessage.includes('rútu'))) &&
-         (lowerMessage.includes('instead') || 
-          lowerMessage.includes('change') || 
-          lowerMessage.includes('earlier') ||
-          lowerMessage.includes('different') ||
-          (languageDecision?.isIcelandic && (
-              lowerMessage.includes('í staðinn') ||
-              lowerMessage.includes('breyta') ||
-              lowerMessage.includes('fyrr') ||
-              lowerMessage.includes('annan')
-          )) ||
-          lowerMessage.match(/(?:from|at)\s+\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+to/))) ||
-        // Time preference queries
-        (lowerMessage.includes('possible') && 
-         lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/)) ||
-        // Availability questions
-        ((lowerMessage.includes('available') || 
-          (languageDecision?.isIcelandic && lowerMessage.includes('laust'))) && 
-         lowerMessage.includes('time')) ||
-        // Clear booking changes
-        lowerMessage.includes('earlier time') || 
-        lowerMessage.includes('move up') ||
-        (languageDecision?.isIcelandic && (
-            lowerMessage.includes('fyrri tíma') ||
-            lowerMessage.includes('færa fram')
-        )) ||
-        // Moving TO a specific time (booking change)
-        lowerMessage.match(/(?:move|change).*to.*\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) ||
-        (languageDecision?.isIcelandic && 
-         lowerMessage.match(/(?:færa|breyta).*til.*\d{1,2}(?:\s*:\s*\d{2})?/)) ||
-        // "Change booking" without late/delay context
-        ((lowerMessage.includes('change') && 
-          lowerMessage.includes('booking') && 
-          !lowerMessage.includes('late') &&
-          !lowerMessage.includes('delay')) ||
-         (languageDecision?.isIcelandic && (
-             lowerMessage.includes('breyta') && 
-             lowerMessage.includes('bókun') && 
-             !lowerMessage.includes('sein') &&
-             !lowerMessage.includes('töf')
-         ))) ||
-        // Has booking reference
-        /SKY-[A-Z0-9]+/.test(message) ||
-        // Moving to earlier in day (booking change)
-        (lowerMessage.match(/\d{1,2}(?:\s*:\s*\d{2})?(?:\s*[AaPp][Mm])?/) && 
-         (lowerMessage.includes('earlier') || 
-          lowerMessage.includes('move') ||
-          lowerMessage.includes('change') ||
-          (languageDecision?.isIcelandic && (
-              lowerMessage.includes('fyrr') ||
-              lowerMessage.includes('færa') ||
-              lowerMessage.includes('breyta')
-          )))) ||
-        // Plans changed mentions
-        ((lowerMessage.includes('plans') && 
-          lowerMessage.includes('changed') &&
-          !lowerMessage.includes('delay')) ||
-         (languageDecision?.isIcelandic && (
-             lowerMessage.includes('plön') && 
-             lowerMessage.includes('breyttust') &&
-             !lowerMessage.includes('töf')
-         ))) ||
-        // Match Icelandic time change format (15:00, 17:00, etc.)
-        (lowerMessage.match(/\d{1,2}[:;]\d{2}/) && 
-         (lowerMessage.includes('færa') || lowerMessage.includes('breyta')))
-    ) {
-        console.log('\n⏰ Alternative time request detected');
-        return null;
-    }
-
-    // IMPROVED TIME DETECTION: Check for explicit time difference mentions with enhanced patterns
-    const bookingTimeMatch = lowerMessage.match(/(?:book(?:ed|ing)?|ticket|tickets|reservation|booking|have\s+(?:a|an))(?:\s+(?:is|for|at|was))?\s*(?:at|for)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
-    let arrivalTimeMatch = lowerMessage.match(/(?:arrive|coming|there|visit|get there|be there|make it|show up|will arrive|will be there|arrive at)\s+(?:at|by|around|near)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
-
-    // Debug log for initial matches
-    console.log('\n🕒 Time Pattern Matches:', {
-        message: lowerMessage,
-        bookingMatch: bookingTimeMatch ? bookingTimeMatch[1] : null,
-        arrivalMatch: arrivalTimeMatch ? arrivalTimeMatch[1] : null
-    });
-
-    // Additional pattern for "running late" scenarios
-    if (!arrivalTimeMatch) {
-        const lateTimeMatch = lowerMessage.match(/(?:if|can|would|will)?\s*(?:we|i)?\s*(?:come|arrive|be there|get there|make it)\s*(?:at|by|around|until|near)?\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/);
-        if (lateTimeMatch) {
-            arrivalTimeMatch = lateTimeMatch;
-            console.log('\n🕒 Late Pattern Match Found:', lateTimeMatch[1]);
-        }
-    }
-
-    // Now handle flight delay with specific time differently (not as uncertain)
-    if (bookingTimeMatch && arrivalTimeMatch) {
-        const bookingTime = extractTimeInMinutes(bookingTimeMatch[1]) || extractComplexTimeInMinutes(bookingTimeMatch[1]);
-        const arrivalTime = extractTimeInMinutes(arrivalTimeMatch[1]) || extractComplexTimeInMinutes(arrivalTimeMatch[1]);
-        
-        // Debug log for extracted times
-        console.log('\n⏲️ Extracted Times:', {
-            booking: {
-                raw: bookingTimeMatch[1],
-                minutes: bookingTime
-            },
-            arrival: {
-                raw: arrivalTimeMatch[1],
-                minutes: arrivalTime
-            }
-        });
-
-        if (bookingTime !== null && arrivalTime !== null) {
-            // Check if trying to arrive earlier than booking
-            if (arrivalTime < bookingTime) {
-                console.log('\n⏰ Early Arrival Request:', {
-                    bookingTime,
-                    arrivalTime,
-                    difference: bookingTime - arrivalTime
-                });
-                
-                // Return early arrival result
-                return {
-                    type: 'early_arrival',
-                    minutes: bookingTime - arrivalTime,
-                    bookingTimeRaw: bookingTimeMatch[1],
-                    arrivalTimeRaw: arrivalTimeMatch[1],
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
-            }
-
-            const difference = arrivalTime - bookingTime;
-            console.log('\n⏰ Time Difference Analysis:', {
-                bookingTime,
-                arrivalTime,
-                difference,
-                category: difference > 60 ? 'significant_delay' :
-                         difference > 30 ? 'moderate_delay' :
-                         difference > 0 ? 'within_grace' : 'invalid'
-            });
-            
-            // Check for flight mentions to handle specific flight delay
-            const hasFlight = lowerMessage.includes('flight') || 
-                           (languageDecision?.isIcelandic && lowerMessage.includes('flug'));
-            
-            // Direct time difference handling without nesting
-            if (difference <= 0) {
-                return null;  // Invalid time difference
-            }
-            
-            // Check for moderate delay with flight mention
-            if (difference > 30 && difference <= 60 && hasFlight) {
-                return {
-                    type: 'moderate_delay',
-                    minutes: difference,
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
-            }
-            
-            if (difference > 60) {
-                return {
-                    type: 'significant_delay',
-                    minutes: difference,
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
-            }
-            
-            if (difference > 30) {  // Will catch 31-60 minutes
-                return {
-                    type: 'moderate_delay',
-                    minutes: difference,
-                    isIcelandic: languageDecision?.isIcelandic || false
-                };
-            }
-            
-            // Will catch 1-30 minutes
-            return {
-                type: 'within_grace',
-                minutes: difference,
-                isIcelandic: languageDecision?.isIcelandic || false
-            };
-        }
-    }
-
-    // ENHANCED ICELANDIC TIME DETECTION
-    if (languageDecision?.isIcelandic) {
-        // Check for specific minute mentions in Icelandic
-        const minuteMatch = lowerMessage.match(/(\d+)\s*mínútum?\s+sein/i);
-        if (minuteMatch) {
-            const minutes = parseInt(minuteMatch[1]);
-            console.log('\n⏰ Icelandic minutes delay detected:', minutes);
-            
-            return {
-                type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
-                      minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
-                      'significant_delay',
-                minutes: minutes,
-                isIcelandic: true
-            };
-        }
-        
-        // Check for specific hour mentions in Icelandic
-        const hourMatch = lowerMessage.match(/(einum|tveimur|þremur|fjórum|\d+)\s*(?:klst|klukkustund|tímum?|klst)\s+sein/i);
-        if (hourMatch) {
-            let hours;
-            if (hourMatch[1] === 'einum') hours = 1;
-            else if (hourMatch[1] === 'tveimur') hours = 2;
-            else if (hourMatch[1] === 'þremur') hours = 3;
-            else if (hourMatch[1] === 'fjórum') hours = 4;
-            else hours = parseInt(hourMatch[1]);
-            
-            const minutes = hours * 60;
-            console.log('\n⏰ Icelandic hours delay detected:', hours, 'hours =', minutes, 'minutes');
-            
-            // For 2+ hours delays, treat as booking_change
-            if (hours >= 2) {
-                return {
-                    type: 'booking_change',
-                    minutes: minutes,
-                    isIcelandic: true
-                };
-            }
-            
-            return {
-                type: 'significant_delay',
-                minutes: minutes,
-                isIcelandic: true
-            };
-        }
-    }    
-
-    // Only now check for actual late arrival time patterns
+    // Now check for actual late arrival time patterns
     const timePatterns = [
         // Complex hour and minute combinations first
         /(?:about|around|maybe|perhaps)?\s*(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
@@ -3453,6 +3439,14 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
             minutes: minutes,
             isIcelandic: languageDecision?.isIcelandic || false
         };
+    }
+
+    // If we're asking about arrival period - don't trigger late arrival
+    if (lowerMessage.includes('arrival period') || 
+        lowerMessage.includes('check-in window') || 
+        lowerMessage.includes('when should i arrive')) {
+        console.log('\n🕒 Arrival period information request - not a late arrival scenario');
+        return null;
     }
 
     // Check for qualitative time indicators
@@ -4069,7 +4063,23 @@ CRITICAL RESPONSE RULES:
     - End with booking suggestion if appropriate
     
 20. For Late Arrivals and Booking Changes:
+    - CRITICAL ARRIVAL TIME POLICY:
+      - The 30-minute grace period ONLY applies to arrivals AFTER the booking time, not before.
+      - Guests CANNOT arrive earlier than their booking time.
+      - Guests CAN arrive up to 30 minutes AFTER their booking time.
+      - For guests arriving more than 30 minutes late, recommend rebooking.
+      
+    - HOW TO RESPOND TO ARRIVAL TIME QUESTIONS:
+      - If they ask to arrive BEFORE their booking time:
+        RESPOND WITH: "You'd like to arrive earlier than your booking time. Unfortunately, we can only accommodate guests at their booked time or up to 30 minutes after their booked time. You can check if there's availability earlier by contacting us."
+      - If they ask to arrive 1-30 minutes AFTER their booking time:
+        RESPOND WITH: "You're within our 30-minute grace period, so you can still visit as planned. You might experience a brief wait during busy periods, but our team will accommodate you."
+      - If they ask to arrive more than 30 minutes late:
+        RESPOND WITH: "Since you'll be more than 30 minutes late, we'd like to help you change your booking to a better time. Please contact our customer service."
+    
     - IF context.lateArrivalScenario exists:
+      - FOR 'early_arrival' type:
+        RESPOND WITH: "You'd like to arrive earlier than your booking time. Unfortunately, we can only accommodate guests at their booked time or up to 30 minutes after their booked time. You can check if there's availability earlier by contacting us at +354 527 6800 or by email at reservations@skylagoon.is."
       - FOR 'flight_delay' type:
         RESPOND WITH: "I understand you're experiencing flight delays. Since your arrival time is uncertain, we'll help find a solution. Please call us at +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is - we regularly assist guests with flight delays and will help arrange the best option for you."
       - FOR 'within_grace' type:
@@ -5259,7 +5269,7 @@ const handleCasualChat = (message, languageDecision) => {
             }
             // English "how are you" variations
             if (msg.includes('how are you') || 
-                msg.includes('how do you do') || 
+                // msg.includes('how do you do') - removed
                 msg.includes('how\'s it going')) {
                 return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
             }
@@ -5498,17 +5508,62 @@ const updateContext = (sessionId, message, response, languageDecision) => {
         }
     }
 
+    // NEW: Improved topic detection - check if message is about arrival time/period but not late arrival
+    const isAboutArrivalPeriod = 
+        message.toLowerCase().includes('arrival period') || 
+        message.toLowerCase().includes('check-in window') || 
+        message.toLowerCase().includes('when should i arrive') ||
+        message.toLowerCase().includes('how early can i arrive') ||
+        message.toLowerCase().includes('when can i arrive');
+    
+    // NEW: Better detection for price/purchase topics
+    const isAboutPricing = 
+        message.toLowerCase().includes('price') || 
+        message.toLowerCase().includes('cost') || 
+        message.toLowerCase().includes('isk') || 
+        message.toLowerCase().includes('package') ||
+        message.toLowerCase().includes('purchase') ||
+        message.toLowerCase().includes('buy') ||
+        /\d+,\d+/.test(message.toLowerCase()) || // Price format with commas
+        (message.toLowerCase().includes('child') && /\d+/.test(message.toLowerCase())) || // Children pricing
+        (message.toLowerCase().includes('adult') && /\d+/.test(message.toLowerCase()));   // Adult pricing
+    
+    // NEW: Better detection for transportation status
+    const isAboutTransportation = 
+        (message.toLowerCase().includes('bus') || 
+         message.toLowerCase().includes('transfer') || 
+         message.toLowerCase().includes('shuttle')) &&
+        (message.toLowerCase().includes('arrived') || 
+         message.toLowerCase().includes('waiting') || 
+         message.toLowerCase().includes('stop')) &&
+        !message.toLowerCase().includes('booking') && 
+        !message.toLowerCase().includes('reservation');
+
     // Reset specific contexts when appropriate
     if (message.toLowerCase().includes('reschedule') || 
         message.toLowerCase().includes('change') || 
-        message.toLowerCase().includes('modify')) {
+        message.toLowerCase().includes('modify') ||
+        isAboutArrivalPeriod ||
+        isAboutPricing ||
+        isAboutTransportation) {
         // Reset late arrival context when explicitly asking about booking changes
+        // or when asking about unrelated topics
         context.lateArrivalContext = {
             ...context.lateArrivalContext,
             isLate: false,
             type: null,
             minutes: null
         };
+        
+        // Set topic based on content
+        if (isAboutArrivalPeriod) {
+            context.lastTopic = 'arrival_info';
+        } else if (isAboutPricing) {
+            context.lastTopic = 'pricing';
+        } else if (isAboutTransportation) {
+            context.lastTopic = 'transportation';
+        }
+        
         // Reset sold out status unless explicitly mentioned in current message
         if (!message.toLowerCase().includes('sold out')) {
             context.soldOutStatus = false;
@@ -5540,7 +5595,7 @@ const updateContext = (sessionId, message, response, languageDecision) => {
     if (arrivalCheck) {
         context.lateArrivalContext = {
             ...context.lateArrivalContext,
-            isLate: true,
+            isLate: arrivalCheck.type !== 'early_arrival', // Don't mark early arrivals as "late"
             type: arrivalCheck.type,
             minutes: arrivalCheck.minutes,
             lastUpdate: Date.now()
@@ -5611,7 +5666,6 @@ const updateContext = (sessionId, message, response, languageDecision) => {
     // Increment message count
     context.messageCount++;
 
-    // Track topics discussed in specific languages
     // Track topics discussed in specific languages
     if (message) {
         const currentTopic = detectTopic(message, 
@@ -6139,7 +6193,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Always respect the language detection from arrivalCheck
             const useIcelandic = arrivalCheck.isIcelandic;
 
-            // NEW: Handle early arrivals differently with proper template
+            // Early arrivals - make it clear they can't arrive *earlier* than their booking time
             if (arrivalCheck.type === 'early_arrival') {
                 // Format times for better display
                 const bookingTime = arrivalCheck.bookingTimeRaw || "your booked time";
@@ -6157,27 +6211,31 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     .replace('{arrivalTime}', arrivalTime)
                     .replace('{minutes}', minutesEarly);
             }
-            // NEW: Handle complete booking change
+            // Booking change - complete change of booking, not just arriving late
             else if (arrivalCheck.type === 'booking_change') {
                 response = useIcelandic ? 
                     "Það lítur út fyrir að þú viljir breyta bókun þinni í annan tíma. Vinsamlegast hafðu samband við okkur í síma +354 527 6800 (9-18) eða sendu tölvupóst á reservations@skylagoon.is og við munum aðstoða þig við að finna nýjan tíma sem hentar." :
                     "It looks like you want to change your booking to a completely different time. Please contact us at +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is and we'll help you find a suitable new time.";
             }
+            // Unspecified delay - customer hasn't mentioned how late they'll be
             else if (arrivalCheck.type === 'unspecified_delay') {
                 response = useIcelandic ? 
                     "Gætirðu látið okkur vita hversu seint þú áætlar að verða? Það hjálpar okkur að aðstoða þig betur. Fyrir allt að 30 mínútna seinkun geturðu farið beint að móttöku. Fyrir lengri tafir aðstoðum við þig við að finna betri tíma." :
                     getRandomResponse(BOOKING_RESPONSES.unspecified_delay);
             } 
+            // Within grace period - up to 30 minutes late is fine
             else if (arrivalCheck.type === 'within_grace') {
                 response = useIcelandic ? 
                     "Ekki hafa áhyggjur - við höfum 30 mínútna svigrúm fyrir allar bókanir. Þú getur farið beint í móttöku þegar þú mætir. Þú gætir upplifað stutta bið á annatímum, en móttökuteymið okkar mun taka á móti þér." :
                     getRandomResponse(BOOKING_RESPONSES.within_grace);
             }
+            // Flight delay - uncertain arrival time due to flight issues
             else if (arrivalCheck.type === 'flight_delay') {
                 response = useIcelandic ? 
                     "Ég skil að þú ert að upplifa seinkanir á flugi. Þar sem komutími þinn er óviss, munum við hjálpa þér að finna lausn. Vinsamlegast hringdu í okkur í síma +354 527 6800 (9-18) eða sendu tölvupóst á reservations@skylagoon.is - við aðstoðum reglulega gesti með flugatafir og munum hjálpa þér að finna bestu lausnina fyrir þig." :
                     getRandomResponse(BOOKING_RESPONSES.flight_delay);
             }
+            // Moderate delay - 31-60 minutes late
             else if (arrivalCheck.type === 'moderate_delay') {
                 response = useIcelandic ? 
                     "Þar sem þú verður meira en 30 mínútum seinn/sein, myndum við gjarnan vilja hjálpa þér að breyta bókuninni þinni í tíma sem hentar betur. Þú getur hringt í okkur í síma +354 527 6800 (9-18) eða sent tölvupóst á: reservations@skylagoon.is." :
@@ -6185,6 +6243,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         BOOKING_RESPONSES.moderate_delay.sold_out : 
                         BOOKING_RESPONSES.moderate_delay.normal);
             } 
+            // Significant delay - more than 60 minutes late
             else if (arrivalCheck.type === 'significant_delay') {
                 response = useIcelandic ? 
                     "Fyrir svona langa seinkun mælum við með að þú bókir aftur á tíma sem hentar þér betur. Teymið okkar er tilbúið að hjálpa þér í síma +354 527 6800 (9-18) eða í gegnum tölvupóst á: reservations@skylagoon.is." :
