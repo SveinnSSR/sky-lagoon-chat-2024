@@ -3,15 +3,46 @@ export const detectLanguage = (message, context = null) => {
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
     
-    // Exclude Sky Lagoon package names from language detection
-    const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja)\b/gi;
+    // Exclude Sky Lagoon package names from language detection - MOVED TO TOP
+    const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
     const messageForDetection = cleanMessage
         .replace(/sky\s*lagoon/gi, '')
         .replace(packageExclusionRegex, '')
         .trim();
     
-    // Early check for Icelandic special characters - give higher priority
-    if (/[þæðöáíúéó]/i.test(cleanMessage)) {
+    // Check if the message has clear English sentence structure - MOVED EARLIER
+    const hasEnglishSentenceStructure = (
+        /^(tell|what|how|where|when|why|is|are|do|does|can|could|would|will|please|i want|i need|i would like|may i|could you|would you)/i.test(cleanMessage) ||
+        /\bi\s+(?:am|was|have|had|would|will|want|need|chose|choose)\b/i.test(cleanMessage) ||
+        /\bif\s+i\b/i.test(cleanMessage) ||
+        /\bhow\s+(?:long|much|many|do|does|can|could)\b/i.test(cleanMessage)
+    );
+    
+    if (hasEnglishSentenceStructure) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'english_sentence_structure',
+            patterns: ['sentence_structure']
+        };
+    }
+    
+    // Check for strong English word count in the messageForDetection (with package names excluded)
+    const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected|about|between|differences)\b/gi) || []).length;
+    const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
+    
+    // Stronger check for English word density
+    if (englishWordCount >= 3 || (messageWords > 0 && englishWordCount / messageWords > 0.4)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'english_word_density',
+            metrics: { englishWordCount, messageWords, ratio: englishWordCount / messageWords }
+        };
+    }
+    
+    // Only check for Icelandic special characters AFTER excluding packages and checking English structure
+    if (/[þæðöáíúéó]/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -23,7 +54,7 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // Early check for Icelandic questions at the start
-    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i.test(cleanMessage)) {
+    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -35,7 +66,7 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // Early check for Icelandic discount terms - specifically check for common discount terms
-    if (/\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i.test(cleanMessage)) {
+    if (/\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -48,7 +79,7 @@ export const detectLanguage = (message, context = null) => {
     
     // Enhanced English patterns
     const englishPatterns = {
-        common_words: /\b(temperature|time|price|cost|open|close|hours|towel|food|drink|ritual|pass|package|admission|facilities|parking|booking|reservation|location|directions|transport|shuttle|bus|pure|water|pool|shower|changing|room|ticket|gift|card|stay|long|can|how)\b/i,
+        common_words: /\b(temperature|time|price|cost|open|close|hours|towel|food|drink|ritual|pass|package|admission|facilities|parking|booking|reservation|location|directions|transport|shuttle|bus|pure|water|pool|shower|changing|room|ticket|gift|card|stay|long|can|how|about|what|difference|differences|between)\b/i,
         greetings: /^(hi|hey|hello|good\s*(morning|afternoon|evening))/i,
         questions: /^(please|can|could|would|tell|what|when|where|why|how|is|are|do|does|if|did)/i,
         gratitude: /(thanks|thank you)/i,
@@ -68,39 +99,8 @@ export const detectLanguage = (message, context = null) => {
         discount_terms: /\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i
     };
 
-    // Check if the message has clear English sentence structure
-    const hasEnglishSentenceStructure = (
-        englishPatterns.questions.test(cleanMessage) || 
-        /\bi\s+(?:am|was|have|had|would|will|want|need|chose|choose)\b/i.test(cleanMessage) ||
-        /\bif\s+i\b/i.test(cleanMessage) ||
-        /\bhow\s+(?:long|much|many|do|does|can|could)\b/i.test(cleanMessage)
-    );
-    
-    if (hasEnglishSentenceStructure) {
-        return {
-            isIcelandic: false,
-            confidence: 'high',
-            reason: 'english_sentence_structure',
-            patterns: ['sentence_structure']
-        };
-    }
-
-    // Check for strong English word count in the messageForDetection (with package names excluded)
-    const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected)\b/gi) || []).length;
-    const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
-    
-    // Make this check more stringent - require more English words
-    if (englishWordCount >= 4 || (messageWords > 0 && englishWordCount / messageWords > 0.5)) {
-        return {
-            isIcelandic: false,
-            confidence: 'high',
-            reason: 'english_word_density',
-            metrics: { englishWordCount, messageWords, ratio: englishWordCount / messageWords }
-        };
-    }
-
     // Check for "multi pass" variations specifically
-    if (/multi\s*-?\s*pass/i.test(cleanMessage)) {
+    if (/multi\s*-?\s*pass/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -111,6 +111,19 @@ export const detectLanguage = (message, context = null) => {
                 hasGreeting: false,
                 hasQuestion: false
             }
+        };
+    }
+
+    // Check for definite English in cleaned message
+    const hasEnglishMarkers = Object.values(englishPatterns).some(pattern => 
+        pattern.test(messageForDetection));
+    if (hasEnglishMarkers) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'english_pattern_match',
+            patterns: Object.keys(englishPatterns).filter(key => 
+                englishPatterns[key].test(messageForDetection))
         };
     }
 
@@ -157,21 +170,18 @@ export const detectLanguage = (message, context = null) => {
         };
     }
 
-    // Check for definite English in cleaned message
-    const hasEnglishMarkers = Object.values(englishPatterns).some(pattern => 
-        pattern.test(messageForDetection));
-    if (hasEnglishMarkers) {
+    // Special check for follow-up questions about packages
+    if (/^what about\b/i.test(cleanMessage) && packageExclusionRegex.test(cleanMessage)) {
         return {
             isIcelandic: false,
             confidence: 'high',
-            reason: 'english_pattern_match',
-            patterns: Object.keys(englishPatterns).filter(key => 
-                englishPatterns[key].test(messageForDetection))
+            reason: 'english_package_question',
+            patterns: ['package_question']
         };
     }
 
     // Check for definite Icelandic
-    const hasIcelandicChar = icelandicPatterns.chars.test(cleanMessage);
+    const hasIcelandicChar = icelandicPatterns.chars.test(messageForDetection);
     const hasIcelandicWord = icelandicPatterns.words.test(messageForDetection);
     const hasIcelandicGreeting = icelandicPatterns.greetings.test(messageForDetection);
     const hasIcelandicQuestion = icelandicPatterns.questions.test(messageForDetection);
