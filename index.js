@@ -1648,9 +1648,18 @@ const getContextualResponse = (type, previousResponses = [], languageDecision) =
 
 // Add this with your other constants/helper functions, before the chat endpoint
 const checkSimpleResponse = (message, languageDecision) => {
+    // Add enhanced logging at beginning
+    console.log('\n🔍 Simple Response Check:', {
+        message: message,
+        language: languageDecision ? {
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence
+        } : 'no language detection'
+    });
+    
     const strictIcelandicResponses = [
         // Basic responses
-        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg',  // Added æðisleg
+        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg', 
         // Thank you variations
         'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
         'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
@@ -1661,15 +1670,55 @@ const checkSimpleResponse = (message, languageDecision) => {
         // Additional variations
         'flott er', 'flott takk'
     ];
+    
     const strictEnglishResponses = [
         'perfect', 'great', 'thanks', 'thank you', 'alright',
-        "that's it", "that's all", "that's all thanks", "that's it thanks"  // Added these
+        "that's it", "that's all", "that's all thanks", "that's it thanks",
+        // Add these key problematic responses
+        'amazing', 'good', 'yes', 'yeah', 'no', 'nope'
     ];
     
     const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
+    // NEW: Direct pattern matching for simple responses
+    const simpleEnglishPatterns = [
+        /^(thanks|thank you)$/i,
+        /^(ok|okay)$/i,
+        /^(yes|yeah|yep|yup)$/i,
+        /^(no|nope|nah)$/i,
+        /^(good|great|fine|nice|cool|perfect|amazing|awesome|wonderful|excellent)$/i,
+        /^(got it)$/i
+    ];
+    
+    const simpleIcelandicPatterns = [
+        /^(takk|takk fyrir)$/i,
+        /^(já|jebb|jú)$/i,
+        /^(nei)$/i,
+        /^(frábært|gott|flott|snilld|geggjað)$/i
+    ];
+    
+    // First check for exact matches with our critical patterns
+    for (let pattern of simpleEnglishPatterns) {
+        if (pattern.test(msg)) {
+            console.log('\n✅ Direct English pattern match:', msg);
+            return 'en';
+        }
+    }
+    
+    for (let pattern of simpleIcelandicPatterns) {
+        if (pattern.test(msg)) {
+            console.log('\n✅ Direct Icelandic pattern match:', msg);
+            return 'is';
+        }
+    }
+    
+    // NEW: Check common multi-word responses that were failing
+    if (/^ok good$/i.test(msg) || /^ok great$/i.test(msg)) {
+        return 'en';
+    }
+    
     // Use languageDecision for initial check
-    if (languageDecision.isIcelandic && languageDecision.confidence === 'high') {
+    if (languageDecision && languageDecision.isIcelandic && languageDecision.confidence === 'high') {
         return 'is';
     }
 
@@ -1707,7 +1756,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     // Handle standalone 'ok' based on context - MOVED TO END
     if (msg === 'ok' || msg === 'okay') {
         // First check language detection
-        if (languageDecision.isIcelandic) {
+        if (languageDecision && languageDecision.isIcelandic) {
             return 'is';
         }
         // Fall back to context checks
@@ -1732,7 +1781,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     }
     
     // If no specific matches, use languageDecision
-    return languageDecision.isIcelandic ? 'is' : 'en';
+    return languageDecision && languageDecision.isIcelandic ? 'is' : 'en';
 };
 
 // Late Arrival and Booking Constants
@@ -6671,6 +6720,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Check all acknowledgment patterns
                 if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
                     acknowledgmentPatterns.finished.is.some(pattern => msg.includes(pattern))) {
+                    // Use checkSimpleResponse for more accurate language detection
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    const useEnglish = simpleResponseType === 'en' || 
+                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                    
+                    // Log language decision
+                    console.log('\n🗣️ Finished Acknowledgment Language Decision:', {
+                        message: userMessage,
+                        simpleResponseType,
+                        useEnglish,
+                        languageDecision: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                    
                     const response = useEnglish ?
                         "Thanks for chatting! I'm here if you need any more information later." :
                         "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
@@ -6683,6 +6748,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
                     acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
+                    // Use checkSimpleResponse for more accurate language detection
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    const useEnglish = simpleResponseType === 'en' || 
+                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                    
+                    // Log language decision
+                    console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
+                        message: userMessage,
+                        simpleResponseType,
+                        useEnglish,
+                        languageDecision: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                    
                     const response = useEnglish ? "Of course! Please go ahead and ask your questions." :
                         "Endilega spurðu!";
                         
@@ -6694,35 +6775,77 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 if (acknowledgmentPatterns.positive.en.some(pattern => msg.includes(pattern)) ||
                     acknowledgmentPatterns.positive.is.some(pattern => msg.includes(pattern))) {
+                    // Use checkSimpleResponse for more accurate language detection
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    let useEnglish = simpleResponseType === 'en' || 
+                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                    
+                    // Enhanced positive detection for specific words
+                    if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
+                        useEnglish = true;
+                    }
+                    
+                    // Log language decision
+                    console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
+                        message: userMessage,
+                        simpleResponseType,
+                        useEnglish,
+                        languageDecision: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                    
                     const response = useEnglish ?
                         "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
                         "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
                         
-                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
                         'positive', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: languageDecision.confidence }});
                 }
                 
                 if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
                     acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
+                    // Use checkSimpleResponse for more accurate language detection
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    let useEnglish = simpleResponseType === 'en' || 
+                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                    
+                    // Log language decision
+                    console.log('\n🗣️ General Acknowledgment Language Decision:', {
+                        message: userMessage,
+                        simpleResponseType,
+                        useEnglish,
+                        languageDecision: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                    
                     const response = useEnglish ?
                         "Thank you! What else would you like to know about Sky Lagoon?" :
                         "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
                         
-                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
                         'general', 'direct_response');
                     return res.status(200).json({ message: response, 
-                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
+                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: languageDecision.confidence }});
                 }
                 
                 // Finally check simple acknowledgments with word limit
                 if (userMessage.split(' ').length <= 4) {
                     // First check with checkSimpleResponse
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    const useEnglish = simpleResponseType === 'en' ||  
+                    let useEnglish = simpleResponseType === 'en' ||  
                                     (!simpleResponseType && !languageDecision.isIcelandic && 
                                     /^(?:ok|okay|alright|sure|got it|right|perfect|great|thanks)\b/i.test(userMessage));
+                    
+                    // Add special case for common English phrases
+                    if (msg === 'ok good' || msg === 'amazing' || msg === 'excellent' || msg === 'perfect') {
+                        useEnglish = true;
+                    }
 
                     // Enhanced logging for acknowledgment detection
                     console.log('\n🔍 Checking Simple Acknowledgment:', {
@@ -6733,7 +6856,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             reason: languageDecision.reason
                         },
                         wordCount: userMessage.split(' ').length,
-                        cleanedMessage: msg
+                        cleanedMessage: msg,
+                        useEnglish: useEnglish  // Log the useEnglish value
                     });
 
                     const isAcknowledgment = useEnglish ?
@@ -6751,10 +6875,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             "Is there anything else you'd like to know about Sky Lagoon?" :
                             "Láttu mig vita ef þú hefur fleiri spurningar!";
 
-                        await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
+                        await broadcastConversation(userMessage, response, 
+                            useEnglish ? 'en' : 'is', // Changed to use useEnglish directly
                             'acknowledgment', 'direct_response');
                         return res.status(200).json({ message: response, 
-                            language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
+                            language: { 
+                                detected: useEnglish ? 'English' : 'Icelandic', // Use useEnglish for response language
+                                confidence: languageDecision.confidence 
+                            }});
                     }
                 }
             }
@@ -6860,14 +6988,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for conversation continuity first
         if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
             acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
-            const response = languageDecision.isIcelandic ?
-                "Endilega spurðu!" :
-                "Of course! Please go ahead and ask your questions.";
+            // Use checkSimpleResponse for more accurate language detection
+            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+            let useEnglish = simpleResponseType === 'en' || 
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            
+            // Log language decision
+            console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
+                message: userMessage,
+                simpleResponseType,
+                useEnglish,
+                languageDecision: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            const response = useEnglish ?
+                "Of course! Please go ahead and ask your questions." :
+                "Endilega spurðu!";
 
             await broadcastConversation(
                 userMessage,
                 response,
-                languageDecision.isIcelandic ? 'is' : 'en',
+                useEnglish ? 'en' : 'is',
                 'continuity',
                 'direct_response'
             );
@@ -6875,7 +7019,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
                 }
             });
@@ -6884,14 +7028,35 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for positive feedback
         if (acknowledgmentPatterns.positive.en.some(word => msg.includes(word)) ||
             acknowledgmentPatterns.positive.is.some(word => msg.includes(word))) {
-            const response = languageDecision.isIcelandic ?
-                "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja." :
-                "I'm glad I could help! What else would you like to know about Sky Lagoon?";
+            // Use checkSimpleResponse for more accurate language detection
+            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+            let useEnglish = simpleResponseType === 'en' || 
+                          (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            
+            // Enhanced positive detection for specific words
+            if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
+                useEnglish = true;
+            }
+            
+            // Log language decision
+            console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
+                message: userMessage,
+                simpleResponseType,
+                useEnglish,
+                languageDecision: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            const response = useEnglish ?
+                "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
+                "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
     
             await broadcastConversation(
                 userMessage,
                 response,
-                languageDecision.isIcelandic ? 'is' : 'en',
+                useEnglish ? 'en' : 'is',
                 'acknowledgment',
                 'direct_response'
             );
@@ -6899,7 +7064,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
                 }
             });
@@ -6908,14 +7073,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for general chat praise
         if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
             acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
-            const response = languageDecision.isIcelandic ?
-                "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?" :
-                "Thank you for the kind words! What else would you like to know about Sky Lagoon?";
+            // Use checkSimpleResponse for more accurate language detection
+            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+            let useEnglish = simpleResponseType === 'en' || 
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            
+            // Log language decision
+            console.log('\n🗣️ General Acknowledgment Language Decision:', {
+                message: userMessage,
+                simpleResponseType,
+                useEnglish,
+                languageDecision: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            const response = useEnglish ?
+                "Thank you for the kind words! What else would you like to know about Sky Lagoon?" :
+                "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
 
             await broadcastConversation(
                 userMessage,
                 response,
-                languageDecision.isIcelandic ? 'is' : 'en',
+                useEnglish ? 'en' : 'is',
                 'acknowledgment',
                 'direct_response'
             );
@@ -6923,7 +7104,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
                 }
             });
@@ -6934,18 +7115,34 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern)) ||
             acknowledgmentPatterns.finished.is.some(pattern => 
             msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern))) {
-            const response = languageDecision.isIcelandic ?
-                msg.includes('heil') || msg.includes('bara að heilsa') ?
-                    "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
-                    "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna." :
+            // Use checkSimpleResponse for more accurate language detection
+            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+            const useEnglish = simpleResponseType === 'en' || 
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            
+            // Log language decision
+            console.log('\n🗣️ Finished Acknowledgment Language Decision:', {
+                message: userMessage,
+                simpleResponseType,
+                useEnglish,
+                languageDecision: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            const response = useEnglish ?
                 msg.includes('just say') || msg.includes('greeting') ?
                     "Hi there! Feel free to ask if you have any questions about Sky Lagoon. I'm here to help! 😊" :
-                    "Thanks for chatting! I'm here if you need any more information later.";
+                    "Thanks for chatting! I'm here if you need any more information later." :
+                msg.includes('heil') || msg.includes('bara að heilsa') ?
+                    "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
+                    "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
 
             await broadcastConversation(
                 userMessage,
                 response,
-                languageDecision.isIcelandic ? 'is' : 'en',
+                useEnglish ? 'en' : 'is',
                 'finished',
                 'direct_response'
             );
@@ -6953,11 +7150,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
                 }
             });
-        } 
+        }
 
         // Yes/Confirmation handling
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
@@ -7044,9 +7241,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // If no knowledge base matches found, check if it's a hours query first
         if (knowledgeBaseResults.length === 0) {
+            // Check for simple responses before handling unknown queries
+            const isSimpleResponse = checkSimpleResponse(userMessage, languageDecision) !== null || 
+                                     userMessage.length < 10 || 
+                                     /^(thanks|thank you|amazing|great|good|ok|okay|yes|yeah|no|nope|takk|frábært|flott|já|nei)$/i.test(
+                                         userMessage.toLowerCase().trim().replace(/[!.?]/g, '')
+                                     );
+            
+            // Log the check result
+            console.log('\n🔍 Simple Response Check before Unknown Query:', {
+                message: userMessage,
+                isSimpleResponse: isSimpleResponse,
+                shouldSkipUnknownHandler: isSimpleResponse || isKnownBusinessTopic
+            });
+            
             // PASTE THE UNKNOWN QUERY BLOCK HERE FIRST
             // If message has no relation to our business and no knowledge base matches
-            if (!isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
+            // And it's not a simple response
+            if (!isSimpleResponse && !isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
                 const unknownResponse = languageDecision.isIcelandic ? 
                     UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
                         Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
