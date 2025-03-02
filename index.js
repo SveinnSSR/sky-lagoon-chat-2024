@@ -960,6 +960,13 @@ const SMALL_TALK_RESPONSES = {
             "I'm Sólrún, your AI guide to Sky Lagoon. What aspects of our experience would you like to learn about?",
             "I'm Sólrún, an AI assistant here to help you learn about Sky Lagoon. What interests you most?",
             "I'm Sólrún, your AI assistant for all things Sky Lagoon. How can I help you today?"
+        ],
+        // NEW: For when they provide feedback on the bot's helpfulness
+        feedback: [
+            "Thank you for the positive feedback! Is there anything else you'd like to know about Sky Lagoon?",
+            "I appreciate your feedback! What else can I help you with regarding Sky Lagoon?",
+            "Thanks for letting me know that was helpful! What other questions do you have about Sky Lagoon?",
+            "I'm glad you found that helpful! What else would you like to know about Sky Lagoon?"
         ]
     },
     is: {
@@ -986,10 +993,17 @@ const SMALL_TALK_RESPONSES = {
         ],
         // For identity questions (who are you, etc.)
         identity: [
-            "Ég er Sólrún, gervigreindaraðstoðarmaður sem hjálpar gestum að kynnast Sky Lagoon. Hvernig get ég aðstoðað þig?",
-            "Ég er Sólrún, gervigreindin þín fyrir Sky Lagoon. Hvað viltu vita um upplifunina okkar?",
-            "Ég er Sólrún, gervigreindaraðstoðarmaður fyrir Sky Lagoon. Hvað langar þig að fræðast um?",
-            "Ég er Sólrún, gervigreindarráðgjafinn þinn fyrir allt sem viðkemur Sky Lagoon. Hvernig get ég hjálpað?"
+            "Ég heiti Sólrún og er hér til að hjálpa þér að kynnast Sky Lagoon. Hvað viltu vita?",
+            "Ég er Sólrún, stafrænn aðstoðarmaður hjá Sky Lagoon. Hvernig get ég aðstoðað þig í dag?",
+            "Sólrún heiti ég og er hér til að svara spurningum um Sky Lagoon. Hvað langar þig að vita?",
+            "Ég er Sólrún, stafrænn ráðgjafi hjá Sky Lagoon. Hvernig get ég hjálpað þér?"
+        ],        
+        // NEW: For when they provide feedback on the bot's helpfulness
+        feedback: [
+            "Takk fyrir hrósið! Er eitthvað fleira sem þú vilt fræðast um varðandi Sky Lagoon?",
+            "Gaman að geta hjálpað! Hvað annað get ég upplýst þig um Sky Lagoon?",
+            "Það gleður mig að heyra! Hvaða aðrar spurningar hefurðu um Sky Lagoon?",
+            "Gott að heyra að þetta hafi hjálpað! Hvað annað viltu vita um Sky Lagoon?"
         ]
     }
 };
@@ -1052,16 +1066,16 @@ const FOLLOWUP_RESPONSES = {
         "What would you like to know about Sky Lagoon?",
         "I'd be happy to help you plan your visit. What interests you most?",
         "What can I tell you about Sky Lagoon?",
-        "Nice to see you again! What can I help you with?",
-        "Welcome back! How can I assist you today?"
+        "Nice to see you! What can I help you with?",
+        "Welcome! How can I assist you today?"
     ],
     is: [
         "Hvernig get ég aðstoðað þig?",
         "Hvað viltu vita um Sky Lagoon?",
         "Ég get hjálpað þér að skipuleggja heimsóknina. Hvað langar þig að vita?",
         "Get ég veitt þér einhverjar upplýsingar um Sky Lagoon?",
-        "Gaman að sjá þig aftur! Hvernig get ég aðstoðað?",
-        "Velkomin/n aftur! Hvað get ég gert fyrir þig?"
+        "Gaman að sjá þig! Hvernig get ég aðstoðað?",
+        "Velkomin/n! Hvað get ég gert fyrir þig?"
     ]
 };
 
@@ -1327,7 +1341,14 @@ const smallTalkPatterns = {
             'what do you do',
             'tell me about yourself',
             'your name',
-            'who made you'
+            'who made you',
+            'are you ai',
+            'are you artificial intelligence',
+            'are you a bot',
+            'are you human',
+            'are you real',
+            'are you a chatbot',
+            'are you an assistant'
         ],
         greeting: [
             'nice to meet you',
@@ -1342,6 +1363,28 @@ const smallTalkPatterns = {
             'good to see you',
             'great to see you',
             'glad to see you'
+        ],
+        // NEW: Add feedback category for English
+        feedback: [
+            'helpful',
+            'good job',
+            'well done',
+            'great job',
+            'useful',
+            'useful information',
+            'good information',
+            'informative',
+            'great information',
+            'clear explanation',
+            'good explanation',
+            'good bot',
+            'smart bot',
+            'good chatbot',
+            'clever',
+            'appreciate',
+            'thank you for your help',
+            'thanks for helping',
+            'that was perfect'
         ]
     },
     is: {
@@ -1364,7 +1407,35 @@ const smallTalkPatterns = {
             'hvað geturðu',
             'segðu mér frá þér',
             'hvað heitirðu',
-            'hver bjó þig til'
+            'hver bjó þig til',
+            'ertu ai',
+            'ertu gervigreind',
+            'ertu vélmenni',
+            'ertu bot',
+            'ertu manneskja',
+            'ertu róbot',
+            'ertu chatbot',
+            'ertu spjallmenni',
+            'ertu aðstoðarmaður'
+        ],
+        // NEW: Add feedback category for Icelandic with more natural phrases
+        feedback: [
+            'hjálplegt',          // helpful
+            'góð hjálp',          // good help
+            'vel gert',           // well done
+            'gott svar',          // good answer
+            'flott svar',         // nice answer
+            'gagnlegt',           // useful
+            'góðar upplýsingar',  // good information
+            'skýrt',              // clear
+            'skiljanlegt',        // understandable
+            'flott útskýring',    // nice explanation
+            'góð útskýring',      // good explanation
+            'skýrt og gott',      // clear and good
+            'þetta hjálpaði',     // this helped
+            'þú ert flink',       // you're skilled
+            'fín aðstoð',         // fine assistance
+            'góð þjónusta'        // good service
         ]
     }
 };
@@ -1385,10 +1456,23 @@ const detectSmallTalk = (message, languageDecision) => {
             enWellbeing: smallTalkPatterns.en.wellbeing.some(p => msg.includes(p)),
             enIdentity: smallTalkPatterns.en.identity.some(p => msg.includes(p)),
             enGreeting: smallTalkPatterns.en.greeting.some(p => msg.includes(p)),
+            enFeedback: smallTalkPatterns.en.feedback.some(p => msg.includes(p)), // Add this line
             isWellbeing: smallTalkPatterns.is.wellbeing.some(p => msg.includes(p)),
-            isGreeting: smallTalkPatterns.is.greeting.some(p => msg.includes(p))
+            isGreeting: smallTalkPatterns.is.greeting.some(p => msg.includes(p)),
+            isFeedback: smallTalkPatterns.is.feedback.some(p => msg.includes(p))  // Add this line
         }
     });
+
+    // Check for feedback patterns first - these should take priority
+    if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
+        if (smallTalkPatterns.en.feedback.some(pattern => msg.includes(pattern))) {
+            return { isSmallTalk: true, language: 'en', category: 'feedback' };
+        }
+    } else {
+        if (smallTalkPatterns.is.feedback.some(pattern => msg.includes(pattern))) {
+            return { isSmallTalk: true, language: 'is', category: 'feedback' };
+        }
+    }
 
     // Use language detection for initial check
     if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
@@ -1574,6 +1658,13 @@ const acknowledgmentPatterns = {
             'nothing else right now',
             'thats all for now',
             "that's all for now",
+            'no', 
+            'nope',
+            'not now',
+            'no thanks',
+            'no thank you',
+            'nothing',
+            'not at the moment',
             // Add new variations
             'nothing right now',
             'not now',
@@ -1598,7 +1689,10 @@ const acknowledgmentPatterns = {
             'ekkert annað takk',
             'ekkert meira takk',
             'ekkert fleira takk',
-            'þetta var það',
+            'nei',
+            'nei takk',
+            'ekki núna',
+            'ekkert',
             // Add new variations
             'bara að heilsa',
             'bara heilsa',      // Need to add this variation
@@ -1670,6 +1764,25 @@ const checkSimpleResponse = (message, languageDecision) => {
         } : 'no language detection'
     });
     
+    // IMPORTANT: Define msg variable first before using it
+    const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
+    
+    // THEN add the Icelandic phrase checks
+    // Check for common Icelandic appreciation phrases
+    if (msg.includes('æði') && msg.includes('takk')) {
+        return 'is';
+    }
+    
+    if (msg.includes('takk fyrir')) {
+        return 'is';
+    }
+    
+    // Check for Icelandic appreciation terms
+    const icelandicAppreciationTerms = ['geggjað', 'magnað', 'æðislegt', 'æði', 'frábært', 'flott mál'];
+    if (icelandicAppreciationTerms.some(term => msg.includes(term))) {
+        return 'is';
+    }
+
     const strictIcelandicResponses = [
         // Basic responses
         'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg', 
@@ -1690,8 +1803,6 @@ const checkSimpleResponse = (message, languageDecision) => {
         // Add these key problematic responses
         'amazing', 'good', 'yes', 'yeah', 'no', 'nope'
     ];
-    
-    const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
     
     // NEW: Direct pattern matching for simple responses
     const simpleEnglishPatterns = [
@@ -6481,6 +6592,123 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
+        // Special case for "how are you" questions
+        const howAreYouPattern = /^how (?:are you|(?:you )?doing|is it going)[?]?$/i;
+        const icelandicHowAreYouPattern = /^(?:hvernig|hvað) (?:hefur[ðd]u (?:það|það)|gengu[rd]|líður þér)[?]?$/i;
+
+        if (howAreYouPattern.test(userMessage) || icelandicHowAreYouPattern.test(userMessage)) {
+            console.log('\n💬 Detected "How are you" question:', {
+                message: userMessage,
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            // Use languageDecision to determine response language
+            const response = !languageDecision.isIcelandic ?
+                "I'm doing well, thanks for asking! How can I help you with Sky Lagoon today?" :
+                "Mér líður vel, takk fyrir að spyrja! Hvernig get ég aðstoðað þig varðandi Sky Lagoon í dag?";
+            
+            // Store this as small talk in the context
+            context.lastTopic = 'small_talk';
+            
+            // Broadcast this conversation
+            await broadcastConversation(
+                userMessage,
+                response,
+                languageDecision.isIcelandic ? 'is' : 'en',
+                'small_talk',
+                'direct_response'
+            );
+            
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: 'small_talk_how_are_you'
+                }
+            });
+        }
+
+        // Add informal greeting detection like "what's up" or "hvað segirðu"
+        const informalGreetingPattern = /^(?:what'?s up|what up|sup|whats up|whazzup|yo|wassup)[?]?$/i;
+        const icelandicInformalPattern = /^(?:hvað segir[uð]|sæll og blessaður|sæl og blessuð)[?]?$/i;
+
+        if (informalGreetingPattern.test(userMessage) || icelandicInformalPattern.test(userMessage)) {
+            console.log('\n💬 Detected informal greeting:', {
+                message: userMessage,
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            const response = !languageDecision.isIcelandic ?
+                "Hey there! I'm doing great. What can I help you with regarding Sky Lagoon today?" :
+                "Hæ! Allt gott hjá mér. Hvernig get ég aðstoðað þig varðandi Sky Lagoon?";
+            
+            context.lastTopic = 'small_talk';
+            
+            await broadcastConversation(
+                userMessage,
+                response,
+                languageDecision.isIcelandic ? 'is' : 'en',
+                'small_talk',
+                'direct_response'
+            );
+            
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: 'small_talk_informal_greeting'
+                }
+            });
+        }
+
+        // Check for identity questions
+        const identityQuestionsEnglish = /^(?:who are you|are you (?:ai|artificial intelligence|a bot|human|real))[?]?$/i;
+        const identityQuestionsIcelandic = /^(?:hver ert þú|ertu (?:ai|gervigreind|vélmenni|bot|manneskja))[?]?$/i;
+
+        if (identityQuestionsEnglish.test(userMessage) || identityQuestionsIcelandic.test(userMessage)) {
+            console.log('\n💬 Detected identity question:', {
+                message: userMessage,
+                language: {
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                }
+            });
+            
+            // Use the appropriate identity response based on language
+            const response = !languageDecision.isIcelandic ?
+                SMALL_TALK_RESPONSES.en.identity[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.identity.length)] :
+                SMALL_TALK_RESPONSES.is.identity[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.identity.length)];
+            
+            // Store this as small talk in the context
+            context.lastTopic = 'small_talk';
+            
+            // Broadcast this conversation
+            await broadcastConversation(
+                userMessage,
+                response,
+                languageDecision.isIcelandic ? 'is' : 'en',
+                'small_talk',
+                'direct_response'
+            );
+            
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: 'small_talk_identity'
+                }
+            });
+        }
+
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
         // Smart context-aware knowledge base selection
         const getRelevantContent = (userMessage) => {  // Remove isIcelandic parameter
@@ -6951,6 +7179,42 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         reason: languageDecision.reason
                     }
                 });
+
+                // ADD THIS NEW SECTION: Check for explicit feedback patterns
+                // This should come before other acknowledgment checks
+                if (smallTalkPatterns.en.feedback.some(pattern => msg.includes(pattern)) ||
+                    smallTalkPatterns.is.feedback.some(pattern => msg.includes(pattern))) {
+                    // Use checkSimpleResponse for more accurate language detection
+                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                    let useEnglish = simpleResponseType === 'en' || 
+                                (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                    
+                    // Log language decision
+                    console.log('\n🗣️ Feedback Detection Language Decision:', {
+                        message: userMessage,
+                        simpleResponseType,
+                        useEnglish,
+                        languageDecision: {
+                            isIcelandic: languageDecision.isIcelandic,
+                            confidence: languageDecision.confidence
+                        }
+                    });
+                    
+                    // Use dedicated feedback responses from SMALL_TALK_RESPONSES
+                    const response = useEnglish ?
+                        SMALL_TALK_RESPONSES.en.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.feedback.length)] :
+                        SMALL_TALK_RESPONSES.is.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.feedback.length)];
+                        
+                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
+                        'feedback', 'direct_response');
+                    return res.status(200).json({ 
+                        message: response, 
+                        language: { 
+                            detected: useEnglish ? 'English' : 'Icelandic', 
+                            confidence: languageDecision.confidence 
+                        }
+                    });
+                }
 
                 // Check all acknowledgment patterns
                 if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
