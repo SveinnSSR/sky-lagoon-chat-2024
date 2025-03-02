@@ -46,7 +46,19 @@ const BOOKING_CHANGE_PATTERNS = {
         'another time',
         'another date',
         'move booking',
-        'cancel booking'
+        'cancel booking',
+        // New stronger patterns
+        'update booking',
+        'alter booking',
+        'shift booking',
+        'postpone booking',
+        'advance booking',
+        'need to change',
+        'want to change',
+        'change my reservation',
+        'edit booking',
+        'adjust booking',
+        'switch time'
     ],
     is: [
         'breyta bókun',
@@ -57,7 +69,17 @@ const BOOKING_CHANGE_PATTERNS = {
         'annan tíma',
         'aðra dagsetningu',
         'hætta við bókun',
-        'afbóka'
+        'afbóka',
+        // New stronger patterns
+        'uppfæra bókun',
+        'fresta bókun',
+        'flýta bókun',
+        'þarf að breyta',
+        'vil breyta',
+        'breyta pöntun',
+        'breyta pantanir',
+        'aðlaga bókun',
+        'skipta um tíma'
     ]
 };
 
@@ -420,10 +442,10 @@ Name: ${formData.fullName || formData.name || 'Not provided'}
 Email: ${formData.email || 'Not provided'}
 Current Date: ${formData.currentDate || 'Not provided'}
 Requested Date: ${formData.requestedDate || 'Not provided'}
-Additional Info: ${formData.additionalInfo || 'None provided'}
+Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, ' ')}
 -----------------------------------
 ⚠️ REQUIRES MANUAL REVIEW - Please contact customer via email
-        `.trim();
+`.trim();
         
         // First try using bot token if it looks like a JWT
         if (credentials && credentials.includes('.')) {

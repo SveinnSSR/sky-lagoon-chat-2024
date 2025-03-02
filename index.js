@@ -645,33 +645,33 @@ const AGENT_REQUEST_PATTERNS = {
         'vera í sambandi við'
     ]
 };
-
-const BOOKING_CHANGE_PATTERNS = {
-    en: [
-        'change booking',
-        'modify booking',
-        'reschedule',
-        'change time',
-        'change date',
-        'different time',
-        'different date',
-        'another time',
-        'another date',
-        'move booking',
-        'cancel booking'
-    ],
-    is: [
-        'breyta bókun',
-        'breyta tíma',
-        'breyta dagsetningu',
-        'færa bókun',
-        'færa tíma',
-        'annan tíma',
-        'aðra dagsetningu',
-        'hætta við bókun',
-        'afbóka'
-    ]
-};
+// Removed unused constant - patterns are defined in livechat.js
+//const BOOKING_CHANGE_PATTERNS = {
+//    en: [
+//        'change booking',
+//        'modify booking',
+//        'reschedule',
+//        'change time',
+//        'change date',
+//        'different time',
+//        'different date',
+//        'another time',
+//        'another date',
+//        'move booking',
+//        'cancel booking'
+//    ],
+//    is: [
+//        'breyta bókun',
+//       'breyta tíma',
+//        'breyta dagsetningu',
+//        'færa bókun',
+//        'færa tíma',
+//        'annan tíma',
+//        'aðra dagsetningu',
+//        'hætta við bókun',
+//        'afbóka'
+//    ]
+//};
 
 // Helper function to check if within operating hours
 const isWithinOperatingHours = () => {
@@ -733,39 +733,17 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             AGENT_REQUEST_PATTERNS.en : 
             AGENT_REQUEST_PATTERNS.is).some(pattern => msg.includes(pattern));
 
-        // Only proceed with agent transfer for explicit requests, not booking changes
+        // Temporarily disable all live agent transfers
         if (hasAgentRequest) {
-            // Now check operating hours
-            if (!isWithinOperatingHours()) {
-                // Customer service hours message
-                const hoursMessage = useEnglish ? 
-                    "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance.\n\nAlternatively, you can submit a booking change request using our form which is available 24/7." :
-                    "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð.\n\nÞú getur einnig sent inn beiðni um breytingu á bókun með eyðublaðinu okkar sem er aðgengilegt allan sólarhringinn.";
-                
-                return {
-                    shouldTransfer: false,
-                    reason: 'outside_hours',
-                    response: hoursMessage
-                };
-            }
-
-            // Check agent availability
-            const { areAgentsAvailable, availableAgents } = await checkAgentAvailability();
-
-            if (!areAgentsAvailable) {
-                return {
-                    shouldTransfer: false,
-                    reason: 'no_agents',
-                    response: useEnglish ?
-                        "Our agents are currently assisting other customers. Please call us at +354 527 6800 or email reservations@skylagoon.is for help." :
-                        "Þjónustufulltrúar okkar eru uppteknir. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð."
-                };
-            }
-
+            // Return a helpful message redirecting to booking form
+            const redirectMessage = useEnglish ? 
+                "Our live agent chat system is currently unavailable. For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800." :
+                "Því miður er ekki hægt að tengja þig við þjónustufulltrúa í augnablikinu. Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800.";
+            
             return {
-                shouldTransfer: true,
-                reason: 'explicit_request',
-                agents: availableAgents
+                shouldTransfer: false,
+                reason: 'transfer_disabled',
+                response: redirectMessage
             };
         }
 
