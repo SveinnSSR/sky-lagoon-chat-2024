@@ -26,7 +26,14 @@ import {
     icelandicMonths 
 } from './sunsetTimes.js';
 // LiveChat Integration
-import { checkAgentAvailability, createChat, sendMessageToLiveChat } from './services/livechat.js';
+import { 
+    checkAgentAvailability, 
+    createChat, 
+    sendMessageToLiveChat,
+    detectBookingChangeRequest,
+    createBookingChangeRequest,
+    submitBookingChangeRequest 
+} from './services/livechat.js';
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
@@ -679,6 +686,32 @@ const isWithinOperatingHours = () => {
     return hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
 };
 
+// Helper function to check if booking change form should be shown
+const shouldShowBookingForm = async (message, languageDecision) => {
+    try {
+        // Use the detectBookingChangeRequest function from livechat.js
+        const isBookingChange = await detectBookingChangeRequest(message, languageDecision);
+        
+        console.log('\n📅 Booking Change Form Check:', {
+            message: message.substring(0, 30) + '...',
+            isBookingChange: isBookingChange,
+            language: languageDecision.isIcelandic ? 'Icelandic' : 'English'
+        });
+        
+        return {
+            shouldShowForm: isBookingChange,
+            isWithinAgentHours: isWithinOperatingHours()
+        };
+    } catch (error) {
+        console.error('\n❌ Error in shouldShowBookingForm:', error);
+        return {
+            shouldShowForm: false,
+            isWithinAgentHours: isWithinOperatingHours(),
+            error: error.message
+        };
+    }
+};
+
 // Helper function to check if agent transfer is needed
 const shouldTransferToAgent = async (message, languageDecision, context) => {
     try {
@@ -695,26 +728,24 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // First check if it's a transfer request
+        // First check if it's an explicit agent request (not a booking change)
         const hasAgentRequest = (useEnglish ? 
             AGENT_REQUEST_PATTERNS.en : 
             AGENT_REQUEST_PATTERNS.is).some(pattern => msg.includes(pattern));
 
-        // Check for booking change request
-        const hasBookingChange = (useEnglish ? 
-            BOOKING_CHANGE_PATTERNS.en : 
-            BOOKING_CHANGE_PATTERNS.is).some(pattern => msg.includes(pattern));
-
-        // Only check hours if they're requesting transfer
-        if (hasAgentRequest || hasBookingChange) {
+        // Only proceed with agent transfer for explicit requests, not booking changes
+        if (hasAgentRequest) {
             // Now check operating hours
             if (!isWithinOperatingHours()) {
+                // Customer service hours message
+                const hoursMessage = useEnglish ? 
+                    "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance.\n\nAlternatively, you can submit a booking change request using our form which is available 24/7." :
+                    "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð.\n\nÞú getur einnig sent inn beiðni um breytingu á bókun með eyðublaðinu okkar sem er aðgengilegt allan sólarhringinn.";
+                
                 return {
                     shouldTransfer: false,
                     reason: 'outside_hours',
-                    response: useEnglish ? 
-                        "Our customer service team is available from 9 AM to 4 PM (GMT). Please contact us during these hours for assistance." :
-                        "Þjónustufulltrúar okkar eru til staðar frá 9-16 (GMT). Vinsamlegast hafðu samband á þeim tíma fyrir aðstoð."
+                    response: hoursMessage
                 };
             }
 
@@ -733,7 +764,7 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
 
             return {
                 shouldTransfer: true,
-                reason: hasAgentRequest ? 'explicit_request' : 'booking_change',
+                reason: 'explicit_request',
                 agents: availableAgents
             };
         }
@@ -5904,7 +5935,75 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
         });
 
-        // Check if we should transfer to human agent
+        // Check if we should show booking change form
+        const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision);
+
+        if (bookingFormCheck.shouldShowForm) {
+            try {
+                // Create chat using bot for the booking change request
+                console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
+                const chatData = await createBookingChangeRequest(sessionId, languageDecision.isIcelandic);
+
+                if (!chatData.chat_id) {
+                    throw new Error('Failed to create booking change request');
+                }
+
+                console.log('\n✅ Booking change request created:', chatData.chat_id);
+
+                // Prepare booking change message based on language and agent hours
+                const bookingChangeMessage = languageDecision.isIcelandic ?
+                    `Ég sé að þú vilt breyta bókuninni þinni. ${!bookingFormCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
+                    `I see you'd like to change your booking. ${!bookingFormCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
+
+                // Broadcast the booking change message
+                await broadcastConversation(
+                    userMessage,
+                    bookingChangeMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_request',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: bookingChangeMessage,
+                    showBookingChangeForm: true,
+                    chatId: chatData.chat_id,
+                    bot_token: chatData.bot_token,
+                    agent_credentials: chatData.agent_credentials,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            } catch (error) {
+                console.error('\n❌ Booking Change Request Error:', error);
+                // Fall through to AI response if request fails
+                
+                // Provide fallback response when request fails
+                const fallbackMessage = languageDecision.isIcelandic ?
+                    "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
+                    "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
+
+                await broadcastConversation(
+                    userMessage,
+                    fallbackMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_failed',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: fallbackMessage,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            }
+        }
+
+        // Check if we should transfer to human agent (only if not a booking change)
         const transferCheck = await shouldTransferToAgent(userMessage, languageDecision, context);
         
         console.log('\n🔄 Transfer Check Result:', {
@@ -6004,6 +6103,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
         }
+        
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
@@ -6028,6 +6128,66 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: languageDecision.isIcelandic ? 
                         "Villa kom upp við að senda skilaboð" :
                         "Error sending message to agent",
+                    error: error.message
+                });
+            }
+        }
+        
+        // Handle booking form submissions (add this new part)
+        if (req.body.isBookingChangeRequest && req.body.chatId) {
+            try {
+                // Parse the message as form data
+                const formData = JSON.parse(req.body.formData || '{}');
+                
+                console.log('\n📝 Submitting booking change form data:', formData);
+                
+                // Submit the booking change request
+                const submitted = await submitBookingChangeRequest(
+                    req.body.chatId, 
+                    formData, 
+                    req.body.bot_token || req.body.agent_credentials
+                );
+                
+                if (!submitted) {
+                    throw new Error('Failed to submit booking change request');
+                }
+                
+                // Return success response
+                const confirmationMessage = languageDecision.isIcelandic ?
+                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
+                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
+                    
+                await broadcastConversation(
+                    JSON.stringify(formData),
+                    confirmationMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_submitted',
+                    'direct_response'
+                );
+                
+                return res.status(200).json({
+                    success: true,
+                    message: confirmationMessage
+                });
+            } catch (error) {
+                console.error('\n❌ Booking Form Submission Error:', error);
+                
+                // Return error response
+                const errorMessage = languageDecision.isIcelandic ?
+                    "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
+                    "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
+                    
+                await broadcastConversation(
+                    req.body.formData || "{}",
+                    errorMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_failed',
+                    'direct_response'
+                );
+                
+                return res.status(500).json({
+                    success: false,
+                    message: errorMessage,
                     error: error.message
                 });
             }
