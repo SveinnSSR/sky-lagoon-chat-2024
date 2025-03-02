@@ -5913,8 +5913,69 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             decision: languageDecision,
             finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
         });
+        
+        // Endpoint Booking Change Request System structure
+        // FIRST: Handle booking form submissions
+        if (req.body.isBookingChangeRequest && req.body.chatId) {
+            try {
+                // Parse the message as form data
+                const formData = JSON.parse(req.body.formData || '{}');
+                
+                console.log('\n📝 Submitting booking change form data:', formData);
+                
+                // Submit the booking change request
+                const submitted = await submitBookingChangeRequest(
+                    req.body.chatId, 
+                    formData, 
+                    req.body.bot_token || req.body.agent_credentials
+                );
+                
+                if (!submitted) {
+                    throw new Error('Failed to submit booking change request');
+                }
+                
+                // Return success response
+                const confirmationMessage = languageDecision.isIcelandic ?
+                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
+                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
+                    
+                await broadcastConversation(
+                    JSON.stringify(formData),
+                    confirmationMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_submitted',
+                    'direct_response'
+                );
+                
+                return res.status(200).json({
+                    success: true,
+                    message: confirmationMessage
+                });
+            } catch (error) {
+                console.error('\n❌ Booking Form Submission Error:', error);
+                
+                // Return error response
+                const errorMessage = languageDecision.isIcelandic ?
+                    "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
+                    "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
+                    
+                await broadcastConversation(
+                    req.body.formData || "{}",
+                    errorMessage,
+                    languageDecision.isIcelandic ? 'is' : 'en',
+                    'booking_change_failed',
+                    'direct_response'
+                );
+                
+                return res.status(500).json({
+                    success: false,
+                    message: errorMessage,
+                    error: error.message
+                });
+            }
+        }
 
-        // Check if we should show booking change form.
+        // SECOND: Check if we should show booking change form.
         const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision);
 
         if (bookingFormCheck.shouldShowForm) {
@@ -6107,66 +6168,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: languageDecision.isIcelandic ? 
                         "Villa kom upp við að senda skilaboð" :
                         "Error sending message to agent",
-                    error: error.message
-                });
-            }
-        }
-        
-        // Handle booking form submissions (add this new part)
-        if (req.body.isBookingChangeRequest && req.body.chatId) {
-            try {
-                // Parse the message as form data
-                const formData = JSON.parse(req.body.formData || '{}');
-                
-                console.log('\n📝 Submitting booking change form data:', formData);
-                
-                // Submit the booking change request
-                const submitted = await submitBookingChangeRequest(
-                    req.body.chatId, 
-                    formData, 
-                    req.body.bot_token || req.body.agent_credentials
-                );
-                
-                if (!submitted) {
-                    throw new Error('Failed to submit booking change request');
-                }
-                
-                // Return success response
-                const confirmationMessage = languageDecision.isIcelandic ?
-                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
-                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
-                    
-                await broadcastConversation(
-                    JSON.stringify(formData),
-                    confirmationMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_submitted',
-                    'direct_response'
-                );
-                
-                return res.status(200).json({
-                    success: true,
-                    message: confirmationMessage
-                });
-            } catch (error) {
-                console.error('\n❌ Booking Form Submission Error:', error);
-                
-                // Return error response
-                const errorMessage = languageDecision.isIcelandic ?
-                    "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
-                    "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
-                    
-                await broadcastConversation(
-                    req.body.formData || "{}",
-                    errorMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_failed',
-                    'direct_response'
-                );
-                
-                return res.status(500).json({
-                    success: false,
-                    message: errorMessage,
                     error: error.message
                 });
             }
