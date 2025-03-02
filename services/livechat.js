@@ -418,8 +418,23 @@ export async function createBookingChangeRequest(customerId, isIcelandic = false
         const transferText = await transferResponse.text();
         console.log('\n📡 Transfer response:', transferText);
 
+        // Handle expected transfer scenarios specially 
         if (!transferResponse.ok) {
-            console.error('\n❌ Transfer failed:', transferText);
+            // Parse the response to check for this specific expected case
+            try {
+                const errorData = JSON.parse(transferText);
+                if (errorData.error?.type === "validation" && 
+                    errorData.error?.message === "Cannot assign any agent from requested groups") {
+                    // Log as info instead of error since this is expected in async mode
+                    console.log('\nℹ️ No agents currently online in group. Continuing with async workflow.');
+                } else {
+                    // Different error, log as actual error
+                    console.error('\n❌ Transfer failed:', transferText);
+                }
+            } catch (e) {
+                // If parsing fails, log original error
+                console.error('\n❌ Transfer failed:', transferText);
+            }
         }
         
         // Save agent credentials for fallback message sending
