@@ -5916,18 +5916,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         // Endpoint Booking Change Request System structure
         // FIRST: Handle booking form submissions
-        if (req.body.isBookingChangeRequest && req.body.chatId) {
+        if (req.body.isBookingChangeRequest) {
             try {
                 // Parse the message as form data
                 const formData = JSON.parse(req.body.formData || '{}');
                 
                 console.log('\n📝 Submitting booking change form data:', formData);
                 
-                // Submit the booking change request
+                // Create a NEW chat for the form submission
+                console.log('\n📝 Creating new LiveChat booking change request for form submission');
+                const chatData = await createBookingChangeRequest(sessionId, languageDecision.isIcelandic);
+
+                if (!chatData.chat_id) {
+                    throw new Error('Failed to create booking change request chat');
+                }
+                
+                // Submit the booking change request to the NEW chat
                 const submitted = await submitBookingChangeRequest(
-                    req.body.chatId, 
+                    chatData.chat_id,  // Use the new chat ID
                     formData, 
-                    req.body.bot_token || req.body.agent_credentials
+                    chatData.bot_token // Use the new bot token
                 );
                 
                 if (!submitted) {
