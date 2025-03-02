@@ -618,6 +618,7 @@ const AGENT_REQUEST_PATTERNS = {
     en: [
         'speak to agent',
         'talk to agent',
+        'chat to agent',
         'speak to human',
         'talk to human',
         'speak with someone',

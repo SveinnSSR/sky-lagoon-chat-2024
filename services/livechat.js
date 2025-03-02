@@ -277,6 +277,12 @@ export async function createChat(customerId, isIcelandic = false) {
 export async function detectBookingChangeRequest(message, languageDecision) {
     try {
         const msg = message.toLowerCase();
+        
+        // First check if this is a form submission (starts with "booking change request:")
+        if (msg.startsWith('booking change request:')) {
+            return true;
+        }
+        
         const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
 
         // Check for booking change request patterns
