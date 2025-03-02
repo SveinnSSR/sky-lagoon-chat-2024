@@ -1002,10 +1002,10 @@ const isFollowUpGreeting = (message, languageDecision) => {
     console.log('\n👋 Follow-up Greeting Check:', {
         message: msg,
         patterns: {
-            hasName: msg.includes('Sólrún'),
+            hasName: msg.includes('sólrún') || msg.includes('solrun'),
             startsWithEnglish: simpleEnglishGreetings.some(g => msg.startsWith(g)),
             startsWithIcelandic: simpleIcelandicGreetings.some(g => msg.startsWith(g)),
-            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|Sólrún)\b/i.test(msg),
+            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|sólrún|solrun)\b/i.test(msg),
             hasFollowUpWord: /\b(?:again|back|now|once more)\b/i.test(msg)
         }
     });
@@ -1020,15 +1020,21 @@ const isFollowUpGreeting = (message, languageDecision) => {
         return languageDecision.isIcelandic;
     }
 
-    // Check for greetings with Sólrún's name
+    // Check for greetings with Sólrún's name (both with and without accent)
     const hasSólrúnWithGreeting = (
         // English greetings with Sólrún
-        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && msg.includes('sólrún')) ||
+        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && (msg.includes('sólrún') || msg.includes('solrun'))) ||
         // Icelandic greetings with Sólrún
-        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && msg.includes('sólrún'))
+        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && (msg.includes('sólrún') || msg.includes('solrun')))
     );
 
     if (hasSólrúnWithGreeting) {
+        // Override language detection for English greetings with bot name
+        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening)\b/i.test(msg) && 
+            (msg.includes('sólrún') || msg.includes('solrun'))) {
+            console.log('\n👋 English Greeting with Bot Name Override');
+            return true;
+        }
         return true;
     }
 
@@ -1080,7 +1086,7 @@ const CONFIRMATION_RESPONSES = [
     "I understand! "
 ];
 
-// Enhanced greeting detection with patterns
+// Enhanced Simple English Greetings list - update to include Sólrún variations
 const simpleEnglishGreetings = [
     // Basic greetings with variations
     'hi', 'hello', 'hey', 'howdy',
@@ -1098,8 +1104,13 @@ const simpleEnglishGreetings = [
     'yo', 'heya', 'hi folks',
     // Double greetings
     'hi hi', 'hello hello',
-    // With name
-    'hi sólrún', 'hello sólrún', 'hey sólrún'
+    // With name - ADD MORE VARIATIONS WITH BOT NAME
+    'hi sólrún', 'hello sólrún', 'hey sólrún',
+    'hi solrun', 'hello solrun', 'hey solrun',
+    'hi there sólrún', 'hello there sólrún', 'hey there sólrún',
+    'hi there solrun', 'hello there solrun', 'hey there solrun',
+    'good morning sólrún', 'good afternoon sólrún', 'good evening sólrún',
+    'good morning solrun', 'good afternoon solrun', 'good evening solrun'
 ];
 
 // Composite Icelandic greetings - ordered by complexity
@@ -1168,6 +1179,7 @@ const icelandicQuestionStarters = [
     'geturðu ', 'mætti ', 'megið ', 'væri '
 ];
 
+// Update the isSimpleGreeting function to better handle bot name mentions
 const isSimpleGreeting = (message, languageDecision) => {
     // Remove emojis, emoticons, and extra punctuation, normalize repeated characters
     const msg = message.toLowerCase()
@@ -1177,7 +1189,7 @@ const isSimpleGreeting = (message, languageDecision) => {
         .replace(/[!.,?]+$/, '')                // Remove trailing punctuation
         .replace(/(.)\1{2,}/g, '$1$1')          // Normalize repeated characters (e.g., hiii -> hii)
         .replace(/\s+/g, ' ')                   // Normalize spaces
-        .replace(/\bsólrún\b/gi, '')               // Remove mentions of Sólrún
+        .replace(/\bsólrún\b|\bsolrun\b/gi, '') // Remove mentions of Sólrún with or without accent
         .trim();                                // Final trim
     
     // Enhanced logging with language detection
@@ -1199,6 +1211,19 @@ const isSimpleGreeting = (message, languageDecision) => {
             isStandaloneGreeting: /^(?:hi+|he+y+|hello+)\b$/i.test(msg)
         }
     });
+
+    // Check if the original message contains the bot name
+    const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(message);
+    
+    // If message contains bot name and starts with English greeting, prioritize English
+    if (hasBotName && /^(hi|hello|hey|good morning|good afternoon|good evening|howdy)/i.test(message)) {
+        console.log('\n👋 Bot Name Greeting Detection:', {
+            hasBotName: true,
+            hasEnglishGreeting: true,
+            originalMessage: message
+        });
+        return true;
+    }
 
     // Early validation - prevent processing of invalid messages
     if (!msg) return false;                    // Empty message
@@ -6208,10 +6233,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Early greeting check
         const isGreeting = isSimpleGreeting(userMessage, languageDecision);  // Pass languageDecision
         if (isGreeting) {
-            const msg = userMessage.toLowerCase().replace(/\bsólrún\b/gi, '').trim();
-            const isEnglishGreeting = !languageDecision.isIcelandic && 
+            const msg = userMessage.toLowerCase().replace(/\bsólrún\b|\bsolrun\b/gi, '').trim();
+            
+            // Check for English greeting pattern with bot name (with or without accent)
+            const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(userMessage);
+            const hasEnglishGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|hi there|hello there|hey there)/i.test(userMessage);
+            
+            // If it has both bot name and English greeting pattern, force English response
+            const isEnglishGreeting = (hasBotName && hasEnglishGreeting) || 
+                                    (!languageDecision.isIcelandic && 
                                     (languageDecision.confidence === 'high' || 
-                                    /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg));
+                                    /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)));
                                     (simpleEnglishGreetings.some(g => 
                                         msg === g || msg === g + '!' || msg.startsWith(g + ' ')
                                     ));
@@ -6223,6 +6255,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n👋 Enhanced Greeting Check:', {
                 original: userMessage,
                 cleaned: msg,
+                hasBotName: hasBotName,
+                hasEnglishGreeting: hasEnglishGreeting,
+                forceEnglish: hasBotName && hasEnglishGreeting,
                 isEnglishDetected: !languageDecision.isIcelandic,
                 confidence: languageDecision.confidence,
                 isEnglishGreeting: isEnglishGreeting,
@@ -6236,22 +6271,37 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Check for follow-up greeting with new language system
             const isFollowUp = isFollowUpGreeting(userMessage, languageDecision) || context.conversationStarted;
             
+            // Determine language for response based on enhanced rules
+            const useEnglishResponse = (hasBotName && hasEnglishGreeting) || 
+                                     (!languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            
             // Always use follow-up responses since ChatWidget handles initial greeting
             const response = isFollowUp ? 
-                (!languageDecision.isIcelandic ? 
+                (useEnglishResponse ? 
                     FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
                     FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
-                (!languageDecision.isIcelandic ? 
+                (useEnglishResponse ? 
                     GREETING_RESPONSES.english[0] : 
                     GREETING_RESPONSES.icelandic[0]);
 
             // Log the follow-up response selection
             if (isFollowUp) {
-                logFollowUpResponse(languageDecision, response);
+                console.log('\n🗣️ Selected Greeting Response:', {
+                    isFollowUp: true,
+                    useEnglishResponse: useEnglishResponse,
+                    hasBotName: hasBotName,
+                    hasEnglishGreeting: hasEnglishGreeting,
+                    response: response
+                });
+                logFollowUpResponse({
+                    isIcelandic: !useEnglishResponse,
+                    confidence: 'high',
+                    reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
+                }, response);
             }
 
             // Update context and save
-            context.language = languageDecision.isIcelandic ? 'is' : 'en';
+            context.language = useEnglishResponse ? 'en' : 'is';
             context.conversationStarted = true;
             conversationContext.set(sessionId, context);
             
@@ -6259,7 +6309,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             await broadcastConversation(
                 userMessage,
                 response,
-                languageDecision.isIcelandic ? 'is' : 'en',
+                useEnglishResponse ? 'en' : 'is',
                 'greeting',
                 'direct_response'
             );
@@ -6267,9 +6317,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(200).json({
                 message: response,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: useEnglishResponse ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
+                    reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
                 }
             });
         }

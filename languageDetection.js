@@ -3,14 +3,18 @@ export const detectLanguage = (message, context = null) => {
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
     
-    // Exclude Sky Lagoon package names from language detection - MOVED TO TOP
+    // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
+    // Add bot name exclusion - match both "sólrún" and "solrun"
+    const botNameRegex = /\b(sólrún|solrun)\b/gi;
+    
     const messageForDetection = cleanMessage
         .replace(/sky\s*lagoon/gi, '')
         .replace(packageExclusionRegex, '')
+        .replace(botNameRegex, '') // Remove bot name before language detection
         .trim();
     
-    // Check if the message has clear English sentence structure - MOVED EARLIER
+    // Check if the message has clear English sentence structure
     const hasEnglishSentenceStructure = (
         /^(tell|what|how|where|when|why|is|are|do|does|can|could|would|will|please|i want|i need|i would like|may i|could you|would you)/i.test(cleanMessage) ||
         /\bi\s+(?:am|was|have|had|would|will|want|need|chose|choose)\b/i.test(cleanMessage) ||
@@ -27,7 +31,7 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // Check for strong English word count in the messageForDetection (with package names excluded)
+    // Check for strong English word count in the messageForDetection
     const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected|about|between|differences)\b/gi) || []).length;
     const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
     
@@ -41,7 +45,23 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // Only check for Icelandic special characters AFTER excluding packages and checking English structure
+    // Check if this is a greeting with bot name - if so, check for English greeting patterns
+    if (botNameRegex.test(cleanMessage)) {
+        // Reset the regex since we used it once already
+        botNameRegex.lastIndex = 0;
+        
+        // Check if it starts with an English greeting
+        if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy)\b/i.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                confidence: 'high',
+                reason: 'english_greeting_with_bot_name',
+                patterns: ['greeting_with_name']
+            };
+        }
+    }
+    
+    // Only check for Icelandic special characters AFTER excluding packages, bot name, and checking English structure
     if (/[þæðöáíúéó]/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
@@ -65,7 +85,8 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // Early check for Icelandic discount terms - specifically check for common discount terms
+    // Rest of the function remains unchanged...
+    // Early check for Icelandic discount terms
     if (/\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
@@ -87,7 +108,7 @@ export const detectLanguage = (message, context = null) => {
         follow_ups: /^(and|or|but|so|also|what about)/i
     };
 
-    // Enhanced Icelandic patterns with additional common words and discount terms
+    // Enhanced Icelandic patterns
     const icelandicPatterns = {
         chars: /[þæðöáíúéó]/i,
         words: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún|vera|hafa|vilja|þetta|góðan|daginn|kvöld|morgun|takk|fyrir|kemst|bóka|langar|vil|hvaða|strætó|fer|með|tíma|bílastæði|kaupa|multi|pass|þið|einhverja|eruð|eruði|þið|með)\b/i,
