@@ -5935,7 +5935,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
         });
 
-        // Check if we should show booking change form
+        // Check if we should show booking change form.
         const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision);
 
         if (bookingFormCheck.shouldShowForm) {
