@@ -2373,12 +2373,19 @@ const chatSessions = new Map();
 /**
  * Get or create a session ID for a user conversation
  * 
- * @param {string} userId - Identifier for the user (can be anonymous)
+ * @param {string} userInput - The user's message content
+ * @param {object} req - Express request object to get IP address
  * @returns {Object} Session information including ID and start time
  */
-function getOrCreateSession(userId) {
-  // Generate a consistent user ID if none exists
-  const userIdentifier = userId || 'anonymous-user';
+function getOrCreateSession(userInput, req) {
+  // Create a more stable identifier using IP address + user agent if available
+  // Or hash of the first few characters of user input as fallback
+  const ipAddress = req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown-ip';
+  const userAgent = req?.headers?.['user-agent'] || '';
+  
+  // Create a consistent identifier by combining IP and user agent
+  // This makes it more likely that messages from same user stay together
+  const userIdentifier = `${ipAddress}-${userAgent.substring(0, 20)}`;
   
   // Check if we already have an active session for this user
   if (chatSessions.has(userIdentifier)) {
@@ -2399,7 +2406,7 @@ function getOrCreateSession(userId) {
   // Store the session
   chatSessions.set(userIdentifier, newSession);
   
-  // Set a timeout to expire this session after inactivity (e.g., 30 minutes)
+  // Set a timeout to expire this session after inactivity
   setTimeout(() => {
     if (chatSessions.has(userIdentifier)) {
       const session = chatSessions.get(userIdentifier);
@@ -8666,12 +8673,17 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
         
-        // Generate a user identifier - ideally this should come from your chat handler
-        // This could be IP address, session cookie, or any other identifier
-        const userId = conversationData.sessionId || 'anonymous-user';
+        // Extract IP and user agent if available from the request
+        const req = {
+            ip: conversationData.ip || conversationData.req?.ip || 'unknown-ip',
+            headers: {
+                'user-agent': conversationData.userAgent || conversationData.req?.headers?.['user-agent'] || '',
+                'x-forwarded-for': conversationData.req?.headers?.['x-forwarded-for'] || ''
+            }
+        };
         
-        // Get or create a session for this user
-        const sessionInfo = getOrCreateSession(userId);
+        // Get or create a session using the enhanced function
+        const sessionInfo = getOrCreateSession(conversationData.userMessage, req);
         
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
