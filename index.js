@@ -994,9 +994,9 @@ const SMALL_TALK_RESPONSES = {
         // For identity questions (who are you, etc.)
         identity: [
             "Ég heiti Sólrún og er hér til að hjálpa þér að kynnast Sky Lagoon. Hvað viltu vita?",
-            "Ég er Sólrún, stafrænn aðstoðarmaður hjá Sky Lagoon. Hvernig get ég aðstoðað þig í dag?",
+            "Ég heiti Sólrún og er AI Spjallmenni hjá Sky Lagoon. Hvernig get ég aðstoðað þig í dag?",
             "Sólrún heiti ég og er hér til að svara spurningum um Sky Lagoon. Hvað langar þig að vita?",
-            "Ég er Sólrún, stafrænn ráðgjafi hjá Sky Lagoon. Hvernig get ég hjálpað þér?"
+            "Ég er Sólrún, AI Spjallmenni hjá Sky Lagoon. Hvernig get ég hjálpað þér?"
         ],        
         // NEW: For when they provide feedback on the bot's helpfulness
         feedback: [
@@ -1528,7 +1528,7 @@ const acknowledgmentPatterns = {
             'clear', 'fine', 'brilliant', 'excellent', 'wonderful',
             'sweet', 'fab', 'indeed', 'absolutely', 'certainly',
             // Two word variations
-            'got it', 'i see', 'makes sense', 'thank you',
+            'got it', 'makes sense', 'thank you',
             'sounds good', 'fair enough', 'very good', 'very well',
             'got that', 'understand completely', 'crystal clear',
             'makes perfect', 'thanks alot', 'thanks so',
@@ -1565,8 +1565,8 @@ const acknowledgmentPatterns = {
         en: [
             'very helpful', 'so helpful', 'really helpful',
             'really good', 'very good', 'so good',
-            'perfect', 'excellent', 'wonderful', 'fantastic', 'amazing',
-            'appreciate', 'thanks for', 'thank you for',
+            'excellent', 'wonderful', 'fantastic', 'amazing',
+            'thanks for', 'thank you for',
             'that helps', 'that helped', 'this helps', 'helps a lot',
             'super helpful', 'extremely helpful', 'incredibly helpful',
             'great help', 'perfect help', 'exactly what i needed',
@@ -1658,12 +1658,10 @@ const acknowledgmentPatterns = {
             'nothing else right now',
             'thats all for now',
             "that's all for now",
-            'no', 
             'nope',
             'not now',
             'no thanks',
             'no thank you',
-            'nothing',
             'not at the moment',
             // Add new variations
             'nothing right now',
