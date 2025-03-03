@@ -8536,7 +8536,8 @@ function handleConversationUpdate(conversationData, languageInfo) {
             timestamp: new Date().toISOString()
         });
         
-        return pusher.trigger('chat-channel', 'conversation-update', conversationData)
+        // STEP 1: Continue broadcasting via Pusher for real-time updates (unchanged from your original code)
+        const pusherPromise = pusher.trigger('chat-channel', 'conversation-update', conversationData)
             .then(() => {
                 console.log('✅ Pusher message sent successfully');
                 return true;
@@ -8549,11 +8550,96 @@ function handleConversationUpdate(conversationData, languageInfo) {
                     hasSecret: !!process.env.PUSHER_SECRET,
                     hasCluster: !!process.env.PUSHER_CLUSTER
                 });
-                throw error;
+                // Don't throw the error, instead return false so other methods can continue
+                return false;
             });
+        
+        // STEP 2: Save to MongoDB directly
+        const dbPromise = saveConversationToMongoDB(conversationData, languageInfo);
+        
+        // STEP 3: Send directly to Analytics API
+        const apiPromise = sendConversationToAnalytics(conversationData, languageInfo);
+        
+        // Wait for all operations to complete but don't fail if one fails
+        return Promise.all([pusherPromise, dbPromise, apiPromise])
+            .then(results => results.some(r => r === true)); // Return true if at least one method succeeded
+            
     } catch (error) {
         console.error('❌ Error in handleConversationUpdate:', error);
-        return Promise.resolve();
+        return Promise.resolve(false);
+    }
+}
+
+async function saveConversationToMongoDB(conversationData, languageInfo) {
+    try {
+        // Connect to MongoDB
+        const { db } = await connectToDatabase();
+        
+        // Prepare conversation document for MongoDB
+        const conversationDoc = {
+            ...conversationData,
+            languageInfo,
+            createdAt: new Date(),
+            savedDirectly: true // Flag to indicate direct save
+        };
+        
+        // Save to a conversations collection
+        await db.collection('conversations').insertOne(conversationDoc);
+        
+        console.log('💾 Conversation saved directly to MongoDB:', conversationData.id);
+        return true;
+    } catch (error) {
+        console.error('❌ Error saving conversation to MongoDB:', error);
+        return false;
+    }
+}
+
+async function sendConversationToAnalytics(conversationData, languageInfo) {
+    try {
+        console.log('📤 Sending conversation directly to analytics system');
+        
+        const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: conversationData.id,
+                sessionId: conversationData.sessionId || uuidv4(), // Generate if not present
+                clientId: 'sky-lagoon', // Default to Sky Lagoon
+                topic: conversationData.topic || 'general',
+                status: 'active',
+                responseTime: 0, // Can be calculated if needed
+                startedAt: conversationData.timestamp,
+                endedAt: conversationData.timestamp,
+                messages: [
+                    {
+                        content: conversationData.userMessage,
+                        role: 'user',
+                        language: conversationData.language,
+                        timestamp: conversationData.timestamp
+                    },
+                    {
+                        content: conversationData.botResponse,
+                        role: 'assistant',
+                        language: conversationData.language,
+                        timestamp: new Date().toISOString()
+                    }
+                ]
+            })
+        });
+        
+        if (analyticsResponse.ok) {
+            console.log('✅ Conversation successfully sent to analytics system');
+            return true;
+        } else {
+            const responseText = await analyticsResponse.text();
+            console.error('❌ Error from analytics system:', responseText);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Error sending conversation to analytics system:', error);
+        return false;
     }
 }
 
