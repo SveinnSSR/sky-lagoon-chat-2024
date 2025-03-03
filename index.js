@@ -2363,9 +2363,57 @@ const getErrorMessage = (isIcelandic) => {
         ERROR_MESSAGES.en.general;
 };
 
-// ADD THE NEW CONSTANTS HERE 👇
+// ADD THE NEW CONSTANTS HERE 👇 (These seem unused)
 const activeConnections = new Map();  // Track active WebSocket connections
 const conversationBuffer = new Map(); // Buffer recent conversations
+
+// Track active chat sessions
+const chatSessions = new Map();
+
+/**
+ * Get or create a session ID for a user conversation
+ * 
+ * @param {string} userId - Identifier for the user (can be anonymous)
+ * @returns {Object} Session information including ID and start time
+ */
+function getOrCreateSession(userId) {
+  // Generate a consistent user ID if none exists
+  const userIdentifier = userId || 'anonymous-user';
+  
+  // Check if we already have an active session for this user
+  if (chatSessions.has(userIdentifier)) {
+    const session = chatSessions.get(userIdentifier);
+    // Update last activity time
+    session.lastActivity = new Date().toISOString();
+    return session;
+  }
+  
+  // Create a new session if none exists
+  const newSession = {
+    sessionId: uuidv4(), // Generate once per session
+    conversationId: uuidv4(), // Generate once per session
+    startedAt: new Date().toISOString(),
+    lastActivity: new Date().toISOString()
+  };
+  
+  // Store the session
+  chatSessions.set(userIdentifier, newSession);
+  
+  // Set a timeout to expire this session after inactivity (e.g., 30 minutes)
+  setTimeout(() => {
+    if (chatSessions.has(userIdentifier)) {
+      const session = chatSessions.get(userIdentifier);
+      const lastActivity = new Date(session.lastActivity);
+      const now = new Date();
+      // If session is older than 30 minutes, remove it
+      if ((now - lastActivity) > 30 * 60 * 1000) {
+        chatSessions.delete(userIdentifier);
+      }
+    }
+  }, 30 * 60 * 1000); // 30 minutes
+  
+  return newSession;
+}
 
 // Context tracking constants
 const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
@@ -8608,7 +8656,7 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  * Send conversation data to analytics system
  * 
  * Makes a direct HTTP POST request to the analytics API with conversation data.
- * Includes API key authentication to work regardless of active dashboard sessions.
+ * Maintains session continuity across messages for the same user.
  * 
  * @param {Object} conversationData - The conversation data including user and bot messages
  * @param {Object} languageInfo - Information about detected language
@@ -8618,21 +8666,29 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
         
+        // Generate a user identifier - ideally this should come from your chat handler
+        // This could be IP address, session cookie, or any other identifier
+        const userId = conversationData.sessionId || 'anonymous-user';
+        
+        // Get or create a session for this user
+        const sessionInfo = getOrCreateSession(userId);
+        
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': 'sky-lagoon-secret-2024'  // Use your existing API key
+                'x-api-key': 'sky-lagoon-secret-2024'
             },
             body: JSON.stringify({
-                id: conversationData.id,
-                sessionId: conversationData.sessionId || uuidv4(),
+                // Use the consistent session IDs
+                id: sessionInfo.conversationId,
+                sessionId: sessionInfo.sessionId,
                 clientId: 'sky-lagoon',
                 topic: conversationData.topic || 'general',
                 status: 'active',
                 responseTime: 0,
-                startedAt: conversationData.timestamp,
-                endedAt: conversationData.timestamp,
+                startedAt: sessionInfo.startedAt,
+                endedAt: new Date().toISOString(),
                 messages: [
                     {
                         content: conversationData.userMessage,
