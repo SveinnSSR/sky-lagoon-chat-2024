@@ -8570,6 +8570,16 @@ function handleConversationUpdate(conversationData, languageInfo) {
     }
 }
 
+/**
+ * Save conversation data directly to MongoDB
+ * 
+ * Stores a local copy of conversation data in MongoDB for backup and redundancy.
+ * This ensures data persistence even if the analytics API call fails.
+ * 
+ * @param {Object} conversationData - The conversation data including messages
+ * @param {Object} languageInfo - Information about detected language
+ * @returns {Promise<boolean>} - True if save was successful, false otherwise
+ */
 async function saveConversationToMongoDB(conversationData, languageInfo) {
     try {
         // Connect to MongoDB
@@ -8594,6 +8604,16 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
     }
 }
 
+/**
+ * Send conversation data to analytics system
+ * 
+ * Makes a direct HTTP POST request to the analytics API with conversation data.
+ * Includes API key authentication to work regardless of active dashboard sessions.
+ * 
+ * @param {Object} conversationData - The conversation data including user and bot messages
+ * @param {Object} languageInfo - Information about detected language
+ * @returns {Promise<boolean>} - True if API call was successful, false otherwise
+ */
 async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
@@ -8601,15 +8621,16 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-api-key': 'sky-lagoon-secret-2024'  // Use your existing API key
             },
             body: JSON.stringify({
                 id: conversationData.id,
-                sessionId: conversationData.sessionId || uuidv4(), // Generate if not present
-                clientId: 'sky-lagoon', // Default to Sky Lagoon
+                sessionId: conversationData.sessionId || uuidv4(),
+                clientId: 'sky-lagoon',
                 topic: conversationData.topic || 'general',
                 status: 'active',
-                responseTime: 0, // Can be calculated if needed
+                responseTime: 0,
                 startedAt: conversationData.timestamp,
                 endedAt: conversationData.timestamp,
                 messages: [
