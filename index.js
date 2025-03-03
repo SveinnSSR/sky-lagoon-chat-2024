@@ -2378,60 +2378,58 @@ const chatSessions = new Map();
  * @returns {Object} Session information including ID and start time
  */
 function getOrCreateSession(userInput, req) {
-    // CHANGE 1: Simplified IP extraction to avoid format differences
-    const ipAddress = req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown-ip';
-    
-    // CHANGE 2: Create a simpler, more consistent identifier with a fixed prefix
-    // Using only a portion of the IP to avoid variations in format
-    const userIdentifier = `chat-session-${ipAddress.substring(0, 15)}`;
-    
-    // CHANGE 3: Add logging to help diagnose session issues
-    console.log(`🔑 Session identifier: ${userIdentifier}`);
-    
-    // Check if we already have an active session for this user
-    if (chatSessions.has(userIdentifier)) {
-      const session = chatSessions.get(userIdentifier);
-      // Update last activity time
-      session.lastActivity = new Date().toISOString();
-      // CHANGE 4: Add logging for session reuse
-      console.log(`🔄 Reusing existing session: ${session.sessionId}`);
-      return session;
+  // CRITICAL CHANGE: Use a fixed identifier for each frontend instance
+  // Instead of relying on IP or other potentially changing values
+  
+  // Get IP address for logging purposes only
+  const ipAddress = req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown-ip';
+  
+  // Look for any existing session (using a simple counter to track total sessions)
+  const chatSessionCount = chatSessions.size;
+  
+  // Use a simple time-based strategy
+  // Consider any sessions created within the last 20 minutes to be the same session
+  const now = new Date();
+  const MAX_SESSION_GAP = 20 * 60 * 1000; // 20 minutes
+  
+  // Find the most recent active session
+  let mostRecentSession = null;
+  let mostRecentTime = 0;
+  
+  for (const [_, session] of chatSessions.entries()) {
+    const lastActivity = new Date(session.lastActivity).getTime();
+    if (lastActivity > mostRecentTime) {
+      mostRecentTime = lastActivity;
+      mostRecentSession = session;
     }
-    
-    // Create a new session if none exists
-    const newSession = {
-      sessionId: uuidv4(), // Generate once per session
-      conversationId: uuidv4(), // Generate once per session
-      startedAt: new Date().toISOString(),
-      lastActivity: new Date().toISOString()
-    };
-    
-    // Store the session
-    chatSessions.set(userIdentifier, newSession);
-    
-    // CHANGE 5: Add logging for new session creation
-    console.log(`🆕 Created new session: ${newSession.sessionId}`);
-    
-    // CHANGE 6: Extended timeout from 30 minutes to 2 hours for longer conversations
-    const sessionTimeout = 2 * 60 * 60 * 1000; // 2 hours
-    
-    // Set a timeout to expire this session after inactivity
-    setTimeout(() => {
-      if (chatSessions.has(userIdentifier)) {
-        const session = chatSessions.get(userIdentifier);
-        const lastActivity = new Date(session.lastActivity);
-        const now = new Date();
-        // If session is older than the timeout, remove it
-        if ((now - lastActivity) > sessionTimeout) {
-          // CHANGE 7: Add logging for session expiration
-          console.log(`⏱️ Session expired: ${session.sessionId}`);
-          chatSessions.delete(userIdentifier);
-        }
-      }
-    }, sessionTimeout); // CHANGE 8: Using the new timeout value
-    
-    return newSession;
   }
+  
+  // If we have a recent session that's within our time window, use it
+  if (mostRecentSession && (now.getTime() - mostRecentTime) < MAX_SESSION_GAP) {
+    console.log(`🔄 Reusing session (activity gap: ${(now.getTime() - mostRecentTime)/1000} seconds)`);
+    
+    // Update last activity time
+    mostRecentSession.lastActivity = now.toISOString();
+    return mostRecentSession;
+  }
+  
+  // Create a new session if none exists or most recent is too old
+  const newSession = {
+    sessionId: uuidv4(),
+    conversationId: uuidv4(),
+    startedAt: now.toISOString(),
+    lastActivity: now.toISOString()
+  };
+  
+  // Store with a simple counter-based key that doesn't depend on request properties
+  const sessionKey = `session-${chatSessionCount + 1}`;
+  chatSessions.set(sessionKey, newSession);
+  
+  console.log(`🆕 Created new session (${sessionKey}): ${newSession.sessionId}`);
+  console.log(`📊 Total sessions: ${chatSessions.size}, Request IP: ${ipAddress.substring(0, 15)}`);
+  
+  return newSession;
+}
 
 // Context tracking constants
 const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
