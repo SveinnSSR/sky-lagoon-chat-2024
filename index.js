@@ -2370,65 +2370,36 @@ const conversationBuffer = new Map(); // Buffer recent conversations
 // Track active chat sessions
 const chatSessions = new Map();
 
+// Add this new global session variable
+let globalSessionInfo = null;
+
 /**
- * Get or create a session ID for a user conversation
+ * Get or create a global session for all conversations
  * 
- * @param {string} userInput - The user's message content
- * @param {object} req - Express request object to get IP address
- * @returns {Object} Session information including ID and start time
+ * @returns {Object} Session information
  */
-function getOrCreateSession(userInput, req) {
-  // CRITICAL CHANGE: Use a fixed identifier for each frontend instance
-  // Instead of relying on IP or other potentially changing values
-  
-  // Get IP address for logging purposes only
-  const ipAddress = req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown-ip';
-  
-  // Look for any existing session (using a simple counter to track total sessions)
-  const chatSessionCount = chatSessions.size;
-  
-  // Use a simple time-based strategy
-  // Consider any sessions created within the last 20 minutes to be the same session
+function getOrCreateSession() {
   const now = new Date();
-  const MAX_SESSION_GAP = 20 * 60 * 1000; // 20 minutes
   
-  // Find the most recent active session
-  let mostRecentSession = null;
-  let mostRecentTime = 0;
-  
-  for (const [_, session] of chatSessions.entries()) {
-    const lastActivity = new Date(session.lastActivity).getTime();
-    if (lastActivity > mostRecentTime) {
-      mostRecentTime = lastActivity;
-      mostRecentSession = session;
-    }
+  // If we have an existing global session, use it
+  if (globalSessionInfo) {
+    // Update last activity
+    globalSessionInfo.lastActivity = now.toISOString();
+    console.log(`🔄 Using global session: ${globalSessionInfo.sessionId}`);
+    return globalSessionInfo;
   }
   
-  // If we have a recent session that's within our time window, use it
-  if (mostRecentSession && (now.getTime() - mostRecentTime) < MAX_SESSION_GAP) {
-    console.log(`🔄 Reusing session (activity gap: ${(now.getTime() - mostRecentTime)/1000} seconds)`);
-    
-    // Update last activity time
-    mostRecentSession.lastActivity = now.toISOString();
-    return mostRecentSession;
-  }
-  
-  // Create a new session if none exists or most recent is too old
-  const newSession = {
+  // Create a new global session
+  globalSessionInfo = {
     sessionId: uuidv4(),
     conversationId: uuidv4(),
     startedAt: now.toISOString(),
     lastActivity: now.toISOString()
   };
   
-  // Store with a simple counter-based key that doesn't depend on request properties
-  const sessionKey = `session-${chatSessionCount + 1}`;
-  chatSessions.set(sessionKey, newSession);
+  console.log(`🌐 Created global session: ${globalSessionInfo.sessionId}`);
   
-  console.log(`🆕 Created new session (${sessionKey}): ${newSession.sessionId}`);
-  console.log(`📊 Total sessions: ${chatSessions.size}, Request IP: ${ipAddress.substring(0, 15)}`);
-  
-  return newSession;
+  return globalSessionInfo;
 }
 
 // Context tracking constants
@@ -8672,7 +8643,7 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  * Send conversation data to analytics system
  * 
  * Makes a direct HTTP POST request to the analytics API with conversation data.
- * Maintains session continuity across messages for the same user.
+ * Uses a global session for conversation continuity.
  * 
  * @param {Object} conversationData - The conversation data including user and bot messages
  * @param {Object} languageInfo - Information about detected language
@@ -8682,17 +8653,8 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
         
-        // Extract IP and user agent if available from the request
-        const req = {
-            ip: conversationData.ip || conversationData.req?.ip || 'unknown-ip',
-            headers: {
-                'user-agent': conversationData.userAgent || conversationData.req?.headers?.['user-agent'] || '',
-                'x-forwarded-for': conversationData.req?.headers?.['x-forwarded-for'] || ''
-            }
-        };
-        
-        // Get or create a session using the enhanced function
-        const sessionInfo = getOrCreateSession(conversationData.userMessage, req);
+        // Get global session - no parameters needed
+        const sessionInfo = getOrCreateSession();
         
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
