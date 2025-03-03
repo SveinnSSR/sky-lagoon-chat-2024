@@ -2370,36 +2370,76 @@ const conversationBuffer = new Map(); // Buffer recent conversations
 // Track active chat sessions
 const chatSessions = new Map();
 
-// Add this new global session variable
-let globalSessionInfo = null;
-
 /**
- * Get or create a global session for all conversations
+ * Get or create a persistent session from MongoDB
  * 
- * @returns {Object} Session information
+ * @returns {Promise<Object>} Session information
  */
-function getOrCreateSession() {
-  const now = new Date();
-  
-  // If we have an existing global session, use it
-  if (globalSessionInfo) {
-    // Update last activity
-    globalSessionInfo.lastActivity = now.toISOString();
-    console.log(`🔄 Using global session: ${globalSessionInfo.sessionId}`);
-    return globalSessionInfo;
+async function getOrCreateSession() {
+  try {
+    // Connect to MongoDB
+    const { db } = await connectToDatabase();
+    
+    // Try to find an existing global session
+    const globalSessionCollection = db.collection('globalSessions');
+    const existingSession = await globalSessionCollection.findOne({ 
+      type: 'global_chat_session' 
+    });
+    
+    const now = new Date();
+    
+    // If we found an existing session, update its lastActivity time and return it
+    if (existingSession) {
+      console.log(`🔄 Using persistent session: ${existingSession.sessionId}`);
+      
+      // Update last activity time
+      await globalSessionCollection.updateOne(
+        { type: 'global_chat_session' },
+        { $set: { lastActivity: now.toISOString() } }
+      );
+      
+      return {
+        sessionId: existingSession.sessionId,
+        conversationId: existingSession.conversationId,
+        startedAt: existingSession.startedAt,
+        lastActivity: now.toISOString()
+      };
+    }
+    
+    // Create a new session if none exists
+    const newSession = {
+      type: 'global_chat_session',
+      sessionId: uuidv4(),
+      conversationId: uuidv4(),
+      startedAt: now.toISOString(),
+      lastActivity: now.toISOString()
+    };
+    
+    // Save to MongoDB
+    await globalSessionCollection.insertOne(newSession);
+    
+    console.log(`🌐 Created persistent session: ${newSession.sessionId}`);
+    
+    return {
+      sessionId: newSession.sessionId,
+      conversationId: newSession.conversationId,
+      startedAt: newSession.startedAt,
+      lastActivity: newSession.lastActivity
+    };
+  } catch (error) {
+    console.error('❌ Error with session management:', error);
+    
+    // Fallback to a new session if MongoDB operations fail
+    const fallbackSession = {
+      sessionId: uuidv4(),
+      conversationId: uuidv4(),
+      startedAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString()
+    };
+    
+    console.log(`⚠️ Using fallback session: ${fallbackSession.sessionId}`);
+    return fallbackSession;
   }
-  
-  // Create a new global session
-  globalSessionInfo = {
-    sessionId: uuidv4(),
-    conversationId: uuidv4(),
-    startedAt: now.toISOString(),
-    lastActivity: now.toISOString()
-  };
-  
-  console.log(`🌐 Created global session: ${globalSessionInfo.sessionId}`);
-  
-  return globalSessionInfo;
 }
 
 // Context tracking constants
@@ -8559,7 +8599,7 @@ function determineMessageType(content, language) {
 // });
 
 // Pusher broadcast function with enhanced language detection
-function handleConversationUpdate(conversationData, languageInfo) {
+async function handleConversationUpdate(conversationData, languageInfo) {
     try {
         console.log('🚀 Broadcasting conversation via Pusher:', {
             event: 'conversation-update',
@@ -8571,7 +8611,7 @@ function handleConversationUpdate(conversationData, languageInfo) {
             timestamp: new Date().toISOString()
         });
         
-        // STEP 1: Continue broadcasting via Pusher for real-time updates (unchanged from your original code)
+        // STEP 1: Continue broadcasting via Pusher for real-time updates
         const pusherPromise = pusher.trigger('chat-channel', 'conversation-update', conversationData)
             .then(() => {
                 console.log('✅ Pusher message sent successfully');
@@ -8592,7 +8632,7 @@ function handleConversationUpdate(conversationData, languageInfo) {
         // STEP 2: Save to MongoDB directly
         const dbPromise = saveConversationToMongoDB(conversationData, languageInfo);
         
-        // STEP 3: Send directly to Analytics API
+        // STEP 3: Send directly to Analytics API (now awaits properly)
         const apiPromise = sendConversationToAnalytics(conversationData, languageInfo);
         
         // Wait for all operations to complete but don't fail if one fails
@@ -8643,7 +8683,7 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  * Send conversation data to analytics system
  * 
  * Makes a direct HTTP POST request to the analytics API with conversation data.
- * Uses a global session for conversation continuity.
+ * Uses a persistent MongoDB session for conversation continuity.
  * 
  * @param {Object} conversationData - The conversation data including user and bot messages
  * @param {Object} languageInfo - Information about detected language
@@ -8653,8 +8693,8 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
         
-        // Get global session - no parameters needed
-        const sessionInfo = getOrCreateSession();
+        // Get persistent session from MongoDB - now using await
+        const sessionInfo = await getOrCreateSession();
         
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
