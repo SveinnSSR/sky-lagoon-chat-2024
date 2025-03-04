@@ -2378,35 +2378,54 @@ const chatSessions = new Map();
 async function getOrCreateSession() {
   try {
     // Connect to MongoDB
-    const { db } = await connectToDatabase();
+    let db;
+    try {
+      const dbConnection = await connectToDatabase();
+      db = dbConnection.db;
+    } catch (dbConnectionError) {
+      console.error('❌ Error connecting to MongoDB:', dbConnectionError);
+      throw dbConnectionError; // Pass this error along
+    }
     
     // Try to find an existing global session
-    const globalSessionCollection = db.collection('globalSessions');
-    const existingSession = await globalSessionCollection.findOne({ 
-      type: 'global_chat_session' 
-    });
+    let existingSession = null;
+    try {
+      const globalSessionCollection = db.collection('globalSessions');
+      existingSession = await globalSessionCollection.findOne({ 
+        type: 'global_chat_session' 
+      });
+    } catch (findError) {
+      console.error('❌ Error finding global session:', findError);
+      // Continue with existingSession as null
+    }
     
     const now = new Date();
     
-    // If we found an existing session, update its lastActivity time and return it
-    if (existingSession) {
+    // If we found a valid existing session, update its lastActivity time and return it
+    if (existingSession && existingSession.sessionId && existingSession.conversationId) {
       console.log(`🔄 Using persistent session: ${existingSession.sessionId}`);
       
-      // Update last activity time
-      await globalSessionCollection.updateOne(
-        { type: 'global_chat_session' },
-        { $set: { lastActivity: now.toISOString() } }
-      );
+      // Try to update last activity time, but don't fail if it doesn't work
+      try {
+        const globalSessionCollection = db.collection('globalSessions');
+        await globalSessionCollection.updateOne(
+          { type: 'global_chat_session' },
+          { $set: { lastActivity: now.toISOString() } }
+        );
+      } catch (updateError) {
+        console.warn('⚠️ Could not update session activity time:', updateError);
+        // Continue anyway
+      }
       
       return {
         sessionId: existingSession.sessionId,
         conversationId: existingSession.conversationId,
-        startedAt: existingSession.startedAt,
+        startedAt: existingSession.startedAt || now.toISOString(),
         lastActivity: now.toISOString()
       };
     }
     
-    // Create a new session if none exists
+    // Create a new session if none exists or if existing one is invalid
     const newSession = {
       type: 'global_chat_session',
       sessionId: uuidv4(),
@@ -2415,10 +2434,15 @@ async function getOrCreateSession() {
       lastActivity: now.toISOString()
     };
     
-    // Save to MongoDB
-    await globalSessionCollection.insertOne(newSession);
-    
-    console.log(`🌐 Created persistent session: ${newSession.sessionId}`);
+    // Try to save to MongoDB, but don't fail if it doesn't work
+    try {
+      const globalSessionCollection = db.collection('globalSessions');
+      await globalSessionCollection.insertOne(newSession);
+      console.log(`🌐 Created persistent session: ${newSession.sessionId}`);
+    } catch (insertError) {
+      console.warn('⚠️ Could not save new session to MongoDB:', insertError);
+      // Continue anyway
+    }
     
     return {
       sessionId: newSession.sessionId,
@@ -2429,7 +2453,7 @@ async function getOrCreateSession() {
   } catch (error) {
     console.error('❌ Error with session management:', error);
     
-    // Fallback to a new session if MongoDB operations fail
+    // Always return a valid fallback session if any errors occurred
     const fallbackSession = {
       sessionId: uuidv4(),
       conversationId: uuidv4(),
@@ -8693,8 +8717,40 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
         console.log('📤 Sending conversation directly to analytics system');
         
+        // CRITICAL FIX: Add validation for conversation data
+        if (!conversationData) {
+            console.error('❌ Cannot send conversation: conversationData is undefined');
+            return false;
+        }
+
         // Get persistent session from MongoDB - now using await
-        const sessionInfo = await getOrCreateSession();
+        let sessionInfo;
+        try {
+            sessionInfo = await getOrCreateSession();
+            
+            // CRITICAL FIX: Validate session info
+            if (!sessionInfo || !sessionInfo.conversationId || !sessionInfo.sessionId) {
+                console.error('❌ Invalid session information:', sessionInfo);
+                // Generate new valid IDs if missing
+                sessionInfo = {
+                    conversationId: uuidv4(),
+                    sessionId: uuidv4(),
+                    startedAt: new Date().toISOString(),
+                    lastActivity: new Date().toISOString()
+                };
+                console.log('🔄 Generated new session info due to invalid data');
+            }
+        } catch (sessionError) {
+            console.error('❌ Error getting session:', sessionError);
+            // Fallback to generating new IDs
+            sessionInfo = {
+                conversationId: uuidv4(),
+                sessionId: uuidv4(),
+                startedAt: new Date().toISOString(),
+                lastActivity: new Date().toISOString()
+            };
+            console.log('🔄 Generated fallback session info due to error');
+        }
         
         const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
             method: 'POST',
@@ -8703,7 +8759,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
                 'x-api-key': 'sky-lagoon-secret-2024'
             },
             body: JSON.stringify({
-                // Use the consistent session IDs
+                // Use the consistent session IDs with validation
                 id: sessionInfo.conversationId,
                 sessionId: sessionInfo.sessionId,
                 clientId: 'sky-lagoon',
@@ -8714,15 +8770,15 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
                 endedAt: new Date().toISOString(),
                 messages: [
                     {
-                        content: conversationData.userMessage,
+                        content: conversationData.userMessage || "No message content",
                         role: 'user',
-                        language: conversationData.language,
-                        timestamp: conversationData.timestamp
+                        language: conversationData.language || 'en',
+                        timestamp: conversationData.timestamp || new Date().toISOString()
                     },
                     {
-                        content: conversationData.botResponse,
+                        content: conversationData.botResponse || "No response content",
                         role: 'assistant',
-                        language: conversationData.language,
+                        language: conversationData.language || 'en',
                         timestamp: new Date().toISOString()
                     }
                 ]
