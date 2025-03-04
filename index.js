@@ -2372,11 +2372,12 @@ const chatSessions = new Map();
 
 /**
  * Get or create a persistent session from MongoDB
- * Creates a unique session for each chat
+ * Uses the frontend session ID to maintain conversation continuity
  * 
+ * @param {Object} conversationData - The conversation data including session information
  * @returns {Promise<Object>} Session information
  */
-async function getOrCreateSession() {
+async function getOrCreateSession(conversationData) {
   try {
     // Connect to MongoDB
     let db;
@@ -2385,27 +2386,66 @@ async function getOrCreateSession() {
       db = dbConnection.db;
     } catch (dbConnectionError) {
       console.error('❌ Error connecting to MongoDB:', dbConnectionError);
-      throw dbConnectionError; // Pass this error along
+      throw dbConnectionError;
     }
     
-    // Create a new unique session for each chat - this is the key change
+    // Extract the frontend session ID
+    // This is the key change - use the existing session ID from conversationData
+    const frontendSessionId = conversationData?.sessionId || 'unknown-session';
+    
+    // Try to find an existing session for this frontend session
+    const globalSessionCollection = db.collection('globalSessions');
+    let existingSession = null;
+    
+    try {
+      existingSession = await globalSessionCollection.findOne({ 
+        frontendSessionId: frontendSessionId 
+      });
+    } catch (findError) {
+      console.error('❌ Error finding session:', findError);
+      // Continue with existingSession as null
+    }
+    
     const now = new Date();
+    
+    // If we found an existing session for this frontend session, use it
+    if (existingSession && existingSession.conversationId) {
+      console.log(`🔄 Using existing session: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
+      
+      // Update last activity time
+      try {
+        await globalSessionCollection.updateOne(
+          { frontendSessionId: frontendSessionId },
+          { $set: { lastActivity: now.toISOString() } }
+        );
+      } catch (updateError) {
+        console.warn('⚠️ Could not update session activity time:', updateError);
+      }
+      
+      return {
+        sessionId: existingSession.sessionId,
+        conversationId: existingSession.conversationId,
+        startedAt: existingSession.startedAt,
+        lastActivity: now.toISOString()
+      };
+    }
+    
+    // Create a new session for this frontend session
     const newSession = {
-      type: 'individual_chat_session', // Changed type to reflect individual sessions
+      type: 'chat_session',
+      frontendSessionId: frontendSessionId, // Store the frontend session ID
       sessionId: uuidv4(),
-      conversationId: uuidv4(), // New unique ID for each conversation
+      conversationId: uuidv4(),
       startedAt: now.toISOString(),
       lastActivity: now.toISOString()
     };
     
-    // Try to save to MongoDB, but don't fail if it doesn't work
+    // Save to MongoDB
     try {
-      const globalSessionCollection = db.collection('globalSessions');
       await globalSessionCollection.insertOne(newSession);
-      console.log(`🌐 Created new individual chat session: ${newSession.conversationId}`);
+      console.log(`🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId}`);
     } catch (insertError) {
       console.warn('⚠️ Could not save new session to MongoDB:', insertError);
-      // Continue anyway
     }
     
     return {
@@ -2417,7 +2457,7 @@ async function getOrCreateSession() {
   } catch (error) {
     console.error('❌ Error with session management:', error);
     
-    // Always return a valid fallback session if any errors occurred
+    // Fallback to a new session
     const fallbackSession = {
       sessionId: uuidv4(),
       conversationId: uuidv4(),
@@ -8701,10 +8741,25 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
             return false;
         }
 
-        // Get persistent session from MongoDB - now using await
+        // Extract the frontend session ID from the request context
+        // This is the key change - we need to get the session ID and pass it to getOrCreateSession
+        if (!conversationData.sessionId) {
+            // Try to find the session ID in various places
+            const sessionId = conversationData.sessionId || 
+                              conversationData.chatId || 
+                              (conversationData.req && conversationData.req.session && conversationData.req.session.id);
+            
+            if (sessionId) {
+                conversationData.sessionId = sessionId;
+            } else {
+                console.log('ℹ️ No session ID found in conversation data');
+            }
+        }
+
+        // Get persistent session from MongoDB - now passing the conversation data
         let sessionInfo;
         try {
-            sessionInfo = await getOrCreateSession();
+            sessionInfo = await getOrCreateSession(conversationData);
             
             // CRITICAL FIX: Validate session info
             if (!sessionInfo || !sessionInfo.conversationId || !sessionInfo.sessionId) {
