@@ -8646,7 +8646,7 @@ async function handleConversationUpdate(conversationData, languageInfo) {
 }
 
 /**
- * Save conversation data directly to MongoDB
+ * Save conversation data directly to MongoDB.
  * 
  * Stores a local copy of conversation data in MongoDB for backup and redundancy.
  * This ensures data persistence even if the analytics API call fails.
