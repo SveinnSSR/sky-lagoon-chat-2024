@@ -1468,23 +1468,23 @@ const detectSmallTalk = (message, languageDecision) => {
             reason: languageDecision.reason
         },
         patterns: {
-            enWellbeing: smallTalkPatterns.en.wellbeing.some(p => msg.includes(p)),
-            enIdentity: smallTalkPatterns.en.identity.some(p => msg.includes(p)),
-            enGreeting: smallTalkPatterns.en.greeting.some(p => msg.includes(p)),
-            enFeedback: smallTalkPatterns.en.feedback.some(p => msg.includes(p)), // Add this line
-            isWellbeing: smallTalkPatterns.is.wellbeing.some(p => msg.includes(p)),
-            isGreeting: smallTalkPatterns.is.greeting.some(p => msg.includes(p)),
-            isFeedback: smallTalkPatterns.is.feedback.some(p => msg.includes(p))  // Add this line
+            enWellbeing: smallTalkPatterns.en.wellbeing.some(p => matchesWholeWord(msg, p)),
+            enIdentity: smallTalkPatterns.en.identity.some(p => matchesWholeWord(msg, p)),
+            enGreeting: smallTalkPatterns.en.greeting.some(p => matchesWholeWord(msg, p)),
+            enFeedback: smallTalkPatterns.en.feedback.some(p => matchesWholeWord(msg, p)),
+            isWellbeing: smallTalkPatterns.is.wellbeing.some(p => matchesWholeWord(msg, p)),
+            isGreeting: smallTalkPatterns.is.greeting.some(p => matchesWholeWord(msg, p)),
+            isFeedback: smallTalkPatterns.is.feedback.some(p => matchesWholeWord(msg, p))
         }
     });
 
     // Check for feedback patterns first - these should take priority
     if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
-        if (smallTalkPatterns.en.feedback.some(pattern => msg.includes(pattern))) {
+        if (smallTalkPatterns.en.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
             return { isSmallTalk: true, language: 'en', category: 'feedback' };
         }
     } else {
-        if (smallTalkPatterns.is.feedback.some(pattern => msg.includes(pattern))) {
+        if (smallTalkPatterns.is.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
             return { isSmallTalk: true, language: 'is', category: 'feedback' };
         }
     }
@@ -1492,7 +1492,7 @@ const detectSmallTalk = (message, languageDecision) => {
     // Use language detection for initial check
     if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
         for (const category in smallTalkPatterns.en) {
-            if (smallTalkPatterns.en[category].some(pattern => msg.includes(pattern))) {
+            if (smallTalkPatterns.en[category].some(pattern => matchesWholeWord(msg, pattern))) {
                 return { isSmallTalk: true, language: 'en', category };
             }
         }
@@ -1501,7 +1501,7 @@ const detectSmallTalk = (message, languageDecision) => {
     // Then check both languages if not confident
     for (const lang of ['en', 'is']) {
         for (const category in smallTalkPatterns[lang]) {
-            if (smallTalkPatterns[lang][category].some(pattern => msg.includes(pattern))) {
+            if (smallTalkPatterns[lang][category].some(pattern => matchesWholeWord(msg, pattern))) {
                 return { isSmallTalk: true, language: lang, category };
             }
         }
@@ -1741,8 +1741,8 @@ const questionPatterns = {
         ]
     },
     question: {
-        en: ['how', 'what', 'when', 'where', 'why', 'can', 'do', 'does', 'which'],
-        is: ['hvernig', 'hvað', 'hvenær', 'hvar', 'af hverju', 'get', 'er', 'má', 'hver']
+        en: ['how', 'what', 'when', 'where', 'why', 'can', 'do', 'does', 'which', 'are', 'is', 'will', 'should'],
+        is: ['hvernig', 'hvað', 'hvenær', 'hvar', 'af hverju', 'get', 'er', 'má', 'hver']    
     }
 };
 
@@ -6515,89 +6515,100 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(userMessage);
             const hasEnglishGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|hi there|hello there|hey there)/i.test(userMessage);
             
-            // If it has both bot name and English greeting pattern, force English response
-            const isEnglishGreeting = (hasBotName && hasEnglishGreeting) || 
-                                    (!languageDecision.isIcelandic && 
-                                    (languageDecision.confidence === 'high' || 
-                                    /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)));
-                                    (simpleEnglishGreetings.some(g => 
-                                        msg === g || msg === g + '!' || msg.startsWith(g + ' ')
-                                    ));
-
-            // Log greeting detection with pattern match (use stored result)
-            logGreetingMatch(userMessage, isGreeting, languageDecision);
-
-            // Log enhanced greeting check
-            console.log('\n👋 Enhanced Greeting Check:', {
-                original: userMessage,
-                cleaned: msg,
-                hasBotName: hasBotName,
-                hasEnglishGreeting: hasEnglishGreeting,
-                forceEnglish: hasBotName && hasEnglishGreeting,
-                isEnglishDetected: !languageDecision.isIcelandic,
-                confidence: languageDecision.confidence,
-                isEnglishGreeting: isEnglishGreeting,
-                patterns: {
-                    isSimpleHi: /^(?:hi|hello|hey)\b$/i.test(msg),
-                    isEnglishGreetingWithMore: /^(?:hi|hello|hey)\b.+/i.test(msg),
-                    matchesSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
-                }
-            });
+            // NEW CODE - Check if there's a question after the greeting
+            const containsQuestion = /can|could|would|do|does|is|are|how|what|when|where|why|which|should/i.test(
+                userMessage.replace(/^(hi|hello|hey|good morning|good afternoon|good evening|hi there|hello there|hey there)(\s*sólrún|\s*solrun)?\s*,?\s*/i, '')
+            );
             
-            // Check for follow-up greeting with new language system
-            const isFollowUp = isFollowUpGreeting(userMessage, languageDecision) || context.conversationStarted;
-            
-            // Determine language for response based on enhanced rules
-            const useEnglishResponse = (hasBotName && hasEnglishGreeting) || 
-                                     (!languageDecision.isIcelandic && languageDecision.confidence === 'high');
-            
-            // Always use follow-up responses since ChatWidget handles initial greeting
-            const response = isFollowUp ? 
-                (useEnglishResponse ? 
-                    FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
-                    FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
-                (useEnglishResponse ? 
-                    GREETING_RESPONSES.english[0] : 
-                    GREETING_RESPONSES.icelandic[0]);
+            // If the message contains a question after the greeting, skip the greeting handling
+            if (containsQuestion) {
+                console.log('\n🔍 Skipping greeting response for message with question:', userMessage);
+                // Continue processing (no return)
+            } else {
+                // If it has both bot name and English greeting pattern, force English response
+                const isEnglishGreeting = (hasBotName && hasEnglishGreeting) || 
+                                        (!languageDecision.isIcelandic && 
+                                        (languageDecision.confidence === 'high' || 
+                                        /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)));
+                                        (simpleEnglishGreetings.some(g => 
+                                            msg === g || msg === g + '!' || msg.startsWith(g + ' ')
+                                        ));
 
-            // Log the follow-up response selection
-            if (isFollowUp) {
-                console.log('\n🗣️ Selected Greeting Response:', {
-                    isFollowUp: true,
-                    useEnglishResponse: useEnglishResponse,
+                // Log greeting detection with pattern match (use stored result)
+                logGreetingMatch(userMessage, isGreeting, languageDecision);
+
+                // Log enhanced greeting check
+                console.log('\n👋 Enhanced Greeting Check:', {
+                    original: userMessage,
+                    cleaned: msg,
                     hasBotName: hasBotName,
                     hasEnglishGreeting: hasEnglishGreeting,
-                    response: response
-                });
-                logFollowUpResponse({
-                    isIcelandic: !useEnglishResponse,
-                    confidence: 'high',
-                    reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
-                }, response);
-            }
-
-            // Update context and save
-            context.language = useEnglishResponse ? 'en' : 'is';
-            context.conversationStarted = true;
-            conversationContext.set(sessionId, context);
-            
-            // Broadcast the greeting
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglishResponse ? 'en' : 'is',
-                'greeting',
-                'direct_response'
-            );
-    
-            return res.status(200).json({
-                message: response,
-                language: {
-                    detected: useEnglishResponse ? 'English' : 'Icelandic',
+                    forceEnglish: hasBotName && hasEnglishGreeting,
+                    isEnglishDetected: !languageDecision.isIcelandic,
                     confidence: languageDecision.confidence,
-                    reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
+                    isEnglishGreeting: isEnglishGreeting,
+                    patterns: {
+                        isSimpleHi: /^(?:hi|hello|hey)\b$/i.test(msg),
+                        isEnglishGreetingWithMore: /^(?:hi|hello|hey)\b.+/i.test(msg),
+                        matchesSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
+                    }
+                });
+                
+                // Check for follow-up greeting with new language system
+                const isFollowUp = isFollowUpGreeting(userMessage, languageDecision) || context.conversationStarted;
+                
+                // Determine language for response based on enhanced rules
+                const useEnglishResponse = (hasBotName && hasEnglishGreeting) || 
+                                        (!languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                
+                // Always use follow-up responses since ChatWidget handles initial greeting
+                const response = isFollowUp ? 
+                    (useEnglishResponse ? 
+                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
+                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
+                    (useEnglishResponse ? 
+                        GREETING_RESPONSES.english[0] : 
+                        GREETING_RESPONSES.icelandic[0]);
+
+                // Log the follow-up response selection
+                if (isFollowUp) {
+                    console.log('\n🗣️ Selected Greeting Response:', {
+                        isFollowUp: true,
+                        useEnglishResponse: useEnglishResponse,
+                        hasBotName: hasBotName,
+                        hasEnglishGreeting: hasEnglishGreeting,
+                        response: response
+                    });
+                    logFollowUpResponse({
+                        isIcelandic: !useEnglishResponse,
+                        confidence: 'high',
+                        reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
+                    }, response);
                 }
-            });
+
+                // Update context and save
+                context.language = useEnglishResponse ? 'en' : 'is';
+                context.conversationStarted = true;
+                conversationContext.set(sessionId, context);
+                
+                // Broadcast the greeting
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    useEnglishResponse ? 'en' : 'is',
+                    'greeting',
+                    'direct_response'
+                );
+        
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: useEnglishResponse ? 'English' : 'Icelandic',
+                        confidence: languageDecision.confidence,
+                        reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
+                    }
+                });
+            }
         }
 
         // MOVE TOPIC CONTEXT CODE HERE - after context initialization
@@ -7653,41 +7664,47 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for conversation continuity first
         if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
             acknowledgmentPatterns.continuity.is.some(pattern => matchesWholeWord(msg, pattern))) {
-            // Use checkSimpleResponse for more accurate language detection
-            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-            const useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
-            
-            // Log language decision
-            console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
-                message: userMessage,
-                simpleResponseType,
-                useEnglish,
-                languageDecision: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
-            
-            const response = useEnglish ?
-                "Of course! Please go ahead and ask your questions." :
-                "Endilega spurðu!";
+            // IMPORTANT: Skip if we have KB results or it's a question
+            if (knowledgeBaseResults.length > 0 || hasQuestionWord) {
+                // Skip continuity handling and continue to knowledge base processing
+                console.log('\n🔍 Skipping continuity acknowledgment for message with knowledge base results or question');
+            } else {
+                // Use checkSimpleResponse for more accurate language detection
+                const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                const useEnglish = simpleResponseType === 'en' || 
+                                (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
+                
+                // Log language decision
+                console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
+                    message: userMessage,
+                    simpleResponseType,
+                    useEnglish,
+                    languageDecision: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence
+                    }
+                });
+                
+                const response = useEnglish ?
+                    "Of course! Please go ahead and ask your questions." :
+                    "Endilega spurðu!";
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglish ? 'en' : 'is',
-                'continuity',
-                'direct_response'
-            );
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    useEnglish ? 'en' : 'is',
+                    'continuity',
+                    'direct_response'
+                );
 
-            return res.status(200).json({
-                message: response,
-                language: {
-                    detected: useEnglish ? 'English' : 'Icelandic',
-                    confidence: languageDecision.confidence
-                }
-            });
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: useEnglish ? 'English' : 'Icelandic',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            }
         }
 
         // Check for positive feedback
@@ -8126,7 +8143,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
             
             // Update context with this interaction
-            updateContext(sessionId, userMessage, formattedResponseWithEmoji);
+            updateContext(sessionId, userMessage, formattedResponseWithEmoji, languageDecision);
             
             // Add to response cache
             responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
