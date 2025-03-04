@@ -2378,6 +2378,7 @@ const chatSessions = new Map();
 /**
  * Get or create a persistent session from MongoDB
  * Uses the frontend session ID to maintain conversation continuity
+ * Adds IP-based session matching to group related conversations
  * 
  * @param {Object} conversationData - The conversation data including session information
  * @returns {Promise<Object>} Session information
@@ -2397,6 +2398,12 @@ async function getOrCreateSession(conversationData) {
     // Extract the frontend session ID
     // This is the key change - use the existing session ID from conversationData
     const frontendSessionId = conversationData?.sessionId || 'unknown-session';
+    
+    // Extract the user's IP address if available (for differentiating users)
+    const userIp = conversationData?.ip || 
+                  conversationData?.req?.ip || 
+                  conversationData?.req?.headers?.['x-forwarded-for'] || 
+                  'unknown-ip';
     
     // Try to find an existing session for this frontend session
     const globalSessionCollection = db.collection('globalSessions');
@@ -2435,10 +2442,52 @@ async function getOrCreateSession(conversationData) {
       };
     }
     
-    // Create a new session for this frontend session
+    // New step: Find a very recent session from the same IP (within 5 minutes)
+    // This helps group messages that should be part of the same conversation
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    
+    try {
+      const recentSessions = await globalSessionCollection.find({
+        lastActivity: { $gte: fiveMinutesAgo.toISOString() },
+        userIp: userIp // Only consider sessions from the same IP address
+      }).sort({ lastActivity: -1 }).limit(1).toArray();
+      
+      if (recentSessions && recentSessions.length > 0) {
+        const mostRecentSession = recentSessions[0];
+        console.log(`🔄 Reusing recent session: ${mostRecentSession.conversationId} from same IP: ${userIp}`);
+        
+        // Update the session with this frontend session ID and activity time
+        try {
+          await globalSessionCollection.updateOne(
+            { _id: mostRecentSession._id },
+            { 
+              $set: { 
+                lastActivity: now.toISOString(),
+                frontendSessionIds: [...(mostRecentSession.frontendSessionIds || []), frontendSessionId]
+              }
+            }
+          );
+        } catch (updateError) {
+          console.warn('⚠️ Could not update recent session:', updateError);
+        }
+        
+        return {
+          sessionId: mostRecentSession.sessionId,
+          conversationId: mostRecentSession.conversationId,
+          startedAt: mostRecentSession.startedAt,
+          lastActivity: now.toISOString()
+        };
+      }
+    } catch (findError) {
+      console.error('❌ Error finding recent sessions:', findError);
+    }
+    
+    // Create a new session if no matching session was found
     const newSession = {
       type: 'chat_session',
       frontendSessionId: frontendSessionId, // Store the frontend session ID
+      frontendSessionIds: [frontendSessionId], // Keep track of all associated session IDs
+      userIp: userIp, // Store IP for future matching
       sessionId: uuidv4(),
       conversationId: uuidv4(),
       startedAt: now.toISOString(),
@@ -2448,7 +2497,7 @@ async function getOrCreateSession(conversationData) {
     // Save to MongoDB
     try {
       await globalSessionCollection.insertOne(newSession);
-      console.log(`🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId}`);
+      console.log(`🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId} from IP: ${userIp}`);
     } catch (insertError) {
       console.warn('⚠️ Could not save new session to MongoDB:', insertError);
     }
