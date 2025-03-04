@@ -111,8 +111,9 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
         });
 
-        // Get the current session ID from the session tracker
-        const sessionId = currentSessionId || conversationContext.get('currentSession') || `session_${Date.now()}`;
+        // Get the current session ID from the global conversation context
+        // This avoids having to modify all the call sites
+        const chatSessionId = conversationContext.get('currentSession') || `session_${Date.now()}`;
         
         // Create language info object using our new detection
         const languageInfo = {
@@ -129,7 +130,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
             type,
-            sessionId: sessionId  // Add the session ID here
+            sessionId: chatSessionId  // Add the session ID here
         };
 
         return await handleConversationUpdate(conversationData, languageInfo);
