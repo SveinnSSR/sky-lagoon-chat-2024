@@ -2372,6 +2372,7 @@ const chatSessions = new Map();
 
 /**
  * Get or create a persistent session from MongoDB
+ * Creates a unique session for each chat
  * 
  * @returns {Promise<Object>} Session information
  */
@@ -2387,49 +2388,12 @@ async function getOrCreateSession() {
       throw dbConnectionError; // Pass this error along
     }
     
-    // Try to find an existing global session
-    let existingSession = null;
-    try {
-      const globalSessionCollection = db.collection('globalSessions');
-      existingSession = await globalSessionCollection.findOne({ 
-        type: 'global_chat_session' 
-      });
-    } catch (findError) {
-      console.error('❌ Error finding global session:', findError);
-      // Continue with existingSession as null
-    }
-    
+    // Create a new unique session for each chat - this is the key change
     const now = new Date();
-    
-    // If we found a valid existing session, update its lastActivity time and return it
-    if (existingSession && existingSession.sessionId && existingSession.conversationId) {
-      console.log(`🔄 Using persistent session: ${existingSession.sessionId}`);
-      
-      // Try to update last activity time, but don't fail if it doesn't work
-      try {
-        const globalSessionCollection = db.collection('globalSessions');
-        await globalSessionCollection.updateOne(
-          { type: 'global_chat_session' },
-          { $set: { lastActivity: now.toISOString() } }
-        );
-      } catch (updateError) {
-        console.warn('⚠️ Could not update session activity time:', updateError);
-        // Continue anyway
-      }
-      
-      return {
-        sessionId: existingSession.sessionId,
-        conversationId: existingSession.conversationId,
-        startedAt: existingSession.startedAt || now.toISOString(),
-        lastActivity: now.toISOString()
-      };
-    }
-    
-    // Create a new session if none exists or if existing one is invalid
     const newSession = {
-      type: 'global_chat_session',
+      type: 'individual_chat_session', // Changed type to reflect individual sessions
       sessionId: uuidv4(),
-      conversationId: uuidv4(),
+      conversationId: uuidv4(), // New unique ID for each conversation
       startedAt: now.toISOString(),
       lastActivity: now.toISOString()
     };
@@ -2438,7 +2402,7 @@ async function getOrCreateSession() {
     try {
       const globalSessionCollection = db.collection('globalSessions');
       await globalSessionCollection.insertOne(newSession);
-      console.log(`🌐 Created persistent session: ${newSession.sessionId}`);
+      console.log(`🌐 Created new individual chat session: ${newSession.conversationId}`);
     } catch (insertError) {
       console.warn('⚠️ Could not save new session to MongoDB:', insertError);
       // Continue anyway
