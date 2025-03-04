@@ -915,6 +915,16 @@ const isBookingQuery = (message) => {
            msg.includes('hvernig bóka');
 };
 
+// Helper function to check if a pattern matches as a whole word
+function matchesWholeWord(text, pattern) {
+    // Escape special regex characters in the pattern
+    const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Create regex with word boundaries
+    const regex = new RegExp(`\\b${escapedPattern}\\b`, 'i');
+    // Test if the pattern matches as a whole word
+    return regex.test(text);
+}
+
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -1663,6 +1673,7 @@ const acknowledgmentPatterns = {
             'nothing else right now',
             'thats all for now',
             "that's all for now",
+            'no',
             'nope',
             'not now',
             'no thanks',
@@ -1772,7 +1783,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     
     // THEN add the Icelandic phrase checks
     // Check for common Icelandic appreciation phrases
-    if (msg.includes('æði') && msg.includes('takk')) {
+    if (matchesWholeWord(msg, 'æði') && matchesWholeWord(msg, 'takk')) {
         return 'is';
     }
     
@@ -1782,7 +1793,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     
     // Check for Icelandic appreciation terms
     const icelandicAppreciationTerms = ['geggjað', 'magnað', 'æðislegt', 'æði', 'frábært', 'flott mál'];
-    if (icelandicAppreciationTerms.some(term => msg.includes(term))) {
+    if (icelandicAppreciationTerms.some(term => matchesWholeWord(msg, term))) {
         return 'is';
     }
 
@@ -1874,7 +1885,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     
     // Check if message contains certain Icelandic positive phrases
     const icelandicPhrases = ['snilld', 'frábært', 'gott', 'æðislegt', 'glæsilegt'];
-    if (icelandicPhrases.some(phrase => msg.includes(phrase))) return 'is';
+    if (icelandicPhrases.some(phrase => matchesWholeWord(msg, phrase))) return 'is';
     
     // Basic exact matches
     if (strictIcelandicResponses.some(word => msg === word)) return 'is';
@@ -1903,7 +1914,7 @@ const checkSimpleResponse = (message, languageDecision) => {
     // Default to previous language context if available
     const currentSession = conversationContext.get('currentSession');
     const context = currentSession ? conversationContext.get(currentSession) : null;
-    if (context?.language === 'is' && !strictEnglishResponses.some(word => msg.includes(word))) {
+    if (context?.language === 'is' && !strictEnglishResponses.some(word => matchesWholeWord(msg, word))) {
         return 'is';
     }
     
@@ -5528,11 +5539,11 @@ const handleCasualChat = (message, languageDecision) => {
         const msg = message.toLowerCase();
         
         // Add early return for booking queries
-        if (msg.includes('bóka') || 
-            msg.includes('panta') || 
-            msg.includes('tíma') || 
-            msg.includes('stefnumót') ||
-            msg.includes('hvernig bóka')) {
+        if (matchesWholeWord(msg, 'bóka') || 
+            matchesWholeWord(msg, 'panta') || 
+            matchesWholeWord(msg, 'tíma') || 
+            matchesWholeWord(msg, 'stefnumót') ||
+            msg.includes('hvernig bóka')) { // Keep this as includes since it's a phrase
             return null;
         }
         
@@ -5570,7 +5581,6 @@ const handleCasualChat = (message, languageDecision) => {
             }
             // English "how are you" variations
             if (msg.includes('how are you') || 
-                // msg.includes('how do you do') - removed
                 msg.includes('how\'s it going')) {
                 return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
             }
@@ -7337,8 +7347,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // ADD THIS NEW SECTION: Check for explicit feedback patterns
                 // This should come before other acknowledgment checks
-                if (smallTalkPatterns.en.feedback.some(pattern => msg.includes(pattern)) ||
-                    smallTalkPatterns.is.feedback.some(pattern => msg.includes(pattern))) {
+                if (smallTalkPatterns.en.feedback.some(pattern => matchesWholeWord(msg, pattern)) ||
+                    smallTalkPatterns.is.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
                     // Use checkSimpleResponse for more accurate language detection
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
                     let useEnglish = simpleResponseType === 'en' || 
@@ -7372,8 +7382,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
 
                 // Check all acknowledgment patterns
-                if (acknowledgmentPatterns.finished.en.some(pattern => msg.includes(pattern)) ||
-                    acknowledgmentPatterns.finished.is.some(pattern => msg.includes(pattern))) {
+                if (acknowledgmentPatterns.finished.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+                    acknowledgmentPatterns.finished.is.some(pattern => matchesWholeWord(msg, pattern))) {
                     // Use checkSimpleResponse for more accurate language detection
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
                     const useEnglish = simpleResponseType === 'en' || 
@@ -7400,8 +7410,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
-                if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
-                    acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
+                if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+                    acknowledgmentPatterns.continuity.is.some(pattern => matchesWholeWord(msg, pattern))) {
                     // Use checkSimpleResponse for more accurate language detection
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
                     const useEnglish = simpleResponseType === 'en' || 
@@ -7427,8 +7437,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
                 }
                 
-                if (acknowledgmentPatterns.positive.en.some(pattern => msg.includes(pattern)) ||
-                    acknowledgmentPatterns.positive.is.some(pattern => msg.includes(pattern))) {
+                if (acknowledgmentPatterns.positive.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+                    acknowledgmentPatterns.positive.is.some(pattern => matchesWholeWord(msg, pattern))) {
                     // Use checkSimpleResponse for more accurate language detection
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
                     let useEnglish = simpleResponseType === 'en' || 
@@ -7460,8 +7470,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: languageDecision.confidence }});
                 }
                 
-                if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
-                    acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
+                if (acknowledgmentPatterns.general.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+                    acknowledgmentPatterns.general.is.some(pattern => matchesWholeWord(msg, pattern))) {
                     // Use checkSimpleResponse for more accurate language detection
                     const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
                     let useEnglish = simpleResponseType === 'en' || 
@@ -7515,12 +7525,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     });
 
                     const isAcknowledgment = useEnglish ?
-                        // Enhanced English acknowledgment check
-                        (acknowledgmentPatterns.simple.en.some(word => msg === word.toLowerCase()) ||
+                        // Enhanced English acknowledgment check with word boundary
+                        (acknowledgmentPatterns.simple.en.some(word => matchesWholeWord(msg, word.toLowerCase())) ||
                          /^(?:nothing|maybe|very|that was|one more|tell me)\b/i.test(msg)) :
-                        // Icelandic check - JUST CHANGE THIS LINE:
-                        acknowledgmentPatterns.simple.is.some(word => msg.includes(word.toLowerCase())) ||
-                        msg === 'oki' || msg === 'okei' || msg === 'ókei';  // Add explicit checks
+                        // Icelandic check with word boundary matching
+                        acknowledgmentPatterns.simple.is.some(word => matchesWholeWord(msg, word.toLowerCase())) ||
+                        msg === 'oki' || msg === 'okei' || msg === 'ókei';  // Keep exact matches as is
                             
                     if (isAcknowledgment) {
                         // Ensure English patterns get English responses
@@ -7575,14 +7585,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             !originalResults && 
             !shouldBeUnknown && 
             !isServiceQuestion(userMessage, languageDecision) && 
-            !isBookingQuery(userMessage)) {
-                const simpleResponseType = checkSimpleResponse(msg, languageDecision);
-                const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
-                if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
-                    Object.values(category).some(patterns => 
-                        patterns.some(pattern => msg.includes(pattern))
-                    ))
-                ) {
+            !isBookingQuery(userMessage) &&
+            !hasQuestionWord) {  // ADD THIS CHECK to prevent questions from being treated as small talk
+            const simpleResponseType = checkSimpleResponse(msg, languageDecision);
+            const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
+            if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
+                Object.values(category).some(patterns => 
+                    patterns.some(pattern => matchesWholeWord(msg, pattern))  // USE matchesWholeWord INSTEAD OF includes
+                ))
+            ) {
                 context.lastTopic = 'small_talk';
                 context.conversationStarted = true;
                 
@@ -7640,12 +7651,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         // Acknowledgment and continuity handling
         // Check for conversation continuity first
-        if (acknowledgmentPatterns.continuity.en.some(pattern => msg.includes(pattern)) ||
-            acknowledgmentPatterns.continuity.is.some(pattern => msg.includes(pattern))) {
+        if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+            acknowledgmentPatterns.continuity.is.some(pattern => matchesWholeWord(msg, pattern))) {
             // Use checkSimpleResponse for more accurate language detection
             const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-            let useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+            const useEnglish = simpleResponseType === 'en' || 
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
             
             // Log language decision
             console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
@@ -7680,57 +7691,64 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Check for positive feedback
-        if (acknowledgmentPatterns.positive.en.some(word => msg.includes(word)) ||
-            acknowledgmentPatterns.positive.is.some(word => msg.includes(word))) {
-            // Use checkSimpleResponse for more accurate language detection
-            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-            let useEnglish = simpleResponseType === 'en' || 
-                          (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-            
-            // Enhanced positive detection for specific words
-            if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
-                useEnglish = true;
-            }
-            
-            // Log language decision
-            console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
-                message: userMessage,
-                simpleResponseType,
-                useEnglish,
-                languageDecision: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
+        if (acknowledgmentPatterns.positive.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+            acknowledgmentPatterns.positive.is.some(pattern => matchesWholeWord(msg, pattern))) {    
+            // IMPORTANT: Don't handle as acknowledgment if we have knowledge base results
+            // or if there's a question
+            if (knowledgeBaseResults.length > 0 || hasQuestionWord) {
+                // Skip acknowledgment handling and continue to knowledge base processing
+                console.log('\n🔍 Skipping positive acknowledgment handling for message with knowledge base results or question');
+            } else {
+                // Use checkSimpleResponse for more accurate language detection
+                const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
+                let useEnglish = simpleResponseType === 'en' || 
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
+                
+                // Enhanced positive detection for specific words
+                if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
+                    useEnglish = true;
                 }
-            });
-            
-            const response = useEnglish ?
-                "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
-                "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
-    
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglish ? 'en' : 'is',
-                'acknowledgment',
-                'direct_response'
-            );
+                
+                // Log language decision
+                console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
+                    message: userMessage,
+                    simpleResponseType,
+                    useEnglish,
+                    languageDecision: {
+                        isIcelandic: languageDecision.isIcelandic,
+                        confidence: languageDecision.confidence
+                    }
+                });
+                
+                const response = useEnglish ?
+                    "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
+                    "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
+        
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    useEnglish ? 'en' : 'is',
+                    'acknowledgment',
+                    'direct_response'
+                );
 
-            return res.status(200).json({
-                message: response,
-                language: {
-                    detected: useEnglish ? 'English' : 'Icelandic',
-                    confidence: languageDecision.confidence
-                }
-            });
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: useEnglish ? 'English' : 'Icelandic',
+                        confidence: languageDecision.confidence
+                    }
+                });
+            }
         }
 
         // Check for general chat praise
-        if (acknowledgmentPatterns.general.en.some(pattern => msg.includes(pattern)) ||
-            acknowledgmentPatterns.general.is.some(pattern => msg.includes(pattern))) {
+        if (acknowledgmentPatterns.general.en.some(pattern => matchesWholeWord(msg, pattern)) ||
+            acknowledgmentPatterns.general.is.some(pattern => matchesWholeWord(msg, pattern))) {    
             // Use checkSimpleResponse for more accurate language detection
             const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
             let useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
+                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
             
             // Log language decision
             console.log('\n🗣️ General Acknowledgment Language Decision:', {
@@ -7766,9 +7784,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Check for conversation ending
         if (acknowledgmentPatterns.finished.en.some(pattern => 
-            msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern)) ||
+            matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern)) ||
             acknowledgmentPatterns.finished.is.some(pattern => 
-            msg.replace(/[:;][\-]?[\)|\(]/g, '').trim().includes(pattern))) {
+            matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern))) {
             // Use checkSimpleResponse for more accurate language detection
             const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
             const useEnglish = simpleResponseType === 'en' || 
@@ -7785,11 +7803,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
             
+            // Also update these includes checks with matchesWholeWord
             const response = useEnglish ?
-                msg.includes('just say') || msg.includes('greeting') ?
+                matchesWholeWord(msg, 'just say') || matchesWholeWord(msg, 'greeting') ?
                     "Hi there! Feel free to ask if you have any questions about Sky Lagoon. I'm here to help! 😊" :
                     "Thanks for chatting! I'm here if you need any more information later." :
-                msg.includes('heil') || msg.includes('bara að heilsa') ?
+                matchesWholeWord(msg, 'heil') || matchesWholeWord(msg, 'bara að heilsa') ?
                     "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
                     "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
 
@@ -7995,9 +8014,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
 
             // Only check for simple response if it's not an hours query or service question
-            if (!isHoursQuery && !isServiceQuestion(userMessage, languageDecision)) {
+            // AND it's not a question word!
+            if (!isHoursQuery && !isServiceQuestion(userMessage, languageDecision) && !hasQuestionWord) {
                 const simpleResponseLanguage = languageDecision.isIcelandic ? 'is' : 'en';
-                const response = simpleResponseLanguage === 'is' ? 
+                const response = simpleResponseLanguage === 'is' ?             
                     "Láttu mig vita ef þú hefur fleiri spurningar!" :
                     "Is there anything else you'd like to know about Sky Lagoon?";
 
@@ -8930,20 +8950,20 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
     const isIcelandic = languageDecision?.isIcelandic || false;
     
     // Detect current topic with language awareness
-    if (msg.includes('package') || msg.includes('sér') || msg.includes('saman') || 
-        (isIcelandic && msg.includes('pakki'))) {
+    if (matchesWholeWord(msg, 'package') || matchesWholeWord(msg, 'sér') || matchesWholeWord(msg, 'saman') || 
+        (isIcelandic && matchesWholeWord(msg, 'pakki'))) {
         topic = 'packages';
-    } else if (msg.includes('ritual') || msg.includes('skjol') || msg.includes('skjól') ||
-               (isIcelandic && msg.includes('meðferð'))) {
+    } else if (matchesWholeWord(msg, 'ritual') || matchesWholeWord(msg, 'skjol') || matchesWholeWord(msg, 'skjól') ||
+               (isIcelandic && matchesWholeWord(msg, 'meðferð'))) {
         topic = 'ritual';
-    } else if (msg.includes('transport') || msg.includes('bus') || msg.includes('drive') ||
-               (isIcelandic && (msg.includes('strætó') || msg.includes('keyra')))) {
+    } else if (matchesWholeWord(msg, 'transport') || matchesWholeWord(msg, 'bus') || matchesWholeWord(msg, 'drive') ||
+               (isIcelandic && (matchesWholeWord(msg, 'strætó') || matchesWholeWord(msg, 'keyra')))) {
         topic = 'transportation';
-    } else if (msg.includes('facilities') || msg.includes('changing') || msg.includes('amenities') ||
-               (isIcelandic && (msg.includes('aðstaða') || msg.includes('búningsklefar')))) {
+    } else if (matchesWholeWord(msg, 'facilities') || matchesWholeWord(msg, 'changing') || matchesWholeWord(msg, 'amenities') ||
+               (isIcelandic && (matchesWholeWord(msg, 'aðstaða') || matchesWholeWord(msg, 'búningsklefar')))) {
         topic = 'facilities';
-    } else if (msg.includes('winter') || msg.includes('northern lights') ||
-               (isIcelandic && (msg.includes('vetur') || msg.includes('norðurljós')))) {
+    } else if (matchesWholeWord(msg, 'winter') || msg.includes('northern lights') ||
+               (isIcelandic && (matchesWholeWord(msg, 'vetur') || msg.includes('norðurljós')))) {
         topic = 'seasonal';
         if (context) {
             context.seasonalContext = {
@@ -8955,8 +8975,8 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
                 }
             };
         }
-    } else if (msg.includes('summer') || msg.includes('midnight sun') ||
-               (isIcelandic && (msg.includes('sumar') || msg.includes('miðnætursól')))) {
+    } else if (matchesWholeWord(msg, 'summer') || msg.includes('midnight sun') ||
+               (isIcelandic && (matchesWholeWord(msg, 'sumar') || msg.includes('miðnætursól')))) {
         topic = 'seasonal';
         if (context) {
             context.seasonalContext = {
@@ -8968,11 +8988,11 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
                 }
             };
         }
-    } else if (msg.includes('dining') || msg.includes('food') || msg.includes('restaurant') ||
-               (isIcelandic && (msg.includes('matur') || msg.includes('veitingar')))) {
+    } else if (matchesWholeWord(msg, 'dining') || matchesWholeWord(msg, 'food') || matchesWholeWord(msg, 'restaurant') ||
+               (isIcelandic && (matchesWholeWord(msg, 'matur') || matchesWholeWord(msg, 'veitingar')))) {
         topic = 'dining';
-    } else if (msg.includes('late') || msg.includes('delay') ||
-               (isIcelandic && (msg.includes('seinn') || msg.includes('seinka')))) {
+    } else if (matchesWholeWord(msg, 'late') || matchesWholeWord(msg, 'delay') ||
+               (isIcelandic && (matchesWholeWord(msg, 'seinn') || matchesWholeWord(msg, 'seinka')))) {
         topic = 'booking';
     }
     
