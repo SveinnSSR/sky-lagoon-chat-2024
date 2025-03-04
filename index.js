@@ -8623,7 +8623,7 @@ function determineMessageType(content, language) {
 // });
 
 // Pusher broadcast function with enhanced language detection
-async function handleConversationUpdate(conversationData, languageInfo) {
+function handleConversationUpdate(conversationData, languageInfo) {
     try {
         console.log('🚀 Broadcasting conversation via Pusher:', {
             event: 'conversation-update',
@@ -8653,15 +8653,21 @@ async function handleConversationUpdate(conversationData, languageInfo) {
                 return false;
             });
         
+        // DEBUG: Log the conversationData being passed to other functions
+        console.log('🔍 conversationData for MongoDB/Analytics:', {
+            id: conversationData?.id,
+            hasUserMessage: !!conversationData?.userMessage
+        });
+        
         // STEP 2: Save to MongoDB directly
         const dbPromise = saveConversationToMongoDB(conversationData, languageInfo);
         
-        // STEP 3: Send directly to Analytics API (now awaits properly)
+        // STEP 3: Send directly to Analytics API
         const apiPromise = sendConversationToAnalytics(conversationData, languageInfo);
         
         // Wait for all operations to complete but don't fail if one fails
         return Promise.all([pusherPromise, dbPromise, apiPromise])
-            .then(results => results.some(r => r === true)); // Return true if at least one method succeeded
+            .then(results => results.some(r => r === true));
             
     } catch (error) {
         console.error('❌ Error in handleConversationUpdate:', error);
@@ -8715,11 +8721,19 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  */
 async function sendConversationToAnalytics(conversationData, languageInfo) {
     try {
-        console.log('📤 Sending conversation directly to analytics system');
+        // Add stack trace to see where this function is being called from
+        const stackTrace = new Error().stack;
+        console.log('📤 Sending conversation to analytics system FROM:', stackTrace);
+        console.log('📦 Conversation data check:', {
+            hasData: !!conversationData,
+            hasId: !!conversationData?.id,
+            hasUserMessage: !!conversationData?.userMessage,
+            hasBotResponse: !!conversationData?.botResponse
+        });
         
         // CRITICAL FIX: Add validation for conversation data
-        if (!conversationData) {
-            console.error('❌ Cannot send conversation: conversationData is undefined');
+        if (!conversationData || !conversationData.id) {
+            console.error('❌ Cannot send undefined conversation data - SKIPPING');
             return false;
         }
 
