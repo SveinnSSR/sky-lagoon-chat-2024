@@ -309,7 +309,7 @@ export async function createChat(customerId, isIcelandic = false) {
     }
 }
 
-// Function to detect booking change requests with improved Icelandic support
+// Function to detect booking change requests with context-awareness and improved Icelandic support
 export async function detectBookingChangeRequest(message, languageDecision) {
     try {
         const msg = message.toLowerCase();
@@ -385,7 +385,140 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             msg.includes('er hægt að') && (msg.includes('breyt') || msg.includes('fær'))
         );
         
-        const result = hasPatternMatch || hasRootMatch || changeNearDate || hasCommonQuestion;
+        // NEW: Context-aware booking change detection
+        // Check for situations that typically imply booking changes
+        
+        // Situation contexts for English and Icelandic
+        const situationContexts = [
+            ...(isIcelandic ? [
+                // Icelandic flight delay
+                'flug seinka', 'seinkun á flugi', 'tafið flug', 
+                'flugseinkun', 'flug er seint',
+                
+                // Icelandic arrival issues
+                'komast ekki á réttum tíma', 'ná ekki tímanum', 
+                'mæta ekki á réttum tíma', 'verð sein',
+                'kem of seint', 'komumst ekki',
+                
+                // Icelandic time-related problems
+                'missi af tímanum', 'mun ekki ná', 
+                'er að verða sein'
+            ] : [
+                // English flight issues
+                'flight delayed', 'flight is delayed', 'flight delay', 
+                'plane is delayed', 'flight got delayed', 'plane got delayed',
+                
+                // English arrival problems
+                'running late', 'be late for', 'won\'t make it on time',
+                'can\'t make it at', 'won\'t be able to make', 'arrive late',
+                
+                // English timing issues
+                'won\'t make the time', 'will miss the time', 
+                'getting late', 'running behind'
+            ])
+        ];
+        
+        // Time-related patterns that often indicate wanting to shift a booking
+        const timeShiftPatterns = [
+            ...(isIcelandic ? [
+                'of seint', 'verð sein', 'er sein',
+                'seinni tími', 'annar tími',
+                'seinka', 'fresta', 'koma seinna',
+                'ná því ekki'
+            ] : [
+                'too late', 'arriving late', 'be late',
+                'later time', 'different time',
+                'postpone', 'delay visit', 'come later',
+                'won\'t make it'
+            ])
+        ];
+        
+        // Question patterns about options for shifting booking
+        const optionQuestions = [
+            ...(isIcelandic ? [
+                'hvað get ég gert', 'hvað getum við gert',
+                'hvaða valkostir', 'hvaða möguleikar',
+                'er hægt að', 'get ég fengið',
+                'hvað á ég að gera', 'hvernig get ég',
+                'hvað skal ég gera'
+            ] : [
+                'what can i do', 'what should i do',
+                'what are my options', 'what are the options',
+                'is it possible to', 'can i get',
+                'how can i', 'what are the alternatives',
+                'what do i do'
+            ])
+        ];
+        
+        // Check if message contains booking-related words
+        const hasBookingReference = 
+            msg.includes('book') || 
+            msg.includes('reserv') || 
+            msg.includes('time') ||
+            msg.includes('appointment') ||
+            msg.includes('visit') ||
+            (isIcelandic && (
+                msg.includes('bók') || 
+                msg.includes('pant') || 
+                msg.includes('tíma') ||
+                msg.includes('heim')
+            ));
+        
+        // Check for situation context + booking reference
+        const hasSituationContext = situationContexts.some(context => 
+            msg.includes(context)) && hasBookingReference;
+        
+        // Check for time shift pattern + booking reference
+        const hasTimeShiftPattern = timeShiftPatterns.some(pattern => 
+            msg.includes(pattern)) && hasBookingReference;
+        
+        // Check for option questions + booking reference
+        const hasOptionQuestion = optionQuestions.some(question => 
+            msg.includes(question)) && hasBookingReference;
+            
+        // NEW: Flight delay & specific time issue detection
+        const hasFlightDelayMention = 
+            (msg.includes('flight') && 
+             (msg.includes('delay') || msg.includes('late') || msg.includes('miss'))) ||
+            (isIcelandic && 
+             (msg.includes('flug') && 
+              (msg.includes('sein') || msg.includes('töf') || msg.includes('miss'))));
+              
+        // Late arrival mentions that imply needing booking changes
+        const hasLateArrivalMention =
+            (msg.includes('won\'t make it') || 
+             msg.includes('can\'t make it') ||
+             msg.includes('miss my time') ||
+             msg.includes('miss the booking')) ||
+            (isIcelandic && 
+             (msg.includes('næ ekki') || 
+              msg.includes('kemst ekki') ||
+              msg.includes('missa af')));
+              
+        // Combine all context-aware checks
+        const hasContextAwareMatch = 
+            hasSituationContext || 
+            hasTimeShiftPattern || 
+            hasOptionQuestion ||
+            hasFlightDelayMention ||
+            hasLateArrivalMention;
+            
+        console.log('Context-aware checks:', {
+            hasSituationContext,
+            hasTimeShiftPattern,
+            hasOptionQuestion,
+            hasFlightDelayMention,
+            hasLateArrivalMention
+        });
+        
+        // Combine all detection methods for final result
+        const result = 
+            hasPatternMatch || 
+            hasRootMatch || 
+            changeNearDate || 
+            hasCommonQuestion || 
+            hasContextAwareMatch;
+            
         console.log('Final detection result:', result);
         return result;
     } catch (error) {
