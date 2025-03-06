@@ -451,7 +451,7 @@ export async function createBookingChangeRequest(customerId, isIcelandic = false
     }
 }
 
-// Function to send booking change form data to LiveChat.
+// Function to send booking change form data to LiveChat
 export async function submitBookingChangeRequest(chatId, formData, credentials) {
     try {
         // Format the form data into a structured message

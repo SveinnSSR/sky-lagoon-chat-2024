@@ -2390,12 +2390,28 @@ const chatSessions = new Map();
  * Get or create a persistent session from MongoDB
  * Uses the frontend session ID to maintain conversation continuity
  * Adds IP-based session matching to group related conversations
+ * Includes in-memory caching to prevent duplicate sessions during DB issues
  * 
  * @param {Object} conversationData - The conversation data including session information
  * @returns {Promise<Object>} Session information
  */
 async function getOrCreateSession(conversationData) {
   try {
+    // Extract the frontend session ID first - we'll need this even if DB connection fails
+    const frontendSessionId = conversationData?.sessionId || 'unknown-session';
+    
+    // Create a local cache of sessions if one doesn't exist
+    if (!global.sessionCache) {
+      global.sessionCache = new Map();
+    }
+    
+    // Check local cache first - this prevents generating new sessions during temporary DB issues
+    if (global.sessionCache.has(frontendSessionId)) {
+      const cachedSession = global.sessionCache.get(frontendSessionId);
+      console.log(`🔄 Using cached session: ${cachedSession.conversationId} for frontend session: ${frontendSessionId}`);
+      return cachedSession;
+    }
+    
     // Connect to MongoDB
     let db;
     try {
@@ -2403,12 +2419,19 @@ async function getOrCreateSession(conversationData) {
       db = dbConnection.db;
     } catch (dbConnectionError) {
       console.error('❌ Error connecting to MongoDB:', dbConnectionError);
-      throw dbConnectionError;
+      // Instead of throwing the error, create a session but cache it
+      const tempSession = {
+        sessionId: frontendSessionId, // Use the frontend session ID directly!
+        conversationId: frontendSessionId, // Use same ID for consistency
+        startedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      
+      // Cache this session
+      global.sessionCache.set(frontendSessionId, tempSession);
+      console.log(`⚠️ Created temporary session: ${tempSession.sessionId} due to DB connection error`);
+      return tempSession;
     }
-    
-    // Extract the frontend session ID
-    // This is the key change - use the existing session ID from conversationData
-    const frontendSessionId = conversationData?.sessionId || 'unknown-session';
     
     // Extract the user's IP address if available (for differentiating users)
     const userIp = conversationData?.ip || 
@@ -2445,12 +2468,17 @@ async function getOrCreateSession(conversationData) {
         console.warn('⚠️ Could not update session activity time:', updateError);
       }
       
-      return {
+      const sessionInfo = {
         sessionId: existingSession.sessionId,
         conversationId: existingSession.conversationId,
         startedAt: existingSession.startedAt,
         lastActivity: now.toISOString()
       };
+      
+      // Cache this session for future use
+      global.sessionCache.set(frontendSessionId, sessionInfo);
+      
+      return sessionInfo;
     }
     
     // New step: Find a very recent session from the same IP (within 5 minutes)
@@ -2482,25 +2510,31 @@ async function getOrCreateSession(conversationData) {
           console.warn('⚠️ Could not update recent session:', updateError);
         }
         
-        return {
+        const sessionInfo = {
           sessionId: mostRecentSession.sessionId,
           conversationId: mostRecentSession.conversationId,
           startedAt: mostRecentSession.startedAt,
           lastActivity: now.toISOString()
         };
+        
+        // Cache this session for future use
+        global.sessionCache.set(frontendSessionId, sessionInfo);
+        
+        return sessionInfo;
       }
     } catch (findError) {
       console.error('❌ Error finding recent sessions:', findError);
     }
     
     // Create a new session if no matching session was found
+    // Use the frontendSessionId itself as the conversationId for consistency
     const newSession = {
       type: 'chat_session',
       frontendSessionId: frontendSessionId, // Store the frontend session ID
       frontendSessionIds: [frontendSessionId], // Keep track of all associated session IDs
       userIp: userIp, // Store IP for future matching
-      sessionId: uuidv4(),
-      conversationId: uuidv4(),
+      sessionId: frontendSessionId, // Use the frontend session ID directly
+      conversationId: frontendSessionId, // Use same ID for consistency
       startedAt: now.toISOString(),
       lastActivity: now.toISOString()
     };
@@ -2513,22 +2547,34 @@ async function getOrCreateSession(conversationData) {
       console.warn('⚠️ Could not save new session to MongoDB:', insertError);
     }
     
-    return {
+    const sessionInfo = {
       sessionId: newSession.sessionId,
       conversationId: newSession.conversationId,
       startedAt: newSession.startedAt,
       lastActivity: newSession.lastActivity
     };
+    
+    // Cache this session for future use
+    global.sessionCache.set(frontendSessionId, sessionInfo);
+    
+    return sessionInfo;
   } catch (error) {
     console.error('❌ Error with session management:', error);
     
-    // Fallback to a new session
+    // Create a fallback session using the frontend session ID
+    const frontendSessionId = conversationData?.sessionId || 'unknown-session';
     const fallbackSession = {
-      sessionId: uuidv4(),
-      conversationId: uuidv4(),
+      sessionId: frontendSessionId, // Use the original ID!
+      conversationId: frontendSessionId, // Use same ID for consistency
       startedAt: new Date().toISOString(),
       lastActivity: new Date().toISOString()
     };
+    
+    // Cache this session
+    if (!global.sessionCache) {
+      global.sessionCache = new Map();
+    }
+    global.sessionCache.set(frontendSessionId, fallbackSession);
     
     console.log(`⚠️ Using fallback session: ${fallbackSession.sessionId}`);
     return fallbackSession;
@@ -8923,7 +8969,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     }
 }
 
-// Add this right near the handleConversationUpdate function
+// Add this right near the handleConversationUpdate function (possibly unused currently - handleFeedbackUpdate is declared but it's value is never read)
 function handleFeedbackUpdate(feedbackData) {
     try {
         console.log('🚀 Broadcasting feedback via Pusher:', {
