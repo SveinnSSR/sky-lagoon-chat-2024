@@ -58,7 +58,18 @@ const BOOKING_CHANGE_PATTERNS = {
         'change my reservation',
         'edit booking',
         'adjust booking',
-        'switch time'
+        'switch time',
+        // Additional common patterns
+        'like to change',
+        'would like to change',
+        'arrive later',
+        'arrive earlier',
+        'can\'t make it',
+        'won\'t make it',
+        'running late',
+        'rebook',
+        'too early',
+        'too late'
     ],
     is: [
         'breyta bókun',
@@ -79,7 +90,32 @@ const BOOKING_CHANGE_PATTERNS = {
         'breyta pöntun',
         'breyta pantanir',
         'aðlaga bókun',
-        'skipta um tíma'
+        'skipta um tíma',
+        // Additional common Icelandic patterns & variations
+        'getur þú breytt',
+        'getið þið breytt',
+        'getum við breytt',
+        'get ég breytt',
+        'viljum breyta',
+        'vildi breyta',
+        'langar að breyta',
+        'geta breytt',
+        'vera seinn',
+        'of snemmt',
+        'of seint',
+        'ekki tími',
+        'ekki hægt',
+        'breytingar á bókun',
+        'aðrar dagsetningar',
+        'breyta skráningu',
+        'færa pantanir',
+        'breytingu á bókun',
+        'bókunarbreytingar',
+        'bókunartíma',
+        'komumst ekki',
+        'verð ekki',
+        'seinka ferðinni',
+        'flýta ferðinni'
     ]
 };
 
@@ -273,37 +309,85 @@ export async function createChat(customerId, isIcelandic = false) {
     }
 }
 
-// Function to detect booking change requests
+// Function to detect booking change requests with improved Icelandic support
 export async function detectBookingChangeRequest(message, languageDecision) {
     try {
         const msg = message.toLowerCase();
+        console.log('\n🔍 Analyzing message for booking change:', msg);
+        console.log('Language decision:', languageDecision);
         
         // First check if this is a form submission (starts with "booking change request:")
         if (msg.startsWith('booking change request:')) {
+            console.log('✅ Form submission detected');
             return true;
         }
         
-        const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
-
-        // Check for booking change request patterns
-        const hasBookingChange = (useEnglish ? 
-            BOOKING_CHANGE_PATTERNS.en : 
-            BOOKING_CHANGE_PATTERNS.is).some(pattern => msg.includes(pattern));
-
-        // Also detect date-related patterns
-        const datePattern = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/;
+        // FIX: Properly determine language - don't override Icelandic detection with confidence
+        const isIcelandic = languageDecision.isIcelandic;
+        
+        console.log(`Using ${isIcelandic ? 'Icelandic' : 'English'} patterns for detection`);
+        
+        // Root words for more flexible matching in Icelandic
+        const icelandicRootWords = [
+            'bók', // For bókun, bókunin, bókuninni, bókunina, etc.
+            'breyt', // For breyta, breyting, breytum, etc.
+            'fær', // For færa, færum, etc.
+            'flyt', // For flytja, flutning, etc.
+            'fresta', // For fresta, frestun, etc.
+            'aðr', // For annar, aðra, etc.
+            'uppfær', // For uppfæra, uppfærslu, etc.
+            'pönt', // For pöntun, pantanir, etc.
+            'tím', // For tíma, tímann, etc.
+            'dagsetn', // For dagsetning, dagsetninguna, etc.
+            'skráning', // For skráningu, etc.
+            'afbók', // For afbóka, afbókun, etc.
+            'hætt', // For hætta
+            'annan', // For annan tíma
+            'aðra', // For aðra dagsetningu
+            'seink', // For seinka, seinkun
+        ];
+        
+        // Check for booking change request patterns using standard method
+        const hasPatternMatch = (isIcelandic ? 
+            BOOKING_CHANGE_PATTERNS.is : 
+            BOOKING_CHANGE_PATTERNS.en).some(pattern => msg.includes(pattern));
+            
+        // NEW: For Icelandic, also check for root word matches to handle grammatical variations
+        let hasRootMatch = false;
+        if (isIcelandic) {
+            hasRootMatch = icelandicRootWords.some(root => msg.includes(root));
+            console.log('Root word match?', hasRootMatch);
+        }
+        
+        // Also detect date-related patterns (improved for Icelandic date formats)
+        const datePattern = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b\d{1,2}\.\d{1,2}\.\d{2,4}\b|\b\d{1,2}\s*\.\s*[a-zíáéúóþæðö]+\b/i;
         const hasDateMention = datePattern.test(msg);
+        console.log('Date mention detected?', hasDateMention);
 
-        // Look for change-related words near dates
+        // Look for change-related words near dates with added Icelandic words
         const changeNearDate = hasDateMention && (
             msg.includes('change') || 
             msg.includes('modify') || 
             msg.includes('reschedule') ||
-            msg.includes('breyta') ||
-            msg.includes('færa')
+            msg.includes('breyt') || // Root for various forms
+            msg.includes('fær') ||   // Root for various forms
+            msg.includes('flytj') || // Root for moving
+            msg.includes('aðr') ||   // Root for 'other'
+            msg.includes('nýj') ||   // Root for 'new'
+            msg.includes('seink')    // Root for 'delay'
         );
-
-        return hasBookingChange || changeNearDate;
+        
+        // Additional Icelandic phrase detection for common questions
+        const hasCommonQuestion = isIcelandic && (
+            msg.includes('get') && (msg.includes('breyt') || msg.includes('fær')) ||
+            msg.includes('vilj') && (msg.includes('breyt') || msg.includes('fær')) ||
+            msg.includes('hvernig') && (msg.includes('breyt') || msg.includes('fær')) ||
+            msg.includes('er hægt að') && (msg.includes('breyt') || msg.includes('fær'))
+        );
+        
+        const result = hasPatternMatch || hasRootMatch || changeNearDate || hasCommonQuestion;
+        console.log('Final detection result:', result);
+        return result;
     } catch (error) {
         console.error('\n❌ Error in detectBookingChangeRequest:', error);
         return false;
