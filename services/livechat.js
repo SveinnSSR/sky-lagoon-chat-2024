@@ -321,15 +321,33 @@ export async function detectBookingChangeRequest(message, languageDecision) {
 
         // IMPORTANT: Check for cancellation/refund related queries FIRST (negative patterns)
         // These should override any other matches to prevent false positives
-        const cancellationPatterns = {
+        const negativePatterns = {
             en: [
                 'cancel', 'refund', 'money back', 'cancellation policy',
-                'cancellation fee', 'cancel my booking'
+                'cancellation fee', 'cancel my booking',
+
+                // General information queries - not about changing bookings
+                'what is included', 'what\'s included',
+                'confirmation email', 'booking confirmation',
+                'received my booking', 'booking receipt',
+                'what to bring', 'what should i bring',
+                'do i need to print', 'print my booking',
+                'need to know', 'what to know',
+                'how early', 'when should i arrive',
+                'what time should i arrive'   
             ],
             is: [
                 'endurgreiðslu', 'hætta við', 'afbóka', 'afbókun',
                 'skilmálar', 'skilmálarnir', 'fá endurgreitt',
-                'hætta við bókun', 'afpanta'
+                'hætta við bókun', 'afpanta',
+
+                // General information queries - not about changing bookings
+                'hvað er innifalið', 'hvað þarf ég að vita',
+                'staðfestingu á bókun', 'fengið staðfestingu', 
+                'bókunarstaðfestingu', 'prenta', 'staðfestinguna',
+                'taka með', 'hafa með', 'koma með',
+                'hvað á ég að', 'hvað þarf ég að',
+                'hvenær á ég að mæta', 'hvernig', 'hvar'
             ]
         };        
 
@@ -337,11 +355,11 @@ export async function detectBookingChangeRequest(message, languageDecision) {
         const isIcelandic = languageDecision.isIcelandic;
         
         // Check if message is about cancellation/refunds - if so, return false immediately
-        const isCancellationQuery = (isIcelandic ? 
-            cancellationPatterns.is : 
-            cancellationPatterns.en).some(pattern => msg.includes(pattern));
+        const isNegativeMatch = (isIcelandic ? 
+            negativePatterns.is : 
+            negativePatterns.en).some(pattern => msg.includes(pattern));
             
-        if (isCancellationQuery) {
+        if (isNegativeMatch) {
             console.log('❌ Cancellation/refund query detected - NOT a booking change request');
             return false;
         }
