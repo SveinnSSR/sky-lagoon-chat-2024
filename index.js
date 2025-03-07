@@ -1121,7 +1121,7 @@ const simpleEnglishGreetings = [
     'hi', 'hello', 'hey', 'howdy',
     'hii', 'hiii', 'hiiii',
     'heyy', 'heyyy', 'heyyyy',
-    'helloo', 'hellooo',
+    'helloo', 'hellooo', 'hae',
     // Variations with "there"
     'hi there', 'hello there', 'hey there',
     'greetings', 'hiya', 'hullo',
@@ -1132,14 +1132,44 @@ const simpleEnglishGreetings = [
     // Casual variations
     'yo', 'heya', 'hi folks',
     // Double greetings
-    'hi hi', 'hello hello',
-    // With name - ADD MORE VARIATIONS WITH BOT NAME
+    'hi hi', 'hello hello', 'hae hae',
+    // Casual "what's up" variations
+    'wassup', 'whats up', "what's up", 'sup', 'whazzup', 'whaddup',
+    // With name - Standard variations with bot name (sólrún - fully correct)
     'hi sólrún', 'hello sólrún', 'hey sólrún',
-    'hi solrun', 'hello solrun', 'hey solrun',
     'hi there sólrún', 'hello there sólrún', 'hey there sólrún',
-    'hi there solrun', 'hello there solrun', 'hey there solrun',
     'good morning sólrún', 'good afternoon sólrún', 'good evening sólrún',
-    'good morning solrun', 'good afternoon solrun', 'good evening solrun'
+    // With name - Without accent marks (solrun)
+    'hi solrun', 'hello solrun', 'hey solrun',
+    'hi there solrun', 'hello there solrun', 'hey there solrun',
+    'good morning solrun', 'good afternoon solrun', 'good evening solrun',
+    // With name - Hybrid spelling (solrún - with accent only on ú)
+    'hi solrún', 'hello solrún', 'hey solrún',
+    'hi there solrún', 'hello there solrún', 'hey there solrún',
+    'good morning solrún', 'good afternoon solrún', 'good evening solrún',
+    // Additional variations with bot name - Different capitalizations
+    'hi Sólrún', 'hello Sólrún', 'hey Sólrún',
+    'hi Solrun', 'hello Solrun', 'hey Solrun',
+    'hi Solrún', 'hello Solrún', 'hey Solrún',
+    'hi SÓLRÚN', 'hello SÓLRÚN', 'hey SÓLRÚN',
+    'hi SOLRUN', 'hello SOLRUN', 'hey SOLRUN',
+    'hi SOLRÚN', 'hello SOLRÚN', 'hey SOLRÚN',
+    // Casual greetings with bot name
+    'yo sólrún', 'yo solrun', 'yo solrún', 'yo Sólrún', 'yo Solrun', 'yo Solrún',
+    'heya sólrún', 'heya solrun', 'heya solrún', 'heya Sólrún', 'heya Solrun', 'heya Solrún',
+    'wassup sólrún', 'wassup solrun', 'wassup solrún', 'wassup Sólrún', 'wassup Solrun', 'wassup Solrún',
+    'sup sólrún', 'sup solrun', 'sup solrún', 'sup Sólrún', 'sup Solrun', 'sup Solrún',
+    "what's up sólrún", "what's up solrun", "what's up solrún", "what's up Sólrún", "what's up Solrun", "what's up Solrún",
+    'whats up sólrún', 'whats up solrun', 'whats up solrún', 'whats up Sólrún', 'whats up Solrun', 'whats up Solrún',
+    // Friendly nickname variations
+    'hi sol', 'hello sol', 'hey sol',
+    'wassup sol', 'sup sol', "what's up sol",
+    // Question variations
+    'how are you sólrún', 'how are you solrun', 'how are you solrún',
+    'how are you today sólrún', 'how are you today solrun', 'how are you today solrún',
+    'how are you doing sólrún', 'how are you doing solrun', 'how are you doing solrún',
+    'how is it going sólrún', 'how is it going solrun', 'how is it going solrún',
+    'hows it going sólrún', 'hows it going solrun', 'hows it going solrún'
 ];
 
 // Composite Icelandic greetings - ordered by complexity
