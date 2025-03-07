@@ -925,6 +925,12 @@ function matchesWholeWord(text, pattern) {
     return regex.test(text);
 }
 
+// Helper function to check if text contains the bot's name in any variation
+function containsBotName(text) {
+    // This regex matches all variations: sólrún, solrún, Sólrún, Solrún, etc.
+    return /\bs[oó]lr[uú]n\b/i.test(text);
+}
+
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -1062,7 +1068,7 @@ const isFollowUpGreeting = (message, languageDecision) => {
     if (hasSólrúnWithGreeting) {
         // Override language detection for English greetings with bot name
         if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|wazzup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(msg) && 
-            (/\bs[oó]lr[uú]n\b/i.test(msg))) {
+        containsBotName(msg)) {
             console.log('\n👋 English Greeting with Bot Name Override');
             return true;
         }
@@ -1274,7 +1280,7 @@ const isSimpleGreeting = (message, languageDecision) => {
     });
 
     // Check if the original message contains the bot name
-    const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(message);
+    const hasBotName = containsBotName(message);
     
     // If message contains bot name and starts with English greeting, prioritize English
     if (hasBotName && /^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)/i.test(message)) {

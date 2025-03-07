@@ -1,12 +1,17 @@
 // languageDetection.js
 export const detectLanguage = (message, context = null) => {
+    // Add the helper function here
+    function containsBotName(text) {
+        return /\bs[oó]lr[uú]n\b/i.test(text);
+    }
+
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
     
     // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
     // Add bot name exclusion - match both "sólrún" and "solrun"
-    const botNameRegex = /\b(sólrún|solrun)\b/gi;
+    const botNameRegex = /\bs[oó]lr[uú]n\b/gi;
     
     const messageForDetection = cleanMessage
         .replace(/sky\s*lagoon/gi, '')
@@ -50,8 +55,9 @@ export const detectLanguage = (message, context = null) => {
         // Reset the regex since we used it once already
         botNameRegex.lastIndex = 0;
         
-        // Check if it starts with an English greeting
-        if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(cleanMessage)) {
+        // Check if it starts with an English greeting and contains the bot name
+        if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(cleanMessage) && 
+            containsBotName(cleanMessage)) {
             return {
                 isIcelandic: false,
                 confidence: 'high',
