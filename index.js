@@ -931,6 +931,38 @@ function containsBotName(text) {
     return /\bs[oó]lr[uú]n\b/i.test(text);
 }
 
+// Improved helper function to check if a message is a casual wellbeing greeting
+function isCasualWellbeingGreeting(message) {
+    // Use regex patterns with word boundaries instead of simple string inclusion
+    const wellbeingPatterns = [
+        /\bhow are you\b/i,
+        /\bhow's it going\b/i, 
+        /\bhows it going\b/i,
+        /\bhow you doing\b/i,
+        /\bwhat's up\b/i, 
+        /\bwhats up\b/i,
+        /\bwassup\b/i,
+        /\bsup\b/i,
+        /\bhow are things\b/i,
+        /\bhow have you been\b/i,
+        /\bhow do you feel\b/i
+    ];
+    
+    const lowerMsg = message.toLowerCase();
+    
+    // Only match if it starts with one of these patterns or is very short
+    // This prevents catching phrases in the middle of longer questions
+    if (message.split(' ').length <= 5) {
+        return wellbeingPatterns.some(pattern => pattern.test(lowerMsg));
+    }
+    
+    // For longer messages, only match if the greeting is at the beginning
+    return wellbeingPatterns.some(pattern => {
+        const match = lowerMsg.match(pattern);
+        return match && match.index < 10; // Only match near the beginning
+    });
+}
+
 // Response Templates and Patterns
 const ACKNOWLEDGMENT_RESPONSES = [
     "Let me know if you need anything else!",
@@ -7392,6 +7424,34 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
            return res.json(cached.response);
        }
+
+        // Check for casual wellbeing greetings first (before question detection)
+        const isCasualGreeting = isCasualWellbeingGreeting(userMessage);
+        // Add safeguard for longer messages (don't treat long questions as greetings)
+        if (isCasualGreeting && userMessage.split(' ').length < 10) {
+            console.log('\n💬 Casual Wellbeing Greeting Detected:', userMessage);
+            
+            // Get appropriate small talk response
+            const smallTalkResult = { isSmallTalk: true, language: 'en', category: 'wellbeing' };
+            const response = getSmallTalkResponse(smallTalkResult, languageDecision);
+            
+            await broadcastConversation(
+                userMessage,
+                response,
+                'en',
+                'small_talk',
+                'direct_response'
+            );
+            
+            return res.status(200).json({
+                message: response,
+                language: {
+                    detected: 'English',
+                    confidence: 'high',
+                    reason: 'wellbeing_greeting'
+                }
+            });
+        }
 
         // Enhanced question pattern detection using new language system
         const hasBookingPattern = !languageDecision.isIcelandic ? 
