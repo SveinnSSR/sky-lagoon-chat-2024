@@ -1163,7 +1163,6 @@ export const knowledgeBase = {
                 age_calculation: "Birth year counts for age limit - children turning 12 within the calendar year may visit Sky Lagoon"
             },
             recommendations: {
-                changing_rooms: "We recommend that families with children aged 12-14 use the Sér Pass' premium changing rooms for space and privacy",
                 supervision: "Guardian must be 18 years or older",
                 group_size: "One guardian can supervise multiple children aged 12-14"
             }
@@ -2678,7 +2677,6 @@ export const knowledgeBase = {
             birth_year: "Birth year counts for age limit - children turning 12 within the calendar year may visit Sky Lagoon"
         },
         recommendations: {
-            changing_rooms: "We recommend that families with children aged 12-14 use the Sér Pass' premium changing rooms for space and privacy",
             supervision: "Guardian must be 18 years or older",
             group_size: "One guardian can supervise multiple children aged 12-14"
         }
