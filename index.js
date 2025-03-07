@@ -1049,18 +1049,20 @@ const isFollowUpGreeting = (message, languageDecision) => {
         return languageDecision.isIcelandic;
     }
 
-    // Check for greetings with Sólrún's name (both with and without accent)
+    // Check for greetings with Sólrún's name (all variations) using word boundaries
     const hasSólrúnWithGreeting = (
-        // English greetings with Sólrún
-        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && (msg.includes('sólrún') || msg.includes('solrun'))) ||
+        // English greetings with Sólrún (any case/accent variation)
+        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && 
+         (/\bs[oó]lr[uú]n\b/i.test(msg))) ||
         // Icelandic greetings with Sólrún
-        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && (msg.includes('sólrún') || msg.includes('solrun')))
+        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && 
+         (/\bs[oó]lr[uú]n\b/i.test(msg)))
     );
 
     if (hasSólrúnWithGreeting) {
         // Override language detection for English greetings with bot name
-        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(msg) && 
-            (msg.includes('sólrún') || msg.includes('solrun'))) {
+        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|wazzup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(msg) && 
+            (/\bs[oó]lr[uú]n\b/i.test(msg))) {
             console.log('\n👋 English Greeting with Bot Name Override');
             return true;
         }
