@@ -318,9 +318,33 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             console.log('✅ Form submission detected');
             return true;
         }
-        
+
+        // IMPORTANT: Check for cancellation/refund related queries FIRST (negative patterns)
+        // These should override any other matches to prevent false positives
+        const cancellationPatterns = {
+            en: [
+                'cancel', 'refund', 'money back', 'cancellation policy',
+                'cancellation fee', 'cancel my booking'
+            ],
+            is: [
+                'endurgreiðslu', 'hætta við', 'afbóka', 'afbókun',
+                'skilmálar', 'skilmálarnir', 'fá endurgreitt',
+                'hætta við bókun', 'afpanta'
+            ]
+        };        
+
         // FIX: Properly determine language - don't override Icelandic detection with confidence
         const isIcelandic = languageDecision.isIcelandic;
+        
+        // Check if message is about cancellation/refunds - if so, return false immediately
+        const isCancellationQuery = (isIcelandic ? 
+            cancellationPatterns.is : 
+            cancellationPatterns.en).some(pattern => msg.includes(pattern));
+            
+        if (isCancellationQuery) {
+            console.log('❌ Cancellation/refund query detected - NOT a booking change request');
+            return false;
+        }
         
         console.log(`Using ${isIcelandic ? 'Icelandic' : 'English'} patterns for detection`);
         
