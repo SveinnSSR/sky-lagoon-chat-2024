@@ -51,7 +51,7 @@ export const detectLanguage = (message, context = null) => {
         botNameRegex.lastIndex = 0;
         
         // Check if it starts with an English greeting
-        if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy)\b/i.test(cleanMessage)) {
+        if (/^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya)\b/i.test(cleanMessage)) {
             return {
                 isIcelandic: false,
                 confidence: 'high',
