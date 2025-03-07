@@ -46,7 +46,6 @@ const BOOKING_CHANGE_PATTERNS = {
         'another time',
         'another date',
         'move booking',
-        'cancel booking',
         // New stronger patterns
         'update booking',
         'alter booking',
@@ -79,8 +78,6 @@ const BOOKING_CHANGE_PATTERNS = {
         'færa tíma',
         'annan tíma',
         'aðra dagsetningu',
-        'hætta við bókun',
-        'afbóka',
         // New stronger patterns
         'uppfæra bókun',
         'fresta bókun',
@@ -340,8 +337,6 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             'tím', // For tíma, tímann, etc.
             'dagsetn', // For dagsetning, dagsetninguna, etc.
             'skráning', // For skráningu, etc.
-            'afbók', // For afbóka, afbókun, etc.
-            'hætt', // For hætta
             'annan', // For annan tíma
             'aðra', // For aðra dagsetningu
             'seink', // For seinka, seinkun
