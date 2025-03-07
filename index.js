@@ -1059,7 +1059,7 @@ const isFollowUpGreeting = (message, languageDecision) => {
 
     if (hasSólrúnWithGreeting) {
         // Override language detection for English greetings with bot name
-        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya)\b/i.test(msg) && 
+        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(msg) && 
             (msg.includes('sólrún') || msg.includes('solrun'))) {
             console.log('\n👋 English Greeting with Bot Name Override');
             return true;
@@ -1275,7 +1275,7 @@ const isSimpleGreeting = (message, languageDecision) => {
     const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(message);
     
     // If message contains bot name and starts with English greeting, prioritize English
-    if (hasBotName && /^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya)/i.test(message)) {
+    if (hasBotName && /^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)/i.test(message)) {
         console.log('\n👋 Bot Name Greeting Detection:', {
             hasBotName: true,
             hasEnglishGreeting: true,
@@ -1292,12 +1292,12 @@ const isSimpleGreeting = (message, languageDecision) => {
     if (/\d/.test(msg)) return false;          // Numbers
 
     // Handle common greeting variations with repeated characters
-    if (/^(?:hi+|he+y+|hello+)\b$/i.test(msg)) {
+    if (/^(?:hi+|he+y+|hello+|hae+)\b$/i.test(msg)) {
         return true;
     }
 
     // Standalone English greetings (highest priority)
-    if (/^(?:hi|hello|hey|hi there)\b$/i.test(msg)) {
+    if (/^(?:hi|hello|hey|hi there|hae)\b$/i.test(msg)) {
         return true;
     }
 
@@ -1364,7 +1364,7 @@ const isSimpleGreeting = (message, languageDecision) => {
     // Final check - must explicitly match one of our greeting patterns or variations
     return languageDecision.isIcelandic ?
         (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg)) :
-        (/^(?:hi+|he+y+|hello+)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg));
+        (/^(?:hi+|he+y+|hello+|hae+)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg))
 };
 
 // Enhanced small talk patterns with better categorization
