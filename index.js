@@ -8688,26 +8688,106 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 //    }
 //});
 
+// =====================================================================
+// HELPER FUNCTIONS FOR FEEDBACK PROCESSING
+// =====================================================================
+
+/**
+ * Find the PostgreSQL ID for a MongoDB message ID using time-based matching
+ * @param {string} mongoDbId - The MongoDB ID (e.g., bot-msg-1741308335605)
+ * @returns {Promise<string|null>} - The PostgreSQL ID or null if not found
+ */
+async function findPostgresqlIdForMessage(mongoDbId) {
+  try {
+    // Extract timestamp from MongoDB ID if it's in the bot-msg-TIMESTAMP format
+    const timestampMatch = mongoDbId.match(/bot-msg-(\d+)/);
+    if (!timestampMatch || !timestampMatch[1]) {
+      console.log(`❌ No timestamp found in MongoDB ID: ${mongoDbId}`);
+      return null;
+    }
+    
+    const messageTimestamp = parseInt(timestampMatch[1]);
+    const messageDate = new Date(messageTimestamp);
+    
+    // Define a time window (5 minutes before and after)
+    const fiveMinutesBefore = new Date(messageDate.getTime() - 5 * 60 * 1000);
+    const fiveMinutesAfter = new Date(messageDate.getTime() + 5 * 60 * 1000);
+    
+    // Query analytics API for messages in this time range
+    const response = await fetch(`https://hysing.svorumstrax.is/api/conversations/messages?from=${fiveMinutesBefore.toISOString()}&to=${fiveMinutesAfter.toISOString()}`, {
+      headers: {
+        'x-api-key': 'sky-lagoon-secret-2024'
+      }
+    });
+    
+    if (!response.ok) {
+      console.log(`❌ Failed to fetch messages from analytics: ${response.status}`);
+      return null;
+    }
+    
+    const messages = await response.json();
+    
+    // Find the closest message by timestamp
+    let closestMessage = null;
+    let smallestDiff = Infinity;
+    
+    for (const message of messages) {
+      const msgDate = new Date(message.timestamp);
+      const timeDiff = Math.abs(msgDate.getTime() - messageDate.getTime());
+      
+      if (timeDiff < smallestDiff) {
+        smallestDiff = timeDiff;
+        closestMessage = message;
+      }
+    }
+    
+    if (closestMessage && smallestDiff < 10000) { // Within 10 seconds
+      console.log(`✅ Found PostgreSQL ID ${closestMessage.id} for MongoDB ID ${mongoDbId}`);
+      return closestMessage.id;
+    }
+    
+    console.log(`❌ No matching PostgreSQL ID found for MongoDB ID: ${mongoDbId}`);
+    return null;
+  } catch (error) {
+    console.error(`❌ Error finding PostgreSQL ID: ${error}`);
+    return null;
+  }
+}
+
 // Keep your /feedback endpoint for MongoDB storage
 app.post('/feedback', verifyApiKey, async (req, res) => {
     try {
-      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
+      let { messageId, isPositive, messageContent, timestamp, chatId, language, postgresqlId } = req.body;
+      
+      // If no PostgreSQL ID is provided, try to find one
+      if (!postgresqlId && messageId) {
+        console.log(`🔍 No PostgreSQL ID provided, attempting to find match for: ${messageId}`);
+        postgresqlId = await findPostgresqlIdForMessage(messageId);
+        
+        if (postgresqlId) {
+          console.log(`✅ Found PostgreSQL ID: ${postgresqlId} for MongoDB ID: ${messageId}`);
+        } else {
+          console.log(`⚠️ Could not find PostgreSQL ID for MongoDB ID: ${messageId}`);
+        }
+      }
       
       // Determine message type
       const messageType = determineMessageType(messageContent, language);
       
       console.log('\n📝 Feedback received for storage:', {
         messageId,
+        postgresqlId, // Log the PostgreSQL ID (may be null)
         isPositive,
         messageType
       });
       
-      // Connect to MongoDB
+      // Connect to MongoDB  
       const { db } = await connectToDatabase();
       
-      // Store feedback in MongoDB
+      // Store feedback in MongoDB with PostgreSQL ID reference
       await db.collection('message_feedback').insertOne({
         messageId,
+        postgresqlId, // Store the PostgreSQL ID reference (may be null)
         isPositive,
         messageContent,
         messageType,
@@ -8718,7 +8798,7 @@ app.post('/feedback', verifyApiKey, async (req, res) => {
       });
       
       console.log('💾 Feedback saved to MongoDB');
-      
+
       // Forward feedback to analytics system
       try {
         console.log('📤 Forwarding feedback to analytics system');
@@ -8730,11 +8810,12 @@ app.post('/feedback', verifyApiKey, async (req, res) => {
           },
           body: JSON.stringify({
             messageId: messageId,
+            postgresqlId: postgresqlId, // Include the PostgreSQL ID (may be null)
             rating: isPositive, // Field name expected by analytics
             comment: messageContent,
             messageType: messageType
           })
-        });
+        });  
         
         const responseText = await analyticsResponse.text();
         
