@@ -1845,6 +1845,29 @@ const questionPatterns = {
 // Helper functions for response handling
 const getContextualResponse = (type, previousResponses = [], languageDecision) => {
     let responses;
+    
+    // Add defensive check at the beginning to prevent undefined error
+    if (!languageDecision) {
+        // Fallback to English if language decision is not provided
+        console.log('\n⚠️ Language Decision Missing in getContextualResponse:', {
+            type: type,
+            fallback: 'defaulting_to_english'
+        });
+        
+        // Use a default based on type
+        switch(type) {
+            case 'acknowledgment':
+                return ACKNOWLEDGMENT_RESPONSES.en[Math.floor(Math.random() * ACKNOWLEDGMENT_RESPONSES.en.length)];
+            case 'small_talk':
+                return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
+            case 'confirmation':
+                return CONFIRMATION_RESPONSES.en[Math.floor(Math.random() * CONFIRMATION_RESPONSES.en.length)];
+            default:
+                return ACKNOWLEDGMENT_RESPONSES.en[Math.floor(Math.random() * ACKNOWLEDGMENT_RESPONSES.en.length)];
+        }
+    }
+    
+    // Original logic when language detection is available
     switch(type) {
         case 'acknowledgment':
             responses = languageDecision.isIcelandic ? ACKNOWLEDGMENT_RESPONSES.is : ACKNOWLEDGMENT_RESPONSES.en;
@@ -8018,10 +8041,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Yes/Confirmation handling
         if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
-            let response = getContextualResponse('confirmation', context.messages.map(m => m.content));
+            // Pass languageDecision as the third parameter
+            let response = getContextualResponse('confirmation', context.messages.map(m => m.content), languageDecision);
             
             // Use new language detection system
-            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
+            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';        
             
             if (context.lastTopic === 'seasonal') {
                 if (context.seasonalContext?.type === 'winter') {
