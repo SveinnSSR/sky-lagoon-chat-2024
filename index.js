@@ -8774,6 +8774,8 @@ async function findPostgresqlIdForMessage(mongoDbId) {
     const fiveMinutesBefore = new Date(messageDate.getTime() - 5 * 60 * 1000);
     const fiveMinutesAfter = new Date(messageDate.getTime() + 5 * 60 * 1000);
     
+    console.log(`🔍 Searching for messages between ${fiveMinutesBefore.toISOString()} and ${fiveMinutesAfter.toISOString()}`);
+    
     // Query analytics API for messages in this time range
     const response = await fetch(`https://hysing.svorumstrax.is/api/conversations/messages?from=${fiveMinutesBefore.toISOString()}&to=${fiveMinutesAfter.toISOString()}`, {
       headers: {
@@ -8786,15 +8788,52 @@ async function findPostgresqlIdForMessage(mongoDbId) {
       return null;
     }
     
-    const messages = await response.json();
+    const responseData = await response.json();
+    
+    // Log response structure for debugging
+    console.log(`📦 Analytics API response structure: ${typeof responseData} with keys: ${responseData ? Object.keys(responseData).join(', ') : 'none'}`);
+    
+    // Handle different response structures
+    let messages = [];
+    if (Array.isArray(responseData)) {
+      messages = responseData;
+      console.log(`📝 Found array of ${messages.length} messages directly in response`);
+    } else if (responseData && responseData.messages && Array.isArray(responseData.messages)) {
+      messages = responseData.messages;
+      console.log(`📝 Found array of ${messages.length} messages in responseData.messages`);
+    } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
+      messages = responseData.data;
+      console.log(`📝 Found array of ${messages.length} messages in responseData.data`);
+    } else if (responseData && typeof responseData === 'object') {
+      // Try to extract messages from the first property that is an array
+      for (const key in responseData) {
+        if (Array.isArray(responseData[key])) {
+          messages = responseData[key];
+          console.log(`📝 Found array of ${messages.length} messages in responseData.${key}`);
+          break;
+        }
+      }
+    }
+    
+    if (messages.length === 0) {
+      console.log('❌ No messages found in the response');
+      return null;
+    }
     
     // Find the closest message by timestamp
     let closestMessage = null;
     let smallestDiff = Infinity;
     
     for (const message of messages) {
+      if (!message || !message.timestamp) {
+        console.log('⚠️ Skipping message without timestamp:', message);
+        continue;
+      }
+      
       const msgDate = new Date(message.timestamp);
       const timeDiff = Math.abs(msgDate.getTime() - messageDate.getTime());
+      
+      console.log(`🕒 Message timestamp: ${message.timestamp}, diff: ${timeDiff}ms`);
       
       if (timeDiff < smallestDiff) {
         smallestDiff = timeDiff;
@@ -8802,18 +8841,24 @@ async function findPostgresqlIdForMessage(mongoDbId) {
       }
     }
     
-    if (closestMessage && smallestDiff < 10000) { // Within 10 seconds
-      console.log(`✅ Found PostgreSQL ID ${closestMessage.id} for MongoDB ID ${mongoDbId}`);
-      return closestMessage.id;
+    if (closestMessage) {
+      if (smallestDiff < 10000) { // Within 10 seconds
+        console.log(`✅ Found PostgreSQL ID ${closestMessage.id} for MongoDB ID ${mongoDbId} (time diff: ${smallestDiff}ms)`);
+        return closestMessage.id;
+      } else {
+        console.log(`⚠️ Closest message's time difference (${smallestDiff}ms) exceeds 10-second threshold`);
+      }
     }
     
     console.log(`❌ No matching PostgreSQL ID found for MongoDB ID: ${mongoDbId}`);
     return null;
   } catch (error) {
     console.error(`❌ Error finding PostgreSQL ID: ${error}`);
+    console.error(`Stack trace: ${error.stack}`);
     return null;
   }
 }
+
 
 // Keep your /feedback endpoint for MongoDB storage
 app.post('/feedback', verifyApiKey, async (req, res) => {
@@ -9163,7 +9208,7 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  * 
  * @param {Object} conversationData - The conversation data including user and bot messages
  * @param {Object} languageInfo - Information about detected language
- * @returns {Promise<boolean>} - True if API call was successful, false otherwise
+ * @returns {Promise<{success: boolean, postgresqlId: string|null}>} - Success status and PostgreSQL ID
  */
 async function sendConversationToAnalytics(conversationData, languageInfo) {
   try {
@@ -9251,6 +9296,14 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
           }
         ];
     
+    // Log the payload being sent to the analytics API
+    console.log('📤 Sending payload to analytics API:', {
+      id: sessionInfo.conversationId,
+      sessionId: sessionInfo.sessionId,
+      messageCount: analyticsMessages.length,
+      topic: conversationData.topic || 'general'
+    });
+    
     const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
       method: 'POST',
       headers: {
@@ -9276,6 +9329,9 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
       try {
         const responseData = await analyticsResponse.json();
         
+        // Log response structure for debugging
+        console.log(`📦 Analytics API response structure: ${typeof responseData} with keys: ${responseData ? Object.keys(responseData).join(', ') : 'none'}`);
+        
         // If we get back PostgreSQL IDs, store mappings for them
         let botMessagePostgresqlId = null;
 
@@ -9288,25 +9344,42 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
             // Store mappings for each message
             for (let i = 0; i < responseData.messages.length; i++) {
                 const pgMessage = responseData.messages[i];
-                const originalMessage = conversationData.messages[i];
+                const originalMessage = conversationData.messages && i < conversationData.messages.length ? 
+                                       conversationData.messages[i] : null;
                 
-                if (pgMessage && pgMessage.id && originalMessage && originalMessage.id) {
-                    // Store mapping between MongoDB ID and PostgreSQL ID
-                    await db.collection('message_id_mappings').insertOne({
-                        mongodbId: originalMessage.id,
-                        postgresqlId: pgMessage.id,
-                        content: originalMessage.content || '',
-                        createdAt: new Date()
-                    });
+                if (pgMessage && pgMessage.id) {
+                    console.log(`🔄 Processing PostgreSQL message: ${pgMessage.id} (role: ${pgMessage.role || 'unknown'})`);
                     
-                    console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
+                    if (originalMessage && originalMessage.id) {
+                        // Store mapping between MongoDB ID and PostgreSQL ID
+                        await db.collection('message_id_mappings').insertOne({
+                            mongodbId: originalMessage.id,
+                            postgresqlId: pgMessage.id,
+                            content: originalMessage.content || '',
+                            createdAt: new Date()
+                        });
+                        
+                        console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
+                    } else {
+                        console.log(`⚠️ No matching original message for PostgreSQL ID: ${pgMessage.id}`);
+                    }
                     
                     // Capture the PostgreSQL ID for bot messages
-                    if (originalMessage.role === 'assistant' || originalMessage.sender === 'bot') {
+                    const isBot = pgMessage.role === 'assistant' || 
+                                 (originalMessage && (originalMessage.role === 'assistant' || originalMessage.sender === 'bot'));
+                                 
+                    if (isBot) {
                         botMessagePostgresqlId = pgMessage.id;
                         console.log(`🤖 Found bot message PostgreSQL ID: ${botMessagePostgresqlId}`);
                     }
                 }
+            }
+        } else {
+            console.log('⚠️ Response does not contain messages array or has unexpected format');
+            if (responseData) {
+                console.log('📊 Response data sample:', 
+                           JSON.stringify(responseData).substring(0, 300) + 
+                           (JSON.stringify(responseData).length > 300 ? '...' : ''));
             }
         }
 
@@ -9325,6 +9398,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     }
   } catch (error) {
     console.error('❌ Error sending conversation to analytics system:', error);
+    console.error('❌ Stack trace:', error.stack);
     return { success: false, postgresqlId: null };
   }
 }
