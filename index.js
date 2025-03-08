@@ -8754,13 +8754,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 // =====================================================================
 
 /**
- * Find the PostgreSQL ID for a MongoDB message ID using time-based matching
+ * Find the PostgreSQL ID for a MongoDB message ID using mapping table in database
  * @param {string} mongoDbId - The MongoDB ID (e.g., bot-msg-1741308335605)
  * @returns {Promise<string|null>} - The PostgreSQL ID or null if not found
  */
 async function findPostgresqlIdForMessage(mongoDbId) {
   try {
-    // Extract timestamp from MongoDB ID if it's in the bot-msg-TIMESTAMP format
+    console.log(`🔍 Looking up mapping for MongoDB ID: ${mongoDbId}`);
+    
+    // 1. First try direct lookup in messageIdMapping table (most reliable)
+    try {
+      const mapping = await prisma.messageIdMapping.findUnique({
+        where: { mongodbId: mongoDbId }
+      });
+      
+      if (mapping && mapping.postgresqlId) {
+        console.log(`✅ Found PostgreSQL ID in mapping table: ${mapping.postgresqlId}`);
+        return mapping.postgresqlId;
+      }
+    } catch (dbError) {
+      console.error(`❌ Error querying mapping table: ${dbError.message}`);
+      // Continue to alternative methods
+    }
+    
+    // 2. Extract timestamp from MongoDB ID for time-based matching
     const timestampMatch = mongoDbId.match(/bot-msg-(\d+)/);
     if (!timestampMatch || !timestampMatch[1]) {
       console.log(`❌ No timestamp found in MongoDB ID: ${mongoDbId}`);
@@ -8770,92 +8787,71 @@ async function findPostgresqlIdForMessage(mongoDbId) {
     const messageTimestamp = parseInt(timestampMatch[1]);
     const messageDate = new Date(messageTimestamp);
     
-    // Define a time window (5 minutes before and after)
-    const fiveMinutesBefore = new Date(messageDate.getTime() - 5 * 60 * 1000);
-    const fiveMinutesAfter = new Date(messageDate.getTime() + 5 * 60 * 1000);
-    
-    console.log(`🔍 Searching for messages between ${fiveMinutesBefore.toISOString()} and ${fiveMinutesAfter.toISOString()}`);
-    
-    // Try using the conversations endpoint instead
-    const response = await fetch(`https://hysing.svorumstrax.is/api/conversations?from=${fiveMinutesBefore.toISOString()}&to=${fiveMinutesAfter.toISOString()}`, {
-      headers: {
-        'x-api-key': 'sky-lagoon-secret-2024'
-      }
-    });
-    
-    if (!response.ok) {
-      console.log(`❌ Failed to fetch messages from analytics: ${response.status}`);
-      return null;
-    }
-    
-    const responseData = await response.json();
-    
-    // Log response structure for debugging
-    console.log(`📦 Analytics API response structure: ${typeof responseData} with keys: ${responseData ? Object.keys(responseData).join(', ') : 'none'}`);
-    
-    // Handle different response structures
-    let messages = [];
-    if (Array.isArray(responseData)) {
-      messages = responseData;
-      console.log(`📝 Found array of ${messages.length} messages directly in response`);
-    } else if (responseData && responseData.messages && Array.isArray(responseData.messages)) {
-      messages = responseData.messages;
-      console.log(`📝 Found array of ${messages.length} messages in responseData.messages`);
-    } else if (responseData && responseData.conversation && responseData.conversation.messages && Array.isArray(responseData.conversation.messages)) {
-      // Extract messages from conversation.messages
-      messages = responseData.conversation.messages;
-      console.log(`📝 Found array of ${messages.length} messages in responseData.conversation.messages`);
-    } else if (responseData && responseData.conversation && Array.isArray(responseData.conversation)) {
-      // If conversation is the array of messages
-      messages = responseData.conversation;
-      console.log(`📝 Found array of ${messages.length} messages in responseData.conversation array`);
-    } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
-      messages = responseData.data;
-      console.log(`📝 Found array of ${messages.length} messages in responseData.data`);
-    } else if (responseData && typeof responseData === 'object') {
-      // Try to extract messages from the first property that is an array
-      for (const key in responseData) {
-        if (Array.isArray(responseData[key])) {
-          messages = responseData[key];
-          console.log(`📝 Found array of ${messages.length} messages in responseData.${key}`);
-          break;
+    // 3. Try to find a message with similar timestamp in the database
+    try {
+      // Look for messages created within 10 seconds of the MongoDB message timestamp
+      const fiveMinutesBefore = new Date(messageDate.getTime() - 5 * 60 * 1000);
+      const fiveMinutesAfter = new Date(messageDate.getTime() + 5 * 60 * 1000);
+      
+      console.log(`🔍 Searching database for messages between ${fiveMinutesBefore.toISOString()} and ${fiveMinutesAfter.toISOString()}`);
+      
+      // Search in the messages table directly
+      const messages = await prisma.message.findMany({
+        where: {
+          timestamp: {
+            gte: fiveMinutesBefore,
+            lte: fiveMinutesAfter
+          },
+          role: 'assistant' // Only assistant messages receive feedback
+        },
+        orderBy: {
+          timestamp: 'asc'
         }
-      }
-    }
-    
-    if (messages.length === 0) {
-      console.log('❌ No messages found in the response');
-      return null;
-    }
-    
-    // Find the closest message by timestamp
-    let closestMessage = null;
-    let smallestDiff = Infinity;
-    
-    for (const message of messages) {
-      if (!message || !message.timestamp) {
-        console.log('⚠️ Skipping message without timestamp:', message);
-        continue;
-      }
+      });
       
-      const msgDate = new Date(message.timestamp);
-      const timeDiff = Math.abs(msgDate.getTime() - messageDate.getTime());
-      
-      console.log(`🕒 Message timestamp: ${message.timestamp}, diff: ${timeDiff}ms`);
-      
-      if (timeDiff < smallestDiff) {
-        smallestDiff = timeDiff;
-        closestMessage = message;
-      }
-    }
-    
-    if (closestMessage) {
-      if (smallestDiff < 10000) { // Within 10 seconds
-        console.log(`✅ Found PostgreSQL ID ${closestMessage.id} for MongoDB ID ${mongoDbId} (time diff: ${smallestDiff}ms)`);
-        return closestMessage.id;
+      if (messages.length > 0) {
+        console.log(`📝 Found ${messages.length} messages in database within time range`);
+        
+        // Find the closest message by timestamp
+        let closestMessage = null;
+        let smallestDiff = Infinity;
+        
+        for (const message of messages) {
+          if (!message || !message.timestamp) continue;
+          
+          const msgDate = new Date(message.timestamp);
+          const timeDiff = Math.abs(msgDate.getTime() - messageDate.getTime());
+          
+          if (timeDiff < smallestDiff) {
+            smallestDiff = timeDiff;
+            closestMessage = message;
+          }
+        }
+        
+        if (closestMessage && smallestDiff < 10000) { // Within 10 seconds
+          console.log(`✅ Found PostgreSQL ID ${closestMessage.id} by timestamp (diff: ${smallestDiff}ms)`);
+          
+          // Create a mapping for future use
+          try {
+            await prisma.messageIdMapping.create({
+              data: {
+                mongodbId: mongoDbId,
+                postgresqlId: closestMessage.id,
+                contentHash: null
+              }
+            });
+            console.log(`✅ Created mapping for future use: ${mongoDbId} → ${closestMessage.id}`);
+          } catch (mappingError) {
+            console.log(`⚠️ Could not create mapping: ${mappingError.message}`);
+          }
+          
+          return closestMessage.id;
+        }
       } else {
-        console.log(`⚠️ Closest message's time difference (${smallestDiff}ms) exceeds 10-second threshold`);
+        console.log('❌ No messages found in database within time range');
       }
+    } catch (dbQueryError) {
+      console.error(`❌ Error querying messages: ${dbQueryError.message}`);
     }
     
     console.log(`❌ No matching PostgreSQL ID found for MongoDB ID: ${mongoDbId}`);
