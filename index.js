@@ -122,21 +122,47 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             reason: languageCheck.reason
         };
 
+        // Determine message roles explicitly for consistent color rendering
+        const userRole = 'user';
+        const botRole = 'assistant';
+
+        // Add messageId in MongoDB format for feedback correlation
+        const userMessageId = `user-msg-${Date.now()}`;
+        const botMessageId = `bot-msg-${Date.now()}`;
+
         const conversationData = {
             id: uuidv4(),
             timestamp: new Date().toISOString(),
-            userMessage,
-            botResponse,
+            messages: [
+              {
+                id: userMessageId,
+                content: userMessage,
+                role: userRole,
+                sender: 'user',
+                timestamp: new Date().toISOString()
+              },
+              {
+                id: botMessageId, 
+                content: botResponse,
+                role: botRole,
+                sender: 'bot',
+                timestamp: new Date().toISOString()
+              }
+            ],
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
             type,
             sessionId: chatSessionId  // Add the session ID here
         };
 
+        // Keep these for backward compatibility
+        conversationData.userMessage = userMessage;
+        conversationData.botResponse = botResponse;
+
         return await handleConversationUpdate(conversationData, languageInfo);
     } catch (error) {
-        console.error('❌ Error in broadcastConversation:', error);
-        return false;
+      console.error('❌ Error in broadcastConversation:', error);
+      return false;
     }
 };
 
@@ -8944,55 +8970,106 @@ function determineMessageType(content, language) {
 
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
-    try {
-        console.log('🚀 Broadcasting conversation via Pusher:', {
-            event: 'conversation-update',
-            channel: 'chat-channel',
-            data: {
-                ...conversationData,
-                language: languageInfo
-            },
-            timestamp: new Date().toISOString()
+  try {
+    console.log('🚀 Broadcasting conversation via Pusher:', {
+      event: 'conversation-update',
+      channel: 'chat-channel',
+      data: {
+        ...conversationData,
+        language: languageInfo
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    // Ensure consistent message format for all downstream systems
+    const normalizedData = normalizeConversationData(conversationData);
+    
+    // STEP 1: Continue broadcasting via Pusher for real-time updates
+    const pusherPromise = pusher.trigger('chat-channel', 'conversation-update', normalizedData)
+      .then(() => {
+        console.log('✅ Pusher message sent successfully');
+        return true;
+      })
+      .catch(error => {
+        console.error('❌ Pusher error:', error);
+        console.log('Environment check:', {
+          hasAppId: !!process.env.PUSHER_APP_ID,
+          hasKey: !!process.env.PUSHER_KEY,
+          hasSecret: !!process.env.PUSHER_SECRET,
+          hasCluster: !!process.env.PUSHER_CLUSTER
         });
-        
-        // STEP 1: Continue broadcasting via Pusher for real-time updates
-        const pusherPromise = pusher.trigger('chat-channel', 'conversation-update', conversationData)
-            .then(() => {
-                console.log('✅ Pusher message sent successfully');
-                return true;
-            })
-            .catch(error => {
-                console.error('❌ Pusher error:', error);
-                console.log('Environment check:', {
-                    hasAppId: !!process.env.PUSHER_APP_ID,
-                    hasKey: !!process.env.PUSHER_KEY,
-                    hasSecret: !!process.env.PUSHER_SECRET,
-                    hasCluster: !!process.env.PUSHER_CLUSTER
-                });
-                // Don't throw the error, instead return false so other methods can continue
-                return false;
-            });
-        
-        // DEBUG: Log the conversationData being passed to other functions
-        console.log('🔍 conversationData for MongoDB/Analytics:', {
-            id: conversationData?.id,
-            hasUserMessage: !!conversationData?.userMessage
-        });
-        
-        // STEP 2: Save to MongoDB directly
-        const dbPromise = saveConversationToMongoDB(conversationData, languageInfo);
-        
-        // STEP 3: Send directly to Analytics API
-        const apiPromise = sendConversationToAnalytics(conversationData, languageInfo);
-        
-        // Wait for all operations to complete but don't fail if one fails
-        return Promise.all([pusherPromise, dbPromise, apiPromise])
-            .then(results => results.some(r => r === true));
-            
-    } catch (error) {
-        console.error('❌ Error in handleConversationUpdate:', error);
-        return Promise.resolve(false);
+        // Don't throw the error, instead return false so other methods can continue
+        return false;
+      });
+    
+    // DEBUG: Log the normalized data being passed to other functions
+    console.log('🔍 normalizedData for MongoDB/Analytics:', {
+      id: normalizedData?.id,
+      hasMessages: !!normalizedData?.messages?.length,
+      messageCount: normalizedData?.messages?.length || 0
+    });
+    
+    // STEP 2: Save to MongoDB directly
+    const dbPromise = saveConversationToMongoDB(normalizedData, languageInfo);
+    
+    // STEP 3: Send directly to Analytics API
+    const apiPromise = sendConversationToAnalytics(normalizedData, languageInfo);
+    
+    // Wait for all operations to complete but don't fail if one fails
+    return Promise.all([pusherPromise, dbPromise, apiPromise])
+      .then(results => results.some(r => r === true));
+      
+  } catch (error) {
+    console.error('❌ Error in handleConversationUpdate:', error);
+    return Promise.resolve(false);
+  }
+}
+
+/**
+ * Normalize conversation data to ensure consistent format
+ * @param {Object} data - Original conversation data
+ * @returns {Object} - Normalized conversation data
+ */
+function normalizeConversationData(data) {
+  // Create a deep copy so we don't modify the original
+  const normalized = JSON.parse(JSON.stringify(data));
+  
+  // Ensure messages array exists
+  if (!normalized.messages || !Array.isArray(normalized.messages)) {
+    normalized.messages = [];
+    
+    // Convert legacy format to messages array if needed
+    if (normalized.userMessage) {
+      normalized.messages.push({
+        id: normalized.userMessageId || `user-msg-${Date.now()}`,
+        content: normalized.userMessage,
+        role: 'user',
+        sender: 'user',
+        timestamp: normalized.timestamp || new Date().toISOString()
+      });
     }
+    
+    if (normalized.botResponse) {
+      normalized.messages.push({
+        id: normalized.botMessageId || `bot-msg-${Date.now()}`,
+        content: normalized.botResponse,
+        role: 'assistant',
+        sender: 'bot',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+  
+  // Ensure each message has proper structure
+  normalized.messages = normalized.messages.map(msg => ({
+    id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
+    content: msg.content || '',
+    role: msg.role || (msg.sender === 'user' ? 'user' : 'assistant'),
+    sender: msg.sender || (msg.role === 'user' ? 'user' : 'bot'),
+    timestamp: msg.timestamp || new Date().toISOString()
+  }));
+  
+  return normalized;
 }
 
 /**
@@ -9040,112 +9117,158 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
  * @returns {Promise<boolean>} - True if API call was successful, false otherwise
  */
 async function sendConversationToAnalytics(conversationData, languageInfo) {
-    try {
-        // Add stack trace to see where this function is being called from
-        const stackTrace = new Error().stack;
-        console.log('📤 Sending conversation to analytics system FROM:', stackTrace);
-        console.log('📦 Conversation data check:', {
-            hasData: !!conversationData,
-            hasId: !!conversationData?.id,
-            hasUserMessage: !!conversationData?.userMessage,
-            hasBotResponse: !!conversationData?.botResponse
-        });
-        
-        // CRITICAL FIX: Add validation for conversation data
-        if (!conversationData || !conversationData.id) {
-            console.error('❌ Cannot send undefined conversation data - SKIPPING');
-            return false;
-        }
-
-        // Extract the frontend session ID from the request context
-        // This is the key change - we need to get the session ID and pass it to getOrCreateSession
-        if (!conversationData.sessionId) {
-            // Try to find the session ID in various places
-            const sessionId = conversationData.sessionId || 
-                              conversationData.chatId || 
-                              (conversationData.req && conversationData.req.session && conversationData.req.session.id);
-            
-            if (sessionId) {
-                conversationData.sessionId = sessionId;
-            } else {
-                console.log('ℹ️ No session ID found in conversation data');
-            }
-        }
-
-        // Get persistent session from MongoDB - now passing the conversation data
-        let sessionInfo;
-        try {
-            sessionInfo = await getOrCreateSession(conversationData);
-            
-            // CRITICAL FIX: Validate session info
-            if (!sessionInfo || !sessionInfo.conversationId || !sessionInfo.sessionId) {
-                console.error('❌ Invalid session information:', sessionInfo);
-                // Generate new valid IDs if missing
-                sessionInfo = {
-                    conversationId: uuidv4(),
-                    sessionId: uuidv4(),
-                    startedAt: new Date().toISOString(),
-                    lastActivity: new Date().toISOString()
-                };
-                console.log('🔄 Generated new session info due to invalid data');
-            }
-        } catch (sessionError) {
-            console.error('❌ Error getting session:', sessionError);
-            // Fallback to generating new IDs
-            sessionInfo = {
-                conversationId: uuidv4(),
-                sessionId: uuidv4(),
-                startedAt: new Date().toISOString(),
-                lastActivity: new Date().toISOString()
-            };
-            console.log('🔄 Generated fallback session info due to error');
-        }
-        
-        const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': 'sky-lagoon-secret-2024'
-            },
-            body: JSON.stringify({
-                // Use the consistent session IDs with validation
-                id: sessionInfo.conversationId,
-                sessionId: sessionInfo.sessionId,
-                clientId: 'sky-lagoon',
-                topic: conversationData.topic || 'general',
-                status: 'active',
-                responseTime: 0,
-                startedAt: sessionInfo.startedAt,
-                endedAt: new Date().toISOString(),
-                messages: [
-                    {
-                        content: conversationData.userMessage || "No message content",
-                        role: 'user',
-                        language: conversationData.language || 'en',
-                        timestamp: conversationData.timestamp || new Date().toISOString()
-                    },
-                    {
-                        content: conversationData.botResponse || "No response content",
-                        role: 'assistant',
-                        language: conversationData.language || 'en',
-                        timestamp: new Date().toISOString()
-                    }
-                ]
-            })
-        });
-        
-        if (analyticsResponse.ok) {
-            console.log('✅ Conversation successfully sent to analytics system');
-            return true;
-        } else {
-            const responseText = await analyticsResponse.text();
-            console.error('❌ Error from analytics system:', responseText);
-            return false;
-        }
-    } catch (error) {
-        console.error('❌ Error sending conversation to analytics system:', error);
-        return false;
+  try {
+    // Add stack trace to see where this function is being called from
+    const stackTrace = new Error().stack;
+    console.log('📤 Sending conversation to analytics system FROM:', stackTrace);
+    console.log('📦 Conversation data check:', {
+      hasData: !!conversationData,
+      hasId: !!conversationData?.id,
+      hasMessages: !!conversationData?.messages?.length,
+      messageCount: conversationData?.messages?.length || 0
+    });
+    
+    // CRITICAL FIX: Add validation for conversation data
+    if (!conversationData || !conversationData.id) {
+      console.error('❌ Cannot send undefined conversation data - SKIPPING');
+      return false;
     }
+
+    // Extract the frontend session ID from the request context
+    if (!conversationData.sessionId) {
+      // Try to find the session ID in various places
+      const sessionId = conversationData.sessionId || 
+                        conversationData.chatId || 
+                        (conversationData.req && conversationData.req.session && conversationData.req.session.id);
+      
+      if (sessionId) {
+        conversationData.sessionId = sessionId;
+      } else {
+        console.log('ℹ️ No session ID found in conversation data');
+      }
+    }
+
+    // Get persistent session from MongoDB - now passing the conversation data
+    let sessionInfo;
+    try {
+      sessionInfo = await getOrCreateSession(conversationData);
+      
+      // CRITICAL FIX: Validate session info
+      if (!sessionInfo || !sessionInfo.conversationId || !sessionInfo.sessionId) {
+        console.error('❌ Invalid session information:', sessionInfo);
+        // Generate new valid IDs if missing
+        sessionInfo = {
+          conversationId: uuidv4(),
+          sessionId: uuidv4(),
+          startedAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString()
+        };
+        console.log('🔄 Generated new session info due to invalid data');
+      }
+    } catch (sessionError) {
+      console.error('❌ Error getting session:', sessionError);
+      // Fallback to generating new IDs
+      sessionInfo = {
+        conversationId: uuidv4(),
+        sessionId: uuidv4(),
+        startedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      console.log('🔄 Generated fallback session info due to error');
+    }
+    
+    // Transform messages array to analytics format
+    const analyticsMessages = conversationData.messages && conversationData.messages.length > 0 
+      ? conversationData.messages.map(msg => ({
+          id: msg.id, // Include message ID for later reference
+          content: msg.content || "",
+          role: msg.role || (msg.sender === 'user' ? 'user' : 'assistant'),
+          language: conversationData.language || 'en',
+          timestamp: msg.timestamp || new Date().toISOString()
+        }))
+      : [
+          // Legacy format fallback
+          {
+            content: conversationData.userMessage || "No message content",
+            role: 'user',
+            language: conversationData.language || 'en',
+            timestamp: conversationData.timestamp || new Date().toISOString()
+          },
+          {
+            content: conversationData.botResponse || "No response content",
+            role: 'assistant',
+            language: conversationData.language || 'en',
+            timestamp: new Date().toISOString()
+          }
+        ];
+    
+    const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'sky-lagoon-secret-2024'
+      },
+      body: JSON.stringify({
+        // Use the consistent session IDs with validation
+        id: sessionInfo.conversationId,
+        sessionId: sessionInfo.sessionId,
+        clientId: 'sky-lagoon',
+        topic: conversationData.topic || 'general',
+        status: 'active',
+        responseTime: 0,
+        startedAt: sessionInfo.startedAt,
+        endedAt: new Date().toISOString(),
+        messages: analyticsMessages
+      })
+    });
+    
+    // Store the PostgreSQL message IDs for future feedback correlation
+    if (analyticsResponse.ok) {
+      try {
+        const responseData = await analyticsResponse.json();
+        
+        // If we get back PostgreSQL IDs, store mappings for them
+        if (responseData && responseData.messages && Array.isArray(responseData.messages)) {
+          console.log('✅ Received message IDs from analytics:', responseData.messages.length);
+          
+          // Connect to MongoDB
+          const { db } = await connectToDatabase();
+          
+          // Store mappings for each message
+          for (let i = 0; i < responseData.messages.length; i++) {
+            const pgMessage = responseData.messages[i];
+            const originalMessage = conversationData.messages[i];
+            
+            if (pgMessage && pgMessage.id && originalMessage && originalMessage.id) {
+              // Store mapping between MongoDB ID and PostgreSQL ID
+              await db.collection('message_id_mappings').insertOne({
+                mongodbId: originalMessage.id,
+                postgresqlId: pgMessage.id,
+                content: originalMessage.content || '',
+                createdAt: new Date()
+              });
+              
+              console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
+            }
+          }
+        }
+        
+        console.log('✅ Conversation successfully sent to analytics system');
+        return true;
+      } catch (parseError) {
+        console.error('❌ Error parsing analytics response:', parseError);
+        console.log('✅ Conversation sent, but could not parse response');
+        return true; // Still return true since the conversation was sent
+      }
+    } else {
+      const responseText = await analyticsResponse.text();
+      console.error('❌ Error from analytics system:', responseText);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error sending conversation to analytics system:', error);
+    return false;
+  }
 }
 
 // Add this right near the handleConversationUpdate function (possibly unused currently - handleFeedbackUpdate is declared but it's value is never read)
