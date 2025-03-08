@@ -8776,8 +8776,8 @@ async function findPostgresqlIdForMessage(mongoDbId) {
     
     console.log(`🔍 Searching for messages between ${fiveMinutesBefore.toISOString()} and ${fiveMinutesAfter.toISOString()}`);
     
-    // Query analytics API for messages in this time range
-    const response = await fetch(`https://hysing.svorumstrax.is/api/conversations/messages?from=${fiveMinutesBefore.toISOString()}&to=${fiveMinutesAfter.toISOString()}`, {
+    // Try using the conversations endpoint instead
+    const response = await fetch(`https://hysing.svorumstrax.is/api/conversations?from=${fiveMinutesBefore.toISOString()}&to=${fiveMinutesAfter.toISOString()}`, {
       headers: {
         'x-api-key': 'sky-lagoon-secret-2024'
       }
