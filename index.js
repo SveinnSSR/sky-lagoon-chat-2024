@@ -159,10 +159,10 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         conversationData.userMessage = userMessage;
         conversationData.botResponse = botResponse;
 
-        return await handleConversationUpdate(conversationData, languageInfo);
+        return await handleConversationUpdate(conversationData, languageInfo) || { success: false, postgresqlId: null };
     } catch (error) {
       console.error('❌ Error in broadcastConversation:', error);
-      return false;
+      return { success: false, postgresqlId: null };
     }
 };
 
@@ -8585,14 +8585,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Broadcast with new language system
+        let postgresqlMessageId = null;
         if (completion && req.body.message) {
-            await broadcastConversation(
+            const broadcastResult = await broadcastConversation(
                 req.body.message,
                 completion.choices[0].message.content,
                 languageDecision.isIcelandic ? 'is' : 'en',
                 context?.lastTopic || 'general',
                 'gpt_response'
             );
+        
+
+        // Extract PostgreSQL ID from the broadcast result
+        postgresqlMessageId = broadcastResult && broadcastResult.postgresqlId
+        ? broadcastResult.postgresqlId 
+        : null;
+
+        console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
         }
 
         const response = completion.choices[0].message.content;
@@ -8615,6 +8624,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         responseCache.set(cacheKey, {
             response: {
                 message: enhancedResponse,
+                postgresqlMessageId: postgresqlMessageId, // Add PostgreSQL ID to cache
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
@@ -8629,9 +8639,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         context.language = languageDecision.isIcelandic ? 'is' : 'en';
         conversationContext.set(sessionId, context);
 
-        // Return enhanced response with new language system
+        // Return enhanced response with new language system and PostgreSQL ID
         return res.status(200).json({
             message: enhancedResponse,
+            postgresqlMessageId: postgresqlMessageId, // Add PostgreSQL ID to response
             language: {
                 detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                 confidence: languageDecision.confidence,
@@ -9041,11 +9052,25 @@ function handleConversationUpdate(conversationData, languageInfo) {
     
     // Wait for all operations to complete but don't fail if one fails
     return Promise.all([pusherPromise, dbPromise, apiPromise])
-      .then(results => results.some(r => r === true));
+        .then(results => {
+            // Check if we got a PostgreSQL ID from the analytics API
+            const analyticsResult = results[2]; // This is the result from sendConversationToAnalytics
+            
+            // Extract PostgreSQL ID if available
+            const postgresqlId = analyticsResult && 
+                                 analyticsResult.postgresqlId ? 
+                                 analyticsResult.postgresqlId : null;
+            
+            // Return both success status and PostgreSQL ID
+            return { 
+                success: results.some(r => r === true || (r && r.success === true)), 
+                postgresqlId: postgresqlId 
+            };
+        });
       
   } catch (error) {
     console.error('❌ Error in handleConversationUpdate:', error);
-    return Promise.resolve(false);
+    return Promise.resolve({ success: false, postgresqlId: null });
   }
 }
 
@@ -9155,7 +9180,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     // CRITICAL FIX: Add validation for conversation data
     if (!conversationData || !conversationData.id) {
       console.error('❌ Cannot send undefined conversation data - SKIPPING');
-      return false;
+      return { success: false, postgresqlId: null };
     }
 
     // Extract the frontend session ID from the request context
@@ -9252,46 +9277,55 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
         const responseData = await analyticsResponse.json();
         
         // If we get back PostgreSQL IDs, store mappings for them
+        let botMessagePostgresqlId = null;
+
         if (responseData && responseData.messages && Array.isArray(responseData.messages)) {
-          console.log('✅ Received message IDs from analytics:', responseData.messages.length);
-          
-          // Connect to MongoDB
-          const { db } = await connectToDatabase();
-          
-          // Store mappings for each message
-          for (let i = 0; i < responseData.messages.length; i++) {
-            const pgMessage = responseData.messages[i];
-            const originalMessage = conversationData.messages[i];
+            console.log('✅ Received message IDs from analytics:', responseData.messages.length);
             
-            if (pgMessage && pgMessage.id && originalMessage && originalMessage.id) {
-              // Store mapping between MongoDB ID and PostgreSQL ID
-              await db.collection('message_id_mappings').insertOne({
-                mongodbId: originalMessage.id,
-                postgresqlId: pgMessage.id,
-                content: originalMessage.content || '',
-                createdAt: new Date()
-              });
-              
-              console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
+            // Connect to MongoDB
+            const { db } = await connectToDatabase();
+            
+            // Store mappings for each message
+            for (let i = 0; i < responseData.messages.length; i++) {
+                const pgMessage = responseData.messages[i];
+                const originalMessage = conversationData.messages[i];
+                
+                if (pgMessage && pgMessage.id && originalMessage && originalMessage.id) {
+                    // Store mapping between MongoDB ID and PostgreSQL ID
+                    await db.collection('message_id_mappings').insertOne({
+                        mongodbId: originalMessage.id,
+                        postgresqlId: pgMessage.id,
+                        content: originalMessage.content || '',
+                        createdAt: new Date()
+                    });
+                    
+                    console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
+                    
+                    // Capture the PostgreSQL ID for bot messages
+                    if (originalMessage.role === 'assistant' || originalMessage.sender === 'bot') {
+                        botMessagePostgresqlId = pgMessage.id;
+                        console.log(`🤖 Found bot message PostgreSQL ID: ${botMessagePostgresqlId}`);
+                    }
+                }
             }
-          }
         }
-        
+
         console.log('✅ Conversation successfully sent to analytics system');
-        return true;
+        return { success: true, postgresqlId: botMessagePostgresqlId };
+
       } catch (parseError) {
         console.error('❌ Error parsing analytics response:', parseError);
         console.log('✅ Conversation sent, but could not parse response');
-        return true; // Still return true since the conversation was sent
+        return { success: true, postgresqlId: null }; // Still return success since the conversation was sent
       }
     } else {
       const responseText = await analyticsResponse.text();
       console.error('❌ Error from analytics system:', responseText);
-      return false;
+      return { success: false, postgresqlId: null };
     }
   } catch (error) {
     console.error('❌ Error sending conversation to analytics system:', error);
-    return false;
+    return { success: false, postgresqlId: null };
   }
 }
 
