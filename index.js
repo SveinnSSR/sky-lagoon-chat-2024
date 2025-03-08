@@ -8801,6 +8801,14 @@ async function findPostgresqlIdForMessage(mongoDbId) {
     } else if (responseData && responseData.messages && Array.isArray(responseData.messages)) {
       messages = responseData.messages;
       console.log(`📝 Found array of ${messages.length} messages in responseData.messages`);
+    } else if (responseData && responseData.conversation && responseData.conversation.messages && Array.isArray(responseData.conversation.messages)) {
+      // Extract messages from conversation.messages
+      messages = responseData.conversation.messages;
+      console.log(`📝 Found array of ${messages.length} messages in responseData.conversation.messages`);
+    } else if (responseData && responseData.conversation && Array.isArray(responseData.conversation)) {
+      // If conversation is the array of messages
+      messages = responseData.conversation;
+      console.log(`📝 Found array of ${messages.length} messages in responseData.conversation array`);
     } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
       messages = responseData.data;
       console.log(`📝 Found array of ${messages.length} messages in responseData.data`);
@@ -8858,7 +8866,6 @@ async function findPostgresqlIdForMessage(mongoDbId) {
     return null;
   }
 }
-
 
 // Keep your /feedback endpoint for MongoDB storage
 app.post('/feedback', verifyApiKey, async (req, res) => {
