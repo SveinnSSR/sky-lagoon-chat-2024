@@ -51,6 +51,10 @@ console.log('██████████████████████�
 // MongoDB integration - add this after imports but before Pusher initialization
 import { MongoClient } from 'mongodb';
 
+// Add these maps at the top of your file with other globals
+const sessionConversations = new Map(); // Maps sessionId -> conversationId
+const broadcastTracker = new Map(); // For deduplication
+
 // MongoDB Connection
 let cachedClient = null;
 let cachedDb = null;
@@ -99,6 +103,19 @@ const pusher = new Pusher({
 // Add this right after your Pusher initialization
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
     try {
+        // Get current session ID
+        const chatSessionId = conversationContext.get('currentSession') || `session_${Date.now()}`;
+        
+        // Create a unique key for this message pair to prevent duplicate broadcasts
+        const messageKey = `${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
+        
+        // Check if we've already broadcast this exact message pair in the last 2 seconds
+        const lastBroadcast = broadcastTracker.get(messageKey);
+        if (lastBroadcast && (Date.now() - lastBroadcast.timestamp < 2000)) {
+            console.log(`⚠️ Prevented duplicate broadcast for message: ${messageKey}`);
+            return lastBroadcast.result; // Return previous result
+        }
+        
         // First check if it's a simple Icelandic message
         const languageCheck = newDetectLanguage(userMessage);
         
@@ -111,11 +128,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
         });
 
-        // Get the current session ID from the global conversation context
-        // This avoids having to modify all the call sites
-        const chatSessionId = conversationContext.get('currentSession') || `session_${Date.now()}`;
-        
-        // Create language info object using our new detection
+        // Language info object using our detection
         const languageInfo = {
             isIcelandic: language === 'is' || languageCheck.isIcelandic,
             confidence: languageCheck.confidence,
@@ -130,8 +143,19 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         const userMessageId = `user-msg-${Date.now()}`;
         const botMessageId = `bot-msg-${Date.now()}`;
 
+        // *** KEY CHANGE: Use existing conversation ID for this session, or create a new one ***
+        let conversationId;
+        if (sessionConversations.has(chatSessionId)) {
+            conversationId = sessionConversations.get(chatSessionId);
+            console.log(`📝 Using existing conversation ID: ${conversationId} for session: ${chatSessionId}`);
+        } else {
+            conversationId = uuidv4();
+            sessionConversations.set(chatSessionId, conversationId);
+            console.log(`🆕 Created new conversation ID: ${conversationId} for session: ${chatSessionId}`);
+        }
+
         const conversationData = {
-            id: uuidv4(),
+            id: conversationId, // Use consistent ID per session instead of new uuidv4() each time
             timestamp: new Date().toISOString(),
             messages: [
               {
@@ -152,14 +176,34 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
             type,
-            sessionId: chatSessionId  // Add the session ID here
+            sessionId: chatSessionId
         };
 
         // Keep these for backward compatibility
         conversationData.userMessage = userMessage;
         conversationData.botResponse = botResponse;
 
-        return await handleConversationUpdate(conversationData, languageInfo) || { success: false, postgresqlId: null };
+        // Process conversation and get result
+        const result = await handleConversationUpdate(conversationData, languageInfo) || { success: false, postgresqlId: null };
+        
+        // Store the result with timestamp for deduplication
+        broadcastTracker.set(messageKey, {
+            timestamp: Date.now(),
+            result: result
+        });
+        
+        // Cleanup old entries occasionally (optional)
+        if (broadcastTracker.size > 100) {
+            // Remove entries older than 5 minutes
+            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+            for (const [key, value] of broadcastTracker.entries()) {
+                if (value.timestamp < fiveMinutesAgo) {
+                    broadcastTracker.delete(key);
+                }
+            }
+        }
+        
+        return result;
     } catch (error) {
       console.error('❌ Error in broadcastConversation:', error);
       return { success: false, postgresqlId: null };
