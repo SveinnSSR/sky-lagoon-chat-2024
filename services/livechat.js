@@ -337,6 +337,23 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'how early', 'when should i arrive',
                 'what time should i arrive',
 
+                // General booking questions and lookups
+                'check which experiences', 'check what', 'which experiences', 
+                'what experiences', 'included in my booking', 'what is in my booking',
+                'don\'t remember', 'don\'t recall', 'forgot my booking', 
+                'recover', 'booking details', 'lookup my booking',
+                'experience different', 'booking include', 'does my booking',
+                'arrive late', 'arrive for my booking', 'arrive at my booking',
+                'booking time mean', 'what time', 'which time', 'timing',
+                'booking history', 'booking requirements',
+
+                // Questions about availability and future bookings
+                'next weekend', 'next week', 'next month', 'booking for next',
+                'thinking of booking', 'considering booking',
+                'availability', 'available', 'spots left', 'space left',
+                'is there room', 'is there space', 'have any times',
+                'when should i book', 'can i book',
+
                 // NEW: Waiting list patterns
                 'waiting list', 'wait list', 'waitlist', 
                 'be on a waiting list', 'get on a waiting list',
@@ -377,6 +394,23 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'hvað á ég að', 'hvað þarf ég að',
                 'hvenær á ég að mæta', 'hvernig', 'hvar',
 
+                // General booking questions and lookups in Icelandic
+                'hvaða upplifanir', 'hvað er innifalið', 'athuga hvað', 
+                'innifalið í bókuninni', 'hvað er í bókuninni',
+                'man ekki', 'gleymdi bókuninni', 'bókunarupplýsingar',
+                'finna bókunina', 'upplýsingar um bókun',
+                'upplifunin öðruvísi', 'bókunin innifalin', 'er bókunin',
+                'mæta seint', 'mæta fyrir bókun', 'mæta í bókun', 
+                'þýðir bókunartíminn', 'hvaða tíma', 'tími',
+                'bókunarsaga', 'kröfur fyrir bókun',
+
+                // Questions about availability and future bookings in Icelandic
+                'næsta helgi', 'næsta viku', 'næsta mánuði', 'bókun fyrir næsta',
+                'hugsa um að bóka', 'íhuga að bóka', 'er að spá í að bóka',
+                'framboð', 'laust', 'pláss eftir', 'rými eftir',
+                'er pláss', 'er rými', 'einhver tími', 'einhverjir tímar',
+                'hvenær ætti ég að bóka', 'get ég bókað',
+
                 // NEW: Waiting list patterns
                 'biðlista', 'á biðlista', 'komast á biðlista', 
                 'fullbókað', 'ekki laust', 'ef pláss losnar',
@@ -400,7 +434,6 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'koma fyrr', 'þýðir að við þurfum', 'tilbúin klukkan',
                 'skilur miðann', 'velja tíma', 'hvaða tíma ætti',
                 'ef ég vel', 'hvað þýðir það', 'útskýring'
-
             ]
         };        
 
@@ -414,6 +447,38 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             
         if (isNegativeMatch) {
             console.log('❌ Cancellation/refund query detected - NOT a booking change request');
+            return false;
+        }
+
+        // NEW CODE: Add explicit check for pre-booking questions right here
+        const isPreBookingQuestion = 
+            msg.includes('not booked yet') || 
+            msg.includes('haven\'t booked') || 
+            msg.includes('have not booked') ||
+            msg.includes('going to book') || 
+            msg.includes('planning to book') ||
+            msg.includes('thinking of booking') ||
+            msg.includes('considering booking') ||
+            msg.includes('before i book') ||
+            msg.includes('if i book') ||
+            msg.includes('when i book') ||
+            msg.includes('booking questions') ||
+            msg.includes('questions about booking') ||
+            (isIcelandic && (
+                msg.includes('ekki bókað') || 
+                msg.includes('ætla að bóka') || 
+                msg.includes('er að fara að bóka') ||
+                msg.includes('áður en ég bóka') ||
+                msg.includes('ef ég bóka') ||
+                msg.includes('þegar ég bóka') ||
+                msg.includes('spurningar um bókun') ||
+                msg.includes('bókunarspurningar') ||
+                msg.includes('er að hugsa um að bóka') ||
+                msg.includes('er að spá í að bóka')
+            ));
+
+        if (isPreBookingQuestion) {
+            console.log('❌ Pre-booking question detected - NOT a booking change request');
             return false;
         }
         
