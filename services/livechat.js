@@ -378,7 +378,21 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'does the time', 'does the ticket', 'is the time',
                 'arrive earlier', 'mean we need', 'ready at',
                 'understand the ticket', 'choosing a time', 'what time should',
-                'if i choose', 'what does it mean', 'clarification'
+                'if i choose', 'what does it mean', 'clarification',
+
+                // Additional patterns for facility questions
+                'reschedule my day', 'schedule around', 'plan around', 
+                'change my skincare', 'change clothes', 'change into',
+                'switch between', 'switch areas', 'move between',
+                'different areas', 'move around in', 'navigate between',
+                'change from street clothes', 'changing facilities',
+                'before my booked', 'after my booked', 'during my booked',
+                'finish earlier', 'finish my visit',
+                'luggage storage', 'store my', 'place my',
+                'lockers near', 'lockers close', 'change name on',
+                'transfer my booking', 'transfer booking', 'change name',
+                'morning routine', 'skincare routine', 'hair routine', 
+                'airline rescheduled', 'flight rescheduled'        
             ],
             is: [
                 // cancellation patterns
@@ -433,7 +447,23 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'þýðir tíminn', 'þýðir miðinn', 'er tíminn',
                 'koma fyrr', 'þýðir að við þurfum', 'tilbúin klukkan',
                 'skilur miðann', 'velja tíma', 'hvaða tíma ætti',
-                'ef ég vel', 'hvað þýðir það', 'útskýring'
+                'ef ég vel', 'hvað þýðir það', 'útskýring',
+
+                // Additional patterns for facility questions in Icelandic
+                'skipuleggja daginn', 'skipuleggja kringum', 
+                'breyta húðvenjum', 'breyta í föt', 'breyta úr fötum',
+                'skipta milli', 'fara á milli', 'færa mig á milli',
+                'mismunandi svæði', 'færa mig um', 'ferðast á milli',
+                'breyta úr götuklæðnaði', 'skipta um föt', 
+                'fyrir bókaða', 'eftir bókaða', 'á meðan bókaða',
+                'ljúka fyrr', 'klára heimsóknina', 
+                'farangursgeymsla', 'geyma', 'setja',
+                'skápar nálægt', 'skápar við', 'breyta nafni á',
+                'færa bókunina', 'flytja bókunina', 'breyta nafni',
+                'morgunvenjur', 'húðumhirða', 'hárvenjur',
+                'flugfélag breytti', 'flugi var breytt', 'breytti flugi', 
+                'nýti bókunina', 'bókaðri heimsókn', 
+                'ef ég lýk', 'þegar ég breyti', 'miða', 'innifalið í'
             ]
         };        
 
