@@ -351,7 +351,17 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'discount', 'coupon', 'promo', 'promotion',
                 'pay', 'payment', 'paid', 'paying',
                 'purchase', 'bought', 'buy',
-                'expensive', 'cheap', 'afford'
+                'expensive', 'cheap', 'afford',
+
+                // NEW: Pre-booking questions about tickets and times
+                'not booked yet', 'haven\'t booked', 'have not booked',
+                'going to book', 'planning to book', 'about to book',
+                'before booking', 'prior to booking', 'want to book',
+                'ticket mean', 'does that mean', 'ticket question',
+                'does the time', 'does the ticket', 'is the time',
+                'arrive earlier', 'mean we need', 'ready at',
+                'understand the ticket', 'choosing a time', 'what time should',
+                'if i choose', 'what does it mean', 'clarification'
             ],
             is: [
                 // cancellation patterns
@@ -379,7 +389,18 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'borga', 'borgaði', 'greiða', 'greiddi', 'greitt',
                 'kaupa', 'keypti', 'keypt',
                 'dýrt', 'ódýrt', 'hef efni á',
-                'krónur', 'kr', 'kr.'
+                'krónur', 'kr', 'kr.',
+
+                // NEW: Pre-booking questions about tickets and times in Icelandic
+                'ekki bókað ennþá', 'hef ekki bókað', 'er ekki búin að bóka',
+                'ætla að bóka', 'er að fara að bóka', 'langar að bóka',
+                'áður en ég bóka', 'fyrir bókun', 'vil bóka',
+                'þýðir miðinn', 'þýðir það', 'spurning um miða',
+                'þýðir tíminn', 'þýðir miðinn', 'er tíminn',
+                'koma fyrr', 'þýðir að við þurfum', 'tilbúin klukkan',
+                'skilur miðann', 'velja tíma', 'hvaða tíma ætti',
+                'ef ég vel', 'hvað þýðir það', 'útskýring'
+
             ]
         };        
 
