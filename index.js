@@ -6850,9 +6850,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const isAvailabilityQuery = isIcelandic && (
                 userMessage.toLowerCase().includes('eigið laust') ||
                 userMessage.toLowerCase().includes('laust pláss') ||
+                userMessage.toLowerCase().includes('laus pláss') ||   // Add this variation
+                userMessage.toLowerCase().includes('lausar tímar') ||  // Add this variation (available times)
+                userMessage.toLowerCase().includes('lausir tímar') ||  // Add this variation (another gender form)
                 userMessage.toLowerCase().includes('hægt að bóka') ||
                 userMessage.toLowerCase().includes('á morgun') ||
-                userMessage.toLowerCase().includes('laust fyrir')  // Add this simple check instead of regex
+                userMessage.toLowerCase().includes('laust fyrir') || 
+                userMessage.toLowerCase().includes('pláss á') ||      // Add this more generic check
+                userMessage.toLowerCase().includes('pláss í')         // Add this more generic check            
             );
 
             // Add logging after check
@@ -6860,7 +6865,52 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 isAvailabilityQuery,
                 message: userMessage,
                 processingTime: Date.now() - startTime
-            });     
+            });
+            
+            // Add availability handler
+            if (isAvailabilityQuery) {
+                console.log('\n🗓️ Handling availability query');
+                
+                // Extract day from message if present
+                let dayMentioned = "";
+                if (userMessage.toLowerCase().includes('mánudag')) dayMentioned = "mánudegi";
+                else if (userMessage.toLowerCase().includes('þriðjudag')) dayMentioned = "þriðjudegi";
+                else if (userMessage.toLowerCase().includes('miðvikudag')) dayMentioned = "miðvikudegi";
+                else if (userMessage.toLowerCase().includes('fimmtudag')) dayMentioned = "fimmtudegi";
+                else if (userMessage.toLowerCase().includes('föstudag')) dayMentioned = "föstudegi";
+                else if (userMessage.toLowerCase().includes('laugardag')) dayMentioned = "laugardegi";
+                else if (userMessage.toLowerCase().includes('sunnudag')) dayMentioned = "sunnudegi";
+                
+                // Create a dynamic response based on context
+                let response = "";
+                if (dayMentioned) {
+                    response = `Við erum oft með laus pláss á ${dayMentioned}, en framboð getur verið takmarkað, sérstaklega á annatímum. Til að sjá nákvæma tíma sem eru lausir og bóka beint, mælum við með að heimsækja vefsíðuna okkar: skylagoon.com/is/boka`;
+                } else {
+                    response = "Til að sjá nákvæmt framboð og bóka tíma mælum við með að heimsækja vefsíðuna okkar: skylagoon.com/is/boka. Þar sérðu í rauntíma hvaða tímar eru lausir á þeim degi sem þú vilt heimsækja okkur.";
+                }
+                
+                // Update context
+                context.lastTopic = 'availability';
+                conversationContext.set(sessionId, context);
+                
+                // Broadcast the conversation with the availability response
+                await broadcastConversation(
+                    userMessage,
+                    response,
+                    'is',
+                    'availability',
+                    'direct_response'
+                );
+
+                return res.status(200).json({
+                    message: response,
+                    language: {
+                        detected: 'Icelandic',
+                        confidence: languageDecision.confidence,
+                        reason: 'availability_query'
+                    }
+                });
+            }            
 
             const msg = userMessage.toLowerCase();            
 
