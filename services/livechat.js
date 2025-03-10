@@ -323,6 +323,7 @@ export async function detectBookingChangeRequest(message, languageDecision) {
         // These should override any other matches to prevent false positives
         const negativePatterns = {
             en: [
+                // cancellation patterns
                 'cancel', 'refund', 'money back', 'cancellation policy',
                 'cancellation fee', 'cancel my booking',
 
@@ -334,9 +335,18 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'do i need to print', 'print my booking',
                 'need to know', 'what to know',
                 'how early', 'when should i arrive',
-                'what time should i arrive'   
+                'what time should i arrive',
+
+                // NEW: Waiting list patterns
+                'waiting list', 'wait list', 'waitlist', 
+                'be on a waiting list', 'get on a waiting list',
+                'fully booked', 'sold out', 'no availability',
+                'if something opens up', 'opens up', 'availability opens',
+                'get notified', 'notify me', 'be notified',
+                'if a spot', 'if a place', 'if space'
             ],
             is: [
+                // cancellation patterns
                 'endurgreiðslu', 'hætta við', 'afbóka', 'afbókun',
                 'skilmálar', 'skilmálarnir', 'fá endurgreitt',
                 'hætta við bókun', 'afpanta',
@@ -347,7 +357,12 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'bókunarstaðfestingu', 'prenta', 'staðfestinguna',
                 'taka með', 'hafa með', 'koma með',
                 'hvað á ég að', 'hvað þarf ég að',
-                'hvenær á ég að mæta', 'hvernig', 'hvar'
+                'hvenær á ég að mæta', 'hvernig', 'hvar',
+
+                // NEW: Waiting list patterns
+                'biðlista', 'á biðlista', 'komast á biðlista', 
+                'fullbókað', 'ekki laust', 'ef pláss losnar',
+                'ef sæti losnar', 'láta vita ef'
             ]
         };        
 
