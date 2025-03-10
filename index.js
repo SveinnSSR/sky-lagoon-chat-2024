@@ -6857,7 +6857,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 userMessage.toLowerCase().includes('á morgun') ||
                 userMessage.toLowerCase().includes('laust fyrir') || 
                 userMessage.toLowerCase().includes('pláss á') ||      // Add this more generic check
-                userMessage.toLowerCase().includes('pláss í')         // Add this more generic check            
+                userMessage.toLowerCase().includes('pláss í') ||
+                userMessage.toLowerCase().includes('eitthvað laust') ||  // Add this pattern
+                userMessage.toLowerCase().includes('er laust')           // Add this pattern   
             );
 
             // Add logging after check
@@ -9530,9 +9532,9 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
     if (context && topic) {
         context.lastTopic = topic;
         context.topicLanguage = {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
+            isIcelandic: languageDecision?.isIcelandic || false,
+            confidence: languageDecision?.confidence || 'low',
+            reason: languageDecision?.reason || 'default'
         };
     }
     
