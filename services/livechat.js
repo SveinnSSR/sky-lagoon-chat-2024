@@ -343,7 +343,15 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'fully booked', 'sold out', 'no availability',
                 'if something opens up', 'opens up', 'availability opens',
                 'get notified', 'notify me', 'be notified',
-                'if a spot', 'if a place', 'if space'
+                'if a spot', 'if a place', 'if space',
+
+                // NEW: Gift card & pricing patterns
+                'gift card', 'gift certificate', 'gift voucher',
+                'price', 'pricing', 'cost', 'fee', 'charge',
+                'discount', 'coupon', 'promo', 'promotion',
+                'pay', 'payment', 'paid', 'paying',
+                'purchase', 'bought', 'buy',
+                'expensive', 'cheap', 'afford'
             ],
             is: [
                 // cancellation patterns
@@ -362,7 +370,16 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 // NEW: Waiting list patterns
                 'biðlista', 'á biðlista', 'komast á biðlista', 
                 'fullbókað', 'ekki laust', 'ef pláss losnar',
-                'ef sæti losnar', 'láta vita ef'
+                'ef sæti losnar', 'láta vita ef',
+
+                // NEW: Gift card & pricing patterns
+                'gjafabréf', 'gjafakort', 'gjafa bréf', 'gjafa kort',
+                'verð', 'kostar', 'kostnaður', 'gjald', 'gjöld',
+                'afslátt', 'afsláttar', 'afsláttarkóði', 'tilboð',
+                'borga', 'borgaði', 'greiða', 'greiddi', 'greitt',
+                'kaupa', 'keypti', 'keypt',
+                'dýrt', 'ódýrt', 'hef efni á',
+                'krónur', 'kr', 'kr.'
             ]
         };        
 
