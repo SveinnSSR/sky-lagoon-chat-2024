@@ -483,7 +483,34 @@ export const knowledgeBase = {
             }
         }
     },
-
+    general_upgrades: {
+        day_of_entry: {
+            possible: true,
+            instructions: "Yes, you can decide to upgrade your package on the day of your visit, subject to availability. Simply inform our reception team when you arrive, and they'll be happy to assist you with the upgrade process.",
+            process: [
+                "Arrive at Sky Lagoon for your original booking",
+                "Speak to our reception team about upgrading your package",
+                "Pay the difference between packages",
+                "Enjoy your upgraded experience"
+            ],
+            considerations: [
+                "Upgrades are subject to availability on the day",
+                "The price difference between packages will need to be paid",
+                "During busy periods, upgrades may be limited"
+            ],
+            advance_booking: {
+                available: true,
+                instructions: "To guarantee your upgrade and avoid disappointment, we recommend securing it ahead of time. Simply email us at reservations@skylagoon.is with your booking reference number and desired upgrade. We'll send you a secure payment link to complete your upgrade in advance.",
+                benefits: [
+                    "Guaranteed availability of your preferred package",
+                    "Skip the upgrade process at reception",
+                    "Peace of mind knowing your experience is confirmed",
+                    "Particularly recommended during peak times"
+                ]
+            },
+            contact: "If you have more questions about upgrading your visit, please contact us at reservations@skylagoon.is or call +354 527 6800."
+        }
+    },
     booking_modifications: {
         policy: {
             standard: {
@@ -3138,8 +3165,40 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: response
             });
         } 
-        // New section: Check for upgrade-related queries
-        else if (message.includes('upgrade') || 
+        // General upgrade (not gift-card related) detection
+        else if (message.includes('upgrade') && 
+            (message.includes('day of') || 
+             message.includes('arrival') || 
+             message.includes('entry') || 
+             message.includes('visit') || 
+             message.includes('when') || 
+             message.includes('there') || 
+             message.includes('at the') || 
+             message.includes('decide'))) {
+            
+            console.log('\n📦 General Package Upgrade Query Detected');
+            
+            relevantInfo.push({
+                type: 'general_upgrades',
+                subtype: 'day_of_entry',
+                content: {
+                    upgrade_info: knowledgeBase.general_upgrades.day_of_entry,
+                    advance_booking: knowledgeBase.general_upgrades.day_of_entry.advance_booking,
+                    links: {
+                        booking: `[Book your visit] (${knowledgeBase.website_links.booking})`,
+                        packages: `[View Our Packages] (${knowledgeBase.website_links.packages})`
+                    }
+                }
+            });
+        }
+        // Gift card specific upgrade detection
+        else if ((message.includes('upgrade') && 
+                  (message.includes('gift') || 
+                   message.includes('card') || 
+                   message.includes('ticket') || 
+                   message.includes('voucher') || 
+                   message.includes('saman') || 
+                   message.includes('code'))) || 
                  (message.includes('use') && message.includes('saman') && message.includes('sér')) ||
                  (message.includes('pay') && message.includes('difference')) ||
                  (message.includes('change') && message.includes('package')) ||
