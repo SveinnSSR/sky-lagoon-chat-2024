@@ -380,6 +380,15 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'understand the ticket', 'choosing a time', 'what time should',
                 'if i choose', 'what does it mean', 'clarification',
 
+                // Add to the English negative patterns
+                'running late to', 'running late for', 'be late to', 'be late for',
+                'arriving late', 'arrive late', 'may be late', 'might be late',
+                'will be late', 'could be late', 'little late', 'bit late',
+                'few minutes late', 'still be allowed', 'still enter', 'still get in',
+                'still admitted', 'miss my appointment', 'miss my time',
+                'make it on time', 'won\'t be on time', 'not on time',
+                'late to our', 'late to my', 'late for my', 'late for our',
+
                 // Additional patterns for facility questions
                 'reschedule my day', 'schedule around', 'plan around', 
                 'change my skincare', 'change clothes', 'change into',
@@ -392,7 +401,7 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'lockers near', 'lockers close', 'change name on',
                 'transfer my booking', 'transfer booking', 'change name',
                 'morning routine', 'skincare routine', 'hair routine', 
-                'airline rescheduled', 'flight rescheduled'        
+                'airline rescheduled', 'flight rescheduled'      
             ],
             is: [
                 // cancellation patterns
@@ -528,7 +537,34 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             console.log('❌ Pre-booking question detected - NOT a booking change request');
             return false;
         }
-        
+
+        // Specific check for late arrival queries (different from booking changes)
+        const isLateArrivalQuery = 
+            (msg.includes('late') && (
+                msg.includes('still be allowed') ||
+                msg.includes('still enter') ||
+                msg.includes('still get in') ||
+                msg.includes('still admitted') ||
+                msg.includes('running late to') ||
+                msg.includes('running late for') ||
+                msg.includes('be late to') ||
+                msg.includes('be late for')
+            )) ||
+            (isIcelandic && (
+                msg.includes('sein') && (
+                    msg.includes('samt komast inn') ||
+                    msg.includes('samt komast að') ||
+                    msg.includes('samt fá að') ||
+                    msg.includes('enn þá komast') ||
+                    msg.includes('verð sein') && !msg.includes('breyta')
+                )
+            ));
+
+        if (isLateArrivalQuery) {
+            console.log('❌ Late arrival query detected - NOT a booking change request');
+            return false;
+        }        
+
         console.log(`Using ${isIcelandic ? 'Icelandic' : 'English'} patterns for detection`);
         
         // Root words for more flexible matching in Icelandic
