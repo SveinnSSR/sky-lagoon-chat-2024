@@ -366,7 +366,18 @@ export const knowledgeBase_is = {
         },
         closing_times: {
             general: "Vinsamlegast athugið: Lónið lokar 30 mínútum fyrir auglýstan lokunartíma.",
-            additional: "Skjól Ritúal meðferðin og Gelmir bar loka klukkutíma fyrir lokun."
+            additional: "Skjól Ritúal meðferðin og Gelmir bar loka klukkutíma fyrir lokun.",
+            // Add this new section
+            last_entry: {
+                policy: "Síðasta innritun er alltaf 2 klukkustundum fyrir lokun.",
+                seasonal_times: {
+                    winter: "Síðasta innritun er klukkan 20:00 yfir vetrartímann (1. nóvember - 31. maí)",
+                    summer: "Síðasta innritun er klukkan 21:00 yfir sumartímann (1. júní - 30. september)",
+                    autumn: "Síðasta innritun er klukkan 21:00 yfir hausttímann (1. október - 31. október)"
+                },
+                explanation: "Þar sem ritúalið og barinn loka klukkutíma fyrir lokun og lónið 30 mínútum fyrir lokun, þá er innritun lokað 2 klukkustundum fyrir lokun.",
+                recommendation: "Við mælum með að bóka að minnsta kosti 2-3 klukkustundum fyrir lokun til að njóta allra þæginda okkar að fullu."
+            }
         }
     },
     // Add the new pricing comparison section to knowledgeBase_is
@@ -2068,6 +2079,20 @@ if (message.includes('opið') ||
     message.includes('opin') ||
     message.includes('opið') ||
     message.includes('lokun') ||
+    // Add these new patterns for last entry
+    message.includes('síðasta innritun') ||
+    message.includes('síðasti innritunartími') ||
+    message.includes('síðasti tími') ||
+    message.includes('síðasti möguleiki') ||
+    message.includes('síðasti tíminn') ||
+    message.includes('seinasta bókun') ||
+    message.includes('seinasti tími') ||
+    message.includes('síðast hægt að') ||
+    message.includes('of seint') ||
+    message.includes('seinasta innritun') ||
+    message.includes('hversu seint') ||
+    message.includes('síðasta komutími') ||
+    message.includes('seinast komutími') ||
     
     // Holiday specific
     message.includes('jól') ||
