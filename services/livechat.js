@@ -410,6 +410,16 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'hætta við bókun', 'afpanta',
 
                 // Add to the Icelandic negative patterns
+                'mælt með', 'ráðlagt', 'hversu lengi ætti', 'hve lengi ætti',
+                'mælt með löngum tíma', 'ráðlagður tími', 'ráðlögð lengd',
+                'hversu langan tíma', 'hve langan tíma', 'hver er tíminn',
+                'dvelja í', 'vera í', 'heimsókn', 'heimsóknar',
+                'áætlaður tími', 'ráðlagður dvalartími', 'meðal tími',
+                'hvað er venjulegur', 'vanalega', 'yfirleitt', 'að jafnaði',
+                'hversu mikill tími', 'mæla með', 'svona heimsókn',
+                'heimsókn eins og þessari', 'í lóninu', 'í baðinu',    
+
+                // Add to the Icelandic negative patterns
                 'næ ekki aðgang', 'aðganga', 'innskráning', 'innritun',
                 'greiðslu', 'greiðsa', 'borga', 'gjaldfærsla',
                 'villa', 'error', 'unexpected error', 'kerfisvilla',
