@@ -1813,7 +1813,7 @@ const acknowledgmentPatterns = {
             'nothing else right now',
             'thats all for now',
             "that's all for now",
-            'no',
+            'no', // could be a problem line
             'nope',
             'not now',
             'no thanks',
@@ -8092,6 +8092,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Check for conversation ending
         if (acknowledgmentPatterns.finished.en.some(pattern => 
+            (pattern !== 'no' || userMessage.trim().toLowerCase() === 'no') && 
             matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern)) ||
             acknowledgmentPatterns.finished.is.some(pattern => 
             matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern))) {
