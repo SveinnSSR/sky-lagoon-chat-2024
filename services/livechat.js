@@ -400,6 +400,14 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'skilmálar', 'skilmálarnir', 'fá endurgreitt',
                 'hætta við bókun', 'afpanta',
 
+                // Add to the Icelandic negative patterns
+                'næ ekki aðgang', 'aðganga', 'innskráning', 'innritun',
+                'greiðslu', 'greiðsa', 'borga', 'gjaldfærsla',
+                'villa', 'error', 'unexpected error', 'kerfisvilla',
+                'síðan', 'vefsíðan', 'vefurinn', 'forritið',
+                'tæknileg vandamál', 'vandamál með', 'virkar ekki',
+                'get ekki', 'gat ekki', 'þarf aðstoð með',
+
                 // General information queries - not about changing bookings
                 'hvað er innifalið', 'hvað þarf ég að vita',
                 'staðfestingu á bókun', 'fengið staðfestingu', 
