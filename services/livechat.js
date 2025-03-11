@@ -408,6 +408,15 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'tæknileg vandamál', 'vandamál með', 'virkar ekki',
                 'get ekki', 'gat ekki', 'þarf aðstoð með',
 
+                // Add to the Icelandic negative patterns
+                'reikna með', 'hversu lengi', 'hversu langur', 'hversu löngum tíma',
+                'hve lengi', 'hve langur', 'hve löngum',
+                'dvelja', 'dveljast', 'vera í', 'eyða tíma',
+                'tímalengd', 'lengd heimsóknar', 'dvalartími',
+                'tíminn í lóninu', 'tími í lóninu', 'tíma í lóninu',
+                'hversu mikinn tíma', 'áætla fyrir', 'setja af', 
+                'hversu marga', 'hversu margar', 'hversu margir',
+
                 // General information queries - not about changing bookings
                 'hvað er innifalið', 'hvað þarf ég að vita',
                 'staðfestingu á bókun', 'fengið staðfestingu', 
