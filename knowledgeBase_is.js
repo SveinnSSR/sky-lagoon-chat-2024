@@ -369,6 +369,88 @@ export const knowledgeBase_is = {
             additional: "Skjól Ritúal meðferðin og Gelmir bar loka klukkutíma fyrir lokun."
         }
     },
+    // Add the new pricing comparison section to knowledgeBase_is
+    pricing_comparison: {
+        questions: [
+            "Hvað er ódýrast?",
+            "Hver er ódýrasti pakkinn?",
+            "Hvað er hagstæðast?",
+            "Hver er hagstæðasti kosturinn?",
+            "Hvaða pakki er ódýrastur?",
+            "Hvað er ódýrasti valkosturinn?",
+            "Hvaða leið er ódýrust?",
+            "Hvernig kemst ég ódýrast í Sky Lagoon?",
+            "Hvað kostar minnst?",
+            "Hvernig get ég sparað?",
+            "Hvað er lægsta verðið?",
+            "Hver er ódýrasta leiðin?",
+            "Hvað er ódýrasta aðgangsleiðin?"
+        ],
+        cheapest_options: {
+            standard: {
+                name: "Saman aðgangur - Almenn búningsaðstaða",
+                description: "Okkar vinsælasti pakki og ódýrasti valkosturinn fyrir fullorðna.",
+                pricing: {
+                    weekday: {
+                        price: "12.990 ISK",
+                        days: "Mánudaga til fimmtudaga"
+                    },
+                    weekend: {
+                        price: "14.990 ISK",
+                        days: "Föstudaga til sunnudaga"
+                    }
+                },
+                includes: [
+                    "Aðgangur að Sky Lagoon",
+                    "Eitt ferðalag í gegnum sjö skrefa Skjól Ritúalið",
+                    "Almenn búningsaðstaða og Sky Lagoon hárvörur",
+                    "Handklæði"
+                ],
+                link: "https://www.skylagoon.com/is/leidir-til-ad-njota"
+            },
+            youth: {
+                name: "Saman aðgangur fyrir unglinga (12-14 ára)",
+                description: "Ódýrasti kosturinn fyrir unglinga á aldrinum 12-14 ára í fylgd með fullorðnum.",
+                pricing: {
+                    weekday: {
+                        price: "6.495 ISK",
+                        days: "Mánudaga til fimmtudaga"
+                    },
+                    weekend: {
+                        price: "7.495 ISK",
+                        days: "Föstudaga til sunnudaga"
+                    }
+                },
+                note: "Athugið að unglingur þarf að vera í fylgd forráðamanns (18 ára eða eldri).",
+                age_info: "Börn sem verða 12 ára á almanaksárinu geta keypt unglingamiða.",
+                link: "https://www.skylagoon.com/is/leidir-til-ad-njota"
+            },
+            multi_pass: {
+                name: "Venja Multi-Pass",
+                description: "Ódýrasti kosturinn á hverja heimsókn fyrir þá sem heimsækja Sky Lagoon oft.",
+                pricing: {
+                    price: "35.970 ISK fyrir 6 skipti",
+                    per_visit: "Aðeins 5.995 ISK á hverja heimsókn"
+                },
+                details: "Multi-Pass kortið gildir í 4 ár og er persónubundið. Hver passi er fyrir sex heimsóknir eins gests, ekki hóp gesta.",
+                includes: [
+                    "Aðgangur að Sky Lagoon",
+                    "Skjól Ritúal meðferð í hverri heimsókn",
+                    "Almenn búningsaðstaða"
+                ],
+                link: "https://www.skylagoon.com/is/kaupa-multi-pass"
+            }
+        },
+        answer: {
+            main: "Ódýrasti valkosturinn fyrir fullorðna er Saman aðgangur sem kostar 12.990 ISK á virkum dögum (mánudaga til fimmtudaga) og 14.990 ISK um helgar (föstudaga til sunnudaga).",
+            youth: "Fyrir unglinga á aldrinum 12-14 ára er ódýrasti kosturinn Saman unglingaaðgangur sem kostar 6.495 ISK á virkum dögum og 7.495 ISK um helgar. Athugið að unglingur þarf að vera í fylgd með fullorðnum.",
+            multi_pass: "Ef þú ætlar að heimsækja Sky Lagoon oftar, þá er hagstæðast að kaupa Venju Multi-Pass sem kostar 35.970 ISK fyrir 6 skipti, eða aðeins 5.995 ISK á hverja heimsókn.",
+            links: {
+                packages: "[Skoða leiðir til að njóta](https://www.skylagoon.com/is/leidir-til-ad-njota)",
+                multi_pass: "[Skoða Multi-Pass](https://www.skylagoon.com/is/kaupa-multi-pass)"
+            }
+        }
+    },
     facilities: {
         changing_rooms: {
             questions: [
@@ -2739,6 +2821,82 @@ if (message.includes('opið') ||
                 content: {
                     ...knowledgeBase_is.packages,
                     link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
+                }
+            });
+        }
+    }
+
+    // Pricing comparison specific queries
+    if (message.includes('ódýrast') || 
+        message.includes('ódýrasti') ||
+        message.includes('hagstæðast') ||
+        message.includes('hagstæðasti') ||
+        message.includes('hagstæðari') ||
+        message.includes('lægsta verð') ||
+        message.includes('minnst') ||
+        message.includes('kostar minnst') ||
+        message.includes('ódýrastur') ||
+        message.includes('ódýrasta') ||
+        message.includes('sparað') ||
+        message.includes('spara') ||
+        message.includes('lægsta') ||
+        // Common question patterns
+        (message.includes('hver') && message.includes('ódýr')) ||
+        (message.includes('hvað') && message.includes('ódýr')) ||
+        (message.includes('hver') && message.includes('hagstæð')) ||
+        (message.includes('hvað') && message.includes('hagstæð')) ||
+        (message.includes('hver') && message.includes('lægst')) ||
+        (message.includes('hvað') && message.includes('lægst'))) {
+
+        console.log('\n💰 Cheapest Option Query Match Found');
+        
+        // Check if asking specifically about youth options
+        if (message.includes('barn') || 
+            message.includes('börn') ||
+            message.includes('ungling') ||
+            message.includes('ungmenn') ||
+            message.includes('12') ||
+            message.includes('13') ||
+            message.includes('14')) {
+            
+            console.log('\n👶 Youth Cheapest Option Match Found');
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                subtype: 'youth',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer.youth,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options.youth,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
+                }
+            });
+        }
+        // Check if asking about frequent visits or multi-pass
+        else if (message.includes('multi') ||
+                message.includes('fjölnotakort') ||
+                message.includes('oft') ||
+                message.includes('margir') ||
+                message.includes('fleiri') ||
+                message.includes('margar')) {
+            
+            console.log('\n🎫 Multi-Pass Cheapest Option Match Found');
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                subtype: 'multi_pass',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer.multi_pass,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options.multi_pass,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
+                }
+            });
+        }
+        // For all other cheapest queries, provide complete comparative information
+        else {
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
                 }
             });
         }
