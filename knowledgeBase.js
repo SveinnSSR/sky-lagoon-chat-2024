@@ -100,7 +100,8 @@ export const knowledgeBase = {
             "The Skjól Ritual and Gelmir Bar close one hour before facility closing",
             "Last food orders at Smakk Bar are taken 30 minutes before closing",
             "Advance booking recommended to secure your preferred time slot",
-            "Hours may vary during special holidays or events"
+            "Hours may vary during special holidays or events",
+            "Last entry is always 2 hours before closing time"
         ],
         dining_hours: {
             keimur_cafe: {
@@ -150,7 +151,18 @@ export const knowledgeBase = {
             late_arrival: {
                 grace_period: "30 minutes from booked time",
                 beyond_grace: "Subject to availability if arriving after grace period"
-            }
+            },
+            // Add this new section here
+            last_entry: {
+                policy: "Last entry is always 2 hours before closing time",
+                seasonal_times: {
+                    winter: "20:00 (GMT) during winter season (November 1 - May 31)",
+                    summer: "21:00 (GMT) during summer season (June 1 - September 30)",
+                    autumn: "21:00 (GMT) during autumn season (October 1 - October 31)"
+                },
+                important_note: "The Skjól ritual and Gelmir Bar close one hour before facility closing, and the lagoon area closes 30 minutes before closing time",
+                booking_recommendation: "We recommend booking at least 2-3 hours before closing to fully enjoy all facilities"
+            }    
         },
         seasonal_notes: {
             summer: "Extended daylight hours with midnight sun possibilities in June",
@@ -2697,6 +2709,16 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('slot') ||
         message.includes('when') ||
         message.includes('schedule') ||
+        // Add these new patterns
+        message.includes('last entry') ||
+        message.includes('latest entry') ||
+        message.includes('last time to enter') ||
+        message.includes('latest time to enter') ||
+        message.includes('too late') ||
+        message.includes('latest booking') ||
+        message.includes('last booking') ||
+        message.includes('last time to arrive') ||
+        message.includes('last admission') ||
         // Adding specific time-related queries
         message.includes('opening') ||
         message.includes('closing') ||
