@@ -3050,9 +3050,11 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
         lowerMessage.includes('buy') ||
         /\d+,\d+/.test(lowerMessage) || // Price format with commas
         (lowerMessage.includes('child') && /\d+/.test(lowerMessage)) || // Children pricing
-        (lowerMessage.includes('adult') && /\d+/.test(lowerMessage))   // Adult pricing
+        (lowerMessage.includes('adult') && /\d+/.test(lowerMessage)) ||  // Adult pricing
+        // NEW: Add pattern for people/ticket counts
+        (/\d+\s*(?:people|peple|persons|tickets|ticket|guests|guest|ppl|persons|pax)/i.test(lowerMessage) && !lowerMessage.includes('late by')) // People counts
     ) {
-        console.log('\n💰 Price query detected - not a late arrival scenario');
+        console.log('\n💰 Price or people count query detected - not a late arrival scenario');
         return null;
     }
     
@@ -3464,6 +3466,25 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
             }
         }
     }
+
+    // NEW: Enhanced check for "late by X minutes" pattern
+    const lateByMinutesMatch = lowerMessage.match(/(?:late|delay)(?:ed)?\s+by\s+(\d+)\s+min(?:ute)?s?/i) || 
+                               lowerMessage.match(/get\s+late\s+by\s+(\d+)\s+min(?:ute)?s?/i) ||
+                               lowerMessage.match(/(?:might|may|could|can|will)\s+(?:get|be)\s+late\s+by\s+(\d+)/i) ||
+                               lowerMessage.match(/(?:might|may|could|can|will)\s+(?:get|be)\s+delay(?:ed)?\s+by\s+(\d+)/i);
+
+    if (lateByMinutesMatch) {
+        const minutes = parseInt(lateByMinutesMatch[1]);
+        console.log('\n⏰ "Late by" pattern detected:', minutes);
+        
+        return {
+            type: minutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                  minutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                  'significant_delay',
+            minutes: minutes,
+            isIcelandic: languageDecision?.isIcelandic || false
+        };
+    }    
 
     // IMPROVED FLIGHT UNCERTAINTY CHECK: Check for flight delay with uncertainty
     const flightUncertaintyPatterns = [
