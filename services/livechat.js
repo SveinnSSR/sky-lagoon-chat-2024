@@ -389,6 +389,18 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'make it on time', 'won\'t be on time', 'not on time',
                 'late to our', 'late to my', 'late for my', 'late for our',
 
+                // Add to the English negative patterns
+                'how accurate are you', 'how strict are you', 'how flexible are you',
+                'what if the flight is delayed', 'what if my flight is delayed', 
+                'what if flight gets delayed', 'what if flights are delayed',
+                'arrive in an hour or two', 'arrive a bit later', 'arrive later than',
+                'what happens if we arrive', 'what if we arrive', 'what if we are',
+                'flexibility with arrival', 'flexible with arrival', 'arrival window',
+                'grace period', 'leeway with time', 'leeway with arrival',
+                'how early', 'how late', 'how much time', 'arrival time policy',
+                'what if we are late', 'if our flight', 'if flight is',
+                'due to flight', 'because of flight', 'flight delay',
+
                 // Additional patterns for facility questions
                 'reschedule my day', 'schedule around', 'plan around', 
                 'change my skincare', 'change clothes', 'change into',
