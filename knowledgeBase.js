@@ -2523,13 +2523,15 @@ export const knowledgeBase = {
         locations: {
             retail_area: "Available in our retail area right next to the check out",
             gelmir_bar: "Selected items available at Gelmir Bar",
-            online: "Available through our website"
+            // Update this incorrect information
+            online: "Not available for direct purchase through our website. International shipping available by email request to reservations@skylagoon.is"
         },
         items: {
             skin_care: {
                 body_scrub: {
                     name: "Sky Body Scrub",
                     description: "Our signature scrub used in the Skjól ritual",
+                    price: "6,990 ISK (200ml)",
                     ingredients: [
                         "Maris Sal",
                         "Isopropyl Myristate",
@@ -2545,6 +2547,7 @@ export const knowledgeBase = {
                 body_lotion: {
                     name: "Sky Body Lotion",
                     sizes: ["120ml", "30ml (travel size)"],
+                    price: "2,490 ISK (30ml)",
                     features: [
                         "Free of parabens",
                         "Free of preservatives",
@@ -2556,6 +2559,31 @@ export const knowledgeBase = {
                     name: "Sky Body Oil",
                     sizes: ["50ml", "30ml (travel size)"],
                     features: ["Made with vitamin E-rich sunflower oil", "Anti-inflammatory properties"]
+                },
+                // Add the new bath_essentials items from the price list
+                shampoo: {
+                    name: "Sky Shampoo",
+                    sizes: ["500ml", "100ml (travel size)"],
+                    price: {
+                        large: "4,990 ISK (500ml)",
+                        small: "1,790 ISK (100ml)"
+                    }
+                },
+                conditioner: {
+                    name: "Sky Conditioner",
+                    sizes: ["500ml", "100ml (travel size)"],
+                    price: {
+                        large: "4,990 ISK (500ml)",
+                        small: "1,790 ISK (100ml)"
+                    }
+                },
+                shampoo_conditioner_combo: {
+                    name: "Sky Shampoo & Conditioner Combo",
+                    sizes: ["500ml", "100ml (travel size)"],
+                    price: {
+                        large: "8,600 ISK (500ml)",
+                        small: "2,990 ISK (100ml)"
+                    }
                 }
             },
             home_fragrance: {
@@ -2580,7 +2608,9 @@ export const knowledgeBase = {
             bath_essentials: {
                 soap: {
                     name: "Sky Hand Soap",
-                    description: "Sky Lagoon signature hand soap"
+                    description: "Sky Lagoon signature hand soap",
+                    price: "1,790 ISK (100g)",
+                    features: ["Vegan friendly"]
                 }
             }
         },
@@ -2596,8 +2626,42 @@ export const knowledgeBase = {
         },
         purchasing_info: {
             location: "Available at our retail area near the exit",
-            gift_packaging: "Available upon request",
-            shipping: "International shipping available"
+            gift_packaging: "Available upon request"
+        },
+        // New detailed shipping section
+        shipping: {
+            availability: {
+                international: true,
+                online_store: false,
+                how_to_order: "Email request to reservations@skylagoon.is"
+            },
+            requirements: {
+                minimum_order: "25,000 ISK minimum order value for shipping",
+                process: [
+                    "Email reservations@skylagoon.is with your product selection",
+                    "Include quantities and complete shipping address",
+                    "You will receive a secure payment link for the total cost"
+                ]
+            },
+            costs: {
+                shipping_fee: "4,000 ISK flat rate shipping fee",
+                payment: "Secure payment link will be provided for products and shipping"
+            },
+            policies: {
+                carrier: "Shipping handled by Icelandic Post Office",
+                liability: "Sky Lagoon is not responsible for any issues during shipping",
+                damages: "Any shipping damages must be addressed with the carrier directly",
+                customs: "Customer is responsible for any customs duties or extra fees imposed by destination country",
+                restrictions: "Shipping availability may vary by country"
+            },
+            contact: {
+                email: "reservations@skylagoon.is",
+                information_needed: [
+                    "Product items and quantities",
+                    "Complete shipping address",
+                    "Any special requests"
+                ]
+            }
         }
     },
 
@@ -4621,13 +4685,83 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('ingredients') ||
         message.includes('where can i buy') ||
         message.includes('what products') ||
-        message.includes('take home')) {
+        message.includes('take home') ||
+    
+        // Add these new shipping-specific terms
+        message.includes('ship') ||
+        message.includes('shipping') ||
+        message.includes('delivery') ||
+        message.includes('mail') ||
+        message.includes('send') ||
+        message.includes('post') ||
+        message.includes('order online') ||
+        message.includes('buy online') ||
+        message.includes('purchase online') ||
+        message.includes('international') ||
+        message.includes('overseas') ||
+        message.includes('abroad') ||
+        message.includes('outside iceland') ||
+        message.includes('to my country') ||
+        message.includes('to my home') ||
+        message.includes('to the us') ||
+        message.includes('to usa') ||
+        message.includes('to europe') ||
+        message.includes('to my address') ||
+        message.includes('shipping cost') ||
+        message.includes('shipping fee') ||
+        message.includes('how much to ship') ||
+        message.includes('ship products') ||
+        message.includes('ship items') ||
+        message.includes('customs') ||
+        message.includes('import') ||
+        message.includes('duties') ||
+        message.includes('taxes') ||
+        message.includes('minimum order') ||
+        message.includes('price list') ||
+        message.includes('product prices') ||
+        message.includes('how to order') ||
+        message.includes('shampoo') ||
+        message.includes('conditioner') ||
+        message.includes('bath products')) {
         
         relevantInfo.push({
             type: 'products',
             content: knowledgeBase.products
         });
 
+        // New specific check for shipping queries
+        if (message.includes('ship') ||
+            message.includes('shipping') ||
+            message.includes('delivery') ||
+            message.includes('mail') ||
+            message.includes('send') ||
+            message.includes('post') ||
+            message.includes('order online') ||
+            message.includes('buy online') ||
+            message.includes('international') ||
+            message.includes('overseas') ||
+            message.includes('abroad') ||
+            message.includes('outside iceland') ||
+            message.includes('to my country') ||
+            message.includes('to my home') ||
+            message.includes('to the us') ||
+            message.includes('to usa') ||
+            message.includes('to europe') ||
+            message.includes('customs') ||
+            message.includes('minimum order') ||
+            message.includes('price list')) {
+            
+            console.log('\n📦 Product Shipping Query Detected');
+            relevantInfo.push({
+                type: 'product_shipping',
+                content: {
+                    shipping_info: knowledgeBase.products.shipping,
+                    locations: knowledgeBase.products.locations,
+                    contact: knowledgeBase.products.shipping.contact
+                }
+            });
+        }
+        
         // If asking about scrub ingredients specifically
         if (message.includes('ingredient') || message.includes('allerg')) {
             relevantInfo.push({
