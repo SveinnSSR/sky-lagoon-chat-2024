@@ -80,7 +80,7 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // Early check for Icelandic questions at the start
-    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i.test(messageForDetection)) {
+    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)\b/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
