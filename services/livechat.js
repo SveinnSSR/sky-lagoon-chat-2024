@@ -487,6 +487,19 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'dýrt', 'ódýrt', 'hef efni á',
                 'krónur', 'kr', 'kr.',
 
+                // Add to the Icelandic negative patterns - ATH ÞETTA ER MÖGULEGA RISKY - ÚT AF NÖFNUM Á PÖKKUNUM
+                'Saman leiðin', 'Sér leiðin', 'Pure leiðin', 'Pure Pass', 'Saman Pass',
+                'gjafakort fyrir', 'gjafakort í', 'nota gjafakort', 'nýta gjafakort', 
+                'gjafabréf fyrir', 'gjafabréf í', 'nota gjafabréf', 'nýta gjafabréf',
+                'breyta úr Saman í Sér', 'breyta úr Pure í Sér', 'breyta í Sér',
+                'breyta úr Sér í Saman', 'breyta úr Sér í Pure',
+                'skipta yfir í', 'skipta um pakka', 'skipta um leið',
+                'get ég valið', 'getum við valið', 'hægt að velja',
+                'get ég notað', 'getum við notað', 'hægt að nota',
+                'get ég fengið', 'getum við fengið', 'hægt að fá',
+                'get ég breytt pakka', 'get ég breytt leið', 'get ég breytt upplifun',
+                'munur á Saman og Sér', 'munur á pökkum', 'munur á leiðum',
+
                 // NEW: Pre-booking questions about tickets and times in Icelandic
                 'ekki bókað ennþá', 'hef ekki bókað', 'er ekki búin að bóka',
                 'ætla að bóka', 'er að fara að bóka', 'langar að bóka',
