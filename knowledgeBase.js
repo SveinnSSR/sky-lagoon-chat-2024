@@ -1179,9 +1179,48 @@ export const knowledgeBase = {
             corporate: {
                 available: true,
                 billing: "Invoice options available",
-                contact: "corporate@skylagoon.is"
+                contact: "reservations@skylagoon.is"
             }
-        }
+        },
+        // New section for error in payment
+        checkout_assistance: {
+            payment_issues: {
+                description: "If you experience any difficulties during the checkout process on our website, we offer alternative payment options to secure your booking.",
+                common_issues: [
+                    "Credit card payment failure",
+                    "Website checkout errors",
+                    "International payment card rejections",
+                    "Booking confirmation issues"
+                ],
+                alternative_payment: {
+                    process: [
+                        "Send an email to reservations@skylagoon.is with your booking details",
+                        "Include your desired date and time, package selection, and number of guests",
+                        "Our team will respond with a secure payment link",
+                        "Complete your payment through the link to confirm your booking"
+                    ],
+                    response_time: "Within 24 hours (typically much sooner)",
+                    benefits: [
+                        "Secure alternative payment method",
+                        "Personalized booking assistance",
+                        "Opportunity to ask additional questions",
+                        "Confirmation directly from our reservations team"
+                    ]
+                },
+                important_note: "Please include all necessary booking information in your email to expedite the process. Our team is committed to ensuring a smooth booking experience for all our guests."
+            },
+            technical_support: {
+                contact: "reservations@skylagoon.is",
+                phone: "+354 527 6800",
+                hours: "9 AM - 6 PM (GMT)",
+                assistance_provided: [
+                    "Website navigation help",
+                    "Payment processing issues",
+                    "Booking confirmation problems",
+                    "General technical difficulties"
+                ]
+            }
+        }        
     },
 
     policies: {
@@ -1519,6 +1558,44 @@ export const knowledgeBase = {
                     online: "Full payment required at time of booking",
                     groups: "Special payment arrangements available for large groups",
                     modifications: "Changes subject to availability and terms"
+                }
+            },
+            checkout_assistance: {
+                payment_issues: {
+                    description: "If you experience any difficulties during the checkout process on our website, we offer alternative payment options to secure your booking.",
+                    common_issues: [
+                        "Credit card payment failure",
+                        "Website checkout errors",
+                        "International payment card rejections",
+                        "Booking confirmation issues"
+                    ],
+                    alternative_payment: {
+                        process: [
+                            "Send an email to reservations@skylagoon.is with your booking details",
+                            "Include your desired date and time, package selection, and number of guests",
+                            "Our team will respond with a secure payment link",
+                            "Complete your payment through the link to confirm your booking"
+                        ],
+                        response_time: "Within 24 hours (typically much sooner)",
+                        benefits: [
+                            "Secure alternative payment method",
+                            "Personalized booking assistance",
+                            "Opportunity to ask additional questions",
+                            "Confirmation directly from our reservations team"
+                        ]
+                    },
+                    important_note: "Please include all necessary booking information in your email to expedite the process. Our team is committed to ensuring a smooth booking experience for all our guests."
+                },
+                technical_support: {
+                    contact: "reservations@skylagoon.is",
+                    phone: "+354 527 6800",
+                    hours: "9 AM - 6 PM (GMT)",
+                    assistance_provided: [
+                        "Website navigation help",
+                        "Payment processing issues",
+                        "Booking confirmation problems",
+                        "General technical difficulties"
+                    ]
                 }
             }
         }
@@ -3513,6 +3590,37 @@ export const getRelevantKnowledge = (userMessage) => {
         }
     } // End of full Ritual section
 
+    // Specific Payment system - checkout error detection
+    if (message.includes('error') ||
+        message.includes('issue') ||
+        message.includes('problem') ||
+        message.includes('trouble') ||
+        message.includes('can\'t checkout') ||
+        message.includes('cannot checkout') ||
+        message.includes('payment failed') ||
+        message.includes('payment error') ||
+        message.includes('checkout error') ||
+        message.includes('card declined') ||
+        message.includes('won\'t process') ||
+        message.includes('transaction') ||
+        message.includes('website error') ||
+        message.includes('payment not working') ||
+        message.includes('alternative payment') ||
+        message.includes('payment link')) {
+        
+        console.log('\n💰 Payment/Checkout Error Query Detected');
+        relevantInfo.push({
+            type: 'checkout_assistance',
+            content: {
+                checkout_assistance: knowledgeBase.payment_systems.checkout_assistance,
+                contact: {
+                    email: "reservations@skylagoon.is",
+                    phone: "+354 527 6800"
+                }
+            }
+        });
+    } // End of full Specific Payment system - checkout error detection
+    
     // Policy related queries (// including age terms since they may relate to other policies)
     if (message.includes('policy') || 
         message.includes('policies') ||
