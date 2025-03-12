@@ -541,6 +541,28 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             return false;
         }
 
+        // NEW CODE: Very specific check for package change questions
+        const isPackageChangeQuery = 
+            (isIcelandic && (
+                (msg.includes('get ég breytt') && msg.includes('sér')) ||
+                (msg.includes('getum við breytt') && msg.includes('sér')) ||
+                (msg.includes('breytt') && msg.includes('sér')) ||
+                (msg.includes('breyta') && msg.includes('sér')) ||
+                (msg.includes('breytt svo við erum')) ||
+                (msg.includes('gjafakort') && msg.includes('breyt')) ||
+                (msg.includes('gjafabréf') && msg.includes('breyt')) ||
+                msg.includes('breyta í sér') ||
+                msg.includes('breyta yfir í sér')
+            )) ||
+            (msg.includes('change') && msg.includes('package')) ||
+            (msg.includes('switch') && msg.includes('package')) ||
+            (msg.includes('upgrade') && msg.includes('package'));
+
+        if (isPackageChangeQuery) {
+            console.log('❌ Package change query detected - NOT a booking change request');
+            return false;
+        }        
+
         // NEW CODE: Add explicit check for pre-booking questions right here
         const isPreBookingQuestion = 
             msg.includes('not booked yet') || 
