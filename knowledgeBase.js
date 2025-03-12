@@ -1438,6 +1438,18 @@ export const knowledgeBase = {
                     recommended: true,
                     reason: "To secure preferred time slot",
                     walk_in: "Subject to availability upon arrival"
+                },
+                // New waiting list section
+                waiting_list: {
+                    available: false,
+                    explanation: "Sky Lagoon does not maintain a waiting list for sold-out time slots",
+                    alternatives: [
+                        "Our booking system updates in real-time when slots become available due to cancellations",
+                        "We recommend checking our website periodically for new openings",
+                        "Booking availability is most accurate on our official website",
+                        "Last-minute cancellations may create new openings, especially 24-48 hours before popular time slots"
+                    ],
+                    contact_info: "For urgent inquiries about specific dates, please contact reservations@skylagoon.is"
                 }
             }
         },
@@ -3563,6 +3575,28 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('walk-in') ||
         message.includes('without booking') ||
         message.includes('sold out') ||
+        // Add these new waiting list related terms
+        message.includes('waiting list') ||
+        message.includes('waitlist') ||
+        message.includes('wait list') ||
+        message.includes('waiting') ||
+        message.includes('standby') ||
+        message.includes('stand by') ||
+        message.includes('cancelled spot') ||
+        message.includes('canceled spot') ||
+        message.includes('if someone cancels') ||
+        message.includes('get in if') ||
+        message.includes('full but') ||
+        message.includes('no spots left') ||
+        message.includes('no availability') ||
+        message.includes('no slots') ||
+        message.includes('join list') ||
+        message.includes('put me on') ||
+        message.includes('add me to') ||
+        message.includes('notify') ||
+        message.includes('alert me') ||
+        message.includes('let me know') ||
+        message.includes('cancellation happens') ||
         // Payment
         message.includes('pay') ||
         message.includes('payment') ||
@@ -3586,6 +3620,26 @@ export const getRelevantKnowledge = (userMessage) => {
             type: 'policies',
             content: knowledgeBase.policies
         });
+
+        // Add specific check for waiting list queries
+        if (message.includes('waiting list') ||
+            message.includes('waitlist') ||
+            message.includes('wait list') ||
+            message.includes('standby') ||
+            message.includes('stand by') ||
+            message.includes('cancelled spot') ||
+            message.includes('canceled spot') ||
+            message.includes('if someone cancels') ||
+            message.includes('notify') ||
+            message.includes('put me on') ||
+            message.includes('add me to')) {
+            
+            console.log('\n⏳ Waiting List Query Detected');
+            relevantInfo.push({
+                type: 'waiting_list',
+                content: knowledgeBase.policies.booking_capacity.availability.waiting_list
+            });
+        }
 
         // Add specific related sections based on query
         if (message.includes('pay') || 
