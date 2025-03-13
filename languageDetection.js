@@ -14,7 +14,7 @@ export const detectLanguage = (message, context = null) => {
     const botNameRegex = /\bs[oó]lr[uú]n\b/gi;
     
     const messageForDetection = cleanMessage
-        .replace(/sky\s*lagoon/gi, '')
+        .replace(/\b(sky\s*lagoon|pure\s*pass|sky\s*pass|saman\s*pass)\b/gi, '')
         .replace(packageExclusionRegex, '')
         .replace(botNameRegex, '') // Remove bot name before language detection
         .trim();
@@ -80,7 +80,7 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // Early check for Icelandic questions at the start
-    if (/^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)\b/i.test(messageForDetection)) {
+    if (/^(hverjir|hver|hvert|hverju|hvort|hvers|hverja|er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)\b/i.test(messageForDetection)) {
         return {
             isIcelandic: true,
             confidence: 'high',
