@@ -135,15 +135,23 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             reason: languageCheck.reason
         };
 
-        // Determine message roles explicitly for consistent color rendering
+        // CRITICAL: Always define roles and senders consistently
         const userRole = 'user';
         const botRole = 'assistant';
+        const userSender = 'user';
+        const botSender = 'bot';
+
+        // Create message timestamps with a guaranteed sequence
+        // User message timestamp is now, bot message timestamp is 1ms later
+        // This ensures messages appear in correct order
+        const userTimestamp = new Date();
+        const botTimestamp = new Date(userTimestamp.getTime() + 1); // Add 1ms
 
         // Add messageId in MongoDB format for feedback correlation
         const userMessageId = `user-msg-${Date.now()}`;
-        const botMessageId = `bot-msg-${Date.now()}`;
+        const botMessageId = `bot-msg-${Date.now() + 1}`; // Ensure different IDs
 
-        // *** KEY CHANGE: Use existing conversation ID for this session, or create a new one ***
+        // Use existing conversation ID for this session, or create a new one
         let conversationId;
         if (sessionConversations.has(chatSessionId)) {
             conversationId = sessionConversations.get(chatSessionId);
@@ -156,21 +164,21 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 
         const conversationData = {
             id: conversationId, // Use consistent ID per session instead of new uuidv4() each time
-            timestamp: new Date().toISOString(),
+            timestamp: userTimestamp.toISOString(),
             messages: [
               {
                 id: userMessageId,
                 content: userMessage,
-                role: userRole,
-                sender: 'user',
-                timestamp: new Date().toISOString()
+                role: userRole,      // CRITICAL: Always explicitly 'user'
+                sender: userSender,  // CRITICAL: Always explicitly 'user'
+                timestamp: userTimestamp.toISOString()
               },
               {
                 id: botMessageId, 
                 content: botResponse,
-                role: botRole,
-                sender: 'bot',
-                timestamp: new Date().toISOString()
+                role: botRole,       // CRITICAL: Always explicitly 'assistant'
+                sender: botSender,   // CRITICAL: Always explicitly 'bot'
+                timestamp: botTimestamp.toISOString() // CRITICAL: Sequential timestamp
               }
             ],
             language: languageInfo.isIcelandic ? 'is' : 'en',
@@ -9194,24 +9202,38 @@ function normalizeConversationData(data) {
     }
     
     if (normalized.botResponse) {
+      // Ensure bot message has timestamp 1ms after user message for order
+      const botTimestamp = normalized.timestamp 
+        ? new Date(new Date(normalized.timestamp).getTime() + 1).toISOString() 
+        : new Date().toISOString();
+        
       normalized.messages.push({
         id: normalized.botMessageId || `bot-msg-${Date.now()}`,
         content: normalized.botResponse,
         role: 'assistant',
         sender: 'bot',
-        timestamp: new Date().toISOString()
+        timestamp: botTimestamp
       });
     }
   }
   
-  // Ensure each message has proper structure
-  normalized.messages = normalized.messages.map(msg => ({
-    id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
-    content: msg.content || '',
-    role: msg.role || (msg.sender === 'user' ? 'user' : 'assistant'),
-    sender: msg.sender || (msg.role === 'user' ? 'user' : 'bot'),
-    timestamp: msg.timestamp || new Date().toISOString()
-  }));
+  // CRITICAL CHANGE: Ensure each message has proper structure 
+  // WITHOUT OVERRIDING EXPLICIT ROLE/SENDER VALUES
+  normalized.messages = normalized.messages.map((msg, index) => {
+    // Determine if this is likely a user or bot message based on position and content
+    // Only use these for fallback if no role/sender exists
+    const isLikelyUser = index % 2 === 0; // Even indices are typically user messages
+    
+    return {
+      id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
+      content: msg.content || '',
+      // CRITICAL: Only use fallbacks if fields are undefined or null - preserve explicit values
+      role: msg.role || (msg.sender === 'user' ? 'user' : (msg.sender === 'bot' ? 'assistant' : (isLikelyUser ? 'user' : 'assistant'))),
+      sender: msg.sender || (msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'bot' : (isLikelyUser ? 'user' : 'bot'))),
+      // Ensure timestamps maintain sequence (odd indices are 1ms after even indices)
+      timestamp: msg.timestamp || new Date(Date.now() + index).toISOString()
+    };
+  });
   
   return normalized;
 }
