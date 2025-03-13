@@ -2491,6 +2491,11 @@ if (message.includes('opið') ||
         message.includes('fylgdarmen') ||
         message.includes('lyfta') ||
         message.includes('lyftu') ||
+        // Add disability terms
+        message.includes('öryrki') ||
+        message.includes('öryrkja') ||
+        message.includes('öryrkjar') ||
+        message.includes('öryrkjum') ||
         // Enhanced accessibility patterns
         message.includes('aðgangssvít') ||
         message.includes('aðgengissvít') ||
@@ -2517,6 +2522,26 @@ if (message.includes('opið') ||
             type: 'facilities',
             subtype: 'accessibility'
         };
+
+        // NEW: Check specifically for öryrkjar discount queries 
+        if ((message.includes('öryrki') || 
+             message.includes('öryrkja') || 
+             message.includes('öryrkjar') || 
+             message.includes('öryrkjum')) &&
+            (message.includes('frítt') || 
+             message.includes('ókeypis') || 
+             message.includes('afsláttur') ||
+             message.includes('afslátt') ||
+             message.includes('verð') ||
+             message.includes('gjald') ||
+             message.includes('borga'))) {
+            
+            console.log('\n♿💰 Disability Discount Match Found');
+            accessibilityInfo.content = {
+                disability_discount: "Við bjóðum ekki sérstaklega afslátt fyrir öryrkja, en við bjóðum frían aðgang fyrir fylgdarmenn fatlaðra einstaklinga. Einnig eru ýmis félagasamtök sem bjóða sínum félagsmönnum afslátt hjá okkur og mæli ég með að athuga hjá þínu félagi hvort slíkir samningar séu í boði.",
+                additional_info: knowledgeBase_is.facilities.accessibility.additional_info
+            };
+        }        
 
         // Check for accessibility suite specific queries
         if (message.includes('aðgangssvít') ||
