@@ -440,6 +440,15 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'get ekki', 'gat ekki', 'þarf aðstoð með',
 
                 // Add to the Icelandic negative patterns
+                'fær maður', 'fær mann', 'fær ég', 'færð þú', 'fæst', 'fást',
+                'handklæði', 'sápu', 'snyrtivörur', 'sturtusápu', 'sjampó',
+                'aðstaða', 'aðstöðu', 'búningsaðstaða', 'búningsklefa',
+                'er innifalið', 'fylgir með', 'hvað er í boði', 'hvað er boðið upp á',
+                'hvað fæ ég', 'hvaða þjónustu', 'þjónusta', 'þjónustu',
+                'er í boði', 'boðið upp á', 'hægt að fá', 'get ég fengið',
+                'til staðar', 'á staðnum', 'aðgangur að', 'aðgang að',
+
+                // Add to the Icelandic negative patterns
                 'reikna með', 'hversu lengi', 'hversu langur', 'hversu löngum tíma',
                 'hve lengi', 'hve langur', 'hve löngum',
                 'dvelja', 'dveljast', 'vera í', 'eyða tíma',
