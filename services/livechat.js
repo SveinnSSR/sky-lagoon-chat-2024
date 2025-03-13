@@ -837,14 +837,33 @@ export async function detectBookingChangeRequest(message, languageDecision) {
             hasLateArrivalMention
         });
         
-        // Combine all detection methods for final result
-        const result = 
-            hasPatternMatch || 
-            hasRootMatch || 
-            changeNearDate || 
-            hasCommonQuestion || 
-            hasContextAwareMatch;
-            
+        // Strong signals - any of these alone is a strong indicator
+        const hasStrongSignal = 
+            (msg.includes('change my booking') || 
+             msg.includes('reschedule my booking') ||
+             msg.includes('modify my booking') ||
+             msg.includes('move my booking') ||
+             msg.includes('change my reservation') ||
+             (isIcelandic && (
+                 msg.includes('breyta bókuninni minni') || 
+                 msg.includes('færa bókunina mína') ||
+                 msg.includes('breyta tímapöntuninni minni')
+             )));
+
+        // Combination signals - these need to appear together
+        const hasCombinationSignal = 
+            // Requires BOTH a booking reference AND a change reference
+            (hasBookingReference && 
+             (hasPatternMatch || hasTimeShiftPattern || changeNearDate));
+
+        // Final determination requires either a strong signal OR a combination of signals
+        const result = hasStrongSignal || hasCombinationSignal;
+
+        console.log('Conservative detection checks:', {
+            hasStrongSignal,
+            hasCombinationSignal,
+            result
+        });
         console.log('Final detection result:', result);
         return result;
     } catch (error) {
