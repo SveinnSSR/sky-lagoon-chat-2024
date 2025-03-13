@@ -390,6 +390,17 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'late to our', 'late to my', 'late for my', 'late for our',
 
                 // Add to the English negative patterns
+                'how long can we stay', 'how long can i stay', 'how much time can we spend',
+                'is it possible to stay', 'can we stay for', 'can i stay for', 
+                'maximum stay', 'time limit', 'stay as long as', 'length of stay',
+                'is it possible to come in', 'can we come in', 'can i come in',
+                'without booking', 'book in advance', 'advanced booking',
+                'need to book', 'have to book', 'advance reservation',
+                'walk in', 'walk-in', 'walk ins', 'just show up',
+                'tomorrow without', 'tomorrow or do we',
+                'opening hours', 'closing time', 'when do you close',
+
+                // Add to the English negative patterns
                 'how accurate are you', 'how strict are you', 'how flexible are you',
                 'what if the flight is delayed', 'what if my flight is delayed', 
                 'what if flight gets delayed', 'what if flights are delayed',
@@ -464,6 +475,17 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'taka með', 'hafa með', 'koma með',
                 'hvað á ég að', 'hvað þarf ég að',
                 'hvenær á ég að mæta', 'hvernig', 'hvar',
+
+                // Add to the Icelandic negative patterns
+                'hversu lengi getum við verið', 'hversu lengi get ég verið',
+                'er hægt að vera', 'getum við verið í', 'get ég verið í',
+                'hámarkstími', 'tímamörk', 'vera eins lengi og',
+                'er hægt að koma', 'getum við komið', 'get ég komið',
+                'án bókunar', 'bóka fyrirfram', 'fyrirframbókun',
+                'þarf að bóka', 'verður að bóka', 'fyrirframskráning',
+                'bara mæta', 'mæta án bókunar', 'mæta beint',
+                'á morgun án', 'á morgun eða þurfum við',
+                'opnunartími', 'lokunartími', 'hvenær lokið þið',
 
                 // General booking questions and lookups in Icelandic
                 'hvaða upplifanir', 'hvað er innifalið', 'athuga hvað', 
