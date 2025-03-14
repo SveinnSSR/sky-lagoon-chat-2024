@@ -433,6 +433,7 @@ const SKY_LAGOON_GUIDELINES = {
         'this geothermal geothermal': 'this geothermal',
         
         // Hydration specific phrases
+        'drink drinking water': 'drink water',  // Add this line to fix redundancy
         'drink plenty of geothermal water': 'drink plenty of water',
         'drinking plenty of geothermal': 'drinking plenty of',
         'drinking plenty of geothermal water': 'drinking plenty of water',
