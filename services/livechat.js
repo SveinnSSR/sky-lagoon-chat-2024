@@ -399,6 +399,11 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'walk in', 'walk-in', 'walk ins', 'just show up',
                 'tomorrow without', 'tomorrow or do we',
                 'opening hours', 'closing time', 'when do you close',
+                'is it ok to be late', 'ok to be late', 'okay to be late',
+                'alright to be late', 'fine to be late', 'acceptable to be late',
+                'late after a booking', 'late for a booking', 'late to a booking',
+                'what if i am late', 'what if we are late', 'what happens if late',
+                'late arrival policy', 'arrive late policy', 'policy for late',
 
                 // Add to the English negative patterns
                 'how accurate are you', 'how strict are you', 'how flexible are you',
