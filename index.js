@@ -351,6 +351,20 @@ const SKY_LAGOON_GUIDELINES = {
         }
     },
     specialPhrases: {
+        // WATER BOTTLE FIX - Add at the top to take priority
+        'geothermal water bottle': 'water bottle',
+        'your own geothermal water bottle': 'your own water bottle',
+        'bring a geothermal water bottle': 'bring a water bottle',
+        'bring your geothermal water bottle': 'bring your water bottle',
+        'personal geothermal water bottle': 'personal water bottle',
+        'geothermal water bottles': 'water bottles',
+        'bring geothermal water bottles': 'bring water bottles',
+        'fill your geothermal water bottle': 'fill your water bottle',
+        'refill your geothermal water bottle': 'refill your water bottle',
+        'fill a geothermal water bottle': 'fill a water bottle',
+        'refill a geothermal water bottle': 'refill a water bottle',
+        'your geothermal water bottle': 'your water bottle',
+        
         // New our handling - add these at the top of specialPhrases
         'at our our': 'at our',        // Catch specific double our case
         'in our our': 'in our',        // Add other common prepositions
@@ -525,6 +539,14 @@ const enforceTerminology = (text) => {
     // Log for debugging
     console.log('\n📝 Checking terminology for:', text);
 
+    // WATER BOTTLE PROTECTION - Add early protection for water bottle terms
+    const waterBottleRegex = /\b(your|a|my|personal|own|the)?\s*(water\s+bottle[s]?)\b/gi;
+    
+    // First mark all water bottle references for protection
+    modifiedText = modifiedText.replace(waterBottleRegex, (match) => {
+        return `__PROTECTED_WATER_BOTTLE__${match}__END_PROTECTION__`;
+    });
+
     // First handle Gelmir Bar variations with regex
     const gelmirRegex = /\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi;
     modifiedText = modifiedText.replace(gelmirRegex, 'our Gelmir lagoon bar');
@@ -654,6 +676,12 @@ const enforceTerminology = (text) => {
             return match;
         });
     });
+
+    // WATER BOTTLE UNPROTECTION - Now restore all protected water bottle references
+    modifiedText = modifiedText.replace(/__PROTECTED_WATER_BOTTLE__(.*?)__END_PROTECTION__/gi, '$1');
+    
+    // Final cleaup for any "geothermal water bottle" that might have slipped through
+    modifiedText = modifiedText.replace(/geothermal\s+water\s+bottle/gi, 'water bottle');
 
     // Final check for any remaining double geothermal
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
