@@ -100,11 +100,16 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Add this right after your Pusher initialization
-const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat') => {
+// Updated broadcastConversation function with improved session handling
+const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
-        // Get current session ID
-        const chatSessionId = conversationContext.get('currentSession') || `session_${Date.now()}`;
+        // IMPROVED SESSION HANDLING: Prioritize client-provided sessionId if available
+        // Fall back to server-side session tracking, then generate a new one as last resort
+        const chatSessionId = clientSessionId || 
+                             conversationContext.get('currentSession') || 
+                             `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        
+        console.log(`📊 Using session ID: ${chatSessionId}${clientSessionId ? ' (from client)' : ' (from server)'}`);
         
         // Create a unique key for this message pair to prevent duplicate broadcasts
         const messageKey = `${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
@@ -119,11 +124,12 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         // First check if it's a simple Icelandic message
         const languageCheck = newDetectLanguage(userMessage);
         
-        // Enhanced logging with language info
+        // Enhanced logging with language info and session ID
         console.log('\n📨 Processing message:', {
             userMessage,
             language,
             type,
+            sessionId: chatSessionId,
             languageCheck,
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
         });
@@ -184,7 +190,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
             type,
-            sessionId: chatSessionId
+            sessionId: chatSessionId  // Always include the session ID
         };
 
         // Keep these for backward compatibility
@@ -6395,6 +6401,46 @@ const getContext = (sessionId) => conversationContext.get(sessionId);
 app.post('/chat', verifyApiKey, async (req, res) => {
     let context;  // Single declaration at the top
     
+    // Unified function to broadcast but NOT send response
+    const sendBroadcastAndPrepareResponse = async (responseObj) => {
+        // Default values for language if not provided
+        const languageInfo = responseObj.language || {
+            detected: 'English',
+            confidence: 'medium',
+            reason: 'default'
+        };
+        
+        // Extract the session ID from the request
+        const sessionId = req.body.sessionId || null;
+
+        // Only broadcast if we have a message to send (skip for suppressed messages)
+        if (responseObj.message && !responseObj.suppressMessage) {
+            try {
+                console.log(`📨 Broadcasting response with session ID: ${sessionId || 'None provided'}`);
+                
+                // Single broadcast point with session ID
+                const broadcastResult = await broadcastConversation(
+                    req.body.message || req.body.question || "unknown_message",
+                    responseObj.message,
+                    languageInfo.detected === 'Icelandic' ? 'is' : 'en',
+                    responseObj.topicType || 'general',
+                    responseObj.responseType || 'direct_response',
+                    sessionId // Pass the session ID from the client
+                );
+                
+                // Store PostgreSQL ID if available
+                if (broadcastResult && broadcastResult.postgresqlId) {
+                    responseObj.postgresqlMessageId = broadcastResult.postgresqlId;
+                }
+            } catch (error) {
+                console.error('❌ Error in broadcast function:', error);
+            }
+        }
+        
+        // Return the response object without sending it
+        return responseObj;
+    };
+    
     try {
         // Initialize session first
         const currentSession = conversationContext.get('currentSession');
@@ -6516,19 +6562,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const confirmationMessage = languageDecision.isIcelandic ?
                     "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
                     "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
-                    
-                await broadcastConversation(
-                    JSON.stringify(formData),
-                    confirmationMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_submitted',
-                    'direct_response'
-                );
                 
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
+                    message: confirmationMessage,
                     success: true,
-                    message: confirmationMessage
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'booking_change_submitted',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
                 console.error('\n❌ Booking Form Submission Error:', error);
                 
@@ -6536,20 +6582,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const errorMessage = languageDecision.isIcelandic ?
                     "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
                     "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
-                    
-                await broadcastConversation(
-                    req.body.formData || "{}",
-                    errorMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_failed',
-                    'direct_response'
-                );
                 
-                return res.status(500).json({
-                    success: false,
+                // Use the unified broadcast system but don't send response yet
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: errorMessage,
-                    error: error.message
+                    success: false,
+                    status: 500,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'booking_change_failed',
+                    responseType: 'direct_response'
                 });
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         }
 
@@ -6573,16 +6620,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     `Ég sé að þú vilt breyta bókuninni þinni. ${!bookingFormCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
                     `I see you'd like to change your booking. ${!bookingFormCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
 
-                // Broadcast the booking change message
-                await broadcastConversation(
-                    userMessage,
-                    bookingChangeMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_request',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: bookingChangeMessage,
                     showBookingChangeForm: true,
                     chatId: chatData.chat_id,
@@ -6591,8 +6630,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'booking_change_request',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
                 console.error('\n❌ Booking Change Request Error:', error);
                 // Fall through to AI response if request fails
@@ -6602,22 +6644,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
                     "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
 
-                await broadcastConversation(
-                    userMessage,
-                    fallbackMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'booking_change_failed',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
                     error: error.message,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'booking_change_failed',
+                    responseType: 'direct_response'
                 });
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         }
 
@@ -6652,30 +6690,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
                     "I'm connecting you with a customer service representative. One moment...";
 
-                // Broadcast the transfer message
-                await broadcastConversation(
-                    userMessage,
-                    transferMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'transfer',
-                    'direct_response'
-                );
-
-                // Chat has been created and transferred by the bot
-                console.log('\n✅ Chat created - LiveChat will handle routing');
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    bot_token: chatData.bot_token, // Include bot token
-                    agent_credentials: chatData.agent_credentials, // Add this line
+                    bot_token: chatData.bot_token,
+                    agent_credentials: chatData.agent_credentials,
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'transfer',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
                 console.error('\n❌ Transfer Error:', error);
                 // Fall through to AI response if transfer fails
@@ -6685,41 +6715,33 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Því miður er ekki hægt að tengja þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
                     "I'm sorry, I couldn't connect you with an agent at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
 
-                await broadcastConversation(
-                    userMessage,
-                    fallbackMessage,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'transfer_failed',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
                     transferred: false,
                     error: error.message,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'transfer_failed',
+                    responseType: 'direct_response'
                 });
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
-            await broadcastConversation(
-                userMessage,
-                transferCheck.response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'transfer_unavailable',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: transferCheck.response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence
-                }
+                },
+                topicType: 'transfer_unavailable',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
         
         // Handle messages when in agent mode
@@ -6729,6 +6751,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const credentials = req.body.bot_token || req.body.agent_credentials;
                 await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
+                // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
@@ -6760,19 +6783,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
             const response = getRandomResponse(BOOKING_RESPONSES.flight_delay);
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglish ? 'en' : 'is',
-                'late_arrival',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 lateArrivalHandled: true,
-                lateScenarioType: 'flight_delay'
+                lateScenarioType: 'flight_delay',
+                language: {
+                    detected: useEnglish ? 'English' : 'Icelandic',
+                    confidence: languageDecision.confidence
+                },
+                topicType: 'late_arrival',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Early greeting check
@@ -6860,23 +6883,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 context.conversationStarted = true;
                 conversationContext.set(sessionId, context);
                 
-                // Broadcast the greeting
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    useEnglishResponse ? 'en' : 'is',
-                    'greeting',
-                    'direct_response'
-                );
-        
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: useEnglishResponse ? 'English' : 'Icelandic',
                         confidence: languageDecision.confidence,
                         reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
-                    }
+                    },
+                    topicType: 'greeting',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
         }
 
@@ -6953,24 +6971,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 context.lastTopic = 'availability';
                 conversationContext.set(sessionId, context);
                 
-                // Broadcast the conversation with the availability response
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    'is',
-                    'availability',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: 'Icelandic',
                         confidence: languageDecision.confidence,
                         reason: 'availability_query'
-                    }
+                    },
+                    topicType: 'availability',
+                    responseType: 'direct_response'
                 });
-            }            
+                return res.status(responseData.status || 200).json(responseData);
+            }  
 
             const msg = userMessage.toLowerCase();            
 
@@ -7069,15 +7082,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 responseStart: response.substring(0, 50) + '...'
             });
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                useIcelandic ? 'is' : 'en',
-                'late_arrival',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 lateArrivalHandled: true,
                 lateScenarioType: arrivalCheck.type,
@@ -7085,8 +7091,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
-                }
+                },
+                topicType: 'late_arrival',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Special case for "how are you" questions
@@ -7110,23 +7119,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Store this as small talk in the context
             context.lastTopic = 'small_talk';
             
-            // Broadcast this conversation
-            await broadcastConversation(
-                userMessage,
-                response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'small_talk',
-                'direct_response'
-            );
-            
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: 'small_talk_how_are_you'
-                }
+                },
+                topicType: 'small_talk',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Add informal greeting detection like "what's up" or "hvað segirðu"
@@ -7148,22 +7152,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             context.lastTopic = 'small_talk';
             
-            await broadcastConversation(
-                userMessage,
-                response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'small_talk',
-                'direct_response'
-            );
-            
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: 'small_talk_informal_greeting'
-                }
+                },
+                topicType: 'small_talk',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Check for identity questions
@@ -7187,23 +7187,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Store this as small talk in the context
             context.lastTopic = 'small_talk';
             
-            // Broadcast this conversation
-            await broadcastConversation(
-                userMessage,
-                response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'small_talk',
-                'direct_response'
-            );
-            
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: 'small_talk_identity'
-                }
+                },
+                topicType: 'small_talk',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
@@ -7640,22 +7635,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const smallTalkResult = { isSmallTalk: true, language: 'en', category: 'wellbeing' };
             const response = getSmallTalkResponse(smallTalkResult, languageDecision);
             
-            await broadcastConversation(
-                userMessage,
-                response,
-                'en',
-                'small_talk',
-                'direct_response'
-            );
-            
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: 'English',
                     confidence: 'high',
                     reason: 'wellbeing_greeting'
-                }
+                },
+                topicType: 'small_talk',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Enhanced question pattern detection using new language system
@@ -7729,16 +7720,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     const response = useEnglish ?
                         SMALL_TALK_RESPONSES.en.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.feedback.length)] :
                         SMALL_TALK_RESPONSES.is.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.feedback.length)];
-                        
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
-                        'feedback', 'direct_response');
-                    return res.status(200).json({ 
-                        message: response, 
+                    
+                    // Use the unified broadcast system but don't send response yet
+                    const responseData = await sendBroadcastAndPrepareResponse({
+                        message: response,
                         language: { 
                             detected: useEnglish ? 'English' : 'Icelandic', 
                             confidence: languageDecision.confidence 
-                        }
+                        },
+                        topicType: 'feedback',
+                        responseType: 'direct_response'
                     });
+                    return res.status(responseData.status || 200).json(responseData);
                 }
 
                 // Check all acknowledgment patterns
@@ -7763,11 +7756,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     const response = useEnglish ?
                         "Thanks for chatting! I'm here if you need any more information later." :
                         "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
-                        
-                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
-                        'finished', 'direct_response');
-                    return res.status(200).json({ message: response, 
-                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
+                    
+                    // Use the unified broadcast system but don't send response yet
+                    const responseData = await sendBroadcastAndPrepareResponse({
+                        message: response,
+                        language: { 
+                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', 
+                            confidence: languageDecision.confidence 
+                        },
+                        topicType: 'finished',
+                        responseType: 'direct_response'
+                    });
+                    return res.status(responseData.status || 200).json(responseData);
                 }
                 
                 if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
@@ -7790,11 +7790,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     
                     const response = useEnglish ? "Of course! Please go ahead and ask your questions." :
                         "Endilega spurðu!";
-                        
-                    await broadcastConversation(userMessage, response, languageDecision.isIcelandic ? 'is' : 'en', 
-                        'continuity', 'direct_response');
-                    return res.status(200).json({ message: response, 
-                        language: { detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', confidence: languageDecision.confidence }});
+                    
+                    // Use the unified broadcast system but don't send response yet
+                    const responseData = await sendBroadcastAndPrepareResponse({
+                        message: response,
+                        language: { 
+                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', 
+                            confidence: languageDecision.confidence 
+                        },
+                        topicType: 'continuity',
+                        responseType: 'direct_response'
+                    });
+                    return res.status(responseData.status || 200).json(responseData);
                 }
                 
                 if (acknowledgmentPatterns.positive.en.some(pattern => matchesWholeWord(msg, pattern)) ||
@@ -7823,11 +7830,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     const response = useEnglish ?
                         "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
                         "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
-                        
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
-                        'positive', 'direct_response');
-                    return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: languageDecision.confidence }});
+                    
+                    // Use the unified broadcast system but don't send response yet
+                    const responseData = await sendBroadcastAndPrepareResponse({
+                        message: response,
+                        language: { 
+                            detected: useEnglish ? 'English' : 'Icelandic', 
+                            confidence: languageDecision.confidence 
+                        },
+                        topicType: 'positive',
+                        responseType: 'direct_response'
+                    });
+                    return res.status(responseData.status || 200).json(responseData);
                 }
                 
                 if (acknowledgmentPatterns.general.en.some(pattern => matchesWholeWord(msg, pattern)) ||
@@ -7851,11 +7865,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     const response = useEnglish ?
                         "Thank you! What else would you like to know about Sky Lagoon?" :
                         "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
-                        
-                    await broadcastConversation(userMessage, response, useEnglish ? 'en' : 'is', 
-                        'general', 'direct_response');
-                    return res.status(200).json({ message: response, 
-                        language: { detected: useEnglish ? 'English' : 'Icelandic', confidence: languageDecision.confidence }});
+                    
+                    // Use the unified broadcast system but don't send response yet
+                    const responseData = await sendBroadcastAndPrepareResponse({
+                        message: response,
+                        language: { 
+                            detected: useEnglish ? 'English' : 'Icelandic', 
+                            confidence: languageDecision.confidence 
+                        },
+                        topicType: 'general',
+                        responseType: 'direct_response'
+                    });
+                    return res.status(responseData.status || 200).json(responseData);
                 }
                 
                 // Finally check simple acknowledgments with word limit
@@ -7899,14 +7920,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             "Is there anything else you'd like to know about Sky Lagoon?" :
                             "Láttu mig vita ef þú hefur fleiri spurningar!";
 
-                        await broadcastConversation(userMessage, response, 
-                            useEnglish ? 'en' : 'is', // Changed to use useEnglish directly
-                            'acknowledgment', 'direct_response');
-                        return res.status(200).json({ message: response, 
+                        // Use the unified broadcast system but don't send response yet
+                        const responseData = await sendBroadcastAndPrepareResponse({
+                            message: response,
                             language: { 
-                                detected: useEnglish ? 'English' : 'Icelandic', // Use useEnglish for response language
+                                detected: useEnglish ? 'English' : 'Icelandic', 
                                 confidence: languageDecision.confidence 
-                            }});
+                            },
+                            topicType: 'acknowledgment',
+                            responseType: 'direct_response'
+                        });
+                        return res.status(responseData.status || 200).json(responseData);
                     }
                 }
             }
@@ -7990,22 +8014,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Update context with new language detection
                 context.language = languageDecision.isIcelandic ? 'is' : 'en';
             
-                // Broadcast the small talk conversation with new language system
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'small_talk',
-                    'direct_response'
-                );    
-            
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'small_talk',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
         }
         
@@ -8038,21 +8057,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Of course! Please go ahead and ask your questions." :
                     "Endilega spurðu!";
 
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    useEnglish ? 'en' : 'is',
-                    'continuity',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: useEnglish ? 'English' : 'Icelandic',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'continuity',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
         }
 
@@ -8090,21 +8105,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
                     "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
         
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    useEnglish ? 'en' : 'is',
-                    'acknowledgment',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: useEnglish ? 'English' : 'Icelandic',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'acknowledgment',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
         }
 
@@ -8131,21 +8142,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 "Thank you for the kind words! What else would you like to know about Sky Lagoon?" :
                 "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglish ? 'en' : 'is',
-                'acknowledgment',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
-                }
+                },
+                topicType: 'acknowledgment',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Check for conversation ending
@@ -8179,21 +8186,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
                     "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                useEnglish ? 'en' : 'is',
-                'finished',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: useEnglish ? 'English' : 'Icelandic',
                     confidence: languageDecision.confidence
-                }
+                },
+                topicType: 'finished',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Yes/Confirmation handling
@@ -8234,21 +8237,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 response += ` ${'Would you like to know anything else about our offerings?'}`;
             }
 
-            await broadcastConversation(
-                userMessage,
-                response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'confirmation',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence
-                }
+                },
+                topicType: 'confirmation',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Check if it's a group booking query but DON'T return immediately
@@ -8268,14 +8267,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
 
-            // Add broadcast for tracking group booking queries
-            await broadcastConversation(
-                userMessage,
-                'group_booking_detection',  // Not a response, just tracking the detection
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'group_bookings',
-                'detection'
-            );
+            // Use the unified broadcast system for tracking (not a user-visible response)
+            await sendBroadcastAndPrepareResponse({
+                message: 'group_booking_detection',  // Not a response, just tracking the detection
+                suppressMessage: true, // Don't actually send a message to the user
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
+                },
+                topicType: 'group_bookings',
+                responseType: 'detection'
+            });
             
             // Continue to normal flow to let GPT handle with knowledge base content
         }
@@ -8308,22 +8310,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
                     ];
 
-                // Add broadcast with new language system
-                await broadcastConversation(
-                    userMessage,
-                    unknownResponse,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    'unknown_query',
-                    'direct_response'
-                );
-
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: unknownResponse,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'unknown_query',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
 
             // THEN KEEP ALL THE EXISTING CODE HERE
@@ -8389,22 +8386,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Láttu mig vita ef þú hefur fleiri spurningar!" :
                     "Is there anything else you'd like to know about Sky Lagoon?";
 
-                // Add broadcast with new language detection
-                await broadcastConversation(
-                    userMessage,
-                    response,
-                    simpleResponseLanguage,
-                    'acknowledgment',
-                    'direct_response'
-                );
-                        
-                return res.status(200).json({
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
                     message: response,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
-                    }
+                    },
+                    topicType: 'acknowledgment',
+                    responseType: 'direct_response'
                 });
+                return res.status(responseData.status || 200).json(responseData);
             }
         }
 
@@ -8435,15 +8427,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             });
 
-            // Add broadcast with new language system
-            await broadcastConversation(
-                userMessage,
-                shouldUseUnknownHandler.response,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'unknown_query',
-                'direct_response'
-            );
-
             // Update context and cache with new language information
             updateContext(sessionId, userMessage, shouldUseUnknownHandler.response);
             responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
@@ -8458,15 +8441,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 timestamp: Date.now()
             });
 
-            // Return the unknown query response with enhanced language info
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: shouldUseUnknownHandler.response,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
-                }
+                },
+                topicType: 'unknown_query',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
         
         // Check for sunset queries
@@ -8509,24 +8495,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 timestamp: Date.now()
             });
             
-            // Broadcast conversation with the sunset response
-            await broadcastConversation(
-                userMessage,
-                formattedResponseWithEmoji,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'sunset',
-                'direct_response'
-            );
-            
-            // Return the response to the client
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: formattedResponseWithEmoji,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
-                }
+                },
+                topicType: 'sunset',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }        
 
         // Detect topic for appropriate transitions and follow-ups
@@ -8620,22 +8600,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.conversationStarted = true;
             const introResponse = `${getRandomResponse(SMALL_TALK_RESPONSES)} `;
 
-            // Add broadcast with new language system
-            await broadcastConversation(
-                userMessage,
-                introResponse,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                'first_time',
-                'direct_response'
-            );
-
-            return res.status(200).json({
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
                 message: introResponse,
                 language: {
                     detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence
-                }
+                },
+                topicType: 'first_time',
+                responseType: 'direct_response'
             });
+            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Force hours topic if it's an hours query
@@ -8741,24 +8716,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
-        // Broadcast with new language system
+        // Use the unified broadcast system for the GPT response
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
-            const broadcastResult = await broadcastConversation(
-                req.body.message,
-                completion.choices[0].message.content,
-                languageDecision.isIcelandic ? 'is' : 'en',
-                context?.lastTopic || 'general',
-                'gpt_response'
-            );
-        
-
-        // Extract PostgreSQL ID from the broadcast result
-        postgresqlMessageId = broadcastResult && broadcastResult.postgresqlId
-        ? broadcastResult.postgresqlId 
-        : null;
-
-        console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
+            // Create an intermediate response object that sendBroadcastAndPrepareResponse will use
+            const responseObj = {
+                message: completion.choices[0].message.content,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                },
+                topicType: context?.lastTopic || 'general',
+                responseType: 'gpt_response'
+            };
+            
+            // We'll pass this through sendBroadcastAndPrepareResponse to broadcast without responding yet
+            const result = await sendBroadcastAndPrepareResponse(responseObj);
+            
+            // Extract the PostgreSQL ID if available from the result
+            postgresqlMessageId = result.postgresqlMessageId || null;
+            
+            console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
         }
 
         const response = completion.choices[0].message.content;
@@ -8831,15 +8810,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Add broadcast for error scenarios with proper language
-        await broadcastConversation(
-            userMsg || 'unknown_message',
-            errorMessage,
-            errorLanguageDecision.isIcelandic ? 'is' : 'en',
-            'error',
-            'error_response'
-        );
-
+        // Use the unified broadcast system but don't send response yet
+        await sendBroadcastAndPrepareResponse({
+            message: errorMessage,
+            status: 500,
+            language: {
+                detected: errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English',
+                confidence: errorLanguageDecision.confidence
+            },
+            topicType: 'error',
+            responseType: 'error_response'
+        });
+        
+        // Send error response separately to ensure it reaches the client
         return res.status(500).json({
             message: errorMessage,
             language: {
