@@ -1305,7 +1305,17 @@ export const knowledgeBase = {
                 swimwear: {
                     rule: "Wearing a swimsuit is obligatory for all spa goers",
                     process: "After your shower, put on your bathing suit before leaving the changing room",
-                    rental: "If you didn't pack one, bathing suits are available for rent or purchase at reception"
+                    rental: "If you didn't pack one, bathing suits are available for rent or purchase at reception",
+                    allowed_types: {
+                        description: "At Sky Lagoon, we welcome various types of appropriate swimwear for your comfort",
+                        types: [
+                            "Bikinis and two-piece swimwear",
+                            "One-piece swimsuits",
+                            "Swim trunks and shorts",
+                            "Rashguards and swim shirts for additional coverage",
+                            "Water shoes (optional footwear designed for wet environments)"
+                        ]
+                    }
                 },
                 personal_items: {
                     wristband: {
@@ -1315,6 +1325,19 @@ export const knowledgeBase = {
                             "Linked to credit card at check-in"
                         ],
                         usage: "Store all personal items including wallet, mobile phone and clothing in your locker"
+                    },
+                    jewelry_watches: {
+                        guidance: "While watches and jewelry are permitted in our geothermal waters, we recommend storing valuable items securely in your locker",
+                        considerations: [
+                            "The natural minerals in our geothermal water may affect certain metals and materials",
+                            "Water-resistant watches are generally suitable for the lagoon",
+                            "For comfort and safety, we suggest removing dangling jewelry"
+                        ]
+                    },
+                    electronics: {
+                        guidance: "You're welcome to bring electronic devices such as smartphones into the lagoon area",
+                        protection: "Waterproof phone cases are available for purchase (2,500 ISK)",
+                        responsibility: "Sky Lagoon cannot take responsibility for water damage to electronic items"
                     }
                 }
             },
@@ -3626,6 +3649,39 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('policies') ||
         message.includes('rule') ||
         message.includes('requirement') ||
+        // Add these specific swimwear and personal items terms
+        message.includes('bikini') ||
+        message.includes('swimming costume') ||
+        message.includes('swimsuit') ||
+        message.includes('swim suit') ||
+        message.includes('swimming suit') ||
+        message.includes('bathing suit') ||
+        message.includes('swim wear') ||
+        message.includes('swimwear') ||
+        message.includes('trunks') ||
+        message.includes('shorts') ||
+        message.includes('can i wear') ||
+        message.includes('allowed to wear') ||
+        message.includes('permitted to wear') ||
+        message.includes('watch') ||
+        message.includes('jewelry') ||
+        message.includes('jewellery') ||
+        message.includes('necklace') ||
+        message.includes('ring') ||
+        message.includes('earring') ||
+        message.includes('bracelet') ||
+        message.includes('wearable') ||
+        message.includes('apple watch') ||
+        message.includes('smart watch') ||
+        message.includes('fitness tracker') ||
+        message.includes('garmin') ||
+        message.includes('fitbit') ||
+        message.includes('rashguard') ||
+        message.includes('rash guard') ||
+        message.includes('swim shirt') ||
+        message.includes('water shoe') ||
+        message.includes('water shoes') ||
+        message.includes('aqua shoes') ||
         // Etiquette related
         message.includes('etiquette') ||
         message.includes('proper behavior') ||
@@ -3813,6 +3869,29 @@ export const getRelevantKnowledge = (userMessage) => {
             });
         }
 
+        // Add specific check for swimwear and personal items
+        if (message.includes('bikini') ||
+            message.includes('swimsuit') ||
+            message.includes('swim') ||
+            message.includes('bathing suit') ||
+            message.includes('water shoe') ||
+            message.includes('rashguard') ||
+            message.includes('rash guard') ||
+            message.includes('watch') ||
+            message.includes('jewelry') ||
+            message.includes('can i wear') ||
+            message.includes('allowed to wear')) {
+            
+            console.log('\n👙 Swimwear/Personal Items Query Detected');
+            relevantInfo.push({
+                type: 'swimwear_personal_items',
+                content: {
+                    swimwear: knowledgeBase.policies.etiquette.general_rules.swimwear,
+                    personal_items: knowledgeBase.policies.etiquette.general_rules.personal_items
+                }
+            });
+        }
+
         // Add specific related sections based on query
         if (message.includes('pay') || 
             message.includes('payment') || 
@@ -3936,6 +4015,22 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('view') ||
         message.includes('ocean') ||
         message.includes('sea') ||
+        // Add these new footwear-related terms
+        message.includes('flip flop') ||
+        message.includes('flipflop') ||
+        message.includes('flip-flop') ||
+        message.includes('slipper') ||
+        message.includes('footwear') ||
+        message.includes('foot wear') ||
+        message.includes('shoes') ||
+        message.includes('sandal') ||
+        message.includes('barefoot') ||
+        message.includes('need to wear') ||
+        message.includes('need to bring') ||
+        message.includes('take our own') ||
+        message.includes('floor') ||
+        message.includes('walking') ||
+        // Continue with existing terms        
         message.includes('gender') ||
         message.includes('men') ||
         message.includes('women') ||
