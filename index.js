@@ -370,6 +370,17 @@ const SKY_LAGOON_GUIDELINES = {
         'fill a geothermal water bottle': 'fill a water bottle',
         'refill a geothermal water bottle': 'refill a water bottle',
         'your geothermal water bottle': 'your water bottle',
+
+        // Watch and waterproof related phrases - add these high in the list
+        'geothermal water-resistant watches': 'water-resistant watches',
+        'geothermal water-resistant watch': 'water-resistant watch',
+        'geothermal waterproof watches': 'waterproof watches',
+        'geothermal waterproof watch': 'waterproof watch',
+        'geothermal water resistance': 'water resistance',
+        'geothermal water-resistant device': 'water-resistant device',
+        'geothermal waterproof device': 'waterproof device',
+        'geothermal waterproof case': 'waterproof case',
+        'geothermal waterproof phone case': 'waterproof phone case',
         
         // New our handling - add these at the top of specialPhrases
         'at our our': 'at our',        // Catch specific double our case
@@ -574,7 +585,10 @@ const enforceTerminology = (text) => {
         'water fountain',
         'geothermal water',  // Add this to preserve
         'Gelmir lagoon bar',  // Add this to preserve the correct form
-        'buy-gift-tickets'  // Add this to preserve URLs
+        'buy-gift-tickets',  // Add this to preserve URLs
+        'water-resistant',   // Add this to preserve watch terminology
+        'waterproof',        // Add this to prevent similar issues
+        'water resistance'   // Add the noun form too
     ];
 
     // Create unique markers for each phrase
