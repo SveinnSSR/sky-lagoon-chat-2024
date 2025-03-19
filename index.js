@@ -3018,6 +3018,49 @@ const getAppropriateSuffix = (message, languageDecision) => {
 const detectLateArrivalScenario = (message, languageDecision, context) => {
     const lowerMessage = message.toLowerCase();
 
+    // NEW: Early detection for date formats to prevent false positives
+    const datePatterns = [
+        /\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/, // Matches formats like 3/31, 03/31, 3/31/2025
+        /\d{1,2}-\d{1,2}(?:-\d{2,4})?/,   // Matches formats like 3-31, 03-31, 3-31-2025
+        /\d{1,2}\.\d{1,2}(?:\.\d{2,4})?/  // Matches formats like 3.31, 03.31, 3.31.2025
+    ];
+    
+    // Extract all dates from the message
+    const dateMatches = [];
+    for (const pattern of datePatterns) {
+        const matches = lowerMessage.match(new RegExp(pattern, 'g'));
+        if (matches) {
+            dateMatches.push(...matches);
+        }
+    }
+    
+    console.log('\n📅 Date patterns found:', {
+        dates: dateMatches,
+        hasDateFormats: dateMatches.length > 0
+    });
+    
+    // If message is about a future date booking and contains typical booking questions
+    if (dateMatches.length > 0 && 
+        (lowerMessage.includes('book') || 
+         lowerMessage.includes('reservation') || 
+         lowerMessage.includes('time') || 
+         lowerMessage.includes('cancel'))) {
+        
+        // Check if this is clearly a question about booking policies
+        const isBookingPolicyQuestion = 
+            (lowerMessage.includes('refund') || 
+             lowerMessage.includes('cancel') ||
+             lowerMessage.includes('policy') ||
+             lowerMessage.includes('how much time')) &&
+            !lowerMessage.includes('currently') &&
+            !lowerMessage.includes('already');
+            
+        if (isBookingPolicyQuestion) {
+            console.log('\n📋 Booking policy question detected - not a late arrival scenario');
+            return null;
+        }
+    }
+
     // No need to redefine the constants since they're already in the global scope
     // Just reference the global LATE_ARRIVAL_THRESHOLDS, TIME_CONVERSIONS, and LATE_QUALIFIERS directly
 
