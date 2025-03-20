@@ -2392,6 +2392,20 @@ export const knowledgeBase = {
                 note: "Currently, Flybus transfers do not travel directly to Sky Lagoon from the airport",
                 alternatives: "Transfer to central Reykjavík first"
             },
+            return_to_airport: {
+                direct_service: {
+                    available: false,
+                    explanation: "Sky Lagoon doesn't offer direct shuttle service to Keflavík Airport"
+                },
+                recommended_route: {
+                    steps: [
+                        "Take our Reykjavík Excursions shuttle back to BSÍ Bus Terminal (our shuttle drops you at your original pickup location)",
+                        "From BSÍ, catch Airport Express or Flybus services to Keflavík Airport (book separately)"
+                    ],
+                    shuttle_times: "Shuttles return from Sky Lagoon at: 14:30, 15:30, 16:30, 17:30, 18:30, 19:30, 20:30, and 21:30 (GMT)",
+                    booking_info: "For airport transportation from BSÍ, check schedules at re.is or flybus.is"
+                }
+            },
             luggage: {
                 storage: "Available for small fee (990 ISK)",
                 location: "At reception"
@@ -4712,10 +4726,37 @@ export const getRelevantKnowledge = (userMessage) => {
             message.includes('keflavik') || 
             message.includes('kef') ||
             message.includes('flybus')) {
-            relevantInfo.push({
-                type: 'airport_transfer',
-                content: knowledgeBase.transportation.airport_transfer
-            });
+            
+            // Enhance the detection for return to airport queries
+            if (message.includes('drop') ||
+                message.includes('back to') ||
+                message.includes('return to') ||
+                message.includes('get to') ||
+                message.includes('take me to') ||
+                message.includes('leaving to') ||
+                message.includes('leaving for') ||
+                message.includes('shuttle to') ||
+                message.includes('bus to') ||
+                message.includes('transfer to') ||
+                message.includes('how to get to') ||
+                message.includes('go to')) {
+                
+                console.log('\n✈️ Airport Return Query Detected');
+                relevantInfo.push({
+                    type: 'airport_return',
+                    content: {
+                        return_info: knowledgeBase.transportation.airport_transfer.return_to_airport,
+                        shuttle_times: knowledgeBase.transportation.shuttle_service.return_service,
+                        shuttle_provider: knowledgeBase.transportation.shuttle_service.provider_info
+                    }
+                });
+            } else {
+                // Regular airport transfer info
+                relevantInfo.push({
+                    type: 'airport_transfer',
+                    content: knowledgeBase.transportation.airport_transfer
+                });
+            }
         }
 
         // If asking about luggage
