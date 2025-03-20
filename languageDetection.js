@@ -146,12 +146,14 @@ export const detectLanguage = (message, context = null) => {
         };
     }
 
-    // Italian patterns - EXTREMELY restrictive version
+    // Italian patterns - Strong but flexible
     if (
-        // Requires MULTIPLE uniquely Italian words together with minimal overlap with English
-        (/\b(ciao|buongiorno|buonasera)\b/i.test(cleanMessage) && // Must have clear Italian greeting
-         /\b(sono|sei|è|siamo|siete|voglio|posso|vorrei)\b/i.test(cleanMessage) && // AND Italian verb
-         /\b(degli|delle|dello|nella|dello|questo|questa)\b/i.test(cleanMessage)) // AND uniquely Italian term
+        // Multiple strong Italian indicators
+        ((/\b(sono|sei|è|siamo|siete|sono|ho|hai|ha|abbiamo)\b/i.test(cleanMessage) || // Italian verb forms
+          /\b(perché|come|quando|dove|quanto|quale|chi|cosa)\b/i.test(cleanMessage)) && // Italian question words
+         // AND more Italian context
+         (/\b(grazie|prego|scusi|per favore|questo|questa|questi)\b/i.test(cleanMessage) ||
+          /\b(il|lo|la|i|gli|le)\b.*\b(è|sono|ha)\b/i.test(cleanMessage))) // Italian article+verb patterns
     ) {
         return {
             isIcelandic: false,
