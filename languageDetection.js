@@ -8,6 +8,18 @@ export const detectLanguage = (message, context = null) => {
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
     
+    // NEW ADDITION: IMMEDIATE CHECK for uniquely Icelandic characters before anything else
+    if (/[þæðö]/i.test(cleanMessage)) {
+        return {
+            isIcelandic: true,
+            confidence: 'high',
+            reason: 'icelandic_unique_chars_immediate',
+            patterns: {
+                hasChars: true
+            }
+        };
+    }
+    
     // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
     // Add bot name exclusion - match both "sólrún" and "solrun"
@@ -36,19 +48,7 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // Check for strong English word count in the messageForDetection
-    const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected|about|between|differences)\b/gi) || []).length;
-    const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
-    
-    // Stronger check for English word density
-    if (englishWordCount >= 3 || (messageWords > 0 && englishWordCount / messageWords > 0.4)) {
-        return {
-            isIcelandic: false,
-            confidence: 'high',
-            reason: 'english_word_density',
-            metrics: { englishWordCount, messageWords, ratio: englishWordCount / messageWords }
-        };
-    }
+    // REMOVED FROM HERE: English word density check (moved below)
     
     // Check if this is a greeting with bot name - if so, check for English greeting patterns
     if (botNameRegex.test(cleanMessage)) {
@@ -67,7 +67,7 @@ export const detectLanguage = (message, context = null) => {
         }
     }
     
-    // NEW: Check for non-supported languages
+    // Check for non-supported languages
     
     // Spanish patterns (including special characters and common words)
     if (/\b(hola|como|está|buenos días|gracias|por favor|qué|cuánto|cuándo|dónde|por qué|cuáles)\b/i.test(cleanMessage) || 
@@ -226,6 +226,21 @@ export const detectLanguage = (message, context = null) => {
                 }
             };
         }
+    }
+    
+    // MOVED TO HERE: English word density check
+    // Check for strong English word count in the messageForDetection
+    const englishWordCount = (messageForDetection.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|how|long|can|stay|chose|choose|transfer|selected|about|between|differences)\b/gi) || []).length;
+    const messageWords = messageForDetection.split(/\s+/).filter(w => w.length > 1).length;
+    
+    // Stronger check for English word density
+    if (englishWordCount >= 3 || (messageWords > 0 && englishWordCount / messageWords > 0.4)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'english_word_density',
+            metrics: { englishWordCount, messageWords, ratio: englishWordCount / messageWords }
+        };
     }
     
     // Early check for Icelandic questions at the start
