@@ -146,18 +146,13 @@ export const detectLanguage = (message, context = null) => {
         };
     }
 
-    // Italian patterns - comprehensive but strict
+    // Italian patterns - EXTREMELY restrictive version
     if (
-        // EITHER has clear Italian greeting/question patterns
-        /\b(ciao|buongiorno|buonasera|grazie|prego|scusi|come|quando|dove|perché|quanto|quale)\b/i.test(cleanMessage) ||
-        // OR has multiple Italian indicators across different categories
-        ((/\b(il|lo|la|i|gli|le|un|uno|una)\b/i.test(cleanMessage) && // Italian articles
-         /\b(prezzo|costo|ingresso|piscina|aperto|chiuso|ora|prenotazione)\b/i.test(cleanMessage)) || // AND spa-related terms
-        // OR has multiple Italian prepositions/words together
-        (/\b(di|del|della|in|con|per|su)\b/i.test(cleanMessage) && 
-         /\b(sono|sei|è|siamo|siete|sono|voglio|posso)\b/i.test(cleanMessage) &&
-         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
-        ) {
+        // Requires MULTIPLE uniquely Italian words together with minimal overlap with English
+        (/\b(ciao|buongiorno|buonasera)\b/i.test(cleanMessage) && // Must have clear Italian greeting
+         /\b(sono|sei|è|siamo|siete|voglio|posso|vorrei)\b/i.test(cleanMessage) && // AND Italian verb
+         /\b(degli|delle|dello|nella|dello|questo|questa)\b/i.test(cleanMessage)) // AND uniquely Italian term
+    ) {
         return {
             isIcelandic: false,
             confidence: 'high',
