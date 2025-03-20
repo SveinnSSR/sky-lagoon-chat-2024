@@ -71,7 +71,11 @@ export const detectLanguage = (message, context = null) => {
     
     // Spanish patterns (including special characters and common words)
     if (/\b(hola|como|está|buenos días|gracias|por favor|qué|cuánto|cuándo|dónde|por qué|cuáles)\b/i.test(cleanMessage) || 
-        /[ñ¿¡]/i.test(cleanMessage)) {
+        /[ñ¿¡]/i.test(cleanMessage) ||
+        // Common Spanish articles, prepositions and basic words
+        /\b(el|la|los|las|un|una|unos|unas|de|del|en|con|para|por|si|no|y|o|pero|más|menos|muy|bien|aquí|allí)\b/i.test(cleanMessage) ||
+        // Spanish words specific to spa/lagoon inquiries
+        /\b(precio|precios|cuanto|cuesta|acceso|entrada|entradas|piscina|piletas|abierto|cerrado|hora|horas|día|días|reserva|reservar)\b/i.test(cleanMessage)) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -83,7 +87,9 @@ export const detectLanguage = (message, context = null) => {
     // French patterns (expanded)
     if (/\b(bonjour|merci|s'il vous plaît|combien|où|quand|pourquoi|comment|est-ce que|qu'est-ce que|quelle|est|le|la|prix|pour|une|entrée|horaire|ouverture|fermé|heure|heures)\b/i.test(cleanMessage) ||
         // French specific patterns
-        /\b(à|cela|cette|votre|notre|vous|nous|ils|elles|sont|est-ce|qu'|d'|l')\b/i.test(cleanMessage)) {
+        /\b(à|cela|cette|votre|notre|vous|nous|ils|elles|sont|est-ce|qu'|d'|l')\b/i.test(cleanMessage) ||
+        // French spa/lagoon specific terms
+        /\b(piscine|bain|eau|thermal|réserver|réservation|tarif|coût|visite|journée|accès|lagon)\b/i.test(cleanMessage)) {
         return {
             isIcelandic: false, 
             confidence: 'high',
@@ -93,7 +99,9 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // German patterns
-    if (/\b(guten tag|danke|bitte|wie viel|wo|wann|warum|wie|ist|sind|haben|kann|können)\b/i.test(cleanMessage)) {
+    if (/\b(guten tag|danke|bitte|wie viel|wo|wann|warum|wie|ist|sind|haben|kann|können)\b/i.test(cleanMessage) ||
+        // German spa/lagoon specific terms
+        /\b(preis|kosten|eintritt|öffnungszeiten|geöffnet|geschlossen|uhr|tag|tage|bad|wasser|reservierung|buchen|ticket|eintrittskarte)\b/i.test(cleanMessage)) {
         return {
             isIcelandic: false,
             confidence: 'high',
