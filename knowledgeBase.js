@@ -1226,6 +1226,14 @@ export const knowledgeBase = {
     policies: {
         age_restrictions: {
             minimum_age: 12,
+            age_calculation: {
+                rule: "IMPORTANT: Children who turn 12 within the current calendar year ARE ALLOWED to visit",
+                explanation: "We calculate eligibility based on the birth year, not the exact birth date",
+                examples: [
+                    "An 11-year-old who will turn 12 later this year CAN visit now",
+                    "If a child was born in 2013, they can visit in 2025 even if their birthday hasn't happened yet"
+                ]
+            },
             supervision: "Ages 12-14 must be accompanied by a guardian (18 years or older)",
             verification: {
                 requirement: "Valid ID may be requested to confirm child's date of birth",
@@ -1237,8 +1245,7 @@ export const knowledgeBase = {
                     "Alcohol service in the lagoon area",
                     "12-year age limit is a policy to ensure quality of experience for all guests"
                 ],
-                additional_info: "The experience is focused on adult individuals to provide relaxation and rejuvenation",
-                age_calculation: "Birth year counts for age limit - children turning 12 within the calendar year may visit Sky Lagoon"
+                additional_info: "The experience is focused on adult individuals to provide relaxation and rejuvenation"
             },
             recommendations: {
                 supervision: "Guardian must be 18 years or older",
@@ -3743,6 +3750,18 @@ export const getRelevantKnowledge = (userMessage) => {
         message.includes('under 12') ||
         message.includes('12 years') ||
         message.includes('14 years') ||
+        // Age calculation specific patterns
+        message.includes('11 year') ||
+        message.includes('11-year') ||
+        message.includes('turning 12') ||
+        message.includes('will turn 12') ||
+        message.includes('almost 12') ||
+        message.includes('nearly 12') ||
+        message.includes('not quite 12') ||
+        message.includes('soon be 12') ||
+        message.includes('later this year') ||
+        message.includes('birth year') ||
+        message.includes('calendar year') ||
         // Health and Safety
         message.includes('medical') ||
         message.includes('health') ||
