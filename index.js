@@ -3169,6 +3169,54 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
         return null;
     }
 
+    // NEW: Check specifically for excursion/outdoor activity/snow delays
+    const excursionDelayPatterns = [
+        /stuck\s+in\s+(?:the\s+)?snow/i,
+        /(?:on|doing|did|during)\s+(?:an|a|the|our)\s+excursion.*(?:delay|stuck|late)/i,
+        /(?:delay|stuck|late).*(?:on|doing|did|during)\s+(?:an|a|the|our)\s+excursion/i,
+        /tour.*(?:running|taking)\s+(?:late|longer)/i,
+        /(?:hiking|skiing|snowmobile|glacier|ice\s+cave).*(?:delay|stuck|late)/i,
+        /road\s+(?:closed|blocked|conditions)/i,
+        /weather\s+(?:delay|issue|problem)/i
+    ];
+    
+    // Additional safety check to avoid Reykjavík Excursions confusion
+    const isAboutTransferCompany = 
+        (lowerMessage.includes('reykjavík excursions') || lowerMessage.includes('reykjavik excursions')) && 
+        (lowerMessage.includes('bus') || lowerMessage.includes('transfer') || lowerMessage.includes('pickup') || lowerMessage.includes('schedule'));
+    
+    if (!isAboutTransferCompany && (
+        excursionDelayPatterns.some(pattern => pattern.test(lowerMessage)) ||
+        (lowerMessage.includes('excursion') && lowerMessage.includes('stuck')) ||
+        (lowerMessage.includes('glacier') && lowerMessage.includes('stuck'))
+    )) {
+        
+        console.log('\n🏔️ Excursion/outdoor activity delay detected');
+        
+        // Look for times to determine how late they might be
+        const times = lowerMessage.match(/\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?/g);
+        let bookingTime = null;
+        
+        // Try to extract booking time
+        if (times && times.length > 0) {
+            // Look specifically for reservation/booking time pattern
+            const bookingMatch = lowerMessage.match(/reservation\s+(?:at|for)\s+(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i);
+            if (bookingMatch) {
+                bookingTime = extractTimeInMinutes(bookingMatch[1]) || extractComplexTimeInMinutes(bookingMatch[1]);
+            } else {
+                // Default to first time mentioned
+                bookingTime = extractTimeInMinutes(times[0]) || extractComplexTimeInMinutes(times[0]);
+            }
+        }
+        
+        return {
+            type: 'excursion_delay',
+            bookingTime: bookingTime,
+            minutes: null, // Unknown delay amount
+            isIcelandic: languageDecision?.isIcelandic || false
+        };
+    }
+
     // NEW: Check for "booking at X but [want to] arrive at Y" pattern
     const bookingArrivePattern = lowerMessage.match(/(?:book(?:ed|ing)?|reservation|have\s+(?:a|an)\s+booking).*?(?:at|for)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?).*?(?:but|and).*?(?:(?:want\s+to|will|going\s+to)\s+)?arrive.*?(?:at)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i);
 
