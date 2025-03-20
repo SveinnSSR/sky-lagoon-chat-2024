@@ -109,6 +109,20 @@ export const detectLanguage = (message, context = null) => {
             detectedLanguage: 'german'
         };
     }
+
+    // Italian patterns
+    if (/\b(ciao|salve|buongiorno|grazie|prego|scusi|per favore|come|quando|dove|perché|quanto|quale|chi|cosa)\b/i.test(cleanMessage) ||
+        // Italian articles, prepositions and common words
+        /\b(il|lo|la|i|gli|le|un|uno|una|di|del|della|dei|degli|delle|in|con|per|da|su|tra|fra)\b/i.test(cleanMessage) ||
+        // Italian spa/tourism specific terms
+        /\b(bambini|anni|età|minima|accesso|ingresso|prezzo|costo|orari|aperto|chiuso|laguna|piscina|acqua|visita|prenotare|prenotazione)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'italian'
+        };
+    }    
     
     // Asian languages detection (Korean, Chinese, Japanese, etc.)
     // Korean (Hangul) character range
@@ -160,6 +174,16 @@ export const detectLanguage = (message, context = null) => {
             detectedLanguage: 'thai'
         };
     }
+
+    // Arabic script detection (used in Arabic, Persian/Farsi, Urdu, etc.)
+    if (/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'arabic_script'
+        };
+    }    
     
     // Only check for Icelandic special characters AFTER excluding packages, bot name, and checking English structure
     if (/[þæðöáíúéó]/i.test(messageForDetection)) {
