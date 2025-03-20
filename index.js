@@ -6522,6 +6522,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Do language detection first, with null context if we don't have one yet
         const languageDecision = newDetectLanguage(userMessage, context);        
 
+        // NEW: Check for non-supported languages
+        if (languageDecision.reason === 'non_supported_language') {
+            console.log('\n🌐 Non-supported language detected:', {
+                message: userMessage,
+                detectedLanguage: languageDecision.detectedLanguage || 'unknown',
+                confidence: languageDecision.confidence
+            });
+            
+            const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
+            
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
+                message: unsupportedLanguageResponse,
+                language: {
+                    detected: 'non-supported',
+                    detectedSpecific: languageDecision.detectedLanguage || 'unknown',
+                    confidence: languageDecision.confidence
+                },
+                topicType: 'language_not_supported',
+                responseType: 'direct_response'
+            });
+            return res.status(responseData.status || 200).json(responseData);
+        }
+
         // Keep old system during testing (modified to work without languageResult)
         const oldSystemResult = {
             isIcelandic: detectLanguage(userMessage),  // Simplified old system check

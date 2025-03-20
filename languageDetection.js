@@ -67,16 +67,133 @@ export const detectLanguage = (message, context = null) => {
         }
     }
     
+    // NEW: Check for non-supported languages
+    
+    // Spanish patterns (including special characters and common words)
+    if (/\b(hola|como|está|buenos días|gracias|por favor|qué|cuánto|cuándo|dónde|por qué|cuáles)\b/i.test(cleanMessage) || 
+        /[ñ¿¡]/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'spanish'
+        };
+    }
+    
+    // French patterns (expanded)
+    if (/\b(bonjour|merci|s'il vous plaît|combien|où|quand|pourquoi|comment|est-ce que|qu'est-ce que|quelle|est|le|la|prix|pour|une|entrée|horaire|ouverture|fermé|heure|heures)\b/i.test(cleanMessage) ||
+        // French specific patterns
+        /\b(à|cela|cette|votre|notre|vous|nous|ils|elles|sont|est-ce|qu'|d'|l')\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false, 
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'french'
+        };
+    }
+    
+    // German patterns
+    if (/\b(guten tag|danke|bitte|wie viel|wo|wann|warum|wie|ist|sind|haben|kann|können)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'german'
+        };
+    }
+    
+    // Asian languages detection (Korean, Chinese, Japanese, etc.)
+    // Korean (Hangul) character range
+    if (/[\uAC00-\uD7AF\u1100-\u11FF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'korean'
+        };
+    }
+    
+    // Chinese character range
+    if (/[\u4E00-\u9FFF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'chinese'
+        };
+    }
+    
+    // Japanese character ranges
+    if (/[\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF\u4E00-\u9FAF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'japanese'
+        };
+    }
+    
+    // Russian Cyrillic character range
+    if (/[\u0400-\u04FF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'russian'
+        };
+    }
+    
+    // Thai character range
+    if (/[\u0E00-\u0E7F]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'non_supported_language',
+            detectedLanguage: 'thai'
+        };
+    }
+    
     // Only check for Icelandic special characters AFTER excluding packages, bot name, and checking English structure
     if (/[þæðöáíúéó]/i.test(messageForDetection)) {
-        return {
-            isIcelandic: true,
-            confidence: 'high',
-            reason: 'icelandic_special_chars',
-            patterns: {
-                hasChars: true
-            }
-        };
+        // First check for uniquely Icelandic characters (þ, æ, ð, ö)
+        if (/[þæðö]/i.test(messageForDetection)) {
+            return {
+                isIcelandic: true,
+                confidence: 'high',
+                reason: 'icelandic_unique_chars',
+                patterns: {
+                    hasChars: true
+                }
+            };
+        }
+        
+        // For shared characters (á, í, ú, é, ó), require additional Icelandic context
+        // Comprehensive check for Icelandic words and patterns
+        const hasIcelandicWords = /\b(og|að|er|það|við|ekki|ég|þú|hann|hún|eru|sé|má|mér|þetta|þessi|hafa|vera|eða|en|því|svona|hér|þar|nú|með|fyrir|frá|til|um|hjá|úr|inn|út|upp|niður|yfir|undir)\b/i.test(messageForDetection);
+        
+        // Check for Icelandic grammatical patterns
+        const hasIcelandicGrammar = /\b(er að|var að|hefur|höfum|höfðu|verið að|mun|myndi|vildi|gæti|ætti|getur|má|skal|þarf að|á að|get|getum|vilji)\b/i.test(messageForDetection);
+        
+        // Check for common Icelandic phrases
+        const hasIcelandicPhrases = /\b(takk fyrir|takk|góðan daginn|góðan dag|halló|hæ|sæll|sæl|já|nei|gott kvöld|gott að vita|get ég|er hægt)\b/i.test(messageForDetection);
+        
+        // Icelandic question starters
+        const hasIcelandicQuestions = /^(hvað|hvernig|hvenær|hvar|hver|hvers vegna|af hverju|hvort|hverjir|hvaða|get ég|má ég|er hægt að|eruð þið)\b/i.test(messageForDetection);
+        
+        if (hasIcelandicWords || hasIcelandicGrammar || hasIcelandicPhrases || hasIcelandicQuestions) {
+            return {
+                isIcelandic: true,
+                confidence: 'high',
+                reason: 'icelandic_language_patterns',
+                patterns: {
+                    hasChars: true,
+                    hasWords: hasIcelandicWords,
+                    hasGrammar: hasIcelandicGrammar,
+                    hasPhrases: hasIcelandicPhrases,
+                    hasQuestions: hasIcelandicQuestions
+                }
+            };
+        }
     }
     
     // Early check for Icelandic questions at the start
