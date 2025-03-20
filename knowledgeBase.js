@@ -296,10 +296,11 @@ export const knowledgeBase = {
                         "2 x Sér passes",
                         "Private changing facilities",
                         "Skjól ritual access",
-                        "One drink per guest served with Sky Platter at Smakk Bar",
+                        "One drink per guest served exclusively with Sky Platter at Smakk Bar", // More explicit
                         "Sky Platter from Smakk Bar",
                         "Towels included"
-                    ]
+                    ],
+                    drink_note: "Package drinks are only available at Smakk Bar with your Sky Platter. Drinks at Gelmir Bar are available for additional purchase." // Add this new field
                 },
                 saman_for_two: {
                     name: "Saman for Two",
@@ -308,12 +309,18 @@ export const knowledgeBase = {
                         "2 x Saman passes",
                         "Public changing facilities",
                         "Skjól ritual access",
-                        "One drink per guest served with Sky Platter at Smakk Bar",
+                        "One drink per guest served exclusively with Sky Platter at Smakk Bar", // More explicit
                         "Sky Platter from Smakk Bar",
                         "Towels included"
-                    ]
-                }
+                    ],
+                    drink_note: "Package drinks are only available at Smakk Bar with your Sky Platter. Drinks at Gelmir Bar are available for additional purchase." // Add this new field
+                },
             },
+            important_notes: [
+                "Complimentary drinks are served only at Smakk Bar with your Sky Platter",
+                "Additional drinks can be purchased separately at Gelmir Bar",
+                "Maximum three alcoholic drinks per adult during visit"
+            ],
             "booking_info": {
                 "how_to_book": "Book directly through our website or at reception",
                 "availability": "Subject to capacity",
@@ -397,7 +404,7 @@ export const knowledgeBase = {
                         description: "Two Saman passes to share a rejuvenating journey together",
                         includes: [
                             "Two Saman Passes",
-                            "One drink per guest served with Sky Platter",
+                            "One drink per guest served exclusively with Sky Platter at Smakk Bar", // More explicit
                             "Sky Platter from Smakk Bar"
                         ]
                     },
@@ -407,11 +414,12 @@ export const knowledgeBase = {
                         description: "Two Sér passes for the ultimate shared experience",
                         includes: [
                             "Two Sér Passes",
-                            "One drink per guest served with Sky Platter",
+                            "One drink per guest served exclusively with Sky Platter at Smakk Bar", // More explicit
                             "Sky Platter from Smakk Bar"
                         ]
                     }
                 },
+                beverage_note: "The complimentary drinks included in the Sky Lagoon for Two packages are served only at Smakk Bar with your Sky Platter. Guests can purchase additional drinks at Gelmir Bar separately.", // Add this new field
                 important_note: "The Sky Lagoon for Two gift ticket comes in two gift tickets that must be used together when booking the experience. The two tickets can not be used separately."
             },
             multi_pass_gift: {
