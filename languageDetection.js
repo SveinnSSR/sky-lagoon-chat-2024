@@ -19,6 +19,17 @@ export const detectLanguage = (message, context = null) => {
             }
         };
     }
+
+    // ADD SAFEGUARD HERE: Clear English detection
+    if (/^(we are|we're|i am|i'm)\b/i.test(cleanMessage) || 
+        /\b(what time|how far|how much|how many)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'clear_english_detected',
+            patterns: ['clear_english']
+        };
+    }    
     
     // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
@@ -69,13 +80,20 @@ export const detectLanguage = (message, context = null) => {
     
     // Check for non-supported languages
     
-    // Spanish patterns (including special characters and common words)
-    if (/\b(hola|como|está|buenos días|gracias|por favor|qué|cuánto|cuándo|dónde|por qué|cuáles)\b/i.test(cleanMessage) || 
+    // Spanish patterns - comprehensive but strict
+    if (
+        // EITHER has Spanish-specific characters
         /[ñ¿¡]/i.test(cleanMessage) ||
-        // Common Spanish articles, prepositions and basic words
-        /\b(el|la|los|las|un|una|unos|unas|de|del|en|con|para|por|si|no|y|o|pero|más|menos|muy|bien|aquí|allí)\b/i.test(cleanMessage) ||
-        // Spanish words specific to spa/lagoon inquiries
-        /\b(precio|precios|cuanto|cuesta|acceso|entrada|entradas|piscina|piletas|abierto|cerrado|hora|horas|día|días|reserva|reservar)\b/i.test(cleanMessage)) {
+        // OR has clear Spanish greeting/question word
+        /\b(hola|buenos días|buenas tardes|buenas noches|qué|cómo|cuándo|dónde|cuánto|por qué)\b/i.test(cleanMessage) ||
+        // OR has multiple Spanish indicators across different categories
+        ((/\b(el|la|los|las|un|una|unos|unas)\b/i.test(cleanMessage) && // Spanish articles
+         /\b(precio|cuesta|acceso|entrada|piscina|abierto|cerrado|hora|reserva)\b/i.test(cleanMessage)) || // AND spa-related terms
+        // OR has multiple Spanish prepositions/conjunctions together
+        (/\b(de|del|en|con|para|por)\b/i.test(cleanMessage) && 
+         /\b(y|o|pero|si|no|más|menos|muy|bien)\b/i.test(cleanMessage) &&
+         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
+        ) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -84,24 +102,42 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // French patterns (expanded)
-    if (/\b(bonjour|merci|s'il vous plaît|combien|où|quand|pourquoi|comment|est-ce que|qu'est-ce que|quelle|est|le|la|prix|pour|une|entrée|horaire|ouverture|fermé|heure|heures)\b/i.test(cleanMessage) ||
-        // French specific patterns
-        /\b(à|cela|cette|votre|notre|vous|nous|ils|elles|sont|est-ce|qu'|d'|l')\b/i.test(cleanMessage) ||
-        // French spa/lagoon specific terms
-        /\b(piscine|bain|eau|thermal|réserver|réservation|tarif|coût|visite|journée|accès|lagon)\b/i.test(cleanMessage)) {
+    // French patterns - comprehensive but strict
+    if (
+        // EITHER has clear French greeting/question patterns
+        /\b(bonjour|bonsoir|merci|s'il vous plaît|combien|quand|où|pourquoi|comment|qu'est-ce que)\b/i.test(cleanMessage) ||
+        // OR has French-specific patterns with apostrophes
+        /\b(j'ai|c'est|l'eau|d'un|l'heure|s'il|n'est|d'entrée)\b/i.test(cleanMessage) ||
+        // OR has multiple French indicators across different categories
+        ((/\b(le|la|les|un|une|des|du|de la)\b/i.test(cleanMessage) && // French articles
+         /\b(prix|coût|entrée|piscine|ouvert|fermé|heure|réservation)\b/i.test(cleanMessage)) || // AND spa-related terms
+        // OR has multiple French words together
+        (/\b(je|tu|il|elle|nous|vous|ils|elles)\b/i.test(cleanMessage) && 
+         /\b(suis|es|est|sommes|êtes|sont|veux|voudrais)\b/i.test(cleanMessage) &&
+         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
+        ) {
         return {
-            isIcelandic: false, 
+            isIcelandic: false,
             confidence: 'high',
             reason: 'non_supported_language',
             detectedLanguage: 'french'
         };
     }
     
-    // German patterns
-    if (/\b(guten tag|danke|bitte|wie viel|wo|wann|warum|wie|ist|sind|haben|kann|können)\b/i.test(cleanMessage) ||
-        // German spa/lagoon specific terms
-        /\b(preis|kosten|eintritt|öffnungszeiten|geöffnet|geschlossen|uhr|tag|tage|bad|wasser|reservierung|buchen|ticket|eintrittskarte)\b/i.test(cleanMessage)) {
+    // German patterns - comprehensive but strict
+    if (
+        // EITHER has clear German greeting/question patterns
+        /\b(guten tag|guten morgen|guten abend|danke|bitte|wie viel|wo ist|wann|warum|wie)\b/i.test(cleanMessage) ||
+        // OR has uniquely German compound words
+        /\b(öffnungszeiten|eintrittskarte|schwimmbad|thermalbad|handtuchservice)\b/i.test(cleanMessage) ||
+        // OR has multiple German indicators across different categories
+        ((/\b(der|die|das|ein|eine|einen|einem|einer)\b/i.test(cleanMessage) && // German articles
+         /\b(preis|kosten|eintritt|schwimmbad|geöffnet|geschlossen|uhr|reservierung)\b/i.test(cleanMessage)) || // AND spa-related terms
+        // OR has multiple German words together
+        (/\b(ich|du|er|sie|es|wir|ihr)\b/i.test(cleanMessage) && 
+         /\b(bin|bist|ist|sind|seid|haben|möchte|kann)\b/i.test(cleanMessage) &&
+         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
+        ) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -110,19 +146,25 @@ export const detectLanguage = (message, context = null) => {
         };
     }
 
-    // Italian patterns
-    if (/\b(ciao|salve|buongiorno|grazie|prego|scusi|per favore|come|quando|dove|perché|quanto|quale|chi|cosa)\b/i.test(cleanMessage) ||
-        // Italian articles, prepositions and common words
-        /\b(il|lo|la|i|gli|le|un|uno|una|di|del|della|dei|degli|delle|in|con|per|da|su|tra|fra)\b/i.test(cleanMessage) ||
-        // Italian spa/tourism specific terms
-        /\b(bambini|anni|età|minima|accesso|ingresso|prezzo|costo|orari|aperto|chiuso|laguna|piscina|acqua|visita|prenotare|prenotazione)\b/i.test(cleanMessage)) {
+    // Italian patterns - comprehensive but strict
+    if (
+        // EITHER has clear Italian greeting/question patterns
+        /\b(ciao|buongiorno|buonasera|grazie|prego|scusi|come|quando|dove|perché|quanto|quale)\b/i.test(cleanMessage) ||
+        // OR has multiple Italian indicators across different categories
+        ((/\b(il|lo|la|i|gli|le|un|uno|una)\b/i.test(cleanMessage) && // Italian articles
+         /\b(prezzo|costo|ingresso|piscina|aperto|chiuso|ora|prenotazione)\b/i.test(cleanMessage)) || // AND spa-related terms
+        // OR has multiple Italian prepositions/words together
+        (/\b(di|del|della|in|con|per|su)\b/i.test(cleanMessage) && 
+         /\b(sono|sei|è|siamo|siete|sono|voglio|posso)\b/i.test(cleanMessage) &&
+         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
+        ) {
         return {
             isIcelandic: false,
             confidence: 'high',
             reason: 'non_supported_language',
             detectedLanguage: 'italian'
         };
-    }    
+    }
     
     // Asian languages detection (Korean, Chinese, Japanese, etc.)
     // Korean (Hangul) character range
