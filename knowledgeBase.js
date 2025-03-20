@@ -296,7 +296,7 @@ export const knowledgeBase = {
                         "2 x Sér passes",
                         "Private changing facilities",
                         "Skjól ritual access",
-                        "One drink per guest at Gelmir lagoon bar",
+                        "One drink per guest served with Sky Platter at Smakk Bar",
                         "Sky Platter from Smakk Bar",
                         "Towels included"
                     ]
@@ -308,7 +308,7 @@ export const knowledgeBase = {
                         "2 x Saman passes",
                         "Public changing facilities",
                         "Skjól ritual access",
-                        "One drink per guest at Gelmir lagoon bar",
+                        "One drink per guest served with Sky Platter at Smakk Bar",
                         "Sky Platter from Smakk Bar",
                         "Towels included"
                     ]
@@ -397,7 +397,7 @@ export const knowledgeBase = {
                         description: "Two Saman passes to share a rejuvenating journey together",
                         includes: [
                             "Two Saman Passes",
-                            "One drink per guest",
+                            "One drink per guest served with Sky Platter",
                             "Sky Platter from Smakk Bar"
                         ]
                     },
@@ -407,7 +407,7 @@ export const knowledgeBase = {
                         description: "Two Sér passes for the ultimate shared experience",
                         includes: [
                             "Two Sér Passes",
-                            "One drink per guest",
+                            "One drink per guest served with Sky Platter",
                             "Sky Platter from Smakk Bar"
                         ]
                     }
