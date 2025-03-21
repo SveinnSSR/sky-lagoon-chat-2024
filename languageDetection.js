@@ -80,20 +80,19 @@ export const detectLanguage = (message, context = null) => {
     
     // Check for non-supported languages
     
-    // Spanish patterns - comprehensive but strict
+    // Spanish patterns - Strong but flexible with safeguard
     if (
-        // EITHER has Spanish-specific characters
+        // EITHER has Spanish-unique characters
         /[ñ¿¡]/i.test(cleanMessage) ||
-        // OR has clear Spanish greeting/question word
-        /\b(hola|buenos días|buenas tardes|buenas noches|qué|cómo|cuándo|dónde|cuánto|por qué)\b/i.test(cleanMessage) ||
-        // OR has multiple Spanish indicators across different categories
-        ((/\b(el|la|los|las|un|una|unos|unas)\b/i.test(cleanMessage) && // Spanish articles
-         /\b(precio|cuesta|acceso|entrada|piscina|abierto|cerrado|hora|reserva)\b/i.test(cleanMessage)) || // AND spa-related terms
-        // OR has multiple Spanish prepositions/conjunctions together
-        (/\b(de|del|en|con|para|por)\b/i.test(cleanMessage) && 
-         /\b(y|o|pero|si|no|más|menos|muy|bien)\b/i.test(cleanMessage) &&
-         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
-        ) {
+        // OR has multiple strong Spanish indicators AND NOT clear English
+        ((/\b(está|estás|estoy|estamos|están|tiene|tienen|tengo)\b/i.test(cleanMessage) || // Spanish verb forms
+          /\b(cómo|cuándo|dónde|cuánto|qué|quién|cuál)\b/i.test(cleanMessage)) && // Spanish question words
+         // AND more Spanish context
+         (/\b(por favor|gracias|aquí|allí|ahora|después|antes)\b/i.test(cleanMessage) || 
+          /\b(el|la|los|las)\b.*\b(es|son|está)\b/i.test(cleanMessage)) &&
+         // NOT clear English
+         !(/\b(we are|we're|i am|i'm|what time|how far|how much|can i|can we|could you|will you)\b/i.test(cleanMessage)))
+    ) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -102,20 +101,19 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // French patterns - comprehensive but strict
+    // French patterns - Strong but flexible with safeguard
     if (
-        // EITHER has clear French greeting/question patterns
-        /\b(bonjour|bonsoir|merci|s'il vous plaît|combien|quand|où|pourquoi|comment|qu'est-ce que)\b/i.test(cleanMessage) ||
-        // OR has French-specific patterns with apostrophes
-        /\b(j'ai|c'est|l'eau|d'un|l'heure|s'il|n'est|d'entrée)\b/i.test(cleanMessage) ||
-        // OR has multiple French indicators across different categories
-        ((/\b(le|la|les|un|une|des|du|de la)\b/i.test(cleanMessage) && // French articles
-         /\b(prix|coût|entrée|piscine|ouvert|fermé|heure|réservation)\b/i.test(cleanMessage)) || // AND spa-related terms
-        // OR has multiple French words together
-        (/\b(je|tu|il|elle|nous|vous|ils|elles)\b/i.test(cleanMessage) && 
-         /\b(suis|es|est|sommes|êtes|sont|veux|voudrais)\b/i.test(cleanMessage) &&
-         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
-        ) {
+        // EITHER has uniquely French character patterns
+        (/\b(\w*[éèêëçôœ]\w*)\b/i.test(cleanMessage) && /\b(je|tu|il|elle|nous|vous|ils)\b/i.test(cleanMessage) ||
+        // OR has multiple strong French indicators AND NOT clear English
+        ((/\b(je suis|tu es|il est|elle est|nous sommes|vous êtes)\b/i.test(cleanMessage) || // French verb phrases
+          /\b(pourquoi|comment|quand|combien|où|quel|quelle)\b/i.test(cleanMessage)) && // French question words
+         // AND more French context
+         (/\b(s'il vous plaît|merci|votre|notre|cette|celui|celle)\b/i.test(cleanMessage) ||
+          /\b(le|la|les|un|une)\b.*\b(est|sont|sera)\b/i.test(cleanMessage)) &&
+         // NOT clear English
+         !(/\b(we are|we're|i am|i'm|what time|how far|how much|can i|can we|could you|will you)\b/i.test(cleanMessage))))
+    ) {
         return {
             isIcelandic: false,
             confidence: 'high',
@@ -124,20 +122,19 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // German patterns - comprehensive but strict
+    // German patterns - Strong but flexible with safeguard
     if (
-        // EITHER has clear German greeting/question patterns
-        /\b(guten tag|guten morgen|guten abend|danke|bitte|wie viel|wo ist|wann|warum|wie)\b/i.test(cleanMessage) ||
-        // OR has uniquely German compound words
-        /\b(öffnungszeiten|eintrittskarte|schwimmbad|thermalbad|handtuchservice)\b/i.test(cleanMessage) ||
-        // OR has multiple German indicators across different categories
-        ((/\b(der|die|das|ein|eine|einen|einem|einer)\b/i.test(cleanMessage) && // German articles
-         /\b(preis|kosten|eintritt|schwimmbad|geöffnet|geschlossen|uhr|reservierung)\b/i.test(cleanMessage)) || // AND spa-related terms
-        // OR has multiple German words together
-        (/\b(ich|du|er|sie|es|wir|ihr)\b/i.test(cleanMessage) && 
-         /\b(bin|bist|ist|sind|seid|haben|möchte|kann)\b/i.test(cleanMessage) &&
-         !(/\b(we are|we're|i am|i'm|what time|how far)\b/i.test(cleanMessage)))) // NOT clear English
-        ) {
+        // EITHER has uniquely German characters
+        /[äöüß]/i.test(cleanMessage) ||
+        // OR has multiple strong German indicators AND NOT clear English
+        ((/\b(ich bin|du bist|er ist|sie ist|wir sind|ihr seid|sie sind)\b/i.test(cleanMessage) || // German verb phrases
+          /\b(warum|wie|wann|wo|welche|wessen|wem|wen)\b/i.test(cleanMessage)) && // German question words
+         // AND more German context
+         (/\b(bitte|danke|nicht|auch|sehr|jetzt|hier|dort)\b/i.test(cleanMessage) ||
+          /\b(der|die|das|ein|eine)\b.*\b(ist|sind|war)\b/i.test(cleanMessage)) &&
+         // NOT clear English
+         !(/\b(we are|we're|i am|i'm|what time|how far|how much|can i|can we|could you|will you)\b/i.test(cleanMessage)))
+    ) {
         return {
             isIcelandic: false,
             confidence: 'high',
