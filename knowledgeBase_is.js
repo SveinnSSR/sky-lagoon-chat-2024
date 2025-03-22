@@ -2157,6 +2157,26 @@ export const knowledgeBase_is = {
                 instructions: "Gott er að taka fram nafn, lýsingu á hlutnum, hvar og hvenær hann týndist og mynd ef kostur er."
             }
         }
+    },
+    careers: {
+        questions: [
+            "get ég sótt um starf",
+            "sækja um starf",
+            "starfsumsókn",
+            "sækja um vinnu",
+            "sækja um sumarstarf",
+            "starfsmöguleikar",
+            "atvinnuumsókn",
+            "vinna hjá ykkur",
+            "starfa hjá ykkur",
+            "gæsluvörður",
+            "sumarstörf",
+            "atvinnumöguleikar"
+        ],
+        application_info: {
+            instructions: "Við hvetjum þig til að senda okkur ferilskrá og kynningarbréf á netfangið info@skylagoon.is.",
+            additional_info: "Láttu okkur vita af reynslu þinni og hvers vegna þú vilt vinna hjá okkur."
+        }
     }                 
 };
 
@@ -4546,6 +4566,34 @@ export const getRelevantKnowledge_is = (userMessage) => {
             content: knowledgeBase_is.lost_found
         });
     }  // End of Lost and found queries section
+
+    // Job/career related queries
+    if (message.includes('sótt um') || 
+        message.includes('sækja um') ||
+        message.includes('sæki') && message.includes('starf') ||  // Add this line
+        message.includes('starfsumsókn') ||
+        message.includes('atvinnuumsókn') ||
+        message.includes('sumarstarf') ||
+        message.includes('vinna hjá') ||
+        message.includes('starfa hjá') ||
+        message.includes('gæsluvörður') ||
+        message.includes('ráðning') ||
+        message.includes('laus störf') ||   // Add this line
+        message.includes('laus starf') ||   // Add this line
+        message.includes('laus stöðu') ||   // Add this line
+        message.includes('atvinnumöguleik') ||
+        message.includes('starfsmöguleik') ||
+        message.includes('ferilskrá') ||
+        message.includes('umsókn') ||
+        (message.includes('starfs') && message.includes('laus')) ||
+        (message.includes('störf') && message.includes('laus'))) {  // Add this line
+        
+        console.log('\n💼 Career Inquiry Match Found');
+        relevantInfo.push({
+            type: 'careers',
+            content: knowledgeBase_is.careers
+        });
+    } // End of Job/career related queries
 
     return relevantInfo; 
 }  // Final closing bracket for the entire function
