@@ -995,6 +995,44 @@ export const knowledgeBase_is = {
                 last_booking: "18:00",
                 note: "Síðasti bókunartími fyrir Stefnumót pakka er klukkan 18:00 til að tryggja að þið getið notið allrar þjónustu að fullu"
             }
+        },
+        // Add the new upgrades section here
+        upgrades: {
+            questions: [
+                "Er hægt að uppfæra frá saman leiðinni í sér?",
+                "Get ég uppfært frá saman til sér?",
+                "Er hægt að breyta úr saman í sér?",
+                "Get ég skipt úr saman yfir í sér?",
+                "Má breyta úr saman yfir í sér við komu?",
+                "Get ég uppfært bókunina mína?",
+                "Er hægt að uppfæra pakkann minn?",
+                "Hvað kostar að uppfæra úr saman í sér?",
+                "Get ég borgað mismuninn og fengið sér?",
+                "Er hægt að uppfæra við komu?",
+                "Get ég uppfært þegar ég mæti?",
+                "Er hægt að skipta yfir í einkaklefa við komu?",
+                "Hvað kostar að breyta úr saman í sér?",
+                "Er hægt að uppfæra í móttökunni?"
+            ],
+            at_arrival: {
+                possible: true,
+                availability: "Háð framboði á Sér klefum við komu",
+                process: "Þú getur beðið um uppfærslu í móttökunni þegar þú mætir",
+                payment: "Þú greiðir mismuninn á Sér og Saman í móttökunni",
+                note: "Ekki hægt að ábyrgjast að Sér klefi sé laus, sérstaklega á annatímum. Við mælum með að bóka Sér fyrirfram ef það er mikilvægt fyrir þig að fá einkaklefa."
+            },
+            pre_arrival: {
+                possible: true,
+                process: "Til að uppfæra úr Saman í Sér fyrir komu, vinsamlegast sendu okkur póst á reservations@skylagoon.is með bókunarnúmerinu þínu að lágmarki 24 tímum fyrir komu",
+                contact: {
+                    email: "reservations@skylagoon.is",
+                    phone: "+354 527 6800"
+                }
+            },
+            response: {
+                general: "Já, þú getur uppfært úr Saman í Sér á tvo vegu:\n\n1. **Við komu**: Þú getur beðið um uppfærslu í móttökunni þegar þú mætir og greitt mismuninn. Þetta er þó háð framboði á Sér klefum á þeim tíma.\n\n2. **Fyrir komu**: Sendu okkur póst á reservations@skylagoon.is með bókunarnúmerinu þínu að lágmarki 24 tímum fyrir komu.\n\nEf þú vilt vera með fullkomna vissu um að fá Sér klefa, mælum við með að uppfæra bókunina fyrirfram eða bóka beint Sér leið frá upphafi.",
+                with_gift_card: "Já, þú getur uppfært frá Saman til Sér leið. Ef þú ert með Saman gjafabréf, getur þú notað það upp í Sér aðgang og greitt mismuninn. Þetta er hægt að gera bæði við bókun á netinu (slá inn gjafabréfskóðann og greiða mismuninn) eða við komu í móttökunni (háð framboði).\n\nEf þú hefur þegar bókað Saman leið, getur þú beðið um uppfærslu í móttökunni þegar þú mætir og greitt mismuninn, eða sent okkur fyrirfram beiðni á reservations@skylagoon.is."
+            }
         }
     },    
     multipass: {
@@ -1837,6 +1875,72 @@ export const knowledgeBase_is = {
                 }
             }
         },
+        // Add the new booking_capacity section here
+        booking_capacity: {
+            questions: [
+                "Er hægt að koma ef það er ekki laust?",
+                "Getum við komið þó að það sé fullt?",
+                "Ef það er ekki laust, er líklegt að hægt sé að koma?",
+                "Er hægt að koma þó allt sé bókað?",
+                "Ef vefsíðan sýnir að það er fullt, getum við komið samt?",
+                "Hvað þýðir það þegar það er eitt pláss laust?",
+                "Er biðlisti ef allt er uppselt?",
+                "Get ég skráð mig á biðlista?",
+                "Það er uppselt, hvað get ég gert?",
+                "Hvað þýðir \"1 laust\"?",
+                "Mig vantar pláss fyrir tvo en það er bara eitt laust",
+                "Kemst ég að ef ég mæti bara?",
+                "Þarf að bóka eða get ég komið óvænt?",
+                "Eru líkur á að ég komist að þó að það sé uppselt?",
+                "Hvað ef það er uppselt á netinu, get ég mætt á staðinn?",
+                "Getið þið látið mig vita ef það losnar?",
+                "Get ég bætt við fleiri gestum í bókunina mína?",
+                "Getið þið hringt ef það losnar?",
+                "Er hægt að fá SMS ef það kemur afbókun?",
+                "Getið þið skráð mig á biðlista ef það losnar?",
+                "Getið þið geymt nafnið mitt ef það kemur afbókun?"
+            ],
+            availability: {
+                system: "Rauntíma bókunarkerfi",
+                capacity_display: {
+                    single_spot: "Þegar kerfið sýnir '1 laust', þýðir það að það er aðeins pláss fyrir einn einstakling á þeim tíma",
+                    multiple_spots: "Talan sem sýnd er gefur til kynna nákvæmlega hversu mörg pláss eru laus á hverjum tíma",
+                    sold_out: "Þegar vefsíðan sýnir enga lausa tíma, getum við því miður ekki tekið á móti fleiri gestum á þeim tíma"
+                },
+                real_time: "Framboð uppfærist sjálfkrafa með bókunum og afbókunum",
+                walk_in_policy: {
+                    rules: "Gestir án bókunar eru aðeins velkomnir ef vefsíðan sýnir laus pláss",
+                    restrictions: "Við getum ekki tekið á móti gestum umfram sýnileg laus pláss, jafnvel þó þeir mæti á staðinn",
+                    reason: "Við höfum ákveðinn hámarksfjölda til að tryggja þægindi og öryggi gesta"
+                },
+                cancellations: "Vefsíðan uppfærist sjálfkrafa ef pláss losna vegna afbókana",
+                advance_booking: {
+                    recommended: true,
+                    reason: "Til að tryggja þér þann tíma sem þú vilt",
+                    walk_in: "Háð framboði við komu"
+                },
+                waiting_list: {
+                    available: false,
+                    explanation: "Sky Lagoon heldur ekki biðlista fyrir uppseld tímabil",
+                    alternatives: [
+                        "Bókunarkerfið okkar uppfærist í rauntíma þegar pláss losna vegna afbókana",
+                        "Við mælum með að athuga vefsíðuna okkar reglulega til að sjá nýjar opnanir",
+                        "Bókunarframboð er nákvæmast á okkar opinberu vefsíðu",
+                        "Afbókanir á síðustu stundu geta skapað ný pláss, sérstaklega 24-48 klukkustundum fyrir vinsæla tíma"
+                    ],
+                    contact_info: "Fyrir aðkallandi fyrirspurnir um ákveðna daga, hafðu samband við reservations@skylagoon.is"
+                }
+            },
+            capacity_explanation: {
+                one_spot_limitation: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir fleiri en einn einstakling þegar aðeins er eitt pláss laust.",
+                family_with_children: "Ef þú ert að bóka fyrir fullorðinn og barn þegar aðeins er eitt pláss laust, þá dugar plássið því miður ekki fyrir báða. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu.",
+                recommendation: "Við mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus, eða hafa samband við okkur í síma 527 6800 til að fá aðstoð við að finna tíma sem hentar."
+            },
+            response: {
+                fully_booked: "Því miður getum við ekki tekið á móti fleiri gestum þegar vefsíðan sýnir að það sé uppselt á ákveðnum tíma. Bókunarkerfið okkar sýnir nákvæma stöðu í rauntíma og við verðum að virða þessi takmörk til að tryggja bestu mögulegu upplifun fyrir alla gesti.\n\nVið höldum ekki biðlista, en mælum með að athuga vefsíðuna okkar reglulega þar sem afbókanir geta skapað ný pláss, sérstaklega 24-48 klukkustundum fyrir vinsæla tíma. Þú getur einnig prófað að bóka annan tíma eða dag.",
+                one_spot_available: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir fleiri en einn einstakling þegar aðeins er eitt pláss laust.\n\nÞar sem þú ert að bóka fyrir fullorðinn og barn, þá dugar plássið því miður ekki fyrir báða. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu.\n\nVið mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus, eða hafa samband við okkur í síma 527 6800 til að fá aðstoð við að finna tíma sem hentar."
+            }
+        },
         weather_policy: {
             rebooking: "Eins og við þekkjum vel getur veðrið komið okkur á óvart og er því öllum velkomið að endurbóka sig allt að 24 klst fyrir áætlaðan komutíma með því að senda email á reservations@skylagoon.is.",
             recommendations: {
@@ -2063,94 +2167,574 @@ export const getRelevantKnowledge_is = (userMessage) => {
     const message = userMessage.toLowerCase();
     let relevantInfo = [];
 
-// Opening hours and timing
-if (message.includes('opið') || 
-    message.includes('opnun') ||
-    message.includes('lokunartím') ||
-    message.includes('lokað') ||
-    message.includes('lokar') ||
-    message.includes('tímasetning') ||
-    message.includes('tími') ||
-    message.includes('klukkan') ||
-    message.includes('hvenær') ||
-    message.includes('afgreiðslutím') ||
-    message.includes('í dag') ||
-    message.includes('á morgun') ||
-    message.includes('opin') ||
-    message.includes('opið') ||
-    message.includes('lokun') ||
-    // Add these new patterns for last entry
-    message.includes('síðasta innritun') ||
-    message.includes('síðasti innritunartími') ||
-    message.includes('síðasti tími') ||
-    message.includes('síðasti möguleiki') ||
-    message.includes('síðasti tíminn') ||
-    message.includes('seinasta bókun') ||
-    message.includes('seinasti tími') ||
-    message.includes('síðast hægt að') ||
-    message.includes('of seint') ||
-    message.includes('seinasta innritun') ||
-    message.includes('hversu seint') ||
-    message.includes('síðasta komutími') ||
-    message.includes('seinast komutími') ||
-    
-    // Holiday specific
-    message.includes('jól') ||
-    message.includes('áramót') ||
-    message.includes('hátíð') ||
-    message.includes('desember') ||
-    message.includes('24.') ||
-    message.includes('25.') ||
-    message.includes('31.') ||
-    
-    // Season specific
-    message.includes('sumar') ||
-    message.includes('vetur') ||
-    message.includes('haust') ||
-    
-    // Experience specific
-    message.includes('norðurljós') ||
-    message.includes('miðnætursól') ||
-    message.includes('sólarupprás') ||
-    message.includes('kvöld') ||
-    message.includes('morgn') ||
-    
-    // Venue specific
-    message.includes('smakk bar') ||
-    message.includes('keimur') ||
-    message.includes('kaffihús') ||
-    message.includes('veitingastaður') ||
-    message.includes('bar')) {
-    
-    console.log('\n⏰ Opening Hours Match Found');
-
-    // Return specific content based on query type
-    if (message.includes('smakk bar') || message.includes('veitingastaður')) {
-        relevantInfo.push({
-            type: 'opening_hours',
-            subtype: 'smakk_bar',
-            content: knowledgeBase_is.opening_hours.venue_specific.smakk_bar.description
-        });
-    } else if (message.includes('kaffihús') || message.includes('keimur')) {
-        relevantInfo.push({
-            type: 'opening_hours',
-            subtype: 'keimur_cafe',
-            content: knowledgeBase_is.opening_hours.venue_specific.keimur_cafe
-        });
-    } else if (message.includes('jól') || message.includes('áramót') || message.includes('hátíð')) {
-        relevantInfo.push({
-            type: 'opening_hours',
-            subtype: 'holidays',
-            content: knowledgeBase_is.opening_hours.holidays
-        });
-    } else {
-        // Return complete opening hours information
-        relevantInfo.push({
-            type: 'opening_hours',
-            content: knowledgeBase_is.opening_hours
-        });
+    // ULTRA-HIGH PRIORITY capacity patterns that should match before any availability check
+    // Add this at the VERY TOP
+    if ((message.includes('eitt laust pláss') && message.includes('kl') && 
+         (message.includes('barn') || message.includes('fullorðinn'))) ||
+        (message.includes('bóka') && message.includes('tvo') && message.includes('eitt') && message.includes('laust'))) {
+        
+        console.log('\n🚨 ULTRA HIGH PRIORITY CAPACITY QUERY DETECTED');
+        
+        // One spot with specific time and child
+        if (message.includes('kl') && 
+            (message.includes('barn') || message.includes('fullorðinn') || message.includes('son'))) {
+            
+            console.log('\n👶 Time-specific One Spot + Child Query');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_child',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir fleiri en einn einstakling þegar aðeins er eitt pláss laust.\n\nÞar sem þú ert að bóka fyrir fullorðinn og barn, þá dugar plássið því miður ekki fyrir báða. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu.\n\nVið mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus, eða hafa samband við okkur í síma 527 6800 til að fá aðstoð við að finna tíma sem hentar."
+            });
+            
+            return relevantInfo; // Early return to prevent other handlers
+        }
+        
+        // Book for two with one spot
+        if ((message.includes('bóka') || message.includes('pláss')) && 
+            (message.includes('tvo') || message.includes('tvö')) && 
+            (message.includes('eitt') || message.includes('1')) && message.includes('laust')) {
+            
+            console.log('\n👥 Book for Two with One Spot Query - TOP PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_two_people',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir tvo einstaklinga þegar aðeins er eitt pláss laust. Hver einstaklingur þarf sitt eigið pláss í bókunarkerfinu. Við mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo; // Early return to prevent other handlers
+        }
     }
-}
+
+    // Basic booking requirement questions - ADD THIS SECOND
+    if ((message.includes('þarf') && message.includes('bóka')) ||
+        (message.includes('þarf') && message.includes('panta')) ||
+        (message.includes('nauðsynlegt') && message.includes('bóka')) ||
+        (message.includes('verð') && message.includes('bóka')) ||
+        (message.includes('get') && message.includes('mætt') && message.includes('bóka')) ||
+        // Specific time-related booking questions 
+        (message.includes('komum') && message.includes('eftir') && message.includes('min')) ||
+        (message.includes('komum') && message.includes('eftir') && message.includes('klst')) ||
+        // Common booking questions
+        (message.includes('hægt') && message.includes('mæta') && message.includes('án')) ||
+        (message.includes('mæta') && message.includes('fyrirfram')) ||
+        (message.includes('bóka') && message.includes('fyrirfram')) ||
+        (message.includes('bóka') && message.includes('tíma'))) {
+        
+        console.log('\n🔐 Basic Booking Requirement Query Found');
+        
+        // Check if asking about coming shortly/in 30 minutes
+        if ((message.includes('komum') && message.includes('eftir') && 
+            (message.includes('30') || message.includes('min') || message.includes('mín'))) ||
+            (message.includes('30') && message.includes('mínút'))) {
+            
+            console.log('\n⏱️ Coming Soon Query Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'coming_soon',
+                content: "Já, við mælum alltaf með að bóka fyrirfram á vefsíðunni okkar til að tryggja að þú fáir pláss, sérstaklega á annatímum. Ef þú ætlar að koma innan klukkustundar og sérð að það er pláss á vefsíðunni okkar, þá er í lagi að bóka með stuttum fyrirvara. Vefsíðan okkar sýnir framboð í rauntíma."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // General booking requirement question
+        relevantInfo.push({
+            type: 'booking',
+            subtype: 'booking_required',
+            content: "Já, við mælum eindregið með því að bóka fyrirfram á vefsíðunni okkar: [Bóka heimsókn](https://www.skylagoon.com/is/boka). Þetta tryggir þér pláss á þeim tíma sem þú vilt heimsækja okkur. Bókunarkerfið okkar sýnir nákvæmt framboð í rauntíma og oft er fullbókað, sérstaklega á annatímum. Þú getur þó komið án bókunar ef vefsíðan sýnir að það séu laus pláss á þeim tíma sem þú vilt koma."
+        });
+        
+        return relevantInfo;
+    }
+
+    // Booking capacity section
+    if (message.includes('laust pláss') || 
+        message.includes('fullt') || 
+        message.includes('uppselt') || 
+        message.includes('biðlista') || 
+        message.includes('bíðlista') ||
+        message.includes('losnar') ||
+        message.includes('eitt laust') ||
+        message.includes('1 laust') ||
+        message.includes('eitt pláss') ||
+        message.includes('tvö pláss') ||
+        message.includes('fyrir tvo') ||
+        message.includes('fyrir tvö') ||
+        // Specific patterns to catch remaining problematic queries
+        (message.includes('hægt') && message.includes('mæta') && (message.includes('uppselt') || message.includes('fullt'))) ||
+        (message.includes('bóka') && message.includes('tvo') && message.includes('eitt') && message.includes('laust')) ||
+        // Handle time-specific one spot queries
+        (message.includes('laust pláss') && message.includes('kl')) ||
+        (message.includes('eitt laust') && message.includes('kl')) ||
+        (message.includes('eitt pláss') && message.includes('kl')) ||
+        // Add more patterns
+        message.includes('ekki laust') ||
+        (message.includes('ef') && message.includes('ekki') && message.includes('laust')) ||
+        (message.includes('ef') && message.includes('fullt')) ||
+        (message.includes('er') && message.includes('líklegt') && message.includes('koma')) ||
+        (message.includes('hægt') && message.includes('koma') && message.includes('fullt')) ||
+        (message.includes('hægt') && message.includes('koma') && message.includes('uppselt')) ||
+        (message.includes('er') && message.includes('biðlisti')) ||
+        (message.includes('get') && message.includes('skrá') && message.includes('biðlista')) ||
+        (message.includes('hvað') && message.includes('mörg') && message.includes('pláss')) ||
+        (message.includes('hversu') && message.includes('mörg') && message.includes('pláss')) ||
+        (message.includes('eru') && message.includes('líkur') && (message.includes('komumst') || message.includes('komast'))) ||
+        (message.includes('barna') && message.includes('pláss')) ||
+        (message.includes('vantar') && message.includes('pláss')) ||
+        (message.includes('hvað') && message.includes('þýðir') && message.includes('eitt') && message.includes('laust'))) {
+        
+        console.log('\n📊 Booking Capacity Match Found PRIORITY');
+        
+        // First check specifically for "what does one spot available mean?"
+        if (message.includes('hvað') && message.includes('þýðir') && 
+            (message.includes('eitt') || message.includes('1')) && 
+            message.includes('laust')) {
+            
+            console.log('\n❓ One Spot Meaning Query Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_meaning',
+                content: "Þegar það stendur að eitt pláss sé laust þýðir það að pláss fyrir aðeins einn einstakling er laust á þeim tíma. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu okkar. Ef þú þarft að bóka fyrir fleiri en einn, mælum við með að þú athugir aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // Check for one spot + child question with high priority match
+        if (((message.includes('eitt') || message.includes('1') || message.includes('aðeins eitt')) && 
+             (message.includes('laust') || message.includes('pláss'))) &&
+            ((message.includes('barn') || message.includes('börn') || message.includes('son') || message.includes('dóttir')) ||
+             ((message.includes('mig') || message.includes('fullorðinn') || message.includes('fullorðin')) && 
+              (message.includes('og') || message.includes('með'))))) {
+            
+            console.log('\n👶 One Spot + Child Query Match Found - HIGH PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_child',
+                content: knowledgeBase_is.booking.booking_capacity.response.one_spot_available
+            });
+            
+            return relevantInfo;
+        }
+        
+        // Check for "can we book for two when one spot available"
+        if ((message.includes('bóka') || message.includes('pláss')) && 
+            (message.includes('tvo') || message.includes('tvö') || message.includes('fyrir tvo')) && 
+            ((message.includes('eitt') || message.includes('1')) && message.includes('laust'))) {
+            
+            console.log('\n👥 Book for Two with One Spot Query');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_two_people',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir tvo einstaklinga þegar aðeins er eitt pláss laust. Hver einstaklingur þarf sitt eigið pláss í bókunarkerfinu. Við mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // For "can you come when sold out" query
+        if ((message.includes('hægt') && message.includes('mæta') && 
+             (message.includes('uppselt') || message.includes('fullt') || message.includes('ekki laust')))) {
+            
+            console.log('\n🚪 Come When Sold Out Query - HIGH PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'capacity_sold_out',
+                content: "Því miður getum við ekki tekið á móti gestum þegar vefsíðan sýnir að það sé uppselt. Bókunarkerfið okkar sýnir nákvæma stöðu í rauntíma og við verðum að virða þessi takmörk til að tryggja bestu mögulegu upplifun fyrir alla gesti. Við mælum með að athuga vefsíðuna okkar reglulega þar sem afbókanir geta skapað ný pláss, sérstaklega 24-48 klukkustundum fyrir vinsæla tíma."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // General capacity questions
+        relevantInfo.push({
+            type: 'booking',
+            subtype: 'capacity',
+            content: knowledgeBase_is.booking.booking_capacity.response.fully_booked
+        });
+        
+        return relevantInfo;
+    }
+    // Booking and late arrival related queries
+    if (message.includes('mæta') || 
+        // General booking query patterns
+        message.includes('hvernig bóka') ||
+        message.includes('hvar bóka') ||
+        message.includes('langar að bóka') ||
+        message.includes('vil bóka') ||
+        message.includes('get ég bókað') ||
+        message.includes('er hægt að bóka') ||
+        message.includes('má bóka') ||
+        (message.includes('hvernig') && message.includes('panta')) ||
+        // Existing patterns
+        message.includes('seinn') || 
+        message.includes('sein') ||
+        message.includes('endurbóka') ||
+        message.includes('fresta') ||
+        message.includes('breyta') ||
+        message.includes('færa') ||
+        message.includes('fært') ||  // Added
+        message.includes('færa tímann') ||  // Added
+        message.includes('afbóka') ||
+        message.includes('hætta við') ||
+        // Add English loan word and alternative phrasings
+        message.includes('cancella') ||
+        message.includes('cancel') ||
+        message.includes('hætt við') ||
+        (message.includes('get') && message.includes('hætt')) ||
+        (message.includes('getum') && message.includes('hætt')) ||
+        (message.includes('má') && message.includes('hætta')) ||        
+        message.includes('veður') ||
+        message.includes('veðrið') ||
+        message.includes('greiðsla') ||
+        message.includes('greiða') ||
+        message.includes('borga') ||
+        message.includes('fyrirfram') ||
+        message.includes('staðfesta') ||
+        message.includes('staðfesting') ||
+        message.includes('bóka fyrir einn') ||
+        (message.includes('bóka') && message.includes('einn')) ||
+        (message.includes('bóka') && message.includes('fyrir tvo')) ||
+        (message.includes('bóka') && message.includes('tvo')) ||
+        (message.includes('er') && message.includes('svigrúm')) ||
+        (message.includes('get') && message.includes('seinna')) ||
+        (message.includes('ná') && message.includes('tíma')) ||
+        message.includes('breytt') ||
+        message.includes('bókuninni') ||
+        message.includes('tímanum') ||
+        // Add new patterns for refund and missed booking queries
+        message.includes('endurgreiðsla') ||
+        message.includes('endurgreitt') ||
+        message.includes('endurgreiða') ||
+        message.includes('fá endurgreitt') ||
+        message.includes('fengið endurgreitt') ||
+        message.includes('komst ekki') ||
+        message.includes('komumst ekki') ||
+        message.includes('gat ekki mætt') ||
+        message.includes('gátum ekki mætt') ||
+        message.includes('náði ekki') ||
+        message.includes('náðum ekki') ||
+        message.includes('mætti ekki') ||
+        message.includes('mættum ekki') ||
+        (message.includes('bókun') && message.includes('í gær')) ||
+        (message.includes('bókun') && message.includes('í fyrradag')) ||
+        (message.includes('bókun') && message.includes('átti')) ||
+        message.includes('peningana') ||
+        message.includes('til baka')) {
+        
+        console.log('\n📅 Booking Related Query Match Found');
+
+        // Check for missed booking and refund queries first
+        if (message.includes('endurgreiðsla') ||
+            message.includes('endurgreitt') ||
+            message.includes('endurgreiða') ||
+            message.includes('fá endurgreitt') ||
+            message.includes('fengið endurgreitt') ||
+            message.includes('komst ekki') ||
+            message.includes('komumst ekki') ||
+            message.includes('gat ekki mætt') ||
+            message.includes('gátum ekki mætt') ||
+            message.includes('náði ekki') ||
+            message.includes('náðum ekki') ||
+            message.includes('mætti ekki') ||
+            message.includes('mættum ekki') ||
+            (message.includes('bókun') && message.includes('í gær')) ||
+            (message.includes('bókun') && message.includes('í fyrradag')) ||
+            message.includes('peningana') ||
+            message.includes('til baka')) {
+            
+            console.log('\n💰 Missed Booking Refund Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'refund_policy',
+                content: knowledgeBase_is.booking.refund_policy.missed_booking
+            });
+            return relevantInfo;  // Return immediately for refund queries
+        }
+
+        // Check for basic "how to book" queries first
+        if (message.includes('hvernig bóka') || 
+            message.includes('hvar bóka') ||
+            message.includes('langar að bóka') ||
+            message.includes('vil bóka') ||
+            message.includes('get ég bókað') ||
+            message.includes('er hægt að bóka') ||
+            message.includes('má bóka') ||
+            (message.includes('hvernig') && message.includes('panta'))) {
+            
+            console.log('\n📝 General Booking Instructions Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'how_to_book',
+                content: knowledgeBase_is.booking.general_info
+            });
+            return relevantInfo;  // Return immediately for basic booking queries
+        }
+
+        // Check for booking changes first
+        if (message.includes('breyta') || 
+            message.includes('breytt') ||
+            message.includes('bókuninni') || 
+            message.includes('tímanum') ||
+            message.includes('endurbóka') ||
+            message.includes('fresta') ||
+            message.includes('færa') ||
+            message.includes('fært') ||  // Added this pattern
+            message.includes('færa tímann') ||
+            message.includes('afbóka') ||
+            message.includes('hætta við') ||
+            message.includes('cancella') ||  // Add English loan word
+            message.includes('cancel') ||    // Add English term
+            (message.includes('get') && message.includes('hætt')) ||
+            (message.includes('getum') && message.includes('hætt'))) {
+            
+            console.log('\n🔄 Booking Change Query Match Found');
+            const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
+            let verb = message.includes('afbóka') ||
+                       message.includes('hætta við') || 
+                       message.includes('cancella') || 
+                       message.includes('cancel') || 
+                       (message.includes('get') && message.includes('hætt')) ||
+                       (message.includes('getum') && message.includes('hætt'))
+                       ? bookingChangeInfo.cancel_wording : "breyta"; // Use "afbóka" for cancellation
+
+            const response = `Til að ${verb} eða breyta bókun, þá eru hér skrefin sem þú þarft að fylgja:\n` +
+                          `1. ${bookingChangeInfo.methods.email.text}\n` +
+                          `2. Taktu fram ${bookingChangeInfo.details[0]}\n` +
+                          `3. ${bookingChangeInfo.details[1]}\n\n` +
+                          `${bookingChangeInfo.policy}`;
+            
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_changes',
+                    content: response
+                });
+                return relevantInfo;  // Return immediately for booking changes
+            }
+
+        // Check for single person booking queries
+        if (message.includes('bóka fyrir einn') || 
+            (message.includes('bóka') && message.includes('einn'))) {
+            
+            console.log('\n👤 Single Booking Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'booking_single',
+                content: 'Já, þú getur bókað fyrir einn. Við bjóðum bæði upp á Saman og Sér aðgang sem hentar vel fyrir einstaklinga sem vilja njóta slökunar í lóninu. Þú getur bókað á vefsíðu okkar eða í móttökunni ef laust er.'
+            });
+        }
+
+        // Check for two person booking queries
+        if ((message.includes('bóka') && message.includes('fyrir tvo')) || 
+            (message.includes('bóka') && message.includes('tvo'))) {
+            
+            // Check if specifically asking about Date Night/Stefnumót
+            if (message.includes('stefnumót') || message.includes('date night')) {
+                console.log('\n💑 Date Night Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_date_night',
+                    content: knowledgeBase_is.packages.date_night
+                });
+            } else {
+                console.log('\n👥 Regular Two Person Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_two',
+                    content: 'Til að bóka fyrir tvo getur þú valið á milli tveggja aðgangsleiða:\n\n' +
+                            '**Sér aðgangur**\n' +
+                            '• Verð frá ISK 13,490 á mann\n' +
+                            '• Einkaklefi með sturtu\n' +
+                            '• Sky Lagoon hár- og húðvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            '**Saman aðgangur**\n' +
+                            '• Verð frá ISK 10,490 á mann\n' +
+                            '• Almenn búningsaðstaða\n' +
+                            '• Sky Lagoon hárvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            'Þú getur bókað á vefsíðu okkar skylagoon.is eða í móttökunni ef laust er. Við mælum eindregið með að bóka fyrirfram til að tryggja pláss.'
+                });
+            }
+        }
+
+        // Determine specific booking query type for other cases
+        if (message.includes('seinn') || 
+            message.includes('sein') || 
+            message.includes('mæta') || 
+            message.includes('svigrúm') ||
+            message.includes('korter') ||  // Add "korter" (quarter hour)
+            message.includes('mínútur') ||
+            message.includes('seinna') ||
+            (message.includes('of') && message.includes('sein')) ||
+            (message.includes('verð') && message.includes('sein')) ||
+            (message.includes('verðum') && message.includes('sein')) ||
+            (message.includes('er') && message.includes('lagi') && message.includes('seint')) ||
+            (message.includes('getum') && message.includes('seint')) ||
+            (message.includes('gert') && message.includes('sein'))) {
+            
+            console.log('\n⏰ Late Arrival Query Match Found IN ICELANDIC');
+            
+            // Create a clear Icelandic response with beyond grace period information
+            const lateArrivalInfo = knowledgeBase_is.booking.late_arrival;
+            const response = `Ekki hafa áhyggjur - við höfum 30 mínútna svigrúm fyrir allar bókanir. ${lateArrivalInfo.grace_period.main} Þú getur farið beint í móttökuna þegar þú mætir.\n\n` +
+                             `Ef þú verður meira en 30 mínútum seinn: ${lateArrivalInfo.beyond_grace.instructions}\n\n` + 
+                             `${lateArrivalInfo.beyond_grace.sold_out}\n\n` +
+                             `Þú getur hringt í okkur í síma ${lateArrivalInfo.contact.phone} (opið ${lateArrivalInfo.contact.hours}) eða sent tölvupóst á ${lateArrivalInfo.contact.email}.`;
+            
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'late_arrival',
+                content: response
+            });
+            
+            return relevantInfo;  // Important: Return immediately to prevent English detection
+        }
+
+        if (message.includes('veður') || 
+            message.includes('veðrið')) {
+            
+            console.log('\n🌤️ Weather Policy Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'weather_policy',
+                content: knowledgeBase_is.booking.weather_policy
+            });
+        }
+
+        if (message.includes('greiðsla') || 
+            message.includes('greiða') || 
+            message.includes('borga') || 
+            message.includes('fyrirfram') || 
+            message.includes('staðfesta')) {
+            
+            console.log('\n💳 Advance Payment Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'advance_payment',
+                content: knowledgeBase_is.booking.advance_payment
+            });
+        }
+
+        // If no specific subtype was matched, return general booking info
+        if (!relevantInfo.length) {
+            console.log('\n📝 General Booking Information Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                content: knowledgeBase_is.booking
+            });
+        }
+    }
+
+    // Group bookings related queries
+    if (message.includes('hóp') ||
+        message.includes('hópa') ||
+        message.includes('hópabókun') ||
+        message.includes('hópnum') ||
+        message.includes('saman') ||
+        message.includes('margir') ||
+        (message.includes('fleiri') && message.includes('manns')) ||
+        (message.includes('verð') && message.includes('hóp')) ||
+        (message.includes('bóka') && message.includes('marga')) ||
+        (message.includes('koma') && message.includes('saman'))) {
+        
+        console.log('\n👥 Group Booking Match Found');
+        relevantInfo.push({
+            type: 'group_bookings',
+            content: knowledgeBase_is.group_bookings
+        });
+    } // End of full Booking section
+
+    // Opening hours and timing
+    if (message.includes('opið') || 
+        message.includes('opnun') ||
+        message.includes('lokunartím') ||
+        message.includes('lokað') ||
+        message.includes('lokar') ||
+        message.includes('tímasetning') ||
+        message.includes('tími') ||
+        message.includes('klukkan') ||
+        message.includes('hvenær') ||
+        message.includes('afgreiðslutím') ||
+        message.includes('í dag') ||
+        message.includes('á morgun') ||
+        message.includes('opin') ||
+        message.includes('opið') ||
+        message.includes('lokun') ||
+        // Add these new patterns for last entry
+        message.includes('síðasta innritun') ||
+        message.includes('síðasti innritunartími') ||
+        message.includes('síðasti tími') ||
+        message.includes('síðasti möguleiki') ||
+        message.includes('síðasti tíminn') ||
+        message.includes('seinasta bókun') ||
+        message.includes('seinasti tími') ||
+        message.includes('síðast hægt að') ||
+        message.includes('of seint') ||
+        message.includes('seinasta innritun') ||
+        message.includes('hversu seint') ||
+        message.includes('síðasta komutími') ||
+        message.includes('seinast komutími') ||
+
+        // Holiday specific
+        message.includes('jól') ||
+        message.includes('áramót') ||
+        message.includes('hátíð') ||
+        message.includes('desember') ||
+        message.includes('24.') ||
+        message.includes('25.') ||
+        message.includes('31.') ||
+
+        // Season specific
+        message.includes('sumar') ||
+        message.includes('vetur') ||
+        message.includes('haust') ||
+
+        // Experience specific
+        message.includes('norðurljós') ||
+        message.includes('miðnætursól') ||
+        message.includes('sólarupprás') ||
+        message.includes('kvöld') ||
+        message.includes('morgn') ||
+
+        // Venue specific
+        message.includes('smakk bar') ||
+        message.includes('keimur') ||
+        message.includes('kaffihús') ||
+        message.includes('veitingastaður') ||
+        message.includes('bar')) {
+
+        console.log('\n⏰ Opening Hours Match Found');
+
+        // Return specific content based on query type
+        if (message.includes('smakk bar') || message.includes('veitingastaður')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'smakk_bar',
+                content: knowledgeBase_is.opening_hours.venue_specific.smakk_bar.description
+            });
+        } else if (message.includes('kaffihús') || message.includes('keimur')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'keimur_cafe',
+                content: knowledgeBase_is.opening_hours.venue_specific.keimur_cafe
+            });
+        } else if (message.includes('jól') || message.includes('áramót') || message.includes('hátíð')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'holidays',
+                content: knowledgeBase_is.opening_hours.holidays
+            });
+        } else {
+            // Return complete opening hours information
+            relevantInfo.push({
+                type: 'opening_hours',
+                content: knowledgeBase_is.opening_hours
+            });
+        }
+    }
+
     // Full getRelevantKnowledge section for Facilities below
     // Búningsklefar (Changing Rooms) - expanded patterns
     // First check specifically for comparisons
@@ -2875,6 +3459,51 @@ if (message.includes('opið') ||
                     link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
                 }
             });
+        }
+    }
+    // Package upgrades section - ADD THIS NEW SECTION HERE
+    if ((message.includes('uppfær') || 
+         message.includes('uppgrad') || 
+         message.includes('breyt') || 
+         message.includes('skipt') ||
+         // Add these patterns for better detection
+         (message.includes('má') && message.includes('skipta')) ||
+         (message.includes('hægt') && message.includes('borga') && message.includes('mismun')) ||
+         (message.includes('fá') && message.includes('einkaklefa')) ||
+         (message.includes('skipta') && message.includes('yfir'))) && 
+        ((message.includes('saman') && message.includes('sér')) ||
+         message.includes('pakk') ||
+         message.includes('leið') ||
+         (message.includes('almenn') && message.includes('einka')) ||
+         (message.includes('borgað') && message.includes('mismun')))) {
+        
+        console.log('\n⬆️ Package Upgrade Match Found');
+        
+        // Check if specifically asking about gift card upgrades
+        if (message.includes('gjafa') || 
+            message.includes('gjafabréf') ||
+            message.includes('kort')) {
+            
+            console.log('\n🎁 Gift Card Upgrade Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'upgrade_gift_card',
+                content: knowledgeBase_is.packages.upgrades.response.with_gift_card
+            });
+            
+            // Return immediately to prevent other handlers from processing
+            return relevantInfo;
+        }
+        // General upgrade questions
+        else {
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'upgrade_general',
+                content: knowledgeBase_is.packages.upgrades.response.general
+            });
+            
+            // Return immediately to prevent other handlers from processing
+            return relevantInfo;
         }
     }
 
@@ -3765,297 +4394,6 @@ if (message.includes('opið') ||
             });
         }
     }  // End of Health & Safety section
-
-    // Booking and late arrival related queries
-    if (message.includes('mæta') || 
-        // General booking query patterns
-        message.includes('hvernig bóka') ||
-        message.includes('hvar bóka') ||
-        message.includes('langar að bóka') ||
-        message.includes('vil bóka') ||
-        message.includes('get ég bókað') ||
-        message.includes('er hægt að bóka') ||
-        message.includes('má bóka') ||
-        (message.includes('hvernig') && message.includes('panta')) ||
-        // Existing patterns
-        message.includes('seinn') || 
-        message.includes('sein') ||
-        message.includes('endurbóka') ||
-        message.includes('fresta') ||
-        message.includes('breyta') ||
-        message.includes('færa') ||
-        message.includes('fært') ||  // Added
-        message.includes('færa tímann') ||  // Added
-        message.includes('afbóka') ||
-        message.includes('hætta við') ||
-        // Add English loan word and alternative phrasings
-        message.includes('cancella') ||
-        message.includes('cancel') ||
-        message.includes('hætt við') ||
-        (message.includes('get') && message.includes('hætt')) ||
-        (message.includes('getum') && message.includes('hætt')) ||
-        (message.includes('má') && message.includes('hætta')) ||        
-        message.includes('veður') ||
-        message.includes('veðrið') ||
-        message.includes('greiðsla') ||
-        message.includes('greiða') ||
-        message.includes('borga') ||
-        message.includes('fyrirfram') ||
-        message.includes('staðfesta') ||
-        message.includes('staðfesting') ||
-        message.includes('bóka fyrir einn') ||
-        (message.includes('bóka') && message.includes('einn')) ||
-        (message.includes('bóka') && message.includes('fyrir tvo')) ||
-        (message.includes('bóka') && message.includes('tvo')) ||
-        (message.includes('er') && message.includes('svigrúm')) ||
-        (message.includes('get') && message.includes('seinna')) ||
-        (message.includes('ná') && message.includes('tíma')) ||
-        message.includes('breytt') ||
-        message.includes('bókuninni') ||
-        message.includes('tímanum') ||
-        // Add new patterns for refund and missed booking queries
-        message.includes('endurgreiðsla') ||
-        message.includes('endurgreitt') ||
-        message.includes('endurgreiða') ||
-        message.includes('fá endurgreitt') ||
-        message.includes('fengið endurgreitt') ||
-        message.includes('komst ekki') ||
-        message.includes('komumst ekki') ||
-        message.includes('gat ekki mætt') ||
-        message.includes('gátum ekki mætt') ||
-        message.includes('náði ekki') ||
-        message.includes('náðum ekki') ||
-        message.includes('mætti ekki') ||
-        message.includes('mættum ekki') ||
-        (message.includes('bókun') && message.includes('í gær')) ||
-        (message.includes('bókun') && message.includes('í fyrradag')) ||
-        (message.includes('bókun') && message.includes('átti')) ||
-        message.includes('peningana') ||
-        message.includes('til baka')) {
-        
-        console.log('\n📅 Booking Related Query Match Found');
-
-        // Check for missed booking and refund queries first
-        if (message.includes('endurgreiðsla') ||
-            message.includes('endurgreitt') ||
-            message.includes('endurgreiða') ||
-            message.includes('fá endurgreitt') ||
-            message.includes('fengið endurgreitt') ||
-            message.includes('komst ekki') ||
-            message.includes('komumst ekki') ||
-            message.includes('gat ekki mætt') ||
-            message.includes('gátum ekki mætt') ||
-            message.includes('náði ekki') ||
-            message.includes('náðum ekki') ||
-            message.includes('mætti ekki') ||
-            message.includes('mættum ekki') ||
-            (message.includes('bókun') && message.includes('í gær')) ||
-            (message.includes('bókun') && message.includes('í fyrradag')) ||
-            message.includes('peningana') ||
-            message.includes('til baka')) {
-            
-            console.log('\n💰 Missed Booking Refund Query Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'refund_policy',
-                content: knowledgeBase_is.booking.refund_policy.missed_booking
-            });
-            return relevantInfo;  // Return immediately for refund queries
-        }
-
-        // Check for basic "how to book" queries first
-        if (message.includes('hvernig bóka') || 
-            message.includes('hvar bóka') ||
-            message.includes('langar að bóka') ||
-            message.includes('vil bóka') ||
-            message.includes('get ég bókað') ||
-            message.includes('er hægt að bóka') ||
-            message.includes('má bóka') ||
-            (message.includes('hvernig') && message.includes('panta'))) {
-            
-            console.log('\n📝 General Booking Instructions Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'how_to_book',
-                content: knowledgeBase_is.booking.general_info
-            });
-            return relevantInfo;  // Return immediately for basic booking queries
-        }
-
-        // Check for booking changes first
-        if (message.includes('breyta') || 
-            message.includes('breytt') ||
-            message.includes('bókuninni') || 
-            message.includes('tímanum') ||
-            message.includes('endurbóka') ||
-            message.includes('fresta') ||
-            message.includes('færa') ||
-            message.includes('fært') ||  // Added this pattern
-            message.includes('færa tímann') ||
-            message.includes('afbóka') ||
-            message.includes('hætta við') ||
-            message.includes('cancella') ||  // Add English loan word
-            message.includes('cancel') ||    // Add English term
-            (message.includes('get') && message.includes('hætt')) ||
-            (message.includes('getum') && message.includes('hætt'))) {
-            
-            console.log('\n🔄 Booking Change Query Match Found');
-            const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
-            let verb = message.includes('afbóka') ||
-                       message.includes('hætta við') || 
-                       message.includes('cancella') || 
-                       message.includes('cancel') || 
-                       (message.includes('get') && message.includes('hætt')) ||
-                       (message.includes('getum') && message.includes('hætt'))
-                       ? bookingChangeInfo.cancel_wording : "breyta"; // Use "afbóka" for cancellation
-
-            const response = `Til að ${verb} eða breyta bókun, þá eru hér skrefin sem þú þarft að fylgja:\n` +
-                          `1. ${bookingChangeInfo.methods.email.text}\n` +
-                          `2. Taktu fram ${bookingChangeInfo.details[0]}\n` +
-                          `3. ${bookingChangeInfo.details[1]}\n\n` +
-                          `${bookingChangeInfo.policy}`;
-            
-                relevantInfo.push({
-                    type: 'booking',
-                    subtype: 'booking_changes',
-                    content: response
-                });
-                return relevantInfo;  // Return immediately for booking changes
-            }
-
-        // Check for single person booking queries
-        if (message.includes('bóka fyrir einn') || 
-            (message.includes('bóka') && message.includes('einn'))) {
-            
-            console.log('\n👤 Single Booking Query Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'booking_single',
-                content: 'Já, þú getur bókað fyrir einn. Við bjóðum bæði upp á Saman og Sér aðgang sem hentar vel fyrir einstaklinga sem vilja njóta slökunar í lóninu. Þú getur bókað á vefsíðu okkar eða í móttökunni ef laust er.'
-            });
-        }
-
-        // Check for two person booking queries
-        if ((message.includes('bóka') && message.includes('fyrir tvo')) || 
-            (message.includes('bóka') && message.includes('tvo'))) {
-            
-            // Check if specifically asking about Date Night/Stefnumót
-            if (message.includes('stefnumót') || message.includes('date night')) {
-                console.log('\n💑 Date Night Booking Query Match Found');
-                relevantInfo.push({
-                    type: 'booking',
-                    subtype: 'booking_date_night',
-                    content: knowledgeBase_is.packages.date_night
-                });
-            } else {
-                console.log('\n👥 Regular Two Person Booking Query Match Found');
-                relevantInfo.push({
-                    type: 'booking',
-                    subtype: 'booking_two',
-                    content: 'Til að bóka fyrir tvo getur þú valið á milli tveggja aðgangsleiða:\n\n' +
-                            '**Sér aðgangur**\n' +
-                            '• Verð frá ISK 13,490 á mann\n' +
-                            '• Einkaklefi með sturtu\n' +
-                            '• Sky Lagoon hár- og húðvörur\n' +
-                            '• Handklæði\n' +
-                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
-                            '**Saman aðgangur**\n' +
-                            '• Verð frá ISK 10,490 á mann\n' +
-                            '• Almenn búningsaðstaða\n' +
-                            '• Sky Lagoon hárvörur\n' +
-                            '• Handklæði\n' +
-                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
-                            'Þú getur bókað á vefsíðu okkar skylagoon.is eða í móttökunni ef laust er. Við mælum eindregið með að bóka fyrirfram til að tryggja pláss.'
-                });
-            }
-        }
-
-        // Determine specific booking query type for other cases
-        if (message.includes('seinn') || 
-            message.includes('sein') || 
-            message.includes('mæta') || 
-            message.includes('svigrúm') ||
-            message.includes('korter') ||  // Add "korter" (quarter hour)
-            message.includes('mínútur') ||
-            message.includes('seinna') ||
-            (message.includes('of') && message.includes('sein')) ||
-            (message.includes('verð') && message.includes('sein')) ||
-            (message.includes('verðum') && message.includes('sein')) ||
-            (message.includes('er') && message.includes('lagi') && message.includes('seint')) ||
-            (message.includes('getum') && message.includes('seint')) ||
-            (message.includes('gert') && message.includes('sein'))) {
-            
-            console.log('\n⏰ Late Arrival Query Match Found IN ICELANDIC');
-            
-            // Create a clear Icelandic response with beyond grace period information
-            const lateArrivalInfo = knowledgeBase_is.booking.late_arrival;
-            const response = `Ekki hafa áhyggjur - við höfum 30 mínútna svigrúm fyrir allar bókanir. ${lateArrivalInfo.grace_period.main} Þú getur farið beint í móttökuna þegar þú mætir.\n\n` +
-                             `Ef þú verður meira en 30 mínútum seinn: ${lateArrivalInfo.beyond_grace.instructions}\n\n` + 
-                             `${lateArrivalInfo.beyond_grace.sold_out}\n\n` +
-                             `Þú getur hringt í okkur í síma ${lateArrivalInfo.contact.phone} (opið ${lateArrivalInfo.contact.hours}) eða sent tölvupóst á ${lateArrivalInfo.contact.email}.`;
-            
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'late_arrival',
-                content: response
-            });
-            
-            return relevantInfo;  // Important: Return immediately to prevent English detection
-        }
-
-        if (message.includes('veður') || 
-            message.includes('veðrið')) {
-            
-            console.log('\n🌤️ Weather Policy Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'weather_policy',
-                content: knowledgeBase_is.booking.weather_policy
-            });
-        }
-
-        if (message.includes('greiðsla') || 
-            message.includes('greiða') || 
-            message.includes('borga') || 
-            message.includes('fyrirfram') || 
-            message.includes('staðfesta')) {
-            
-            console.log('\n💳 Advance Payment Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                subtype: 'advance_payment',
-                content: knowledgeBase_is.booking.advance_payment
-            });
-        }
-
-        // If no specific subtype was matched, return general booking info
-        if (!relevantInfo.length) {
-            console.log('\n📝 General Booking Information Match Found');
-            relevantInfo.push({
-                type: 'booking',
-                content: knowledgeBase_is.booking
-            });
-        }
-    }
-
-    // Group bookings related queries
-    if (message.includes('hóp') ||
-        message.includes('hópa') ||
-        message.includes('hópabókun') ||
-        message.includes('hópnum') ||
-        message.includes('saman') ||
-        message.includes('margir') ||
-        (message.includes('fleiri') && message.includes('manns')) ||
-        (message.includes('verð') && message.includes('hóp')) ||
-        (message.includes('bóka') && message.includes('marga')) ||
-        (message.includes('koma') && message.includes('saman'))) {
-        
-        console.log('\n👥 Group Booking Match Found');
-        relevantInfo.push({
-            type: 'group_bookings',
-            content: knowledgeBase_is.group_bookings
-        });
-    }
 
     // Age policy related queries
     if (message.toLowerCase().includes('aldur') || 
