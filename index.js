@@ -7051,6 +7051,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 timestamp: new Date().toISOString()
             });        
         
+            // First check for ritual skipping queries
+            const isRitualSkippingQuery = isIcelandic && (
+                (userMessage.toLowerCase().includes('bara') && (userMessage.toLowerCase().includes('lón') || userMessage.toLowerCase().includes('laug'))) ||
+                (userMessage.toLowerCase().includes('án') && userMessage.toLowerCase().includes('ritúal')) ||
+                (userMessage.toLowerCase().includes('sleppa') && userMessage.toLowerCase().includes('ritúal')) ||
+                (userMessage.toLowerCase().includes('bóka') && userMessage.toLowerCase().includes('bara') && userMessage.toLowerCase().includes('laug')) ||
+                (userMessage.toLowerCase().includes('hægt') && userMessage.toLowerCase().includes('bara') && userMessage.toLowerCase().includes('laug'))
+            );
+            
+            // Add ritual skipping check logging
+            console.log('\n🧘 Ritual Skipping Check:', {
+                isRitualSkippingQuery,
+                message: userMessage
+            });
+            
+            // Handle ritual skipping queries
+            if (isRitualSkippingQuery) {
+                console.log('\n❌ Skip Ritual Query Found');
+                
+                const response = "Skjól ritúal meðferðin er innifalin í öllum pökkum okkar og er órjúfanlegur hluti af Sky Lagoon upplifuninni. Þú getur valið á milli tveggja pakka - Saman eða Sér - sem báðir innihalda aðgang að lóninu og Skjól ritúal meðferðina.";
+                
+                // Update context
+                context.lastTopic = 'ritual';
+                conversationContext.set(sessionId, context);
+                
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
+                    message: response,
+                    language: {
+                        detected: 'Icelandic',
+                        confidence: languageDecision.confidence,
+                        reason: 'ritual_mandatory'
+                    },
+                    topicType: 'ritual',
+                    responseType: 'direct_response'
+                });
+                return res.status(responseData.status || 200).json(responseData);
+            }
+        
             // Enhanced booking detection/Simplified for better performance - Add this BEFORE late arrival check
             const isAvailabilityQuery = isIcelandic && (
                 userMessage.toLowerCase().includes('eigið laust') ||

@@ -2699,11 +2699,13 @@ if (message.includes('opið') ||
 
         // If asking about skipping ritual
         if ((message.includes('bara') && message.includes('ofaní')) ||
-            (message.includes('bara') && message.includes('lón')) ||
+            (message.includes('bara') && (message.includes('lón') || message.includes('laug'))) ||
             (message.includes('án') && message.includes('ritúal')) ||
             (message.includes('sleppa') && message.includes('ritúal')) ||
             (message.includes('kaupa') && message.includes('bara')) ||
-            (message.includes('bara') && message.includes('aðgang'))) {
+            (message.includes('bara') && message.includes('aðgang')) ||
+            (message.includes('hægt') && message.includes('bara') && message.includes('laug')) ||
+            (message.includes('bóka') && message.includes('bara') && message.includes('laug'))) {
             
             console.log('\n❌ Skip Ritual Query Found');
             relevantInfo.push({
