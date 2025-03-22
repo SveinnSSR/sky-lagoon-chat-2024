@@ -2925,6 +2925,27 @@ export const knowledgeBase = {
             group_size: "One guardian can supervise multiple children aged 12-14"
         }
     },
+    careers: {
+        questions: [
+            "apply for a job",
+            "job application",
+            "employment opportunity",
+            "job opening",
+            "summer job",
+            "job possibilities",
+            "work for you",
+            "employment at",
+            "careers",
+            "security guard",
+            "lifeguard",
+            "seasonal employment",
+            "job opportunities"
+        ],
+        application_info: {
+            instructions: "We encourage you to send your resume and cover letter to info@skylagoon.is.",
+            additional_info: "Please let us know about your experience and why you would like to work with us."
+        }
+    },
 };
 
 // Enhanced getRelevantKnowledge function
@@ -5153,6 +5174,38 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: knowledgeBase.facilities
             });
         }
-    }
+    } // End of Pride and Accessibility related queries section
+
+    // Job/career related queries
+    if (message.includes('job') || 
+        message.includes('apply') ||
+        message.includes('application') ||
+        message.includes('career') ||
+        message.includes('employment') ||
+        message.includes('work for') ||
+        message.includes('work at') ||
+        message.includes('hiring') ||
+        message.includes('position') ||
+        message.includes('opening') ||
+        message.includes('vacancy') ||
+        message.includes('resume') ||
+        message.includes('cv') ||
+        message.includes('summer job') ||
+        message.includes('seasonal') ||
+        message.includes('lifeguard') ||
+        message.includes('security guard') ||
+        (message.includes('job') && message.includes('available')) ||
+        (message.includes('looking for') && message.includes('job')) ||
+        (message.includes('apply') && message.includes('position')) ||
+        (message.includes('opportunity') && message.includes('work')) ||
+        (message.includes('send') && message.includes('resume'))) {
+        
+        console.log('\n💼 Career Inquiry Match Found');
+        relevantInfo.push({
+            type: 'careers',
+            content: knowledgeBase.careers
+        });
+    } // End of Job/career related queries section
+
     return relevantInfo;
 };
