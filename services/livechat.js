@@ -437,6 +437,25 @@ export async function detectBookingChangeRequest(message, languageDecision) {
                 'skilmálar', 'skilmálarnir', 'fá endurgreitt',
                 'hætta við bókun', 'afpanta',
 
+                // ADD THESE NEW PATTERNS - questions about booking options, not changes
+                'er hægt að bóka bara',
+                'er ekki hægt að bóka bara',
+                'ekki hægt að bóka bara',
+                'hægt að bóka bara',
+                'hægt að panta bara',
+                'er hægt að panta bara',
+                'er ekki hægt að panta bara',
+                'ekki hægt að panta bara',
+                'get ég bókað bara', 
+                'get ég pantað bara',
+                'er hægt að fá bókaðan tíma bara',
+                'er hægt að bóka aðgang bara',
+                'bara bóka',
+                'bara panta',
+                'þannig það er ekki hægt að bóka bara',
+                'þannig er ekki hægt að bóka bara',
+                'þannig get ég ekki bókað bara',
+
                 // Add to the Icelandic negative patterns
                 'mælt með', 'ráðlagt', 'hversu lengi ætti', 'hve lengi ætti',
                 'mælt með löngum tíma', 'ráðlagður tími', 'ráðlögð lengd',
@@ -862,7 +881,10 @@ export async function detectBookingChangeRequest(message, languageDecision) {
              (hasPatternMatch || hasTimeShiftPattern || changeNearDate));
 
         // Final determination requires either a strong signal OR a combination of signals
-        const result = hasStrongSignal || hasCombinationSignal;
+        // AND we also require context awareness to reduce false positives
+        const result = (hasStrongSignal || hasCombinationSignal) && 
+            // Either we have context-aware match OR this is a very explicit booking change request
+            (hasContextAwareMatch || hasStrongSignal);
 
         console.log('Conservative detection checks:', {
             hasStrongSignal,
