@@ -494,17 +494,15 @@ export const knowledgeBase = {
     general_upgrades: {
         day_of_entry: {
             possible: true,
-            instructions: "Yes, you can decide to upgrade your package on the day of your visit, subject to availability. Simply inform our reception team when you arrive, and they'll be happy to assist you with the upgrade process.",
+            instructions: "Yes, you can upgrade your package from Saman to Sér, but this cannot be done directly through our website after your initial booking has been completed.",
             process: [
-                "Arrive at Sky Lagoon for your original booking",
-                "Speak to our reception team about upgrading your package",
-                "Pay the difference between packages",
-                "Enjoy your upgraded experience"
+                "Option 1: Email reservations@skylagoon.is with your booking reference number and upgrade request. We'll send you a secure payment link to pay the difference.",
+                "Option 2: On arrival (subject to availability), speak to our reception team about upgrading your package and pay the difference there."
             ],
             considerations: [
-                "Upgrades are subject to availability on the day",
+                "Upgrades at reception are strictly subject to availability of Sér facilities on the day",
                 "The price difference between packages will need to be paid",
-                "During busy periods, upgrades may be limited"
+                "During busy periods, on-site upgrades may not be possible"
             ],
             advance_booking: {
                 available: true,
@@ -514,6 +512,13 @@ export const knowledgeBase = {
                     "Skip the upgrade process at reception",
                     "Peace of mind knowing your experience is confirmed",
                     "Particularly recommended during peak times"
+                ]
+            },
+            website_limitation: {
+                explanation: "Please note that our online booking system does not currently support upgrading an existing booking through the website. Once you've completed a booking for the Saman package, you'll need to contact our team directly to arrange an upgrade.",
+                alternatives: [
+                    "Contact reservations@skylagoon.is to upgrade before your visit",
+                    "Request an upgrade at reception upon arrival (subject to availability)"
                 ]
             },
             contact: "If you have more questions about upgrading your visit, please contact us at reservations@skylagoon.is or call +354 527 6800."
@@ -3111,7 +3116,7 @@ export const getRelevantKnowledge = (userMessage) => {
         }
     }
 
-    // Booking modifications and late arrivals
+    // Booking modifications, upgrades, and late arrivals
     if (message.includes('change') || 
         message.includes('modify') ||
         message.includes('reschedule') ||
@@ -3141,6 +3146,29 @@ export const getRelevantKnowledge = (userMessage) => {
             content: knowledgeBase.booking_modifications
         });
     }
+
+    // General booking upgrade queries (must come BEFORE gift ticket section)
+    if ((message.includes('upgrade') || 
+         (message.includes('change') && message.includes('package')) ||
+         (message.includes('switch') && message.includes('package')) ||
+         (message.includes('change') && message.includes('saman') && message.includes('sér')) ||
+         (message.includes('saman') && message.includes('to') && message.includes('sér')) ||
+         (message.includes('improve') && message.includes('booking')) ||
+         (message.includes('pay') && message.includes('difference'))) && 
+        (!message.includes('gift') && 
+         !message.includes('card') && 
+         !message.includes('voucher') && 
+         !message.includes('present'))) {
+        
+        console.log('\n📊 General Booking Upgrade Query Detected');
+        relevantInfo.push({
+            type: 'general_upgrades',
+            content: knowledgeBase.general_upgrades.day_of_entry
+        });
+        
+        // Return immediately to prevent gift card sections from processing this query
+        return relevantInfo;
+    } // End of Booking upgrade queries section
 
     // Package and pricing related
     if (message.includes('package') ||
@@ -3353,15 +3381,11 @@ export const getRelevantKnowledge = (userMessage) => {
         // Legacy gift card detection
         message.toLowerCase().includes('pure') ||
         message.toLowerCase().includes('sky') ||
-        // New patterns for upgrade queries
-        message.includes('upgrade') ||
-        message.includes('upgrading') ||
+        // Gift card specific upgrade patterns
+        (message.includes('upgrade') && (message.includes('gift') || message.includes('card') || message.includes('ticket') || message.includes('voucher'))) ||
         (message.includes('use') && message.includes('gift') && message.includes('different')) ||
-        (message.includes('use') && message.includes('saman') && message.includes('sér')) ||
-        (message.includes('pay') && message.includes('difference')) ||
-        (message.includes('change') && message.includes('package')) ||
-        (message.includes('more expensive')) ||
-        (message.includes('premium'))) {
+        (message.includes('gift') && message.includes('saman') && message.includes('sér')) ||
+        (message.includes('gift card') && message.includes('difference'))) {
 
         // First check for legacy gift card queries
         if (message.toLowerCase().includes('pure') || 
@@ -3391,45 +3415,15 @@ export const getRelevantKnowledge = (userMessage) => {
                 content: response
             });
         } 
-        // General upgrade (not gift-card related) detection
-        else if (message.includes('upgrade') && 
-            (message.includes('day of') || 
-             message.includes('arrival') || 
-             message.includes('entry') || 
-             message.includes('visit') || 
-             message.includes('when') || 
-             message.includes('there') || 
-             message.includes('at the') || 
-             message.includes('decide'))) {
-            
-            console.log('\n📦 General Package Upgrade Query Detected');
-            
-            relevantInfo.push({
-                type: 'general_upgrades',
-                subtype: 'day_of_entry',
-                content: {
-                    upgrade_info: knowledgeBase.general_upgrades.day_of_entry,
-                    advance_booking: knowledgeBase.general_upgrades.day_of_entry.advance_booking,
-                    links: {
-                        booking: `[Book your visit] (${knowledgeBase.website_links.booking})`,
-                        packages: `[View Our Packages] (${knowledgeBase.website_links.packages})`
-                    }
-                }
-            });
-        }
         // Gift card specific upgrade detection
         else if ((message.includes('upgrade') && 
-                  (message.includes('gift') || 
-                   message.includes('card') || 
-                   message.includes('ticket') || 
-                   message.includes('voucher') || 
-                   message.includes('saman') || 
-                   message.includes('code'))) || 
-                 (message.includes('use') && message.includes('saman') && message.includes('sér')) ||
-                 (message.includes('pay') && message.includes('difference')) ||
-                 (message.includes('change') && message.includes('package')) ||
-                 (message.includes('more expensive')) ||
-                 (message.includes('premium'))) {
+                 (message.includes('gift') || 
+                  message.includes('card') || 
+                  message.includes('ticket') || 
+                  message.includes('voucher'))) || 
+                 (message.includes('gift') && message.includes('saman') && message.includes('sér')) ||
+                 (message.includes('gift') && message.includes('pay') && message.includes('difference')) ||
+                 (message.includes('gift') && message.includes('change') && message.includes('package'))) {
             
             console.log('\n🔄 Gift Card Upgrade Query Found');
             relevantInfo.push({
@@ -3489,7 +3483,7 @@ export const getRelevantKnowledge = (userMessage) => {
                 });
             }
         }
-    }
+    } // End of Gift ticket related queries section
 
     // Ritual related queries
     if (message.includes('ritual') || 
