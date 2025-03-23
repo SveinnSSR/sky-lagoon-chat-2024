@@ -8,8 +8,33 @@ export const detectLanguage = (message, context = null) => {
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
     
+    // NEW ADDITION: Create hotel and location exclusion regex
+    const hotelAndLocationRegex = /\b(hótel|hotel|bus stop|strætóstoppistöð|hallgrímskirkja|óðinsvé|harpa|ráðhúsið|tjörnin|lækjargata|miðbakki|vesturbugt|höfðatorg|rauðarárstígur|austurbær|snorrabraut|skúlagata|reykjavík|kópavogur)\b/gi;
+    
+    // NEW ADDITION: IMMEDIATE CHECK for exclusively English message structures
+    if (/^hello|^hi\b|thank you|regards|\bmy question is\b|would like to|will we be|is at the|\bor\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'clear_english_message_structure',
+            patterns: ['english_structure']
+        };
+    }
+    
     // NEW ADDITION: IMMEDIATE CHECK for uniquely Icelandic characters before anything else
     if (/[þæðö]/i.test(cleanMessage)) {
+        // NEW ADDITION: But first check if this is just an English message with Icelandic place names
+        const messageWithoutLocations = cleanMessage.replace(hotelAndLocationRegex, '');
+        if (!/[þæðö]/i.test(messageWithoutLocations) && 
+            /\b(i am|i'm|we are|we're|please|could you|would|will|can|how|what|where|when|if)\b/i.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                confidence: 'high',
+                reason: 'english_with_icelandic_locations',
+                patterns: ['english_structure_with_icelandic_nouns']
+            };
+        }
+        
         return {
             isIcelandic: true,
             confidence: 'high',
@@ -40,6 +65,7 @@ export const detectLanguage = (message, context = null) => {
         .replace(/\b(sky\s*lagoon|pure\s*pass|sky\s*pass|saman\s*pass)\b/gi, '')
         .replace(packageExclusionRegex, '')
         .replace(botNameRegex, '') // Remove bot name before language detection
+        .replace(hotelAndLocationRegex, '') // NEW: Remove hotel and location references
         .trim();
     
     // Check if the message has clear English sentence structure
