@@ -346,7 +346,7 @@ export const detectLanguage = (message, context = null) => {
         words: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún|vera|hafa|vilja|þetta|góðan|daginn|kvöld|morgun|takk|fyrir|kemst|bóka|langar|vil|hvaða|strætó|fer|með|tíma|bílastæði|kaupa|multi|pass|þið|einhverja|eruð|eruði|þið|með)\b/i,
         greetings: /^(góðan|halló|hæ|sæl|sæll|bless)/i,
         questions: /^(er|má|get|getur|hvað|hvenær|hvar|af hverju|hvernig|eru|eruð|eruði|geturðu)/i,
-        acknowledgments: /^(takk|já|nei|ok|oki|okei|flott|gott|bara|allt|snilld|snillingur|jam|jamm|geggjað|geggjuð|magnað|hjálpsamt|snilldin|skil|æði|æðislegt|æðisleg)\b/i,
+        acknowledgments: /^(takk|já|nei|oki|okei|flott|gott|bara|allt|snilld|snillingur|jam|jamm|geggjað|geggjuð|magnað|hjálpsamt|snilldin|skil|æði|æðislegt|æðisleg)\b/i,
         common_verbs: /\b(kemst|bóka|langar|vil|fer)\b/i,
         booking_terms: /\b(bóka|panta|tíma|stefnumót)\b/i,
         discount_terms: /\b(afsláttur|afslætti|afsláttarkjör|verðlækkun|tilboð|sérkjör|betra verð|spara|sparnaður|ódýrara|lækkað verð|hagstætt verð|hagstæðara|lægra verð|afslættir|afsláttarkóði|afsláttarkóða)\b/i
@@ -366,6 +366,16 @@ export const detectLanguage = (message, context = null) => {
             }
         };
     }
+
+    // ADD THIS NEW CODE HERE - Check for common English expressions
+    if (/\b(ok great|great|thank you|thanks|awesome|perfect|got it|understood|makes sense|i see|sounds good|nice|excellent|good)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            confidence: 'high',
+            reason: 'english_common_expression',
+            patterns: ['common_expression']
+        };
+    }    
 
     // Check for definite English in cleaned message
     const hasEnglishMarkers = Object.values(englishPatterns).some(pattern => 
