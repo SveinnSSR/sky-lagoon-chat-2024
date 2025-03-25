@@ -1023,16 +1023,6 @@ const generateSunsetResponse = (message, languageDecision) => {
     }
 };
 
-// Greeting responses - Updated the constant to use Sky Lagoon's specific greetings
-const GREETING_RESPONSES = {
-    english: [
-        "Hello! I'm Sólrún your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
-    ],
-    icelandic: [
-        "Hæ! Ég heiti Sólrún og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?"
-    ]
-};
-
 const isBookingQuery = (message) => {
     const msg = message.toLowerCase();
     return msg.includes('bóka') || 
@@ -1052,350 +1042,6 @@ function matchesWholeWord(text, pattern) {
     return regex.test(text);
 }
 
-// Helper function to check if text contains the bot's name in any variation
-function containsBotName(text) {
-    // This regex matches all variations: sólrún, solrún, Sólrún, Solrún, etc.
-    return /\bs[oó]lr[uú]n\b/i.test(text);
-}
-
-// Improved helper function to check if a message is a casual wellbeing greeting
-function isCasualWellbeingGreeting(message) {
-    // Use regex patterns with word boundaries instead of simple string inclusion
-    const wellbeingPatterns = [
-        /\bhow are you\b/i,
-        /\bhow's it going\b/i, 
-        /\bhows it going\b/i,
-        /\bhow you doing\b/i,
-        /\bwhat's up\b/i, 
-        /\bwhats up\b/i,
-        /\bwassup\b/i,
-        /\bsup\b/i,
-        /\bhow are things\b/i,
-        /\bhow have you been\b/i,
-        /\bhow do you feel\b/i
-    ];
-    
-    const lowerMsg = message.toLowerCase();
-    
-    // Only match if it starts with one of these patterns or is very short
-    // This prevents catching phrases in the middle of longer questions
-    if (message.split(' ').length <= 5) {
-        return wellbeingPatterns.some(pattern => pattern.test(lowerMsg));
-    }
-    
-    // For longer messages, only match if the greeting is at the beginning
-    return wellbeingPatterns.some(pattern => {
-        const match = lowerMsg.match(pattern);
-        return match && match.index < 10; // Only match near the beginning
-    });
-}
-
-// Response Templates and Patterns
-const ACKNOWLEDGMENT_RESPONSES = [
-    "Let me know if you need anything else!",
-    "What else would you like to know about Sky Lagoon?",
-    "Is there anything else you'd like to know?",
-    "Feel free to ask if you have any other questions.",
-    "Is there something specific you'd like to learn more about?",
-    "Let me know what other information would be helpful.",
-    "Would you like to know about any other aspects of Sky Lagoon?",
-    "I'm here if you have any other questions!",
-    "I'm here to share more information about Sky Lagoon.",
-    "Please don't hesitate to ask if you need more information.",
-    "I'm happy to help with any other questions!",
-    "What aspects of Sky Lagoon interest you most?",
-    "What else would you like to know?",
-    "Would you like to know more about any particular aspect?",
-    "I can tell you more about our experiences if you're interested.",
-    "I'm happy to provide more details about any area you're curious about.",
-    "Shall we explore another aspect of Sky Lagoon?"
-];
-
-const SMALL_TALK_RESPONSES = {
-    en: {
-        // General chat responses
-        casual: [
-            "I'm doing great! I'd love to tell you about our experiences at Sky Lagoon. What interests you most?",
-            "I'm wonderful, thank you! Would you like to learn about our unique experiences at Sky Lagoon?",
-            "Doing well! Let me tell you what makes Sky Lagoon special. What would you like to know?",
-            "Great, thanks for asking! I'd be happy to share what makes Sky Lagoon unique. What interests you?"
-        ],
-        // For when they say "good" or similar
-        positive: [
-            "That's great to hear! Would you like to learn about our experiences at Sky Lagoon?",
-            "Wonderful! I can tell you all about Sky Lagoon - what interests you most?",
-            "Excellent! I'd be happy to share what makes Sky Lagoon special.",
-            "Perfect! How can I help you plan your Sky Lagoon visit?"
-        ],
-        // For "nice to meet you" responses
-        greeting: [
-            "Nice to meet you too! I'd be happy to tell you about our unique geothermal lagoon experience. What would you like to know?",
-            "Lovely to meet you as well! Would you like to learn about our experiences at Sky Lagoon?",
-            "Great to meet you too! I'm here to help you learn about Sky Lagoon. What interests you most?",
-            "Wonderful to meet you! I'd love to tell you about what makes Sky Lagoon special. What would you like to know?"
-        ],
-        // For identity questions (who are you, etc.)
-        identity: [
-            "I'm Sólrún, an AI assistant dedicated to helping guests discover Sky Lagoon. What would you like to know?",
-            "I'm Sólrún, your AI guide to Sky Lagoon. What aspects of our experience would you like to learn about?",
-            "I'm Sólrún, an AI assistant here to help you learn about Sky Lagoon. What interests you most?",
-            "I'm Sólrún, your AI assistant for all things Sky Lagoon. How can I help you today?"
-        ],
-        // NEW: For when they provide feedback on the bot's helpfulness
-        feedback: [
-            "Thank you for the positive feedback! Is there anything else you'd like to know about Sky Lagoon?",
-            "I appreciate your feedback! What else can I help you with regarding Sky Lagoon?",
-            "Thanks for letting me know that was helpful! What other questions do you have about Sky Lagoon?",
-            "I'm glad you found that helpful! What else would you like to know about Sky Lagoon?"
-        ]
-    },
-    is: {
-        // Icelandic casual responses
-        casual: [
-            "Allt gott, takk fyrir að spyrja! Hvernig get ég aðstoðað þig?",
-            "Mér líður vel, takk fyrir! Get ég sagt þér frá Sky Lagoon?",
-            "Allt frábært! Hvernig get ég hjálpað þér?",
-            "Bara gott! Get ég hjálpað þér að skipuleggja heimsókn í Sky Lagoon?"
-        ],
-        // For when they say "gott" or similar
-        positive: [
-            "Frábært að heyra! Langar þig að fræðast um upplifunina hjá okkur?",
-            "Minnsta málið! Ef þú hefur fleiri spurningar eða þarft aðstoð, láttu mig vita.",
-            "Flott! Get ég aðstoðað þig meira?",
-            "Æði! Hvernig get ég aðstoðað þig?"
-        ],
-        // For "gaman að hitta þig" responses
-        greeting: [
-            "Gaman að hitta þig líka! Langar þig að heyra meira um upplifunina í lóninu okkar?",
-            "Sömuleiðis! Hvernig get ég aðstoðað þig?",
-            "Gaman að kynnast þér líka! Hvernig get ég aðstoðað þig?",
-            "Sömuleiðis! Hvernig get ég aðstoðað þig?"
-        ],
-        // For identity questions (who are you, etc.)
-        identity: [
-            "Ég heiti Sólrún og er hér til að hjálpa þér að kynnast Sky Lagoon. Hvað viltu vita?",
-            "Ég heiti Sólrún og er AI Spjallmenni hjá Sky Lagoon. Hvernig get ég aðstoðað þig í dag?",
-            "Sólrún heiti ég og er hér til að svara spurningum um Sky Lagoon. Hvað langar þig að vita?",
-            "Ég er Sólrún, AI Spjallmenni hjá Sky Lagoon. Hvernig get ég hjálpað þér?"
-        ],        
-        // NEW: For when they provide feedback on the bot's helpfulness
-        feedback: [
-            "Takk fyrir hrósið! Er eitthvað fleira sem þú vilt fræðast um varðandi Sky Lagoon?",
-            "Gaman að geta hjálpað! Hvað annað get ég upplýst þig um Sky Lagoon?",
-            "Það gleður mig að heyra! Hvaða aðrar spurningar hefurðu um Sky Lagoon?",
-            "Gott að heyra að þetta hafi hjálpað! Hvað annað viltu vita um Sky Lagoon?"
-        ]
-    }
-};
-
-// Enhanced follow-up greeting detection
-const isFollowUpGreeting = (message, languageDecision) => {
-    const msg = message.toLowerCase().trim();
-    
-    // Log follow-up check
-    console.log('\n👋 Follow-up Greeting Check:', {
-        message: msg,
-        patterns: {
-            hasName: msg.includes('sólrún') || msg.includes('solrun'),
-            startsWithEnglish: simpleEnglishGreetings.some(g => msg.startsWith(g)),
-            startsWithIcelandic: simpleIcelandicGreetings.some(g => msg.startsWith(g)),
-            isContextual: /^(?:hi|hello|hey|hæ|halló)\s+(?:again|back|there|sólrún|solrun)\b/i.test(msg),
-            hasFollowUpWord: /\b(?:again|back|now|once more)\b/i.test(msg)
-        }
-    });
-
-    // Check for explicit follow-up patterns first
-    if (/^(?:hi|hello|hey)\s+(?:again|back)\b/i.test(msg)) {
-        return !languageDecision.isIcelandic;
-    }
-
-    // Check for Icelandic follow-up patterns
-    if (/^(?:hæ|halló|sæl)\s+(?:aftur|enn)\b/i.test(msg)) {
-        return languageDecision.isIcelandic;
-    }
-
-    // Check for greetings with Sólrún's name (all variations) using word boundaries
-    const hasSólrúnWithGreeting = (
-        // English greetings with Sólrún (any case/accent variation)
-        (simpleEnglishGreetings.some(g => msg.startsWith(g)) && 
-         (/\bs[oó]lr[uú]n\b/i.test(msg))) ||
-        // Icelandic greetings with Sólrún
-        (simpleIcelandicGreetings.some(g => msg.startsWith(g)) && 
-         (/\bs[oó]lr[uú]n\b/i.test(msg)))
-    );
-
-    if (hasSólrúnWithGreeting) {
-        // Override language detection for English greetings with bot name
-        if (/^(?:hi|hello|hey|good morning|good afternoon|good evening|yo|wassup|wazzup|whats up|what's up|sup|whazzup|whaddup|heya|hae)\b/i.test(msg) && 
-        containsBotName(msg)) {
-            console.log('\n👋 English Greeting with Bot Name Override');
-            return true;
-        }
-        return true;
-    }
-
-    // Check for contextual follow-ups (when we have previous interaction)
-    if (msg.match(/^(?:hi|hello|hey|hæ|halló)\s+(?:there|again|back|aftur)\b/i)) {
-        return true;
-    }
-
-    return false;
-};
-
-const FOLLOWUP_RESPONSES = {
-    en: [
-        "How can I help you today?",
-        "What would you like to know about Sky Lagoon?",
-        "I'd be happy to help you plan your visit. What interests you most?",
-        "What can I tell you about Sky Lagoon?",
-        "Nice to see you! What can I help you with?",
-        "Welcome! How can I assist you today?"
-    ],
-    is: [
-        "Hvernig get ég aðstoðað þig?",
-        "Hvað viltu vita um Sky Lagoon?",
-        "Ég get hjálpað þér að skipuleggja heimsóknina. Hvað langar þig að vita?",
-        "Get ég veitt þér einhverjar upplýsingar um Sky Lagoon?",
-        "Gaman að sjá þig! Hvernig get ég aðstoðað?",
-        "Velkomin/n! Hvað get ég gert fyrir þig?"
-    ]
-};
-
-// Add logging helper for response selection
-const logFollowUpResponse = (languageDecision, response) => {
-    console.log('\n🗣️ Selected Follow-up Response:', {
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        },
-        response: response,
-        totalOptions: FOLLOWUP_RESPONSES[languageDecision.isIcelandic ? 'is' : 'en'].length
-    });
-};
-
-const CONFIRMATION_RESPONSES = [
-    "Great! ",
-    "Excellent! ",
-    "Perfect! ",
-    "Wonderful! ",
-    "I understand! "
-];
-
-// Enhanced Simple English Greetings list - update to include Sólrún variations
-const simpleEnglishGreetings = [
-    // Basic greetings with variations
-    'hi', 'hello', 'hey', 'howdy',
-    'hii', 'hiii', 'hiiii',
-    'heyy', 'heyyy', 'heyyyy',
-    'helloo', 'hellooo', 'hae',
-    // Variations with "there"
-    'hi there', 'hello there', 'hey there',
-    'greetings', 'hiya', 'hullo',
-    // Time-based greetings
-    'good morning', 'good afternoon', 'good evening', 'good day',
-    // Welcome variations
-    'welcome', 'welcome back',
-    // Casual variations
-    'yo', 'heya', 'hi folks',
-    // Double greetings
-    'hi hi', 'hello hello', 'hae hae',
-    // Casual "what's up" variations
-    'wassup', 'whats up', "what's up", 'sup', 'whazzup', 'whaddup',
-    // With name - Standard variations with bot name (sólrún - fully correct)
-    'hi sólrún', 'hello sólrún', 'hey sólrún',
-    'hi there sólrún', 'hello there sólrún', 'hey there sólrún',
-    'good morning sólrún', 'good afternoon sólrún', 'good evening sólrún',
-    // With name - Without accent marks (solrun)
-    'hi solrun', 'hello solrun', 'hey solrun',
-    'hi there solrun', 'hello there solrun', 'hey there solrun',
-    'good morning solrun', 'good afternoon solrun', 'good evening solrun',
-    // With name - Hybrid spelling (solrún - with accent only on ú)
-    'hi solrún', 'hello solrún', 'hey solrún',
-    'hi there solrún', 'hello there solrún', 'hey there solrún',
-    'good morning solrún', 'good afternoon solrún', 'good evening solrún',
-    // Additional variations with bot name - Different capitalizations
-    'hi Sólrún', 'hello Sólrún', 'hey Sólrún',
-    'hi Solrun', 'hello Solrun', 'hey Solrun',
-    'hi Solrún', 'hello Solrún', 'hey Solrún',
-    'hi SÓLRÚN', 'hello SÓLRÚN', 'hey SÓLRÚN',
-    'hi SOLRUN', 'hello SOLRUN', 'hey SOLRUN',
-    'hi SOLRÚN', 'hello SOLRÚN', 'hey SOLRÚN',
-    // Casual greetings with bot name
-    'yo sólrún', 'yo solrun', 'yo solrún', 'yo Sólrún', 'yo Solrun', 'yo Solrún',
-    'heya sólrún', 'heya solrun', 'heya solrún', 'heya Sólrún', 'heya Solrun', 'heya Solrún',
-    'wassup sólrún', 'wassup solrun', 'wassup solrún', 'wassup Sólrún', 'wassup Solrun', 'wassup Solrún',
-    'sup sólrún', 'sup solrun', 'sup solrún', 'sup Sólrún', 'sup Solrun', 'sup Solrún',
-    "what's up sólrún", "what's up solrun", "what's up solrún", "what's up Sólrún", "what's up Solrun", "what's up Solrún",
-    'whats up sólrún', 'whats up solrun', 'whats up solrún', 'whats up Sólrún', 'whats up Solrun', 'whats up Solrún',
-    // Friendly nickname variations
-    'hi sol', 'hello sol', 'hey sol',
-    'wassup sol', 'sup sol', "what's up sol",
-    // Question variations
-    'how are you sólrún', 'how are you solrun', 'how are you solrún',
-    'how are you today sólrún', 'how are you today solrun', 'how are you today solrún',
-    'how are you doing sólrún', 'how are you doing solrun', 'how are you doing solrún',
-    'how is it going sólrún', 'how is it going solrun', 'how is it going solrún',
-    'hows it going sólrún', 'hows it going solrun', 'hows it going solrún'
-];
-
-// Composite Icelandic greetings - ordered by complexity
-const compositeIcelandicGreetings = [
-    // Time-based formal greetings
-    'góðan dag',
-    'góðan daginn',
-    'gott kvöld',
-    'góða kvöldið',
-    // Formal greetings with gender
-    'sæll og blessaður',
-    'sæl og blessuð',
-    'komdu sæll',
-    'komdu sæl',
-    // Additional formal variations
-    'verið velkomin',
-    'góðan og blessaðan'
-];
-
-// Simple Icelandic greetings - categorized and sorted
-const simpleIcelandicGreetings = [
-    // Basic greetings
-    'hæ', 'hæhæ', 'hææ', 'halló', 
-    'sæl', 'sæll',
-    // Time components
-    'góðan', 'góða', 'morgunn',
-    'daginn', 'kvöld', 'morguninn', 'kvöldið',
-    // Full time-based greetings
-    'góðan daginn', 'góðan dag',
-    'gott kvöld', 'góða kvöldið',
-    // Formal variations
-    'blessaður', 'blessuð',
-    'komdu blessaður', 'komdu blessuð',
-    // Welcome variations
-    'velkomin', 'velkominn',
-    // Multiple greetings
-    'hæhæ hæ', 'halló halló', 'hæ hæ',
-    // Additional formal phrases
-    'kær kveðja', 'heilsað þér'
-];
-
-// Add enhanced logging for greeting pattern usage
-const logGreetingMatch = (message, matches, languageDecision) => {
-    console.log('\n👋 Greeting Pattern Match:', {
-        message: message,
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        },
-        matches: {
-            simpleEnglish: simpleEnglishGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
-            compositeIcelandic: compositeIcelandicGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase())),
-            simpleIcelandic: simpleIcelandicGreetings.filter(g => message.toLowerCase().includes(g.toLowerCase()))
-        },
-        finalMatch: matches
-    });
-};
-
 // Common Icelandic question words and starters
 const icelandicQuestionStarters = [
     'er ', 'má ', 'get ', 'getur ', 'hefur ',
@@ -1404,525 +1050,6 @@ const icelandicQuestionStarters = [
     'verð ', 'eru ', 'eigið ', 'eigum ',
     'geturðu ', 'mætti ', 'megið ', 'væri '
 ];
-
-// Update the isSimpleGreeting function to better handle bot name mentions
-const isSimpleGreeting = (message, languageDecision) => {
-    // Remove emojis, emoticons, and extra punctuation, normalize repeated characters
-    const msg = message.toLowerCase()
-        .trim()
-        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')  // Remove emojis
-        .replace(/:[D\)dPp\(\)]+/g, '')         // Remove common emoticons :D :) :P etc
-        .replace(/[!.,?]+$/, '')                // Remove trailing punctuation
-        .replace(/(.)\1{2,}/g, '$1$1')          // Normalize repeated characters (e.g., hiii -> hii)
-        .replace(/\s+/g, ' ')                   // Normalize spaces
-        .replace(/\bsólrún\b|\bsolrun\b/gi, '') // Remove mentions of Sólrún with or without accent
-        .trim();                                // Final trim
-    
-    // Enhanced logging with language detection
-    console.log('\n👋 Enhanced Greeting Check:', {
-        original: message,
-        cleaned: msg,
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        },
-        patterns: {
-            simpleEnglish: simpleEnglishGreetings.some(g => msg === g || msg === g + '!'),
-            simpleIcelandic: simpleIcelandicGreetings.some(g => msg === g || msg === g + '!'),
-            compositeIcelandic: compositeIcelandicGreetings.some(g => msg === g || msg === g + '!'),
-            hasQuestion: msg.includes('?'),
-            hasNumbers: /\d/.test(msg),
-            hasIcelandicStarter: icelandicQuestionStarters.some(starter => msg.startsWith(starter)),
-            isStandaloneGreeting: /^(?:hi+|he+y+|hello+)\b$/i.test(msg)
-        }
-    });
-
-    // Check if the original message contains the bot name
-    const hasBotName = containsBotName(message);
-    
-    // If message contains bot name and starts with English greeting, prioritize English
-    if (hasBotName && /^(hi|hello|hey|good morning|good afternoon|good evening|howdy|yo|wassup|whats up|what's up|sup|whazzup|whaddup|heya|hae)/i.test(message)) {
-        console.log('\n👋 Bot Name Greeting Detection:', {
-            hasBotName: true,
-            hasEnglishGreeting: true,
-            originalMessage: message
-        });
-        return true;
-    }
-
-    // Early validation - prevent processing of invalid messages
-    if (!msg) return false;                    // Empty message
-    if (msg.includes('?')) return false;       // Questions
-    if (msg.includes('@')) return false;       // Emails/mentions
-    if (msg.includes('http')) return false;    // URLs
-    if (/\d/.test(msg)) return false;          // Numbers
-
-    // Handle common greeting variations with repeated characters
-    if (/^(?:hi+|he+y+|hello+|hae+)\b$/i.test(msg)) {
-        return true;
-    }
-
-    // Standalone English greetings (highest priority)
-    if (/^(?:hi|hello|hey|hi there|hae)\b$/i.test(msg)) {
-        return true;
-    }
-
-    // Icelandic language check using new detection
-    if (languageDecision.isIcelandic) {
-        // Check for Icelandic greetings first
-        if (/^(?:hæ|halló|sæl|sæll)\b$/i.test(msg)) {
-            return true;
-        }
-    }
-
-    // Check for Icelandic questions
-    if (icelandicQuestionStarters.some(starter => msg.startsWith(starter))) {
-        return false;
-    }
-
-    // Check for exact greeting matches with punctuation variations
-    const exactGreetingMatch = languageDecision.isIcelandic ?
-        (simpleIcelandicGreetings.some(g => msg === g || msg === g + '!') ||
-         compositeIcelandicGreetings.some(g => msg === g || msg === g + '!')) :
-        simpleEnglishGreetings.some(g => msg === g || msg === g + '!');
-    
-    if (exactGreetingMatch) return true;
-
-    // Add explicit standalone Icelandic greeting check
-    if (/^(?:hæ|halló|sæl|sæll)\b$/i.test(msg)) {
-        return true;
-    }
-
-    // Check for compound greetings that start with known greetings
-    const hasGreetingStart = languageDecision.isIcelandic ?
-        simpleIcelandicGreetings.some(g => msg.startsWith(g + ' ')) :
-        simpleEnglishGreetings.some(g => msg.startsWith(g + ' '));
-    
-    if (hasGreetingStart) return false;
-    
-    // Enhanced non-greeting indicators
-    const notSimpleGreeting = [
-        // English question/request words
-        'can', 'could', 'would', 'do', 'does', 'is', 'are', 
-        'what', 'when', 'where', 'why', 'how', 'should', 
-        'may', 'might', 'please', 'thanks', 'thank',
-        // Action words
-        'help', 'need', 'want', 'looking', 'trying', 'get',
-        'book', 'find', 'know', 'tell', 'show',
-        // Icelandic indicators
-        'má', 'er', 'hefur', 'getur', 'hvernig', 'hvar',
-        'viltu', 'geturðu', 'mig langar', 'ég er', 'ég vil',
-        'gætirðu', 'væri', 'get ég', 'má ég'
-    ];
-    
-    // Check for any non-greeting indicators more thoroughly
-    if (notSimpleGreeting.some(word => {
-        // Check for word boundaries to prevent partial matches
-        const pattern = new RegExp(`(^|\\s)${word}\\b`, 'i');
-        return pattern.test(msg);
-    })) {
-        return false;
-    }
-
-    // If message is longer than 4 words, it's probably not a simple greeting
-    if (msg.split(' ').length > 4) return false;
-
-    // Final check - must explicitly match one of our greeting patterns or variations
-    return languageDecision.isIcelandic ?
-        (/^(?:hæ|halló|sæl|sæll)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg)) :
-        (/^(?:hi+|he+y+|hello+|hae+)\b(?:\s*(?:there|sólrún))?\s*$/i.test(msg))
-};
-
-// Enhanced small talk patterns with better categorization
-const smallTalkPatterns = {
-    en: {
-        wellbeing: [
-            'how are you',
-            'how\'s it going',
-            // 'how do you do' - removed
-            'how are things',
-            'what\'s up',
-            'how you doing',
-            'everything good',
-            'all good'
-        ],
-        identity: [
-            'who are you',
-            'what can you do',
-            'what do you do',
-            'tell me about yourself',
-            'your name',
-            'who made you',
-            'are you ai',
-            'are you artificial intelligence',
-            'are you a bot',
-            'are you human',
-            'are you real',
-            'are you a chatbot',
-            'are you an assistant'
-        ],
-        greeting: [
-            'nice to meet you',
-            'good to meet you',
-            'pleased to meet you',
-            'great to meet you',
-            'lovely to meet you',
-            'wonderful to meet you'
-        ],
-        return: [
-            'nice to see you',
-            'good to see you',
-            'great to see you',
-            'glad to see you'
-        ],
-        // NEW: Add feedback category for English
-        feedback: [
-            'helpful',
-            'good job',
-            'well done',
-            'great job',
-            'useful',
-            'useful information',
-            'good information',
-            'informative',
-            'great information',
-            'clear explanation',
-            'good explanation',
-            'good bot',
-            'smart bot',
-            'good chatbot',
-            'clever',
-            'appreciate',
-            'thank you for your help',
-            'thanks for helping',
-            'that was perfect'
-        ]
-    },
-    is: {
-        wellbeing: [
-            'hvernig hefurðu það',
-            'allt gott',
-            'hvað segirðu',
-            'hvernig gengur',
-            'allt í lagi'
-        ],
-        greeting: [
-            'gaman að hitta þig',
-            'gaman að kynnast þér',
-            'gott að hitta þig',
-            'gaman að sjá þig',
-            'gott að sjá þig'
-        ],
-        identity: [
-            'hver ert þú',
-            'hvað geturðu',
-            'segðu mér frá þér',
-            'hvað heitirðu',
-            'hver bjó þig til',
-            'ertu ai',
-            'ertu gervigreind',
-            'ertu vélmenni',
-            'ertu bot',
-            'ertu manneskja',
-            'ertu róbot',
-            'ertu chatbot',
-            'ertu spjallmenni',
-            'ertu aðstoðarmaður'
-        ],
-        // NEW: Add feedback category for Icelandic with more natural phrases
-        feedback: [
-            'hjálplegt',          // helpful
-            'góð hjálp',          // good help
-            'vel gert',           // well done
-            'gott svar',          // good answer
-            'flott svar',         // nice answer
-            'gagnlegt',           // useful
-            'góðar upplýsingar',  // good information
-            'skýrt',              // clear
-            'skiljanlegt',        // understandable
-            'flott útskýring',    // nice explanation
-            'góð útskýring',      // good explanation
-            'skýrt og gott',      // clear and good
-            'þetta hjálpaði',     // this helped
-            'þú ert flink',       // you're skilled
-            'fín aðstoð',         // fine assistance
-            'góð þjónusta'        // good service
-        ]
-    }
-};
-
-// Add helper function for small talk detection
-const detectSmallTalk = (message, languageDecision) => {
-    const msg = message.toLowerCase().trim();
-
-    // Log detection attempt
-    console.log('\n💬 Small Talk Pattern Check:', {
-        message: msg,
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        },
-        patterns: {
-            enWellbeing: smallTalkPatterns.en.wellbeing.some(p => matchesWholeWord(msg, p)),
-            enIdentity: smallTalkPatterns.en.identity.some(p => matchesWholeWord(msg, p)),
-            enGreeting: smallTalkPatterns.en.greeting.some(p => matchesWholeWord(msg, p)),
-            enFeedback: smallTalkPatterns.en.feedback.some(p => matchesWholeWord(msg, p)),
-            isWellbeing: smallTalkPatterns.is.wellbeing.some(p => matchesWholeWord(msg, p)),
-            isGreeting: smallTalkPatterns.is.greeting.some(p => matchesWholeWord(msg, p)),
-            isFeedback: smallTalkPatterns.is.feedback.some(p => matchesWholeWord(msg, p))
-        }
-    });
-
-    // Check for feedback patterns first - these should take priority
-    if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
-        if (smallTalkPatterns.en.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
-            return { isSmallTalk: true, language: 'en', category: 'feedback' };
-        }
-    } else {
-        if (smallTalkPatterns.is.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
-            return { isSmallTalk: true, language: 'is', category: 'feedback' };
-        }
-    }
-
-    // Use language detection for initial check
-    if (!languageDecision.isIcelandic || languageDecision.confidence === 'high') {
-        for (const category in smallTalkPatterns.en) {
-            if (smallTalkPatterns.en[category].some(pattern => matchesWholeWord(msg, pattern))) {
-                return { isSmallTalk: true, language: 'en', category };
-            }
-        }
-    }
-
-    // Then check both languages if not confident
-    for (const lang of ['en', 'is']) {
-        for (const category in smallTalkPatterns[lang]) {
-            if (smallTalkPatterns[lang][category].some(pattern => matchesWholeWord(msg, pattern))) {
-                return { isSmallTalk: true, language: lang, category };
-            }
-        }
-    }
-
-    return { isSmallTalk: false, language: null, category: null };
-};
-
-// Add response selector helper
-const getSmallTalkResponse = (result, languageDecision) => {
-    // Use our new language detection
-    const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
-    
-    // Log response selection
-    console.log('\n💬 Small Talk Response Selection:', {
-        category: result.category || 'casual',
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        }
-    });
-
-    // Get responses array with fallback to casual category
-    const selectedLanguage = useEnglish ? SMALL_TALK_RESPONSES.en : SMALL_TALK_RESPONSES.is;
-    const category = result.category || 'casual';
-    const responses = selectedLanguage[category] || selectedLanguage.casual;
-
-    // Select random response from the array
-    return responses[Math.floor(Math.random() * responses.length)];
-};
-
-const acknowledgmentPatterns = {
-    simple: {
-        en: [
-            // Single word acknowledgments
-            'thanks', 'ok', 'okay', 'perfect', 'great', 'good', 'noted',
-            'understood', 'alright', 'sure', 'yep', 'cool', 'right',
-            'clear', 'fine', 'brilliant', 'excellent', 'wonderful',
-            'sweet', 'fab', 'indeed', 'absolutely', 'certainly',
-            // Two word variations
-            'got it', 'makes sense', 'thank you',
-            'sounds good', 'fair enough', 'very good', 'very well',
-            'got that', 'understand completely', 'crystal clear',
-            'makes perfect', 'thanks alot', 'thanks so',
-            // Three+ word variations
-            'that makes sense', 'i got it', 'i understand that',
-            'that sounds good', 'that works fine', 'makes perfect sense',
-            'thanks a lot', 'thanks so much', 'thank you very',
-            'that makes perfect', 'that is clear', 'that is good',
-            'that is perfect', 'i see that', 'got it thanks',
-            'makes sense now', 'understand it now', 'that helps alot',
-            // Ah variations  
-            'ah ok', 'ah okay', 'ah right', 'ah yes', 'ah perfect',
-            // That's variations
-            'thats good', 'thats great', 'thats perfect', 'thats fine',
-            'thats clear', 'thats right', 'thats wonderful', 'thats excellent',
-            'thats brilliant', "that's good", "that's great", "that's perfect",
-            "that's fine", "that's clear", "that's right", "that's wonderful",
-            "that's excellent", "that's brilliant"
-        ],
-        is: [
-            'æði', 'takk', 'takk fyrir', 'allt í lagi', 'frábært', 'flott', 'skil', 'já',
-            'geggjað', 'næs', 'gott að vita', 'skil þetta', 'érna', 'einmitt',
-            'ég skil', 'ókei', 'í góðu', 'allt skýrt', 'mhm', 'jebb', 'jepp',
-            'akkúrat', 'nákvæmlega', 'nákvæmlega þetta', 'skil vel', 
-            'þetta er skýrt', 'allt skilið', 'í fínu', 'snilld', 'frábært mál',
-            'flott mál', 'góð punktar', 'skil þetta vel', 'algjörlega', 
-            'klárlega', 'augljóslega', 'hiklaust', 'örugglega', 'vissulega',
-            'alveg rétt', 'rétt hjá þér', 'þetta er rétt', 'já einmitt',
-            'ah já', 'ah ok', 'ah ókei', 'mm', 'mmm', 'mmmhm', 'aha', 
-            'ekkert mál', 'ekkert núna'
-        ]
-    },
-    positive: {
-        en: [
-            'very helpful', 'so helpful', 'really helpful',
-            'really good', 'very good', 'so good',
-            'excellent', 'wonderful', 'fantastic', 'amazing',
-            'thanks for', 'thank you for',
-            'that helps', 'that helped', 'this helps', 'helps a lot',
-            'super helpful', 'extremely helpful', 'incredibly helpful',
-            'great help', 'perfect help', 'exactly what i needed',
-            'just what i needed', 'that was perfect', 'that was great',
-            'that was wonderful', 'that was fantastic', 'that was amazing',
-            'that was excellent', 'brilliant', 'superb', 'outstanding',
-            'magnificent', 'splendid', 'marvelous', 'terrific',
-            'thank you so much', 'thanks so much', 'much appreciated',
-            'greatly appreciated', 'really appreciate', 'appreciate it',
-            'appreciate that', 'appreciate your help', 'appreciate the help',
-            'thank you for your help', 'thanks for your help',
-            'this is perfect', 'this is excellent', 'this is great',
-            'this is wonderful', 'this is fantastic', 'this is amazing',
-            'answered perfectly', 'perfect answer', 'great answer',
-            'excellent answer', 'wonderful answer', 'fantastic answer'
-        ],
-        is: [
-            'frábært', 'hjálplegt', 'gott', 'þægilegt', 'æðislegt',
-            'dásamlegt', 'geggjað', 'ótrúlegt', 'snilld', 'snilld takk', 'gott að vita',
-            'þetta hjálpaði', 'hjálpaði mikið', 'rosalega hjálplegt',
-            'alveg frábært', 'alveg æðislegt', 'alveg dásamlegt',
-            'alveg geggjað', 'alveg ótrúlegt', 'alveg snilld',
-            'þetta var frábært', 'þetta var æðislegt', 'þetta var dásamlegt',
-            'þetta var geggjað', 'þetta var ótrúlegt', 'þetta var snilld',
-            'þetta er nákvæmlega það sem ég þurfti', 'nákvæmlega það sem ég var að leita að',
-            'kærar þakkir', 'þakka þér fyrir', 'þakka þér kærlega',
-            'þúsund þakkir', 'mjög þakklát/ur', 'innilega þakkir',
-            'frábær hjálp', 'fullkomin hjálp', 'ómetanleg hjálp',
-            'þetta er nákvæmlega það', 'þetta er fullkomið',
-            'algjör snilld', 'algjört æði', 'hrein snilld',
-            'stórkostlegt', 'magnað', 'meiriháttar', 'framúrskarandi',
-            'þetta var akkúrat', 'þetta hjálpaði mikið',
-            'rosa gott', 'rosalega gott', 'virkilega gott',
-            'virkilega hjálplegt', 'rosalega hjálplegt', 'hjálpsamt'
-        ]
-    },
-    continuity: {
-        en: [
-            'another question', 
-            'one more question',
-            'quick question', 
-            'quick follow up',
-            'follow up question'
-        ],
-        is: [
-            'ein spurning í viðbót',
-            'ein spurning enn',
-            'stutt spurning'
-        ]
-    },
-    general: {
-        en: [
-            'impressed with this chat',
-            'impressed with you',
-            'chat is helpful',
-            'chat is great',
-            'really cool system',
-            'works well',
-            'works great',
-            'loving this',
-            'love this',
-            'really like this',
-            'good chat',
-            'great chat',
-            'nice chat'
-        ],
-        is: [
-            'gaman að spjalla',
-            'gott spjall',
-            'virkar vel',
-            'þetta er frábært',
-            'þetta er geggjað',
-            'mjög gott kerfi',
-            'þetta er snilld',
-            'virkar mjög vel',
-            'gott að geta spjallað'
-        ]
-    },
-    finished: {
-        en: [
-            'nothing else',
-            'nothing now',
-            'not right now',
-            'nothing more',
-            'no more questions',
-            'that is all',
-            "that's all",
-            'nothing else thanks',
-            'nothing else right now',
-            'thats all for now',
-            "that's all for now",
-            'no', // could be a problem line
-            'nope',
-            'not now',
-            'no thanks',
-            'no thank you',
-            'not at the moment',
-            // Add new variations
-            'nothing right now',
-            'not now',
-            'nothing at the moment',
-            'maybe later',
-            'another time',
-            'just saying hi',
-            'just saying hello',
-            'just wanted to say hi',
-            'just wanted to say hello',
-            'just greeting',
-            'just saying hey'
-        ],
-        is: [
-            'ekkert annað',
-            'ekkert núna',
-            'ekkert meira',
-            'ekkert að sinni',
-            'ekkert fleira',
-            'það er allt',
-            'það er allt í bili',
-            'ekkert annað takk',
-            'ekkert meira takk',
-            'ekkert fleira takk',
-            'nei',
-            'nei takk',
-            'ekki núna',
-            'ekkert',
-            // Add new variations
-            'bara að heilsa',
-            'bara heilsa',      // Need to add this variation
-            'er bara að heilsa',
-            'var bara að heilsa',
-            'bara að prufa',
-            'bara prufa',
-            'bara að kíkja',
-            'bara að líta við',
-            'kannski seinna',
-            'seinna meir',
-            'ekki núna',
-            'ekki að sinni',
-            'ekki í augnablikinu',
-            'bara að skoða',
-            'bara að kveðja'
-        ]
-    }
-};
 
 const questionPatterns = {
     booking: {
@@ -1941,205 +1068,6 @@ const questionPatterns = {
         en: ['how', 'what', 'when', 'where', 'why', 'can', 'do', 'does', 'which', 'are', 'is', 'will', 'should'],
         is: ['hvernig', 'hvað', 'hvenær', 'hvar', 'af hverju', 'get', 'er', 'má', 'hver']    
     }
-};
-
-// Helper functions for response handling
-const getContextualResponse = (type, previousResponses = [], languageDecision) => {
-    let responses;
-    
-    // Add defensive check at the beginning to prevent undefined error
-    if (!languageDecision) {
-        // Fallback to English if language decision is not provided
-        console.log('\n⚠️ Language Decision Missing in getContextualResponse:', {
-            type: type,
-            fallback: 'defaulting_to_english'
-        });
-        
-        // Use a default based on type
-        switch(type) {
-            case 'acknowledgment':
-                return ACKNOWLEDGMENT_RESPONSES.en[Math.floor(Math.random() * ACKNOWLEDGMENT_RESPONSES.en.length)];
-            case 'small_talk':
-                return SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)];
-            case 'confirmation':
-                return CONFIRMATION_RESPONSES.en[Math.floor(Math.random() * CONFIRMATION_RESPONSES.en.length)];
-            default:
-                return ACKNOWLEDGMENT_RESPONSES.en[Math.floor(Math.random() * ACKNOWLEDGMENT_RESPONSES.en.length)];
-        }
-    }
-    
-    // Original logic when language detection is available
-    switch(type) {
-        case 'acknowledgment':
-            responses = languageDecision.isIcelandic ? ACKNOWLEDGMENT_RESPONSES.is : ACKNOWLEDGMENT_RESPONSES.en;
-            break;
-        case 'small_talk':
-            responses = languageDecision.isIcelandic ? SMALL_TALK_RESPONSES.is : SMALL_TALK_RESPONSES.en;
-            break;
-        case 'confirmation':
-            responses = languageDecision.isIcelandic ? CONFIRMATION_RESPONSES.is : CONFIRMATION_RESPONSES.en;
-            break;
-        default:
-            responses = languageDecision.isIcelandic ? ACKNOWLEDGMENT_RESPONSES.is : ACKNOWLEDGMENT_RESPONSES.en;
-    }
-    
-    const availableResponses = responses.filter(r => !previousResponses.includes(r));
-    return availableResponses[Math.floor(Math.random() * availableResponses.length)];
-};
-
-// Add this with your other constants/helper functions, before the chat endpoint
-const checkSimpleResponse = (message, languageDecision) => {
-    // Add enhanced logging at beginning
-    console.log('\n🔍 Simple Response Check:', {
-        message: message,
-        language: languageDecision ? {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence
-        } : 'no language detection'
-    });
-    
-    // IMPORTANT: Define msg variable first before using it
-    const msg = message.toLowerCase().trim().replace(/[!.?]/g, '');
-    
-    // THEN add the Icelandic phrase checks
-    // Check for common Icelandic appreciation phrases
-    if (matchesWholeWord(msg, 'æði') && matchesWholeWord(msg, 'takk')) {
-        return 'is';
-    }
-    
-    if (msg.includes('takk fyrir')) {
-        return 'is';
-    }
-    
-    // Check for Icelandic appreciation terms
-    const icelandicAppreciationTerms = ['geggjað', 'magnað', 'æðislegt', 'æði', 'frábært', 'flott mál'];
-    if (icelandicAppreciationTerms.some(term => matchesWholeWord(msg, term))) {
-        return 'is';
-    }
-
-    const strictIcelandicResponses = [
-        // Basic responses
-        'allt í lagi', 'frábært', 'takk', 'flott', 'næs', 'æðislegt', 'æðisleg', 
-        // Thank you variations
-        'takk fyrir', 'takk kærlega', 'kærar þakkir', 'takk fyrir þetta', 
-        'takk fyrir aðstoðina', 'takk kæra', 'þúsund þakkir', 'ók takk',
-        'okei takk', 'oki takk', 'ókei takk',
-        // Positive feedback
-        'mjög gott', 'algjör snilld', 'gott að heyra',
-        'það er frábært', 'glæsilegt', 'snilld', 'snillingur',
-        // Additional variations
-        'flott er', 'flott takk'
-    ];
-    
-    const strictEnglishResponses = [
-        'perfect', 'great', 'thanks', 'thank you', 'alright',
-        "that's it", "that's all", "that's all thanks", "that's it thanks",
-        // Add these key problematic responses
-        'amazing', 'good', 'yes', 'yeah', 'no', 'nope'
-    ];
-    
-    // NEW: Direct pattern matching for simple responses
-    const simpleEnglishPatterns = [
-        /^(thanks|thank you)$/i,
-        /^(ok|okay)$/i,
-        /^(yes|yeah|yep|yup)$/i,
-        /^(no|nope|nah)$/i,
-        /^(good|great|fine|nice|cool|perfect|amazing|awesome|wonderful|excellent)$/i,
-        /^(got it)$/i
-    ];
-    
-    const simpleIcelandicPatterns = [
-        /^(takk|takk fyrir)$/i,
-        /^(já|jebb|jú)$/i,
-        /^(nei)$/i,
-        /^(frábært|gott|flott|snilld|geggjað)$/i
-    ];
-    
-    // First check for exact matches with our critical patterns
-    for (let pattern of simpleEnglishPatterns) {
-        if (pattern.test(msg)) {
-            console.log('\n✅ Direct English pattern match:', msg);
-            return 'en';
-        }
-    }
-    
-    for (let pattern of simpleIcelandicPatterns) {
-        if (pattern.test(msg)) {
-            console.log('\n✅ Direct Icelandic pattern match:', msg);
-            return 'is';
-        }
-    }
-    
-    // NEW: Check common multi-word responses that were failing
-    if (/^ok good$/i.test(msg) || /^ok great$/i.test(msg)) {
-        return 'en';
-    }
-    
-    // Use languageDecision for initial check
-    if (languageDecision && languageDecision.isIcelandic && languageDecision.confidence === 'high') {
-        return 'is';
-    }
-
-    // Handle 'gott að vita' specifically
-    if (msg === 'gott að vita') {
-        return 'is';
-    }
-
-    // Handle "bara" phrases
-    if (msg.startsWith('bara ') || msg === 'bara heilsa' || msg === 'bara að heilsa') {
-        return 'is';
-    }
-    
-    // Handle standalone oki/okei variations
-    if (msg === 'oki' || msg === 'okei' || msg === 'óki' || msg === 'ókei') return 'is';
-
-    // Enhanced ok/oki/okei handling - KEEPING THE ORIGINAL WORKING VERSION
-    if (msg.startsWith('ok ')) {
-        const afterOk = msg.slice(3);
-        if (strictEnglishResponses.some(word => afterOk === word)) return 'en';
-        if (strictIcelandicResponses.some(word => afterOk === word)) return 'is';
-    }
-    
-    // Check if message starts with any Icelandic responses
-    if (strictIcelandicResponses.some(word => msg.startsWith(word))) return 'is';
-    
-    // Check if message contains certain Icelandic positive phrases
-    const icelandicPhrases = ['snilld', 'frábært', 'gott', 'æðislegt', 'glæsilegt'];
-    if (icelandicPhrases.some(phrase => matchesWholeWord(msg, phrase))) return 'is';
-    
-    // Basic exact matches
-    if (strictIcelandicResponses.some(word => msg === word)) return 'is';
-    if (strictEnglishResponses.some(word => msg === word)) return 'en';
-    
-    // Handle standalone 'ok' based on context - MOVED TO END
-    if (msg === 'ok' || msg === 'okay') {
-        // First check language detection
-        if (languageDecision && languageDecision.isIcelandic) {
-            return 'is';
-        }
-        // Fall back to context checks
-        const currentSession = conversationContext.get('currentSession');
-        const context = currentSession ? conversationContext.get(currentSession) : null;
-        if (context?.language === 'is') {
-            return 'is';
-        }
-        if (context?.lastResponse?.includes('þú') || 
-            context?.icelandicTopics?.length > 0 ||
-            context?.messages?.some(m => m.content.includes('þú'))) {
-            return 'is';
-        }
-        return 'en';
-    }
-
-    // Default to previous language context if available
-    const currentSession = conversationContext.get('currentSession');
-    const context = currentSession ? conversationContext.get(currentSession) : null;
-    if (context?.language === 'is' && !strictEnglishResponses.some(word => matchesWholeWord(msg, word))) {
-        return 'is';
-    }
-    
-    // If no specific matches, use languageDecision
-    return languageDecision && languageDecision.isIcelandic ? 'is' : 'en';
 };
 
 // Late Arrival and Booking Constants
@@ -4244,34 +3172,55 @@ WEBSITE LINKS GUIDELINES:
    - NEVER include trailing slashes in URLs
    - For gift cards, ALWAYS use /buy-gift-tickets (not /purchase-gift-tickets)
 
-ACKNOWLEDGMENT HANDLING:
-1. For simple acknowledgments (1-4 words):
-   - "thanks", "ok", "got it", "perfect", etc
-   - Response: "Is there anything else you'd like to know about Sky Lagoon?"
+CONVERSATIONAL INTERACTION GUIDELINES:
+1. Greetings:
+   - For casual greetings like "hi", "hello", "hæ", "halló":
+     * Respond warmly: "Hello! Welcome to Sky Lagoon. How can I help you today?"
+     * In Icelandic: "Hæ! Velkomin(n) til Sky Lagoon. Hvernig get ég aðstoðað þig í dag?"
+   - For time-specific greetings (good morning, góðan dag):
+     * Match the time reference: "Good morning! How can I assist you today?"
+     * In Icelandic: "Góðan daginn! Hvernig get ég aðstoðað þig í dag?"
+   - For informal greetings like "what's up", "wassup", "hvað segirðu":
+     * Stay professional but friendly: "Hey there! I'm here to help with anything Sky Lagoon related. What can I do for you?"
+     * In Icelandic: "Hæ! Ég er hér til að hjálpa þér með allt sem tengist Sky Lagoon. Hvað get ég gert fyrir þig?"
 
-2. For positive feedback (any length):
-   - Contains words like "great", "helpful", "good", "comfortable", "excellent"
-   - Response: "I'm glad I could help! If you have any more questions about [last_topic], or anything else, feel free to ask."
+2. Acknowledgments:
+   - For simple acknowledgments (1-4 words like "thanks", "ok", "got it", "perfect"):
+     * Response: "Is there anything else you'd like to know about Sky Lagoon?"
+     * In Icelandic: "Láttu mig vita ef þú hefur fleiri spurningar!"
+   - For positive feedback (words like "great", "helpful", "good", "excellent"):
+     * Response: "I'm glad I could help! If you have any more questions about [last_topic], or anything else, feel free to ask."
+     * In Icelandic: "Gott að geta hjálpað! Ef þú hefur fleiri spurningar um [last_topic], eða eitthvað annað, ekki hika við að spyrja."
+   - For conversation continuity ("a few more questions", "can i ask", "actually"):
+     * Response: "Of course! Please go ahead and ask your questions."
+     * In Icelandic: "Endilega! Spurðu bara."
 
-3. For conversation continuity:
-   - "a few more questions", "can i ask", "actually"
-   - Response: "Of course! Please go ahead and ask your questions."
+3. Small Talk:
+   - For "how are you" questions:
+     * Respond positively then redirect: "I'm doing well, thanks for asking! I'm excited to help you learn about our unique geothermal experience. What would you like to know?"
+     * In Icelandic: "Mér líður vel, takk fyrir að spyrja! Ég er spennt að hjálpa þér að kynnast Sky Lagoon. Hvað viltu vita?"
+   - For identity questions like "who are you", "are you a bot":
+     * Be transparent and friendly: "I'm Sólrún, Sky Lagoon's AI assistant. I'm here to help you learn about our facilities and experiences. What would you like to know?"
+     * In Icelandic: "Ég er Sólrún, AI spjallmenni hjá Sky Lagoon. Ég er hér til að hjálpa þér að kynnast aðstöðunni og upplifuninni okkar. Hvað viltu vita nánar um?"
+   - For Question Introductions ("have questions", "want to ask"):
+     * Show enthusiasm: "I'm excited to help! What would you like to know about our facilities?"
+     * Or: "I'd love to tell you about our experience. What questions do you have?"
+     * Always be welcoming and ready to help
 
-4. NEVER respond with "I'm still learning" for:
-   - Messages containing positive words ("great", "good", "helpful", "comfortable")
-   - Messages indicating more questions ("more", "another", "also", "as well")
-   - Simple acknowledgments ("ok", "thanks", "got it")
+4. Context Awareness:
+   - ALWAYS maintain context from previous responses when handling acknowledgments
+   - Remember discussed topics and packages between messages
+   - Refer back to previous questions when appropriate
+   - If asked a follow-up to a previous topic, provide more detailed information
+   - For vague "it" or "that" references, connect to last mentioned topic
 
-5. ALWAYS maintain context from previous response when handling acknowledgments
+5. Response Guidelines:
+   - NEVER respond with "I'm still learning" for any conversational messages
+   - For "yes" responses, elaborate on the previous topic with more details
+   - For "no" responses, offer alternative information about Sky Lagoon
+   - Keep acknowledgment responses concise but friendly
 
-6. For Question Introductions:
-   - When guest says "have questions", "want to ask", etc:
-   - Response variations:
-     * "I'm excited to help! What would you like to know about our facilities?"
-     * "I'd love to tell you about our experience. What questions do you have?"
-     * "Of course! I'm here to share everything about our unique offerings."
-     * "Please ask away! I'm happy to tell you all about our facilities."
-   - ALWAYS show enthusiasm and readiness to help
+IMPORTANT: You should ALWAYS handle greetings, small talk, and conversational elements naturally, even when there's no specific information in the knowledge base about these topics. For purely conversational messages, you don't need knowledge base information to respond.
 
 VOICE AND TONE GUIDELINES:
 1. Personal and Welcoming:
@@ -6927,104 +5876,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(responseData.status || 200).json(responseData);
         }
 
-        // Early greeting check
-        const isGreeting = isSimpleGreeting(userMessage, languageDecision);  // Pass languageDecision
-        if (isGreeting) {
-            const msg = userMessage.toLowerCase().replace(/\bsólrún\b|\bsolrun\b/gi, '').trim();
-            
-            // Check for English greeting pattern with bot name (with or without accent)
-            const hasBotName = /\bsólrún\b|\bsolrun\b/i.test(userMessage);
-            const hasEnglishGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|hi there|hello there|hey there)/i.test(userMessage);
-            
-            // NEW CODE - Check if there's a question after the greeting
-            const containsQuestion = /can|could|would|do|does|is|are|how|what|when|where|why|which|should/i.test(
-                userMessage.replace(/^(hi|hello|hey|good morning|good afternoon|good evening|hi there|hello there|hey there)(\s*sólrún|\s*solrun)?\s*,?\s*/i, '')
-            );
-            
-            // If the message contains a question after the greeting, skip the greeting handling
-            if (containsQuestion) {
-                console.log('\n🔍 Skipping greeting response for message with question:', userMessage);
-                // Continue processing (no return)
-            } else {
-                // If it has both bot name and English greeting pattern, force English response
-                const isEnglishGreeting = (hasBotName && hasEnglishGreeting) || 
-                                        (!languageDecision.isIcelandic && 
-                                        (languageDecision.confidence === 'high' || 
-                                        /^(?:hi|hello|hey|hi there|good morning|good afternoon)\b/i.test(msg)));
-                                        (simpleEnglishGreetings.some(g => 
-                                            msg === g || msg === g + '!' || msg.startsWith(g + ' ')
-                                        ));
-
-                // Log greeting detection with pattern match (use stored result)
-                logGreetingMatch(userMessage, isGreeting, languageDecision);
-
-                // Log enhanced greeting check
-                console.log('\n👋 Enhanced Greeting Check:', {
-                    original: userMessage,
-                    cleaned: msg,
-                    hasBotName: hasBotName,
-                    hasEnglishGreeting: hasEnglishGreeting,
-                    forceEnglish: hasBotName && hasEnglishGreeting,
-                    isEnglishDetected: !languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence,
-                    isEnglishGreeting: isEnglishGreeting,
-                    patterns: {
-                        isSimpleHi: /^(?:hi|hello|hey)\b$/i.test(msg),
-                        isEnglishGreetingWithMore: /^(?:hi|hello|hey)\b.+/i.test(msg),
-                        matchesSimpleGreetings: simpleEnglishGreetings.some(g => msg === g)
-                    }
-                });
-                
-                // Check for follow-up greeting with new language system
-                const isFollowUp = isFollowUpGreeting(userMessage, languageDecision) || context.conversationStarted;
-                
-                // Determine language for response based on enhanced rules
-                const useEnglishResponse = (hasBotName && hasEnglishGreeting) || 
-                                        (!languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                
-                // Always use follow-up responses since ChatWidget handles initial greeting
-                const response = isFollowUp ? 
-                    (useEnglishResponse ? 
-                        FOLLOWUP_RESPONSES.en[Math.floor(Math.random() * FOLLOWUP_RESPONSES.en.length)] :
-                        FOLLOWUP_RESPONSES.is[Math.floor(Math.random() * FOLLOWUP_RESPONSES.is.length)]) :
-                    (useEnglishResponse ? 
-                        GREETING_RESPONSES.english[0] : 
-                        GREETING_RESPONSES.icelandic[0]);
-
-                // Log the follow-up response selection
-                if (isFollowUp) {
-                    console.log('\n🗣️ Selected Greeting Response:', {
-                        isFollowUp: true,
-                        useEnglishResponse: useEnglishResponse,
-                        hasBotName: hasBotName,
-                        hasEnglishGreeting: hasEnglishGreeting,
-                        response: response
-                    });
-                    logFollowUpResponse({
-                        isIcelandic: !useEnglishResponse,
-                        confidence: 'high',
-                        reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
-                    }, response);
-                }
-
-                // Update context and save
-                context.language = useEnglishResponse ? 'en' : 'is';
+        // Simplified greeting context setting (replacing the entire previous block)
+        if (userMessage && userMessage.trim()) {
+            // Set conversation started flag for any message
+            if (!context.conversationStarted) {
                 context.conversationStarted = true;
-                conversationContext.set(sessionId, context);
-                
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: useEnglishResponse ? 'English' : 'Icelandic',
-                        confidence: languageDecision.confidence,
-                        reason: hasBotName ? 'bot_name_greeting' : languageDecision.reason
-                    },
-                    topicType: 'greeting',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
+                console.log('\n👋 Setting conversation started flag');
             }
+            
+            // Update language in context
+            if (languageDecision) {
+                context.language = languageDecision.isIcelandic ? 'is' : 'en';
+            }
+            
+            // Save context
+            conversationContext.set(sessionId, context);
         }
 
         // MOVE TOPIC CONTEXT CODE HERE - after context initialization
@@ -7266,107 +6132,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(responseData.status || 200).json(responseData);
         }
 
-        // Special case for "how are you" questions
-        const howAreYouPattern = /^how (?:are you|(?:you )?doing|is it going)[?]?$/i;
-        const icelandicHowAreYouPattern = /^(?:hvernig|hvað) (?:hefur[ðd]u (?:það|það)|gengu[rd]|líður þér)[?]?$/i;
-
-        if (howAreYouPattern.test(userMessage) || icelandicHowAreYouPattern.test(userMessage)) {
-            console.log('\n💬 Detected "How are you" question:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
+        // Simple context setting for small talk/identity/greeting questions
+        if (userMessage) {
+            // Detect small talk for context (but don't handle it directly)
+            const isSmallTalkQuestion = 
+                /^how (?:are you|(?:you )?doing|is it going)/i.test(userMessage) ||
+                /^(?:what'?s up|what up|sup|yo|wassup)/i.test(userMessage) || 
+                /^(?:who are you|are you (?:ai|a bot|human|real))/i.test(userMessage) ||
+                // Icelandic equivalents
+                /^(?:hvernig|hvað) (?:hefur[ðd]u (?:það|það)|gengu[rd]|líður þér)/i.test(userMessage) ||
+                /^(?:hvað segir[uð]|sæll og blessaður|sæl og blessuð)/i.test(userMessage) ||
+                /^(?:hver ert þú|ertu (?:ai|gervigreind|vélmenni|bot))/i.test(userMessage);
             
-            // Use languageDecision to determine response language
-            const response = !languageDecision.isIcelandic ?
-                "I'm doing well, thanks for asking! How can I help you with Sky Lagoon today?" :
-                "Mér líður vel, takk fyrir að spyrja! Hvernig get ég aðstoðað þig varðandi Sky Lagoon í dag?";
-            
-            // Store this as small talk in the context
-            context.lastTopic = 'small_talk';
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: 'small_talk_how_are_you'
-                },
-                topicType: 'small_talk',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Add informal greeting detection like "what's up" or "hvað segirðu"
-        const informalGreetingPattern = /^(?:what'?s up|what up|sup|whats up|whazzup|yo|wassup)[?]?$/i;
-        const icelandicInformalPattern = /^(?:hvað segir[uð]|sæll og blessaður|sæl og blessuð)[?]?$/i;
-
-        if (informalGreetingPattern.test(userMessage) || icelandicInformalPattern.test(userMessage)) {
-            console.log('\n💬 Detected informal greeting:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
-            
-            const response = !languageDecision.isIcelandic ?
-                "Hey there! I'm doing great. What can I help you with regarding Sky Lagoon today?" :
-                "Hæ! Allt gott hjá mér. Hvernig get ég aðstoðað þig varðandi Sky Lagoon?";
-            
-            context.lastTopic = 'small_talk';
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: 'small_talk_informal_greeting'
-                },
-                topicType: 'small_talk',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Check for identity questions
-        const identityQuestionsEnglish = /^(?:who are you|are you (?:ai|artificial intelligence|a bot|human|real))[?]?$/i;
-        const identityQuestionsIcelandic = /^(?:hver ert þú|ertu (?:ai|gervigreind|vélmenni|bot|manneskja))[?]?$/i;
-
-        if (identityQuestionsEnglish.test(userMessage) || identityQuestionsIcelandic.test(userMessage)) {
-            console.log('\n💬 Detected identity question:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
-            
-            // Use the appropriate identity response based on language
-            const response = !languageDecision.isIcelandic ?
-                SMALL_TALK_RESPONSES.en.identity[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.identity.length)] :
-                SMALL_TALK_RESPONSES.is.identity[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.identity.length)];
-            
-            // Store this as small talk in the context
-            context.lastTopic = 'small_talk';
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: 'small_talk_identity'
-                },
-                topicType: 'small_talk',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
+            if (isSmallTalkQuestion) {
+                console.log('\n💬 Small talk question detected, setting context');
+                context.lastTopic = 'small_talk';
+                // No return - continue to ChatGPT
+            }
         }
 
         // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
@@ -7793,38 +6575,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
            return res.json(cached.response);
        }
 
-        // Check for casual wellbeing greetings first (before question detection)
-        const isCasualGreeting = isCasualWellbeingGreeting(userMessage);
-        // Add safeguard for longer messages (don't treat long questions as greetings)
-        if (isCasualGreeting && userMessage.split(' ').length < 10) {
-            console.log('\n💬 Casual Wellbeing Greeting Detected:', userMessage);
-            
-            // Get appropriate small talk response
-            const smallTalkResult = { isSmallTalk: true, language: 'en', category: 'wellbeing' };
-            const response = getSmallTalkResponse(smallTalkResult, languageDecision);
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: 'English',
-                    confidence: 'high',
-                    reason: 'wellbeing_greeting'
-                },
-                topicType: 'small_talk',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Enhanced question pattern detection using new language system
+        // Keep just this question pattern detection logging (but remove handlers)
         const hasBookingPattern = !languageDecision.isIcelandic ? 
             questionPatterns.booking.en.some(pattern => msg.includes(pattern)) :
             (languageDecision.confidence === 'high' ? 
                 questionPatterns.booking.is.some(pattern => msg.includes(pattern)) :
                 questionPatterns.booking.en.some(pattern => msg.includes(pattern)));
 
-        // Check question words with new language detection
         const hasQuestionWord = !languageDecision.isIcelandic ?
             questionPatterns.question.en.some(word => msg.includes(word)) :
             (languageDecision.confidence === 'high' ? 
@@ -7848,263 +6605,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Only proceed with acknowledgment check if no booking/question patterns detected
-        if (knowledgeBaseResults.length === 0) {
-            if (!hasBookingPattern && !hasQuestionWord) {
-                // Use new language detection system for acknowledgments
-                const useEnglish = !languageDecision.isIcelandic && languageDecision.confidence === 'high';
-
-                // Enhanced logging for acknowledgment detection
-                console.log('\n🤝 Acknowledgment Pattern Check:', {
-                    message: msg,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    }
-                });
-
-                // ADD THIS NEW SECTION: Check for explicit feedback patterns
-                // This should come before other acknowledgment checks
-                if (smallTalkPatterns.en.feedback.some(pattern => matchesWholeWord(msg, pattern)) ||
-                    smallTalkPatterns.is.feedback.some(pattern => matchesWholeWord(msg, pattern))) {
-                    // Use checkSimpleResponse for more accurate language detection
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    let useEnglish = simpleResponseType === 'en' || 
-                                (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                    
-                    // Log language decision
-                    console.log('\n🗣️ Feedback Detection Language Decision:', {
-                        message: userMessage,
-                        simpleResponseType,
-                        useEnglish,
-                        languageDecision: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                    
-                    // Use dedicated feedback responses from SMALL_TALK_RESPONSES
-                    const response = useEnglish ?
-                        SMALL_TALK_RESPONSES.en.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.feedback.length)] :
-                        SMALL_TALK_RESPONSES.is.feedback[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.feedback.length)];
-                    
-                    // Use the unified broadcast system but don't send response yet
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                        message: response,
-                        language: { 
-                            detected: useEnglish ? 'English' : 'Icelandic', 
-                            confidence: languageDecision.confidence 
-                        },
-                        topicType: 'feedback',
-                        responseType: 'direct_response'
-                    });
-                    return res.status(responseData.status || 200).json(responseData);
-                }
-
-                // Check all acknowledgment patterns
-                if (acknowledgmentPatterns.finished.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-                    acknowledgmentPatterns.finished.is.some(pattern => matchesWholeWord(msg, pattern))) {
-                    // Use checkSimpleResponse for more accurate language detection
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    const useEnglish = simpleResponseType === 'en' || 
-                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                    
-                    // Log language decision
-                    console.log('\n🗣️ Finished Acknowledgment Language Decision:', {
-                        message: userMessage,
-                        simpleResponseType,
-                        useEnglish,
-                        languageDecision: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                    
-                    const response = useEnglish ?
-                        "Thanks for chatting! I'm here if you need any more information later." :
-                        "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
-                    
-                    // Use the unified broadcast system but don't send response yet
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                        message: response,
-                        language: { 
-                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', 
-                            confidence: languageDecision.confidence 
-                        },
-                        topicType: 'finished',
-                        responseType: 'direct_response'
-                    });
-                    return res.status(responseData.status || 200).json(responseData);
-                }
-                
-                if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-                    acknowledgmentPatterns.continuity.is.some(pattern => matchesWholeWord(msg, pattern))) {
-                    // Use checkSimpleResponse for more accurate language detection
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    const useEnglish = simpleResponseType === 'en' || 
-                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                    
-                    // Log language decision
-                    console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
-                        message: userMessage,
-                        simpleResponseType,
-                        useEnglish,
-                        languageDecision: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                    
-                    const response = useEnglish ? "Of course! Please go ahead and ask your questions." :
-                        "Endilega spurðu!";
-                    
-                    // Use the unified broadcast system but don't send response yet
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                        message: response,
-                        language: { 
-                            detected: languageDecision.isIcelandic ? 'Icelandic' : 'English', 
-                            confidence: languageDecision.confidence 
-                        },
-                        topicType: 'continuity',
-                        responseType: 'direct_response'
-                    });
-                    return res.status(responseData.status || 200).json(responseData);
-                }
-                
-                if (acknowledgmentPatterns.positive.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-                    acknowledgmentPatterns.positive.is.some(pattern => matchesWholeWord(msg, pattern))) {
-                    // Use checkSimpleResponse for more accurate language detection
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    let useEnglish = simpleResponseType === 'en' || 
-                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                    
-                    // Enhanced positive detection for specific words
-                    if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
-                        useEnglish = true;
-                    }
-                    
-                    // Log language decision
-                    console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
-                        message: userMessage,
-                        simpleResponseType,
-                        useEnglish,
-                        languageDecision: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                    
-                    const response = useEnglish ?
-                        "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
-                        "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
-                    
-                    // Use the unified broadcast system but don't send response yet
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                        message: response,
-                        language: { 
-                            detected: useEnglish ? 'English' : 'Icelandic', 
-                            confidence: languageDecision.confidence 
-                        },
-                        topicType: 'positive',
-                        responseType: 'direct_response'
-                    });
-                    return res.status(responseData.status || 200).json(responseData);
-                }
-                
-                if (acknowledgmentPatterns.general.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-                    acknowledgmentPatterns.general.is.some(pattern => matchesWholeWord(msg, pattern))) {
-                    // Use checkSimpleResponse for more accurate language detection
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    let useEnglish = simpleResponseType === 'en' || 
-                                    (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-                    
-                    // Log language decision
-                    console.log('\n🗣️ General Acknowledgment Language Decision:', {
-                        message: userMessage,
-                        simpleResponseType,
-                        useEnglish,
-                        languageDecision: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence
-                        }
-                    });
-                    
-                    const response = useEnglish ?
-                        "Thank you! What else would you like to know about Sky Lagoon?" :
-                        "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
-                    
-                    // Use the unified broadcast system but don't send response yet
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                        message: response,
-                        language: { 
-                            detected: useEnglish ? 'English' : 'Icelandic', 
-                            confidence: languageDecision.confidence 
-                        },
-                        topicType: 'general',
-                        responseType: 'direct_response'
-                    });
-                    return res.status(responseData.status || 200).json(responseData);
-                }
-                
-                // Finally check simple acknowledgments with word limit
-                if (userMessage.split(' ').length <= 4) {
-                    // First check with checkSimpleResponse
-                    const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                    let useEnglish = simpleResponseType === 'en' ||  
-                                    (!simpleResponseType && !languageDecision.isIcelandic && 
-                                    /^(?:ok|okay|alright|sure|got it|right|perfect|great|thanks)\b/i.test(userMessage));
-                    
-                    // Add special case for common English phrases
-                    if (msg === 'ok good' || msg === 'amazing' || msg === 'excellent' || msg === 'perfect') {
-                        useEnglish = true;
-                    }
-
-                    // Enhanced logging for acknowledgment detection
-                    console.log('\n🔍 Checking Simple Acknowledgment:', {
-                        message: userMessage,
-                        language: {
-                            isIcelandic: languageDecision.isIcelandic,
-                            confidence: languageDecision.confidence,
-                            reason: languageDecision.reason
-                        },
-                        wordCount: userMessage.split(' ').length,
-                        cleanedMessage: msg,
-                        useEnglish: useEnglish  // Log the useEnglish value
-                    });
-
-                    const isAcknowledgment = useEnglish ?
-                        // Enhanced English acknowledgment check with word boundary
-                        (acknowledgmentPatterns.simple.en.some(word => matchesWholeWord(msg, word.toLowerCase())) ||
-                         /^(?:nothing|maybe|very|that was|one more|tell me)\b/i.test(msg)) :
-                        // Icelandic check with word boundary matching
-                        acknowledgmentPatterns.simple.is.some(word => matchesWholeWord(msg, word.toLowerCase())) ||
-                        msg === 'oki' || msg === 'okei' || msg === 'ókei';  // Keep exact matches as is
-                            
-                    if (isAcknowledgment) {
-                        // Ensure English patterns get English responses
-                        const forceEnglish = /^(?:ok|okay|alright|sure|perfect|great|got it)\b/i.test(msg);
-                        const response = (useEnglish || forceEnglish) ?
-                            "Is there anything else you'd like to know about Sky Lagoon?" :
-                            "Láttu mig vita ef þú hefur fleiri spurningar!";
-
-                        // Use the unified broadcast system but don't send response yet
-                        const responseData = await sendBroadcastAndPrepareResponse({
-                            message: response,
-                            language: { 
-                                detected: useEnglish ? 'English' : 'Icelandic', 
-                                confidence: languageDecision.confidence 
-                            },
-                            topicType: 'acknowledgment',
-                            responseType: 'direct_response'
-                        });
-                        return res.status(responseData.status || 200).json(responseData);
-                    }
-                }
+        // Optional: Simple context setting (no early returns)
+        if (knowledgeBaseResults.length === 0 && !hasBookingPattern && !hasQuestionWord) {
+            // Set context but DON'T return - just let it flow to ChatGPT
+            if (userMessage.split(' ').length <= 4) {
+                context.lastTopic = 'acknowledgment';
+                console.log('\n👍 Simple acknowledgment detected, but continuing to ChatGPT');
             }
         }
 
-        // Check if this is a completely unrelated query first
+        // Keep just the business topic detection for context (but remove all handlers)
         const isKnownBusinessTopic = userMessage.toLowerCase().includes('lagoon') ||
                                   userMessage.toLowerCase().includes('ritual') ||
                                   userMessage.toLowerCase().includes('package') ||
@@ -8117,308 +6627,32 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                   userMessage.toLowerCase().includes('pool') ||
                                   userMessage.toLowerCase().includes('water') ||
                                   userMessage.toLowerCase().includes('facilities') ||
-                                  // Add these discount-related terms
                                   userMessage.toLowerCase().includes('discount') ||
                                   userMessage.toLowerCase().includes('offer') ||
                                   userMessage.toLowerCase().includes('deal') ||
                                   userMessage.toLowerCase().includes('price') ||
                                   userMessage.toLowerCase().includes('cost') ||
-                                  // Add these booking-specific terms
                                   userMessage.toLowerCase().includes('tíma') ||
                                   userMessage.toLowerCase().includes('stefnumót') ||
                                   userMessage.toLowerCase().includes('hvernig bóka') ||
                                   userMessage.toLowerCase().includes('bóka tíma');
 
-        // Add shouldBeUnknown check first
+        // Add shouldBeUnknown check
         const shouldBeUnknown = !knowledgeBaseResults.length && !isKnownBusinessTopic;
 
-        // Enhanced small talk handling with new language detection system
-        if (knowledgeBaseResults.length === 0 && 
-            !originalResults && 
-            !shouldBeUnknown && 
-            !isServiceQuestion(userMessage, languageDecision) && 
-            !isBookingQuery(userMessage) &&
-            !hasQuestionWord) {  // ADD THIS CHECK to prevent questions from being treated as small talk
-            const simpleResponseType = checkSimpleResponse(msg, languageDecision);
-            const casualResponse = handleCasualChat(msg, languageDecision.isIcelandic, languageDecision);
-            if (simpleResponseType || casualResponse || Object.values(smallTalkPatterns).some(category => 
-                Object.values(category).some(patterns => 
-                    patterns.some(pattern => matchesWholeWord(msg, pattern))  // USE matchesWholeWord INSTEAD OF includes
-                ))
-            ) {
-                context.lastTopic = 'small_talk';
-                context.conversationStarted = true;
-                
-                // Enhanced logging with new language system
-                console.log('\n💬 Small Talk Detection:', {
-                    message: msg,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    },
-                    simpleResponseType,
-                    patterns: {
-                        hasCasualResponse: !!casualResponse,
-                        matchesPattern: true
-                    }
-                });
-            
-                const response = casualResponse || (() => {
-                    // Check for specific small talk with new language system
-                    const smallTalkResult = detectSmallTalk(msg, languageDecision);
-                    if (smallTalkResult.isSmallTalk) {
-                        return getSmallTalkResponse(smallTalkResult, languageDecision);
-                    }
-            
-                    // Fallback to casual responses using new language system
-                    return !languageDecision.isIcelandic ? 
-                        SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)] :
-                        (languageDecision.confidence === 'high' ? 
-                            SMALL_TALK_RESPONSES.is.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.is.casual.length)] :
-                            SMALL_TALK_RESPONSES.en.casual[Math.floor(Math.random() * SMALL_TALK_RESPONSES.en.casual.length)]);
-                })();
-            
-                // Update context with new language detection
-                context.language = languageDecision.isIcelandic ? 'is' : 'en';
-            
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'small_talk',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
-            }
-        }
-        
-        // Acknowledgment and continuity handling
-        // Check for conversation continuity first
-        if (acknowledgmentPatterns.continuity.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-            acknowledgmentPatterns.continuity.is.some(pattern => matchesWholeWord(msg, pattern))) {
-            // IMPORTANT: Skip if we have KB results or it's a question
-            if (knowledgeBaseResults.length > 0 || hasQuestionWord) {
-                // Skip continuity handling and continue to knowledge base processing
-                console.log('\n🔍 Skipping continuity acknowledgment for message with knowledge base results or question');
-            } else {
-                // Use checkSimpleResponse for more accurate language detection
-                const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                const useEnglish = simpleResponseType === 'en' || 
-                                (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
-                
-                // Log language decision
-                console.log('\n🗣️ Continuity Acknowledgment Language Decision:', {
-                    message: userMessage,
-                    simpleResponseType,
-                    useEnglish,
-                    languageDecision: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence
-                    }
-                });
-                
-                const response = useEnglish ?
-                    "Of course! Please go ahead and ask your questions." :
-                    "Endilega spurðu!";
+        // Simplified logging for business topic detection
+        console.log('\n🏢 Business Topic Check:', {
+            isKnownBusinessTopic,
+            shouldBeUnknown,
+            hasResults: knowledgeBaseResults.length > 0
+        });
 
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: useEnglish ? 'English' : 'Icelandic',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'continuity',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
-            }
+        // Optional: Add to context but don't return early
+        if (isKnownBusinessTopic) {
+            context.isBusinessRelated = true;
         }
 
-        // Check for positive feedback
-        if (acknowledgmentPatterns.positive.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-            acknowledgmentPatterns.positive.is.some(pattern => matchesWholeWord(msg, pattern))) {    
-            // IMPORTANT: Don't handle as acknowledgment if we have knowledge base results
-            // or if there's a question
-            if (knowledgeBaseResults.length > 0 || hasQuestionWord) {
-                // Skip acknowledgment handling and continue to knowledge base processing
-                console.log('\n🔍 Skipping positive acknowledgment handling for message with knowledge base results or question');
-            } else {
-                // Use checkSimpleResponse for more accurate language detection
-                const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-                let useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
-                
-                // Enhanced positive detection for specific words
-                if (msg === 'amazing' || msg === 'great' || msg === 'excellent' || msg === 'perfect') {
-                    useEnglish = true;
-                }
-                
-                // Log language decision
-                console.log('\n🗣️ Positive Acknowledgment Language Decision:', {
-                    message: userMessage,
-                    simpleResponseType,
-                    useEnglish,
-                    languageDecision: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence
-                    }
-                });
-                
-                const response = useEnglish ?
-                    "I'm glad I could help! What else would you like to know about Sky Lagoon?" :
-                    "Gott að geta hjálpað! Ef þú hefur fleiri spurningar, ekki hika við að spyrja.";
-        
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: useEnglish ? 'English' : 'Icelandic',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'acknowledgment',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
-            }
-        }
-
-        // Check for general chat praise
-        if (acknowledgmentPatterns.general.en.some(pattern => matchesWholeWord(msg, pattern)) ||
-            acknowledgmentPatterns.general.is.some(pattern => matchesWholeWord(msg, pattern))) {    
-            // Use checkSimpleResponse for more accurate language detection
-            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-            let useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');        
-            
-            // Log language decision
-            console.log('\n🗣️ General Acknowledgment Language Decision:', {
-                message: userMessage,
-                simpleResponseType,
-                useEnglish,
-                languageDecision: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
-            
-            const response = useEnglish ?
-                "Thank you for the kind words! What else would you like to know about Sky Lagoon?" :
-                "Gaman að heyra! Er eitthvað fleira sem þú vilt vita um Sky Lagoon?";
-
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: useEnglish ? 'English' : 'Icelandic',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'acknowledgment',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Check for conversation ending
-        if (acknowledgmentPatterns.finished.en.some(pattern => 
-            (pattern !== 'no' || userMessage.trim().toLowerCase() === 'no') && 
-            matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern)) ||
-            acknowledgmentPatterns.finished.is.some(pattern => 
-            matchesWholeWord(msg.replace(/[:;][\-]?[\)|\(]/g, '').trim(), pattern))) {
-            // Use checkSimpleResponse for more accurate language detection
-            const simpleResponseType = checkSimpleResponse(userMessage, languageDecision);
-            const useEnglish = simpleResponseType === 'en' || 
-                            (!simpleResponseType && !languageDecision.isIcelandic && languageDecision.confidence === 'high');
-            
-            // Log language decision
-            console.log('\n🗣️ Finished Acknowledgment Language Decision:', {
-                message: userMessage,
-                simpleResponseType,
-                useEnglish,
-                languageDecision: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence
-                }
-            });
-            
-            // Also update these includes checks with matchesWholeWord
-            const response = useEnglish ?
-                matchesWholeWord(msg, 'just say') || matchesWholeWord(msg, 'greeting') ?
-                    "Hi there! Feel free to ask if you have any questions about Sky Lagoon. I'm here to help! 😊" :
-                    "Thanks for chatting! I'm here if you need any more information later." :
-                matchesWholeWord(msg, 'heil') || matchesWholeWord(msg, 'bara að heilsa') ?
-                    "Vertu velkomin/n! Láttu mig vita ef þú hefur einhverjar spurningar eða ef ég get aðstoðað þig með eitthvað varðandi Sky Lagoon. 😊" :
-                    "Takk fyrir spjallið! Ef þú þarft frekari upplýsingar seinna meir er ég hérna.";
-
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: useEnglish ? 'English' : 'Icelandic',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'finished',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Yes/Confirmation handling
-        if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
-            // Pass languageDecision as the third parameter
-            let response = getContextualResponse('confirmation', context.messages.map(m => m.content), languageDecision);
-            
-            // Use new language detection system
-            const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';        
-            
-            if (context.lastTopic === 'seasonal') {
-                if (context.seasonalContext?.type === 'winter') {
-                    response += useEnglish ? 
-                        " Would you like to know about:\n" +
-                        "- Our winter activities and experiences?\n" +
-                        "- Northern lights viewing opportunities?\n" +
-                        "- Our facilities during winter?\n\n" +
-                        "Please let me know which aspect interests you most." :
-                        " Viltu fá að vita meira um:\n" +
-                        "- Vetrarupplifunina okkar og afþreyingu?\n" +
-                        "- Norðurljósaskoðun?\n" +
-                        "- Aðstöðuna okkar á veturna?\n\n" +
-                        "Láttu mig vita hvaða þáttur áhugaverðastur.";
-                } else if (context.seasonalContext?.type === 'summer') {
-                    response += useEnglish ?
-                        " Would you like to know about:\n" +
-                        "- Our summer activities and experiences?\n" +
-                        "- Late evening sun viewing opportunities?\n" +
-                        "- Our facilities during summer?\n\n" +
-                        "Please let me know which aspect interests you most." :
-                        " Viltu fá að vita meira um:\n" +
-                        "- Sumarupplifunina okkar og afþreyingu?\n" +
-                        "- Miðnætursólina?\n" +
-                        "- Aðstöðuna okkar á sumrin?\n\n" +
-                        "Láttu mig vita hvaða þáttur áhugaverðastur.";
-                }
-            } else {
-                response += ` ${'Would you like to know anything else about our offerings?'}`;
-            }
-
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'confirmation',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Check if it's a group booking query but DON'T return immediately
+        // Group booking context setting
         const groupBookingTerms = ['hóp', 'manna', 'hópabókun', 'group', 'booking for', 'people'];
         if (groupBookingTerms.some(term => userMessage.toLowerCase().includes(term))) {
             // Just set the context topic
@@ -8446,52 +6680,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 topicType: 'group_bookings',
                 responseType: 'detection'
             });
-            
             // Continue to normal flow to let GPT handle with knowledge base content
         }
 
-        // If no knowledge base matches found, check if it's a hours query first
-        if (knowledgeBaseResults.length === 0) {
-            // Check for simple responses before handling unknown queries
-            const isSimpleResponse = checkSimpleResponse(userMessage, languageDecision) !== null || 
-                                     userMessage.length < 10 || 
-                                     /^(thanks|thank you|amazing|great|good|ok|okay|yes|yeah|no|nope|takk|frábært|flott|já|nei)$/i.test(
-                                         userMessage.toLowerCase().trim().replace(/[!.?]/g, '')
-                                     );
+        // Simplified Yes confirmation handling (just sets context, no early return)
+        if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
+            console.log('\n👍 "Yes" confirmation detected for topic:', context.lastTopic);
             
-            // Log the check result
-            console.log('\n🔍 Simple Response Check before Unknown Query:', {
-                message: userMessage,
-                isSimpleResponse: isSimpleResponse,
-                shouldSkipUnknownHandler: isSimpleResponse || isKnownBusinessTopic
-            });
-            
-            // PASTE THE UNKNOWN QUERY BLOCK HERE FIRST
-            // If message has no relation to our business and no knowledge base matches
-            // And it's not a simple response
-            if (!isSimpleResponse && !isKnownBusinessTopic && knowledgeBaseResults.length === 0) {
-                const unknownResponse = languageDecision.isIcelandic ? 
-                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS[
-                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS.length)
-                    ] :
-                    UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN[
-                        Math.floor(Math.random() * UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN.length)
-                    ];
-
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: unknownResponse,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'unknown_query',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
+            // Set seasonal context if relevant
+            if (context.lastTopic === 'seasonal') {
+                context.confirmedSeasonalInterest = true;
+                context.seasonalContextConfirmed = context.seasonalContext?.type || 'current';
             }
+            
+            // Add confirmation context but don't return - let ChatGPT handle it
+            context.lastConfirmation = {
+                topic: context.lastTopic,
+                timestamp: Date.now(),
+                confirmed: true
+            };
+        }
 
-            // THEN KEEP ALL THE EXISTING CODE HERE
+        // Hours and dining query detection with forced knowledge base lookup
+        if (knowledgeBaseResults.length === 0) {
             const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
                                 userMessage.toLowerCase().includes('open') || 
                                 userMessage.toLowerCase().includes('close') ||
@@ -8516,59 +6727,35 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 userMessage.toLowerCase().includes('matur') ||
                                 userMessage.toLowerCase().includes('borða') ||
                                 userMessage.toLowerCase().includes('matseðil') ||
-                                // Add these crucial pattern checks
-                                userMessage.toLowerCase().includes('með veitinga') ||   // Catches "eruð þið með veitinga..."
-                                userMessage.toLowerCase().includes('sýna matseðil') ||  // Catches "getið þið sýnt matseðil..."
-                                userMessage.toLowerCase().includes('sýnt mér') ||       // Catches menu show requests
+                                userMessage.toLowerCase().includes('með veitinga') ||
+                                userMessage.toLowerCase().includes('sýna matseðil') ||
+                                userMessage.toLowerCase().includes('sýnt mér') ||
                                 userMessage.toLowerCase().includes('eruð þið með') ||
                                 userMessage.toLowerCase().includes('hafið þið') ||
                                 userMessage.toLowerCase().includes('er hægt að fá mat') ||
                                 userMessage.toLowerCase().includes('hægt að borða');
 
-            // The critical part - force knowledge base lookup for ANY dining query
+            // Force knowledge base lookup for dining/hours queries
             if (isHoursQuery || isDiningQuery) {
                 // Use language detection with confidence check
                 knowledgeBaseResults = languageDecision.isIcelandic && languageDecision.confidence === 'high' ? 
                     getRelevantKnowledge_is(userMessage) : 
                     getRelevantKnowledge(userMessage);
 
+                // Set relevant topic in context
+                context.lastTopic = isHoursQuery ? 'hours' : 'dining';
+
                 // Enhanced debug logging
-                console.log('\n🍽️ Dining Query Debug:', {
+                console.log('\n🍽️ Forced Knowledge Base Lookup:', {
                     message: userMessage,
                     isDiningQuery,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason,
-                        patterns: languageDecision.patterns
-                    },
+                    isHoursQuery,
                     gotResults: knowledgeBaseResults.length > 0
                 });
             }
-
-            // Only check for simple response if it's not an hours query or service question
-            // AND it's not a question word!
-            if (!isHoursQuery && !isServiceQuestion(userMessage, languageDecision) && !hasQuestionWord) {
-                const simpleResponseLanguage = languageDecision.isIcelandic ? 'is' : 'en';
-                const response = simpleResponseLanguage === 'is' ?             
-                    "Láttu mig vita ef þú hefur fleiri spurningar!" :
-                    "Is there anything else you'd like to know about Sky Lagoon?";
-
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'acknowledgment',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
-            }
         }
 
-        // Enhanced logging with new language system
+        // Knowledge base match logging
         console.log('\n📚 Knowledge Base Match:', {
             language: {
                 isIcelandic: languageDecision.isIcelandic,
@@ -8577,53 +6764,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 patterns: languageDecision.patterns
             },
             matches: knowledgeBaseResults.length,
-            types: knowledgeBaseResults.map(k => k.type),
-            details: JSON.stringify(knowledgeBaseResults, null, 2)
+            types: knowledgeBaseResults.map(k => k.type)
         });
 
-        // Enhanced Unknown Query Check
+        // Confidence score calculation and logging (without early returns)
         const confidenceScore = calculateConfidence(userMessage, knowledgeBaseResults, languageDecision);
-        const shouldUseUnknownHandler = handleUnknownQuery(userMessage, confidenceScore, knowledgeBaseResults, languageDecision);       
-        if (shouldUseUnknownHandler && !userMessage.toLowerCase().startsWith('welcome')) {
-            // Enhanced logging
-            console.log('\n📝 Using Unknown Query Handler Response:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                }
-            });
+        console.log('\n📊 Query Confidence Score:', {
+            score: confidenceScore,
+            hasKnowledgeResults: knowledgeBaseResults.length > 0,
+            isBusinessTopic: isKnownBusinessTopic
+        });
 
-            // Update context and cache with new language information
-            updateContext(sessionId, userMessage, shouldUseUnknownHandler.response);
-            responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
-                response: {
-                    message: shouldUseUnknownHandler.response,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    }
-                },
-                timestamp: Date.now()
-            });
-
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: shouldUseUnknownHandler.response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                },
-                topicType: 'unknown_query',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
+        // Flag potential unknown topics but don't return early
+        if (!isKnownBusinessTopic && 
+            confidenceScore < 0.1 && 
+            knowledgeBaseResults.length === 0 && 
+            userMessage.split(' ').length > 3 && 
+            !userMessage.toLowerCase().startsWith('welcome')) {
+            
+            console.log('\n⚠️ Potential unknown topic outside of business domain');
+            // Set context flag but don't return - let ChatGPT try to handle it
+            context.potentiallyUnknownTopic = true;
         }
         
-        // Check for sunset queries
+        // Sunset query handling WITH early return (since it provides specialized data)
         if (isSunsetQuery(userMessage, languageDecision)) {
             console.log('\n🌅 Sunset query detected');
             
@@ -8675,12 +6839,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 responseType: 'direct_response'
             });
             return res.status(responseData.status || 200).json(responseData);
-        }        
+        }      
 
-        // Detect topic for appropriate transitions and follow-ups
+        // Detect topic for appropriate transitions and follow-ups (KEEP AS IS)
         const { topic } = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
-        
-        // Enhanced seasonal handling
+
+        // Enhanced seasonal handling (KEEP COMPLETELY AS IS)
         if (topic === 'seasonal') {
             let seasonalInfo = knowledgeBaseResults.find(k => k.type === 'seasonal_information');
             if (seasonalInfo) {
@@ -8760,25 +6924,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Detect topic and get initial transitions
         let topicResult = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
 
-        // Now handle first-time messages (moved here to check knowledge base first)
-        if (!context.conversationStarted && 
-            !knowledgeBaseResults.length && 
-            !topicResult.topic && 
-            !isHoursQuery) { 
+        // Simplified first-time message handling (no early return)
+        if (!context.conversationStarted) { 
             context.conversationStarted = true;
-            const introResponse = `${getRandomResponse(SMALL_TALK_RESPONSES)} `;
-
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: introResponse,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'first_time',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
+            console.log('\n👋 Setting conversation started flag for first-time message');
+            // No return - continue to ChatGPT
         }
 
         // Force hours topic if it's an hours query
@@ -8836,14 +6986,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Add user message with new language system
+        // ADD THIS NEW PART: Additional context message for likely conversational messages
+        if (userMessage.split(' ').length <= 4 || 
+            /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {
+            
+            messages.push({
+                role: "system",
+                content: `This appears to be a conversational message rather than a factual question. Handle it naturally with appropriate small talk, greeting, or acknowledgment responses while maintaining Sky Lagoon's brand voice.`
+            });
+        }
+
+        // MODIFY THIS PART: Updated user message to allow conversational responses
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
                 
                 User Question: ${userMessage}
                 
-                Please provide a natural, conversational response using ONLY the information from the knowledge base. 
+                Please provide a natural, conversational response. For factual information about Sky Lagoon, use ONLY the information from the knowledge base.
+                For greetings, small talk, or acknowledgments, respond naturally without requiring knowledge base information.
+                
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
                 Response MUST be in ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}`
         });
