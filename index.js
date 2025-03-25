@@ -1458,47 +1458,6 @@ const calculateConfidence = (userMessage, relevantKnowledge, languageDecision) =
     return score;
 };
 
-// Handle Unknown Query
-const handleUnknownQuery = (userMessage, confidenceScore, relevantKnowledge, languageDecision) => {
-    // Log analysis start
-    console.log('\n❓ Unknown Query Analysis:', {
-        message: userMessage,
-        confidence: confidenceScore,
-        language: {
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason
-        },
-        matchedTopics: relevantKnowledge.map(k => k.type)
-    });
-
-    // If we have ANY relevant knowledge, prioritize it
-    if (relevantKnowledge && relevantKnowledge.length > 0) {
-        console.log('📝 Found relevant knowledge, using knowledge base response');
-        return null;
-    }
-
-    // Only skip for very short acknowledgments (changed from 20/4 to 10/2)
-    if (userMessage.length < 10 && userMessage.split(' ').length <= 2) {
-        console.log('📝 Very short acknowledgment detected, skipping unknown query handling');
-        return null;
-    }
-
-    // Only treat as completely unknown if we have zero knowledge and zero confidence
-    if (confidenceScore === 0 && (!relevantKnowledge || relevantKnowledge.length === 0)) {
-        console.log('📝 Query Type: COMPLETELY_UNKNOWN');
-        return {
-            type: UNKNOWN_QUERY_TYPES.COMPLETELY_UNKNOWN,
-            response: getRandomResponse(languageDecision.isIcelandic ? 
-                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN_IS : 
-                UNKNOWN_QUERY_RESPONSES.COMPLETELY_UNKNOWN)
-        };
-    }
-
-    // In all other cases, let the normal response system handle it
-    return null;
-};
-
 // Add the service question checker here
 const isServiceQuestion = (message, languageDecision) => {
     const msg = message.toLowerCase();
