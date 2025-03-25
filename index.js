@@ -2145,6 +2145,26 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
         };
     }
 
+    // NEW: Early check for specific "X minutes/minuets late" pattern to prevent misinterpretation
+    const specificMinutesLatePattern = /(?:going\s+to\s+be|will\s+be|am|are)\s+(?:about|around)?\s*(\d+)\s*(?:minut|minute|min|minutes|mins?|minuet|minuets)\s*(?:late|delay)/i;
+    const specificMatch = lowerMessage.match(specificMinutesLatePattern);
+
+    if (specificMatch) {
+        const specificMinutes = parseInt(specificMatch[1]);
+        console.log('\n⏰ Specific "X minutes late" pattern detected:', {
+            pattern: 'specific_minutes_late',
+            minutes: specificMinutes
+        });
+        
+        return {
+            type: specificMinutes <= LATE_ARRIVAL_THRESHOLDS.GRACE_PERIOD ? 'within_grace' :
+                  specificMinutes <= LATE_ARRIVAL_THRESHOLDS.MODIFICATION_RECOMMENDED ? 'moderate_delay' :
+                  'significant_delay',
+            minutes: specificMinutes,
+            isIcelandic: languageDecision?.isIcelandic || false
+        };
+    }
+
     // NEW: Check for "booking at X but [want to] arrive at Y" pattern
     const bookingArrivePattern = lowerMessage.match(/(?:book(?:ed|ing)?|reservation|have\s+(?:a|an)\s+booking).*?(?:at|for)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?).*?(?:but|and).*?(?:(?:want\s+to|will|going\s+to)\s+)?arrive.*?(?:at)\s*(\d{1,2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/i);
 
@@ -2941,6 +2961,11 @@ const detectLateArrivalScenario = (message, languageDecision, context) => {
 
     // Now check for actual late arrival time patterns
     const timePatterns = [
+        // NEW: Flexible patterns to catch misspellings like "minuets"
+        /(?:about|around|maybe|perhaps)?\s*(\d+)\s*(?:minut|minute|min|minutes|mins?|minuet|minuets)\s*(?:late|delay)?/i,
+        /going\s+to\s+be\s+(?:about|around)?\s*(\d+)\s*(?:minut|minute|min|minutes|mins?|minuet|minuets)\s*(?:late|delay)?/i,
+        /late\s+by\s+(?:about|around)?\s*(\d+)\s*(?:minut|minute|min|minutes|mins?|minuet|minuets)/i,
+
         // Complex hour and minute combinations first
         /(?:about|around|maybe|perhaps)?\s*(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
         /(\d+)\s*hours?\s+and\s+(\d+)\s*(?:minute|min|minutes|mins?)\s*(?:late|delay)?/i,
