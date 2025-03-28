@@ -5618,8 +5618,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     };
     
     try {
+        // Keep variable for backward compatibility with other code references
+        const currentSession = conversationContext.get('currentSession');
+        
         // IMPORTANT CHANGE: Get sessionId directly from the request body - ALWAYS prioritize this
-        // Remove dependency on the global 'currentSession' to prevent context bleeding
+        // Never fall back to the global currentSession to prevent context bleeding
         const sessionId = req.body.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         
         console.log('\n🔍 Full request body:', req.body);
@@ -5630,9 +5633,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // REMOVED: No longer storing in global 'currentSession'
-        // This was causing context bleeding between different users
-
+        // No longer storing in global 'currentSession' to prevent context bleeding
+        // Other parts of code may still need to read it, but we don't update it here
+        
         // Get initial context for this specific session
         context = conversationContext.get(sessionId);
 
