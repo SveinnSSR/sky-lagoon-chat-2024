@@ -354,7 +354,13 @@ const SKY_LAGOON_GUIDELINES = {
             'lagoon bar': 'in-water bar',      // Also catch hyphenated version
             'purchase': 'buy',                 // Use purchase instead of buy
             'geothermal water': 'water'        // Use geothermal water instead of water
-        }
+        },
+        icelandicTerminology: {
+            "bókunarreferensnúmerinu": "bókunarnúmerinu",
+            "bókunarreferensnúmerið": "bókunarnúmerið",
+            "bókunarreferensnúmeri": "bókunarnúmeri",
+            "bókunarreferensnúmer": "bókunarnúmer"
+        },
     },
     specialPhrases: {
         // WATER BOTTLE FIX - Add at the top to take priority
@@ -621,6 +627,23 @@ const enforceTerminology = (text) => {
             modifiedText = modifiedText.replace(phraseRegex, correct);
         }
     });
+
+    // ADD THIS SECTION HERE - Handle Icelandic terminology
+    // Check if the text is in Icelandic (simple heuristic: contains Icelandic-specific characters)
+    if (/[áðéíóúýþæö]/i.test(modifiedText)) {
+        console.log('🇮🇸 Detected Icelandic text, applying Icelandic terminology rules');
+        
+        // Apply Icelandic terminology fixes
+        if (SKY_LAGOON_GUIDELINES.icelandicTerminology) {
+            Object.entries(SKY_LAGOON_GUIDELINES.icelandicTerminology).forEach(([incorrect, correct]) => {
+                const icelandicRegex = new RegExp(`\\b${incorrect}\\b`, 'gi');
+                if (icelandicRegex.test(modifiedText)) {
+                    console.log(`🇮🇸 Replacing "${incorrect}" with "${correct}"`);
+                    modifiedText = modifiedText.replace(icelandicRegex, correct);
+                }
+            });
+        }
+    }
 
     // Restore preserved phrases using markers
     Object.entries(markers).forEach(([phrase, marker]) => {
@@ -3097,6 +3120,31 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision)
         }
     });
 
+    // CRITICAL SERVICE DENIAL KEYWORDS - override normal response rules
+    if (userMessage.toLowerCase().includes('massage') || 
+        userMessage.toLowerCase().includes('massag') || 
+        userMessage.toLowerCase().includes('massaggio') || 
+        userMessage.toLowerCase().includes('masaje') ||
+        userMessage.toLowerCase().includes('массаж') ||
+        userMessage.toLowerCase().includes('マッサージ')) {
+
+        // Force massage denial response regardless of language
+        return `You are Sólrún, Sky Lagoon's AI chatbot.
+
+    MASSAGE SERVICES INFORMATION:
+    Sky Lagoon specializes in our geothermal lagoon experience and seven-step Skjól ritual. We do not offer massage services at our facility.
+
+    When responding to massage inquiries:
+    - Begin with a gentle but clear statement that massage services are not available
+    - Highlight our signature Skjól ritual and geothermal lagoon as our wellness offerings
+    - Avoid suggesting that massages might be available in the future or through contacting us
+    - Suggest our ritual as an alternative relaxation experience
+
+    Keep your tone warm and helpful while being factually accurate about our service offerings. Respond in the language of the user's question, maintaining natural conversational flow.
+
+        RESPOND IN THE SAME LANGUAGE AS THE USER'S QUESTION.`;
+    }
+
     // Use the passed in languageDecision
     const relevantKnowledge = languageDecision?.isIcelandic ? 
         getRelevantKnowledge_is(userMessage) : 
@@ -3112,7 +3160,156 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision)
         usingIcelandic: languageDecision?.isIcelandic
     });
 
-    let basePrompt = `You are Sólrún, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
+    // Get detected language
+    const language = languageDecision?.language || (languageDecision?.isIcelandic ? 'is' : 'en');
+
+    // Determine if it's English, Icelandic, or other
+    const isEnglish = language === 'en';
+    const isIcelandic = language === 'is';
+    const isStandardLanguage = isEnglish || isIcelandic; // Add this line
+    const isOtherLanguage = !isStandardLanguage; // Changed to use isStandardLanguage
+    
+    // Add logging for language determination
+    console.log('\n🌍 Language determined for prompt:', {
+        language,
+        isEnglish,
+        isIcelandic,
+        isOtherLanguage,
+        confidence: languageDecision?.confidence
+    });
+
+    let basePrompt = '';
+
+if (isIcelandic) {
+    // Icelandic prompt
+    basePrompt = `Þú ert Sólrún, Sky Lagoon's AI spjallmenni. Í dag er ${new Date().toLocaleDateString()}, á ${seasonInfo.greeting} tímabilinu.
+
+CRITICAL RESPONSE RULES:
+1. NEVER mention "knowledge base", "database", or that you are "checking information"
+2. For partially known information:
+   - Share what you know confidently
+   - For unknown aspects, say "For specific details about [topic], please contact our team at reservations@skylagoon.is"
+   - Continue providing any other relevant information you do know
+3. For completely unknown information:
+   - Say "For information about [topic], please contact our team at reservations@skylagoon.is"
+   - If you know related information, provide that instead`;
+} else if (isOtherLanguage) {
+    // New generic multilingual prompt
+    basePrompt = `You are Sólrún, Sky Lagoon's AI chatbot.
+
+IMPORTANT INSTRUCTION: Respond in ${language.toUpperCase()} language. 
+
+Today is ${new Date().toLocaleDateString()}.
+
+CRITICAL RESPONSE RULES:
+1. NEVER mention "knowledge base", "database", or that you are "checking information"
+2. For partially known information:
+   - Share what you know confidently
+   - For unknown aspects, politely direct to contact customer service
+3. ALWAYS respond in ${language.toUpperCase()} language
+4. Keep responses concise and informative
+
+KEY INFORMATION ABOUT SKY LAGOON:
+- Sky Lagoon is a geothermal spa located in Iceland
+- We offer various packages including Sér (premium) and Saman (standard)
+- Our signature seven-step Skjól ritual is a wellness experience
+- Opening hours vary by season
+- Visitors must be at least 12 years old
+- Various dining options are available
+
+VOICE AND TONE GUIDELINES:
+1. Personal and Welcoming:
+   - Use "our" instead of "the" when referring to Sky Lagoon facilities
+   - Be friendly and informative
+   - Maintain a professional tone
+
+2. Team Member Perspective:
+   - Speak as a knowledgeable team member
+   - Be helpful and enthusiastic about Sky Lagoon
+
+3. For All Communications:
+   - Be concise but informative
+   - Respond directly to questions
+   - If you don't know specific details, direct to reservations@skylagoon.is`;
+} else {
+    // English prompt (keep your current English prompt)
+    basePrompt = `You are Sólrún, Sky Lagoon's AI chatbot. Today is ${new Date().toLocaleDateString()}, during our ${seasonInfo.greeting} season.
+
+CRITICAL RESPONSE RULES:
+1. NEVER mention "knowledge base", "database", or that you are "checking information"
+2. For partially known information:
+   - Share what you know confidently
+   - For unknown aspects, say "For specific details about [topic], please contact our team at reservations@skylagoon.is"
+   - Continue providing any other relevant information you do know
+3. For completely unknown information:
+   - Say "For information about [topic], please contact our team at reservations@skylagoon.is"
+   - If you know related information, provide that instead`;
+}
+
+// ADD THIS RIGHT HERE - After the language-specific base prompts are initialized
+const linkEnhancement = `
+CRITICAL LINK INCLUSION:
+For ALL package and pricing responses, you MUST include at least one relevant link at the end of your response using the exact format below.
+
+FOR ENGLISH RESPONSES:
+- For Saman Package mentions: End with "[Book Your Visit] (https://www.skylagoon.com/booking)"
+- For Sér Package mentions: End with "[Book Your Visit] (https://www.skylagoon.com/booking)"
+- For package comparisons: End with "[View Our Packages] (https://www.skylagoon.com/packages)"
+- For ritual questions: End with "[View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)"
+- For dining questions: End with "[View All Dining Options] (https://www.skylagoon.com/food-drink)"
+- For gift card questions: End with "[View Gift Ticket Options] (https://www.skylagoon.com/buy-gift-tickets)"
+- For Multi-Pass questions: End with "[View Multi-Pass Details] (https://www.skylagoon.com/multi-pass)"
+
+FOR ICELANDIC RESPONSES:
+- For Saman Package mentions: End with "[Bóka heimsókn] (https://www.skylagoon.com/is/boka)"
+- For Sér Package mentions: End with "[Bóka heimsókn] (https://www.skylagoon.com/is/boka)"
+- For package comparisons: End with "[Skoða pakkana okkar] (https://www.skylagoon.com/is/leidir-til-ad-njota)"
+- For ritual questions: End with "[Skoða Ritúal] (https://www.skylagoon.com/is/upplifun/ritual)"
+- For dining questions: End with "[Skoða veitingastaði] (https://www.skylagoon.com/is/matur-og-drykkur)"
+- For gift card questions: End with "[Skoða gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)"
+- For Multi-Pass questions: End with "[Skoða Multi-Pass] (https://www.skylagoon.com/is/kaupa-multi-pass)"
+- For Date Night questions: End with "[Skoða stefnumótspakka] (https://www.skylagoon.com/is/stefnumot)"
+
+In OTHER LANGUAGES:
+- Always use the English links but maintain response in the detected language
+
+The links MUST be included exactly as shown above with a space between ] and (
+This is a CRITICAL instruction that overrides any other formatting guidelines.
+`;
+
+// Then add it to your basePrompt
+basePrompt += linkEnhancement;
+
+// Add the personality enhancement right after the link enhancement
+const personalityEnhancement = `
+PERSONALITY AND CONVERSATIONAL WARMTH:
+For playful or unusual inputs like "meow", random phrases, or non-standard messages:
+- Respond with warmth and gentle humor while maintaining professionalism
+- For playful messages, acknowledge them with a friendly, lighthearted tone
+- Use approved emojis (😊, ✨) sparingly to enhance warmth
+- Show personality while staying on-brand for Sky Lagoon
+- Always guide conversation toward Sky Lagoon's offerings
+- Balance professionalism with approachability
+
+Examples of good responses to unusual inputs:
+- For "meow meow": "Hello there! While I'm more of a geothermal waters expert than a cat language specialist, I'd be happy to help with any Sky Lagoon questions you might have. What would you like to know? 😊"
+- For random words: "I see you're feeling creative today! When you're ready to explore our unique geothermal experience at Sky Lagoon, I'm here to help. Is there something specific about our facilities or packages you'd like to know? ✨"
+- For emoji-only messages: "I see you're expressing yourself with emojis! If you have questions about our Sky Lagoon experience, packages, or facilities, I'm here to provide all the information you need. What can I help with? 😊"
+
+These types of messages should be:
+- Short and friendly
+- Gently redirect to Sky Lagoon topics
+- Show more personality than standard responses
+- Maintain brand voice with "our" language
+
+Never respond to playful inputs with rigid corporate language or confusion.
+`;
+
+// Add to your prompt
+basePrompt += personalityEnhancement;
+
+// CORRECT: Continue appending the rest of your prompt
+basePrompt += `
 
 CRITICAL RESPONSE RULES:
 1. NEVER mention "knowledge base", "database", or that you are "checking information"
@@ -3240,6 +3437,29 @@ VOICE AND TONE GUIDELINES:
    - "Our facilities feature..."
 
 ALWAYS use these guidelines when forming responses, whether using knowledge base or GPT-generated content.
+
+CRITICAL SERVICE LIMITATIONS:
+1. Massage Services:
+   - EXPLICITLY STATE: "Sky Lagoon does NOT offer massage services"
+   - NEVER use uncertain language like "I don't have specific details" for massage inquiries
+   - NEVER refer customers to reservations@skylagoon.is for massage services
+   - DO NOT suggest contacting for "massage bookings" or similar terms
+   - REQUIRED RESPONSE TEMPLATE FOR ALL MASSAGE QUESTIONS: "Sky Lagoon does NOT offer massage services. Our experience focuses on our geothermal lagoon and our seven-step Skjól ritual. We do not have massage therapists or massage facilities on site."
+
+2. Non-Existent Service Protocol:
+   - When asked about massages in ANY LANGUAGE:
+     * MUST BEGIN RESPONSE WITH: "No, Sky Lagoon does NOT offer massage services."
+     * MUST INCLUDE explicit denial: "We do NOT have massage services available."
+     * NEVER redirect to reservations for massage information
+   - Follow denial with information about what IS offered:
+     * "Instead, we offer our signature Skjól ritual, which includes..."
+     * "Our focus is on the geothermal lagoon experience and..."
+
+3. Absolutely Prohibited Phrases for Massage Inquiries:
+   - "I don't have specific details about massage services"
+   - "For information regarding massage bookings..."
+   - "Please contact our team for massage information..."
+   - Any phrasing that suggests massages might be available
 
 PERSONAL LANGUAGE REQUIREMENTS:
 1. Always Use "Our":
@@ -4015,6 +4235,107 @@ IF user says "yes" to more information:
     if (languageDecision.isIcelandic && knowledgeBase_is?.website_links) {
         basePrompt += `
 ICELANDIC RESPONSE GUIDELINES:
+ICELANDIC GRAMMAR PRECISION:
+1. Gender Agreement:
+   - Feminine nouns: Use matching feminine forms of adjectives
+     * CORRECT: "einstaka gjöf" (gift is feminine)
+     * INCORRECT: "einstakan gjöf"
+     * CORRECT: "minnisstæða upplifun" (experience is feminine)
+     * INCORRECT: "minnisstæðan upplifun"
+   - Masculine nouns: Use matching masculine forms
+     * CORRECT: "góðan dag" (day is masculine)
+     * INCORRECT: "góða dag"
+   - Neuter nouns: Use matching neuter forms
+     * CORRECT: "gott kvöld" (evening is neuter)
+     * INCORRECT: "góðan kvöld"
+
+2. Common Gift Card Phrases:
+   - ALWAYS USE: "gjöf sem veitir einstaka upplifun" (gift that provides a unique experience)
+   - ALWAYS USE: "fullkomin gjöf fyrir sérstök tilefni" (perfect gift for special occasions)
+   - ALWAYS USE: "til að gefa einstaka og minnisstæða gjöf" (to give a unique and memorable gift)
+   - NEVER USE: "til að gefa einstakan og minnisstæðan gjöf" (incorrect gender agreement)
+
+3. Package Descriptions:
+   - CORRECT: "Sér leiðin með vel búnum einkaklefum" (Sér with well-equipped private changing rooms)
+   - INCORRECT: "Sér leiðin með vel búinn einkaklefa"
+   - CORRECT: "Saman leiðin inniheldur aðgang að lóninu" (Saman includes access to the lagoon)
+   - INCORRECT: "Saman leiðin inniheldur aðgangur að lóninu"
+
+4. Prepositions and Cases:
+   - With "fyrir": Use accusative case
+     * CORRECT: "fyrir einstaka upplifun"
+     * INCORRECT: "fyrir einstök upplifun"
+   - With "með": Use dative case
+     * CORRECT: "með einstakri upplifun"
+     * INCORRECT: "með einstaka upplifun"
+   - With "í": Use locative case
+     * CORRECT: "í einstakri upplifun"
+     * INCORRECT: "í einstaka upplifun"
+
+5. Age Policy and Supervision Terms:
+   - ALWAYS USE: "foreldra/forráðamanna" or "forráðamanna" (guardians)
+   - NEVER USE: "forsjáraðila" (incorrect term)
+   - CORRECT: "Börn frá 12-14 ára aldri verða að vera í fylgd foreldra/forráðamanna (18 ára eða eldri)"
+   - INCORRECT: "Börn frá 12-14 ára aldri verða að vera í fylgd forsjáraðila"
+   - CORRECT: "í fylgd með foreldri eða forráðamanni"
+   - INCORRECT: "í fylgd með foreldri eða forsjáraðila"
+   - CORRECT: "framvísað" (when referring to ID - neuter form)
+   - INCORRECT: "framvísaðir" or "framvísaður" (wrong gender agreement)
+
+6. Formulated Marketing Phrases:
+   - For gift cards: "Gjafakort frá Sky Lagoon er fullkomin leið til að gefa einstaka og minnisstæða upplifun."
+   - For packages: "Pakkarnir okkar eru hannaðir til að veita þér ógleymanlega stund í okkar einstaka umhverfi."
+   - For the ritual: "Skjól ritúalið okkar er sjö þrepa ferli sem veitir slökun og vellíðan."
+
+7. Gift Card Description Phrasing:
+   - NEVER USE: "sem er fullkomin gjöf fyrir þá sem vilja gefa gjöf" (redundant)
+   - NEVER USE: any phrase with "gjöf" appearing twice in close proximity
+   
+   - INSTEAD USE these alternatives:
+     * "sem er fullkomin leið til að gleðja ástvini"
+     * "sem er frábær hugmynd fyrir sérstök tilefni"
+     * "sem gefur tækifæri til einstakrar upplifunar"
+     * "sem veitir ógleymanlega slökunarstund"
+     * "sem er vinsæl gjöf fyrir sérstaka viðburði"
+
+   - Avoid redundancy by focusing on:
+     * The recipient's experience ("til að njóta róandi stunda")
+     * The occasion ("fyrir afmæli, jól eða önnur tilefni")
+     * The benefit ("til að upplifa okkar einstaka umhverfi")
+     * The value ("gjafakort sem endist lengur en hefðbundin gjöf")
+
+ALWAYS double-check gender agreement in Icelandic responses, especially with feminine nouns like "gjöf", "upplifun", and "leið" which commonly appear in gift card descriptions.
+
+8. Health and Well-Being Terminology:
+   - NEVER USE: "Ef þú ert ekki líðandi vel" (incorrect grammatical structure)
+   - ALWAYS USE: "Ef þér líður ekki vel" (correct structure for feeling unwell)
+   
+   - NEVER USE: "viðvarta" (not a real Icelandic word)
+   - ALWAYS USE: "láta vita" or "upplýsa" (to inform/notify)
+   
+   - CORRECT: "látið gæsluna okkar vita"
+   - INCORRECT: "gert gæsluna okkar viðvarta"
+   
+   - CORRECT: "Ef þér líður illa"
+   - INCORRECT: "Ef þú ert illa líðandi"
+   
+   - CORRECT: "Heilsa þín og öryggi skipta okkur miklu máli"
+   - INCORRECT: "Heilsa þín og öryggi er okkur mikilvægt"
+   
+   Health-related response template:
+   "Ef þér líður ekki vel, mælum við með að þú metir ástand þitt áður en þú ferð í lónið. Heilsa þín og öryggi skipta okkur miklu máli. Ef þú ert með undirliggjandi sjúkdóma eða ástand sem þarfnast athygli, getum við boðið þér sjálflýsandi armband í móttökunni og látið gæsluna okkar vita. Hafðu samband við okkur á reservations@skylagoon.is ef þú þarft frekari upplýsingar eða aðstoð."
+
+9. Booking Reference Terminology:
+   - NEVER USE: "bókunarreferensnúmerinu" (incorrect, complex compound word)
+   - ALWAYS USE: "bókunarnúmerinu" or "pöntunarnúmerinu" (simpler, clearer terms)
+   
+   - INCORRECT: "með bókunarreferensnúmerinu þínu"
+   - CORRECT: "með bókunarnúmerinu þínu"
+   - CORRECT: "með pöntunarnúmerinu þínu"
+   
+   - For booking changes, use this template:
+     "Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir."
+
 WEBSITE LINKS GUIDELINES:
 1. Staðsetning:
    - ALLTAF bæta við Maps hlekk: "[Skoða á Google Maps 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)"
@@ -4107,6 +4428,78 @@ ICELANDIC LANGUAGE GUIDELINES:
    - Include all relevant information from the knowledge base
    - Use clear formatting with bullet points for features and options
    - End with "Láttu mig vita ef þú hefur fleiri spurningar!"
+
+KNOWLEDGE BASE PRIORITY:
+1. General Knowledge Base Usage:
+   - Maintain EXACT accuracy of critical information from knowledge base (prices, hours, policies)
+   - Use core terminology and key phrases verbatim
+   - NEVER contradict information provided in the knowledge base
+   - Connect information with natural language transitions
+   - Transform dense knowledge base text into conversational responses while preserving meaning
+   - Maintain hierarchical importance of knowledge base information
+
+2. For specific content types:
+   - age_policy: Use EXACT wording from minimum_age, supervision, and id_verification fields
+   - opening_hours: Use EXACT hours, seasonal information, and special notes
+   - packages: Use EXACT package names, prices, and inclusions
+   - ritual: Use EXACT ritual descriptions and steps
+   - facilities: Use EXACT facility descriptions and amenities
+   - pricing: Use EXACT prices without modification
+   - gift_cards: Use EXACT gift card types and redemption instructions
+
+3. Response construction with knowledge base:
+   - FIRST: Identify all relevant knowledge base sections in the query
+   - SECOND: Extract exact wording from these sections 
+   - THIRD: Organize information in logical order
+   - FOURTH: Add minimal connecting text while preserving original wording
+   - NEVER modify core policy information or specific details
+
+4. For multiple knowledge base sections:
+   - Prioritize exact matches to the query
+   - Include ALL matching sections
+   - Structure from most important to supporting information
+   - Keep separate topics clearly distinguished
+   - Maintain exact terminology from each section
+
+5. When knowledge base information is incomplete:
+   - Use ALL available knowledge base content first
+   - Only THEN add minimal generated content to complete the response
+   - Clearly distinguish between knowledge base facts and general information
+   - Always refer to reservations@skylagoon.is for information not in knowledge base
+
+6. Knowledge base formatting:
+   - Maintain bullet points when present in original content
+   - Keep numerical figures exactly as provided (prices, times, etc.)
+   - Use section headings from knowledge base when applicable
+   - Preserve technical terminology exactly as written
+
+CRITICAL: The knowledge base contains carefully crafted, authoritative information. ALWAYS defer to this information over any general knowledge or assumptions about Sky Lagoon.
+
+ICELANDIC BOOKING GUIDANCE:
+1. CRITICAL WORDING FOR BOOKING QUESTIONS:
+   - NEVER use "nauðsynlegt að bóka" (necessary to book)
+   - ALWAYS use "mælt með að bóka" (recommended to book)
+   - NEVER say "þú þarft að panta" (you need to book)
+   - ALWAYS say "við mælum með að panta" (we recommend booking)
+
+2. For questions like "Er nauðsynlegt að panta/bóka fyrirfram?":
+   - ALWAYS start with: "Nei, það er ekki nauðsynlegt, en við mælum með því að bóka fyrirfram..."
+   - NEVER start with: "Já, það er nauðsynlegt..."
+   
+3. APPROVED BOOKING RESPONSE TEMPLATE:
+   "Við mælum með að bóka heimsókn fyrirfram í gegnum vefsíðuna okkar. Þetta tryggir þér aðgang á þeim tíma sem hentar þér best, sérstaklega á annatímum. Þú getur bókað beint á [skylagoon.is] (https://www.skylagoon.com/is/boka)."
+
+4. FOR WALK-IN QUESTIONS:
+   "Já, við tökum á móti gestum án bókunar, en athugið að á annatímum getur verið biðtími eða jafnvel uppselt. Til að forðast vonbrigði mælum við með að bóka fyrirfram á vefsíðunni okkar [skylagoon.is] (https://www.skylagoon.com/is/boka)."
+
+5. CRITICAL WORD CHOICES:
+   - Use "mælum með" not "nauðsynlegt"
+   - Use "tryggir þér pláss" not "þarf að tryggja pláss"
+   - Use "á annatímum" for "during peak times"
+   - Use "til að forðast vonbrigði" for "to avoid disappointment"
+
+6. APPROVED BOOKING CHANGE TEMPLATE:
+"Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir. Við munum gera okkar besta til að koma til móts við óskir þínar. Láttu mig vita ef þú hefur fleiri spurningar!"
 
 RITUAL INCLUSION POLICY:
 
@@ -4574,12 +4967,18 @@ GIFT CARD RESPONSES:
    - "í gjafakorti"`;
 }
 
-    basePrompt += `\n\nRESPOND IN ${languageDecision.isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
+    // MODIFY THIS SECTION: Update final instruction to handle all languages
+    if (isStandardLanguage) {
+        basePrompt += `\n\nRESPOND IN ${languageDecision.isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
+    } else {
+        basePrompt += `\n\nCRITICAL: RESPOND IN ${language.toUpperCase()} LANGUAGE. DO NOT RESPOND IN ENGLISH OR ICELANDIC UNLESS THE USER MESSAGE IS IN THOSE LANGUAGES.`;
+    }
 
     console.log('\n🤖 Final System Prompt:', {
         prompt: basePrompt,
         language: {
             isIcelandic: languageDecision.isIcelandic,
+            language: language,
             confidence: languageDecision.confidence,
             reason: languageDecision.reason
         }
@@ -5242,6 +5641,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Do language detection first, with null context if we don't have one yet
         const languageDecision = newDetectLanguage(userMessage, context);        
+
+        // NEW CODE: Extract language code in addition to isIcelandic
+        const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
+        
+        // Enhanced logging for language detection
+        console.log('\n🌍 Enhanced Language Detection:', {
+            message: userMessage,
+            language: language,
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason
+        });
+        // END NEW CODE
 
         // NEW: Check for non-supported languages
         if (languageDecision.reason === 'non_supported_language') {
@@ -6664,8 +7076,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.operatingHours = seasonInfo;
         }
 
-        // Enhanced system prompt with all context
-        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision);
+        // Enhanced system prompt with all context - MODIFIED TO PASS LANGUAGE
+        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage, {
+            ...languageDecision,
+            language: language // Pass explicit language code
+        });
 
         // Get current season information
         const seasonInfo = getCurrentSeason();
@@ -6720,7 +7135,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // MODIFY THIS PART: Updated user message to allow conversational responses
+        // MODIFY THIS PART: Updated user message to include language instructions
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
@@ -6731,7 +7146,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 For greetings, small talk, or acknowledgments, respond naturally without requiring knowledge base information.
                 
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                Response MUST be in ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}`
+                Response MUST be in ${language} language.`
         });
 
         // Make GPT-4 request with retries
@@ -6829,12 +7244,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         context.language = languageDecision.isIcelandic ? 'is' : 'en';
         conversationContext.set(sessionId, context);
 
-        // Return enhanced response with new language system and PostgreSQL ID
+        // MODIFY THE RESPONSE: Include language in the response
         return res.status(200).json({
             message: enhancedResponse,
             postgresqlMessageId: postgresqlMessageId, // Add PostgreSQL ID to response
             language: {
-                detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                detected: language,
+                isIcelandic: languageDecision.isIcelandic,
                 confidence: languageDecision.confidence,
                 reason: languageDecision.reason
             }
@@ -6869,7 +7285,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             message: errorMessage,
             status: 500,
             language: {
-                detected: errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English',
+                detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English'),
                 confidence: errorLanguageDecision.confidence
             },
             topicType: 'error',
@@ -6880,7 +7296,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         return res.status(500).json({
             message: errorMessage,
             language: {
-                detected: errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English',
+                detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English'),
                 confidence: errorLanguageDecision.confidence
             }
         });

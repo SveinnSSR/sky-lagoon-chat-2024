@@ -797,7 +797,29 @@ export const knowledgeBase_is = {
                 ritual_access: "Þá erum við með hjólastóla sem einstaklingar geta notað á meðan þeir fara í gegnum ritúalið."
             },
             additional_info: "Við mælum með að hafa samband við okkur fyrirfram ef þú þarft sérstaka aðstoð eða aðbúnað. Þú getur sent okkur póst á reservations@skylagoon.is."
-        }
+        },
+        spa_services: {
+            questions: [
+                "Er boðið upp á nudd?",
+                "Get ég pantað nudd?",
+                "Eru nuddmeðferðir í boði?",
+                "Er hægt að fá nudd?",
+                "Bjóðið þið upp á nuddþjónustu?",
+                "Er hægt að panta nuddtíma?",
+                "Eru nuddarar á staðnum?",
+                "Má bóka nudd með heimsókn?",
+                "Hvað kostar nudd?",
+                "Eruð þið með spa meðferðir?",
+                "Er hægt að fá heilnudd?",
+                "Býður Sky Lagoon upp á nudd?"
+            ],
+            massage_info: {
+                availability: false,
+                answer: "Nei, því miður bjóðum við ekki upp á nuddþjónustu eða sérstakar spa meðferðir í Sky Lagoon. Upplifunin okkar er einblínir á sjö skrefa Skjól Ritúalið sem veitir djúpa slökun og vellíðan fyrir líkama og sál.",
+                ritual_alternative: "Við mælum með að njóta Skjól Ritúalsins okkar sem veitir mikla slökun. Meðferðin samanstendur af sjö endurnærandi skrefum sem innihalda heitt og kalt vatn, hlýja gufuböð, ferska súld, endurnærandi saltskrúbb og meira.",
+                future_plans: "Við höfum ekki áform um að bæta nuddþjónustu við Sky Lagoon í náinni framtíð, þar sem áhersla okkar er á heildarupplifun lónsins og ritúalsins."
+            }
+        }        
     },
     ritual: {
         questions: [
@@ -2146,7 +2168,7 @@ export const knowledgeBase_is = {
             "Týndi sundfötunum"
         ],
         info: {
-            general: "Ef þú týndir eitthverju í Sky Lagoon munum við gera okkar besta í að finna það og skila því til þín.",
+            general: "Ef þú týndir einhverju í Sky Lagoon munum við gera okkar besta í að finna það og skila því til þín.",
             storage_periods: [
                 "Við geymum verðmæti í þrjá mánuði (veski, töskur, skartgripi, síma, myndavélar og annað).",
                 "Sundföt, handklæði og annan fatnað geymum við í eina viku."
@@ -3245,6 +3267,32 @@ export const getRelevantKnowledge_is = (userMessage) => {
 
         relevantInfo.push(accessibilityInfo);
     } // End of full Accessibility section
+
+    // Massage and spa services specific check
+    if (message.includes('nudd') || 
+        message.includes('nudda') ||
+        message.includes('nuddari') || 
+        message.includes('nuddarar') ||
+        message.includes('nuddþjónusta') ||
+        message.includes('nuddmeðferð') ||
+        message.includes('nuddmeðferðir') ||
+        message.includes('spa') ||
+        message.includes('heilnudd') ||
+        message.includes('slökunarnudd') ||
+        message.includes('slökunar-nudd') ||
+        (message.includes('panta') && message.includes('nudd')) ||
+        (message.includes('bóka') && message.includes('nudd')) ||
+        (message.includes('hægt') && message.includes('fá') && message.includes('nudd')) ||
+        (message.includes('bjóða') && message.includes('nudd')) ||
+        (message.includes('boðið') && message.includes('nudd'))) {
+        
+        console.log('\n💆 Massage Services Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'massage_services',
+            content: knowledgeBase_is.facilities.spa_services.massage_info
+        });
+    } // End of Massage services section
 
     // Stay Duration specific check
     if (message.includes('lengi') || 
