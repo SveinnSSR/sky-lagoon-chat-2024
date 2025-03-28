@@ -163,6 +163,7 @@ export const detectLanguage = (message, context = null) => {
         /\b(pacchetto|prezzo|costo|biglietto|ingresso|visita|orario|giorno|ora|prenotazione)\b/i.test(cleanMessage);
 
     // Portuguese indicators 
+    /*
     const hasPortugueseIndicators = 
         // Articles and common words
         /\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas)\b/i.test(cleanMessage) ||
@@ -174,6 +175,9 @@ export const detectLanguage = (message, context = null) => {
         /\b(o que|quem|quando|onde|como|por que|quanto|qual|quais|que)\b/i.test(cleanMessage) ||
         // Portuguese-specific characters
         /[àâãêõç]/i.test(cleanMessage);
+    */
+    // Temporarily disabled Portuguese detection
+    const hasPortugueseIndicators = false;
 
     // Calculate word densities for each language
     const businessTermMessageWords = cleanMessage.split(/\s+/).filter(w => w.length > 1).length;
@@ -199,8 +203,13 @@ export const detectLanguage = (message, context = null) => {
     const italianDensity = businessTermMessageWords > 0 ? italianWordCount / businessTermMessageWords : 0;
     
     // Portuguese density
+    /*
     const portugueseWordCount = (cleanMessage.match(/\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas|é|são|era|eram|ser|estar|tem|têm|tinha|tinham|fazer|ir|vir|ver|saber|poder|querer|dever|e|ou|mas|se|porque|quando|como|onde)\b/gi) || []).length;
     const portugueseDensity = businessTermMessageWords > 0 ? portugueseWordCount / businessTermMessageWords : 0;
+    */
+    // Temporarily disabled
+    const portugueseWordCount = 0;
+    const portugueseDensity = 0;
 
     // COMPREHENSIVE LANGUAGE DECISION WITH BUSINESS TERMS
     if (hasIcelandicBusinessTerms) {
@@ -273,6 +282,7 @@ export const detectLanguage = (message, context = null) => {
         }
         
         // Portuguese detection
+        /*
         if (hasPortugueseIndicators && (portugueseDensity > 0.25 || portugueseWordCount >= 2)) {
             return {
                 isIcelandic: false,
@@ -281,6 +291,7 @@ export const detectLanguage = (message, context = null) => {
                 reason: 'portuguese_with_icelandic_terms'
             };
         }
+        */
         
         // If no other language has strong indicators, it's likely Icelandic
         if (!hasEnglishIndicators && !hasSpanishIndicators && !hasFrenchIndicators && 
@@ -496,6 +507,7 @@ export const detectLanguage = (message, context = null) => {
     }    
 
     // Portuguese detection (modified to avoid Icelandic AND Spanish confusion)
+    /*
     if (((/[àâãêõç]/i.test(cleanMessage) || // Characters unique to Portuguese, not shared with Icelandic or Spanish
           /\b(você|obrigado|todos|isso|muito|bem|não|sim|para|um|uma)\b/i.test(cleanMessage)) && 
          !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage) &&
@@ -511,6 +523,7 @@ export const detectLanguage = (message, context = null) => {
             reason: 'other_language_detected'
         };
     }
+    */
     
     // French detection (with Icelandic exclusion)
     if (((/[èêëçôœ]/i.test(cleanMessage) || // Characters unique to French, not shared with Icelandic
