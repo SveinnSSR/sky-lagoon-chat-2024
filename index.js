@@ -103,13 +103,12 @@ const pusher = new Pusher({
 // Updated broadcastConversation function with improved session handling
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
-        // IMPROVED SESSION HANDLING: Prioritize client-provided sessionId if available
-        // Fall back to server-side session tracking, then generate a new one as last resort
+        // IMPROVED SESSION HANDLING: ALWAYS use client-provided sessionId or generate a new one
+        // REMOVED conversationContext.get('currentSession') to prevent context bleeding
         const chatSessionId = clientSessionId || 
-                             conversationContext.get('currentSession') || 
                              `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-        
-        console.log(`📊 Using session ID: ${chatSessionId}${clientSessionId ? ' (from client)' : ' (from server)'}`);
+
+        console.log(`📊 Using session ID: ${chatSessionId}${clientSessionId ? ' (from client)' : ' (generated)'}`);
         
         // Create a unique key for this message pair to prevent duplicate broadcasts
         const messageKey = `${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
@@ -5619,24 +5618,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     };
     
     try {
-        // Initialize session first
-        const currentSession = conversationContext.get('currentSession');
-        const sessionId = currentSession || `session_${Date.now()}`;
+        // IMPORTANT CHANGE: Get sessionId directly from the request body - ALWAYS prioritize this
+        // Remove dependency on the global 'currentSession' to prevent context bleeding
+        const sessionId = req.body.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         
         console.log('\n🔍 Full request body:', req.body);
+        console.log('\n🆔 Using session ID:', sessionId);
         
         // Get message from either question or message field
         const userMessage = req.body.message || req.body.question;
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // Store new session if needed
-        if (!currentSession) {
-            conversationContext.set('currentSession', sessionId);
-            console.log('\n🆕 New Session Created:', sessionId);
-        }
+        // REMOVED: No longer storing in global 'currentSession'
+        // This was causing context bleeding between different users
 
-        // Get initial context
+        // Get initial context for this specific session
         context = conversationContext.get(sessionId);
 
         // Do language detection first, with null context if we don't have one yet
@@ -5651,9 +5648,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             language: language,
             isIcelandic: languageDecision.isIcelandic,
             confidence: languageDecision.confidence,
-            reason: languageDecision.reason
+            reason: languageDecision.reason,
+            sessionId: sessionId // Add session ID to logs for traceability
         });
-        // END NEW CODE
 
         // NEW: Check for non-supported languages
         if (languageDecision.reason === 'non_supported_language') {
