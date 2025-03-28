@@ -4,6 +4,14 @@ export const detectLanguage = (message, context = null) => {
     function containsBotName(text) {
         return /\bs[oó]lr[uú]n\b/i.test(text);
     }
+    
+    // Add package comparison detection helper function
+    function isPackageComparison(text) {
+        // Check for package comparison patterns using "or" between package names
+        return /\b(saman|s[eé]r)\s+(or|vs|versus|compared to|compared with|or the|and|and the)\s+(saman|s[eé]r)\b/i.test(text) ||
+               /\b(which|what|difference between)\b.*\b(saman|s[eé]r)\b.*\b(or|and|vs)\b.*\b(saman|s[eé]r)\b/i.test(text) ||
+               /\b(saman|s[eé]r)\b.*\b(or|and|vs)\b.*\b(saman|s[eé]r)\b/i.test(text);
+    }
 
     // Clean the message
     const cleanMessage = message.toLowerCase().trim();
@@ -217,6 +225,20 @@ export const detectLanguage = (message, context = null) => {
 
     // COMPREHENSIVE LANGUAGE DECISION WITH BUSINESS TERMS
     if (hasIcelandicBusinessTerms) {
+        // PACKAGE COMPARISON DETECTION - Add this block first
+        // Special handling for package comparison questions in English
+        if (cleanMessage.includes("or") && 
+            (/\b(saman|s[eé]r)\b/i.test(cleanMessage)) && 
+            (cleanMessage.split(/\s+/).length <= 5)) {
+            
+            return {
+                isIcelandic: false,
+                language: 'en',
+                confidence: 'high',
+                reason: 'english_package_comparison'
+            };
+        }
+        
         // SHORT MESSAGE HANDLING - ADD THIS AS THE FIRST CHECK
         // For very short edge case messages with business terms
         if (cleanMessage.split(/\s+/).length <= 3) {
