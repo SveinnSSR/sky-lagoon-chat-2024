@@ -362,6 +362,16 @@ const SKY_LAGOON_GUIDELINES = {
         },
     },
     specialPhrases: {
+        // WATER SHOES FIX - Add at the top to take priority
+        'geothermal water shoes': 'water shoes',
+        'your own geothermal water shoes': 'your own water shoes',
+        'bring geothermal water shoes': 'bring water shoes',
+        'bring your geothermal water shoes': 'bring your water shoes',
+        'personal geothermal water shoes': 'personal water shoes',
+        'geothermal aqua shoes': 'aqua shoes',
+        'geothermal swim shoes': 'swim shoes',
+        'geothermal swimming shoes': 'swimming shoes',
+
         // WATER BOTTLE FIX - Add at the top to take priority
         'geothermal water bottle': 'water bottle',
         'your own geothermal water bottle': 'your own water bottle',
@@ -570,6 +580,14 @@ const enforceTerminology = (text) => {
         return `__PROTECTED_WATER_BOTTLE__${match}__END_PROTECTION__`;
     });
 
+    // WATER SHOES PROTECTION - Add protection for water shoes terms
+    const waterShoesRegex = /\b(your|a|my|personal|own|the)?\s*(water\s+shoes|aqua\s+shoes|swim\s+shoes|swimming\s+shoes)\b/gi;
+    
+    // Mark all water shoes references for protection
+    modifiedText = modifiedText.replace(waterShoesRegex, (match) => {
+        return `__PROTECTED_WATER_SHOES__${match}__END_PROTECTION__`;
+    });
+
     // First handle Gelmir Bar variations with regex
     const gelmirRegex = /\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi;
     modifiedText = modifiedText.replace(gelmirRegex, 'our Gelmir lagoon bar');
@@ -651,6 +669,8 @@ const enforceTerminology = (text) => {
     });
 
     // Comprehensive hydration and experience safety checks - Moved here after other replacements
+    // Note: The constant hydrationSafetyRegex is declared here but immediately processed with forEach()
+    // rather than being referenced later. This pattern works because we process the array immediately.
     const hydrationSafetyRegex = [
         // Bar and location specific patterns
         /\bin\s+our\s+geothermal\s+waters\b/gi,
@@ -723,8 +743,16 @@ const enforceTerminology = (text) => {
     // WATER BOTTLE UNPROTECTION - Now restore all protected water bottle references
     modifiedText = modifiedText.replace(/__PROTECTED_WATER_BOTTLE__(.*?)__END_PROTECTION__/gi, '$1');
     
-    // Final cleaup for any "geothermal water bottle" that might have slipped through
+    // WATER SHOES UNPROTECTION - Restore all protected water shoes references
+    modifiedText = modifiedText.replace(/__PROTECTED_WATER_SHOES__(.*?)__END_PROTECTION__/gi, '$1');
+    
+    // Final cleanup for any "geothermal water bottle" that might have slipped through
     modifiedText = modifiedText.replace(/geothermal\s+water\s+bottle/gi, 'water bottle');
+    
+    // Final cleanup for any "geothermal water shoes" that might have slipped through
+    modifiedText = modifiedText.replace(/geothermal\s+water\s+shoes/gi, 'water shoes');
+    modifiedText = modifiedText.replace(/geothermal\s+aqua\s+shoes/gi, 'aqua shoes');
+    modifiedText = modifiedText.replace(/geothermal\s+swim(ming)?\s+shoes/gi, 'swim$1 shoes');
 
     // Final check for any remaining double geothermal
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
