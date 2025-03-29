@@ -4729,9 +4729,9 @@ FRIDA_ISLANDSBANKI_INFORMATION:
    - Any combination of these terms
 
 2. Response Template:
-   "Ef þú ert með Íslandsbanka kort, þá getur þú fengið 20-25% endurgreiðslu á Sky Lagoon heimsókn í gegnum Fríðu fríðindakerfi Íslandsbanka. Þetta er þjónusta sem Íslandsbanki býður upp á fyrir sína viðskiptavini út ákveðið tímabil.
+   "Ef þú ert með Íslandsbanka kort, þá getur þú fengið hlutfallslega endurgreiðslu á Sky Lagoon heimsókn í gegnum Fríðu fríðindakerfi Íslandsbanka. Þetta er þjónusta sem Íslandsbanki býður upp á fyrir sína viðskiptavini út ákveðið tímabil.
 
-   Þú þarft að virkja tilboðið í Fríðu appinu áður en þú greiðir með kortinu þínu hjá okkur. Endurgreiðslan kemur svo frá Íslandsbanka 18. hvers mánaðar. Vinsamlegast hafðu samband við Íslandsbanka fyrir nákvæmari upplýsingar um Fríðu fríðindakerfið og gildistíma tilboðsins."
+   Þú þarft að virkja tilboðið í Fríðu appinu áður en þú greiðir með kortinu þínu hjá okkur. Endurgreiðslan kemur svo frá Íslandsbanka 18. hvers mánaðar. Vinsamlegast hafðu samband við Íslandsbanka fyrir nákvæmar upplýsingar um upphæð endurgreiðslu og gildistíma tilboðsins."
 
 3. Implementation Rules:
    - NEVER mention specific discount percentages
