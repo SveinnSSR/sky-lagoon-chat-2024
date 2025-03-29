@@ -100,13 +100,34 @@ const pusher = new Pusher({
     useTLS: true
 });
 
+// Add this near the top of your file with other global variables
+// Message broadcast lock prevents duplicate processing of the same message
+// This solves the issue of identical messages appearing twice in analytics system
+// by ensuring each unique message is only processed once within a time window
+let messageBroadcastLock = new Map();
+
 // Updated broadcastConversation function with improved session handling
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
+    // Define messageSignature outside try/catch for scope in catch block
+    let messageSignature;
+    
     try {
         // IMPROVED SESSION HANDLING: ALWAYS use client-provided sessionId or generate a new one
         // REMOVED conversationContext.get('currentSession') to prevent context bleeding
         const chatSessionId = clientSessionId || 
                              `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        
+        // ANTI-DUPLICATION: Create a unique message signature
+        messageSignature = `${chatSessionId}:${userMessage.substring(0, 20)}:${botResponse.substring(0, 20)}:${Date.now()}`;
+        
+        // Check if this exact message is currently being processed
+        if (messageBroadcastLock.has(messageSignature)) {
+            console.log(`\n🔒 Preventing duplicate broadcast of message: ${messageSignature}`);
+            return messageBroadcastLock.get(messageSignature) || { success: false, postgresqlId: null };
+        }
+        
+        // Set a placeholder to prevent duplicate processing
+        messageBroadcastLock.set(messageSignature, null);
 
         console.log(`📊 Using session ID: ${chatSessionId}${clientSessionId ? ' (from client)' : ' (generated)'}`);
         
@@ -117,6 +138,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         const lastBroadcast = broadcastTracker.get(messageKey);
         if (lastBroadcast && (Date.now() - lastBroadcast.timestamp < 2000)) {
             console.log(`⚠️ Prevented duplicate broadcast for message: ${messageKey}`);
+            messageBroadcastLock.set(messageSignature, lastBroadcast.result); // Update lock with result
             return lastBroadcast.result; // Return previous result
         }
         
@@ -205,6 +227,9 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             result: result
         });
         
+        // Update the lock with the actual result
+        messageBroadcastLock.set(messageSignature, result);
+        
         // Cleanup old entries occasionally (optional)
         if (broadcastTracker.size > 100) {
             // Remove entries older than 5 minutes
@@ -216,9 +241,22 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             }
         }
         
+        // Clean up this lock after a delay
+        setTimeout(() => {
+            messageBroadcastLock.delete(messageSignature);
+        }, 10000); // Remove after 10 seconds
+        
         return result;
     } catch (error) {
       console.error('❌ Error in broadcastConversation:', error);
+      // Even in error case, update the lock if we have a message signature
+      if (messageSignature) {
+        messageBroadcastLock.set(messageSignature, { success: false, postgresqlId: null });
+        // Clean up this lock after a delay
+        setTimeout(() => {
+            messageBroadcastLock.delete(messageSignature);
+        }, 10000); // Remove after 10 seconds
+      }
       return { success: false, postgresqlId: null };
     }
 };
@@ -4402,6 +4440,40 @@ ALWAYS double-check gender agreement in Icelandic responses, especially with fem
    
    - For booking changes, use this template:
      "Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir."
+
+10. Afsláttur (Discount) Terminology:
+   - Use "afsláttur" (masculine noun) with correct case forms:
+     * Nominative: "afsláttur" (e.g., "Enginn afsláttur er í boði")
+     * Accusative: "afslátt" (e.g., "Við bjóðum upp á afslátt")
+     * Dative: "afslætti" (e.g., "Með afslætti kostar þetta...")
+     * Genitive: "afsláttar" (e.g., "Upphæð afsláttar")
+   
+   - For compound words, ALWAYS use genitive form "afsláttar-":
+     * CORRECT: "afsláttarmöguleiki" (discount possibility)
+     * INCORRECT: "afslættarmöguleiki"
+     * CORRECT: "afsláttarkóði" (discount code)
+     * INCORRECT: "afslættarkóði"
+     * CORRECT: "afsláttartilboð" (discount offer)
+     * INCORRECT: "afslættartilboð"
+   
+   - For plural forms:
+     * CORRECT: "afsláttarmöguleikar" (discount possibilities)
+     * INCORRECT: "afslættarmöguleikar"
+     * CORRECT: "afsláttarkjör" (discount terms)
+     * INCORRECT: "afslættarkjör"
+   
+   - With adjectives:
+     * CORRECT: "sérstakur afsláttur" (special discount - masculine)
+     * INCORRECT: "sérstakt afsláttur" or "sérstök afsláttur"
+     * CORRECT: "enginn afsláttur" (no discount - masculine)
+     * INCORRECT: "ekkert afsláttur" or "engin afsláttur"
+   
+   - Common phrases:
+     * ALWAYS USE: "bjóðum ekki upp á afslátt" (we don't offer discounts)
+     * ALWAYS USE: "án afsláttar" (without discount - genitive)
+     * NEVER USE: "án afslátt" (incorrect case)
+     * ALWAYS USE: "með afslætti" (with discount - dative)
+     * NEVER USE: "með afslátt" (incorrect case)
 
 WEBSITE LINKS GUIDELINES:
 1. Staðsetning:
