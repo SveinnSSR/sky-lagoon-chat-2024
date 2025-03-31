@@ -7539,7 +7539,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 //});
 
 // =====================================================================
-// HELPER FUNCTIONS FOR FEEDBACK PROCESSING
+// HELPER FUNCTIONS FOR FEEDBACK PROCESSING.
 // =====================================================================
 
 /**
