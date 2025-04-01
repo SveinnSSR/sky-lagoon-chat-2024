@@ -1543,10 +1543,13 @@ const conversationBuffer = new Map(); // Buffer recent conversations
 // Track active chat sessions
 const chatSessions = new Map();
 
+// Define session timeout (period after which we create a new conversation)
+const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes of inactivity = new conversation (15 seconds in milliseconds)
+
 /**
  * Get or create a persistent session from MongoDB
+ * Enhanced with session timeout and better conversation separation
  * Uses the frontend session ID to maintain conversation continuity
- * Adds IP-based session matching to group related conversations
  * Includes in-memory caching to prevent duplicate sessions during DB issues
  * 
  * @param {Object} conversationData - The conversation data including session information
@@ -1562,10 +1565,85 @@ async function getOrCreateSession(conversationData) {
       global.sessionCache = new Map();
     }
     
+    // Extract the user's IP address if available (for analytics purposes)
+    const userIp = conversationData?.ip || 
+                  conversationData?.req?.ip || 
+                  conversationData?.req?.headers?.['x-forwarded-for'] || 
+                  'unknown-ip';
+    
     // Check local cache first - this prevents generating new sessions during temporary DB issues
     if (global.sessionCache.has(frontendSessionId)) {
       const cachedSession = global.sessionCache.get(frontendSessionId);
-      console.log(`🔄 Using cached session: ${cachedSession.conversationId} for frontend session: ${frontendSessionId}`);
+      
+      // TIMEOUT CHECK: If the session has been inactive longer than the timeout period, create a new session
+      const lastActivity = new Date(cachedSession.lastActivity).getTime();
+      const currentTime = Date.now();
+      
+      if (currentTime - lastActivity > SESSION_TIMEOUT) {
+        console.log(`\n⏰ Session timeout detected for ${frontendSessionId} (${Math.round((currentTime - lastActivity)/1000/60)} minutes inactive)`);
+        
+        // Generate a new unique conversation ID that includes the original session ID for traceability
+        const newConversationId = `${frontendSessionId}_${Date.now()}`;
+        
+        // Create a new session with the timeout marker
+        const timeoutSession = {
+          sessionId: frontendSessionId, // Keep the same session ID for frontend consistency
+          conversationId: newConversationId, // Use a new conversation ID to separate in analytics
+          startedAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString(),
+          isNewSession: true
+        };
+        
+        // Cache the new session
+        global.sessionCache.set(frontendSessionId, timeoutSession);
+        console.log(`\n🆕 Created timeout session with new conversation ID: ${newConversationId}`);
+        
+        // Try to update this in MongoDB too
+        try {
+          const dbConnection = await connectToDatabase();
+          const db = dbConnection.db;
+          const globalSessionCollection = db.collection('globalSessions');
+          
+          await globalSessionCollection.insertOne({
+            type: 'chat_session',
+            frontendSessionId: frontendSessionId,
+            frontendSessionIds: [frontendSessionId],
+            userIp: userIp,
+            sessionId: frontendSessionId,
+            conversationId: newConversationId,
+            startedAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            previousConversationId: cachedSession.conversationId,
+            isTimeoutSession: true
+          });
+        } catch (dbError) {
+          console.error('❌ Error updating MongoDB with timeout session:', dbError);
+          // Continue with the cached timeout session anyway
+        }
+        
+        return timeoutSession;
+      }
+      
+      // If no timeout, update the last activity time and return the cached session
+      cachedSession.lastActivity = new Date().toISOString();
+      global.sessionCache.set(frontendSessionId, cachedSession);
+      console.log(`\n🔄 Using cached session: ${cachedSession.conversationId} for frontend session: ${frontendSessionId}`);
+      
+      // Try to update last activity in MongoDB too
+      try {
+        const dbConnection = await connectToDatabase();
+        const db = dbConnection.db;
+        const globalSessionCollection = db.collection('globalSessions');
+        
+        await globalSessionCollection.updateOne(
+          { conversationId: cachedSession.conversationId },
+          { $set: { lastActivity: new Date().toISOString() } }
+        );
+      } catch (dbError) {
+        console.warn('⚠️ Could not update session activity time in MongoDB:', dbError);
+        // Continue with the cached session anyway
+      }
+      
       return cachedSession;
     }
     
@@ -1579,22 +1657,16 @@ async function getOrCreateSession(conversationData) {
       // Instead of throwing the error, create a session but cache it
       const tempSession = {
         sessionId: frontendSessionId, // Use the frontend session ID directly!
-        conversationId: frontendSessionId, // Use same ID for consistency
+        conversationId: `${frontendSessionId}_${Date.now()}`, // Use timestamp to ensure uniqueness
         startedAt: new Date().toISOString(),
         lastActivity: new Date().toISOString()
       };
       
       // Cache this session
       global.sessionCache.set(frontendSessionId, tempSession);
-      console.log(`⚠️ Created temporary session: ${tempSession.sessionId} due to DB connection error`);
+      console.log(`\n⚠️ Created temporary session: ${tempSession.conversationId} due to DB connection error`);
       return tempSession;
     }
-    
-    // Extract the user's IP address if available (for differentiating users)
-    const userIp = conversationData?.ip || 
-                  conversationData?.req?.ip || 
-                  conversationData?.req?.headers?.['x-forwarded-for'] || 
-                  'unknown-ip';
     
     // Try to find an existing session for this frontend session
     const globalSessionCollection = db.collection('globalSessions');
@@ -1611,14 +1683,60 @@ async function getOrCreateSession(conversationData) {
     
     const now = new Date();
     
-    // If we found an existing session for this frontend session, use it
+    // If we found an existing session for this frontend session, check for timeout
     if (existingSession && existingSession.conversationId) {
-      console.log(`🔄 Using existing session: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
+      // TIMEOUT CHECK: If the session has been inactive longer than the timeout period, create a new session
+      const lastActivity = new Date(existingSession.lastActivity).getTime();
+      const currentTime = now.getTime();
+      
+      if (currentTime - lastActivity > SESSION_TIMEOUT) {
+        console.log(`\n⏰ Session timeout detected in DB for ${frontendSessionId} (${Math.round((currentTime - lastActivity)/1000/60)} minutes inactive)`);
+        
+        // Generate a new unique conversation ID
+        const newConversationId = `${frontendSessionId}_${Date.now()}`;
+        
+        // Create a new session record
+        const newSession = {
+          type: 'chat_session',
+          frontendSessionId: frontendSessionId,
+          frontendSessionIds: [frontendSessionId],
+          userIp: userIp,
+          sessionId: frontendSessionId, // Keep the same session ID for frontend consistency
+          conversationId: newConversationId, // New conversation ID for analytics
+          startedAt: now.toISOString(),
+          lastActivity: now.toISOString(),
+          previousConversationId: existingSession.conversationId,
+          isTimeoutSession: true
+        };
+        
+        try {
+          await globalSessionCollection.insertOne(newSession);
+          console.log(`\n🆕 Created timeout session in DB with new conversation ID: ${newConversationId}`);
+        } catch (insertError) {
+          console.warn('⚠️ Could not save timeout session to MongoDB:', insertError);
+        }
+        
+        const sessionInfo = {
+          sessionId: newSession.sessionId,
+          conversationId: newSession.conversationId,
+          startedAt: newSession.startedAt,
+          lastActivity: newSession.lastActivity,
+          isNewSession: true
+        };
+        
+        // Cache this session for future use
+        global.sessionCache.set(frontendSessionId, sessionInfo);
+        
+        return sessionInfo;
+      }
+      
+      // If no timeout, use the existing session and update last activity
+      console.log(`\n🔄 Using existing session: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
       
       // Update last activity time
       try {
         await globalSessionCollection.updateOne(
-          { frontendSessionId: frontendSessionId },
+          { conversationId: existingSession.conversationId },
           { $set: { lastActivity: now.toISOString() } }
         );
       } catch (updateError) {
@@ -1638,60 +1756,19 @@ async function getOrCreateSession(conversationData) {
       return sessionInfo;
     }
     
-    // New step: Find a very recent session from the same IP (within 5 minutes)
-    // This helps group messages that should be part of the same conversation
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    
-    try {
-      const recentSessions = await globalSessionCollection.find({
-        lastActivity: { $gte: fiveMinutesAgo.toISOString() },
-        userIp: userIp // Only consider sessions from the same IP address
-      }).sort({ lastActivity: -1 }).limit(1).toArray();
-      
-      if (recentSessions && recentSessions.length > 0) {
-        const mostRecentSession = recentSessions[0];
-        console.log(`🔄 Reusing recent session: ${mostRecentSession.conversationId} from same IP: ${userIp}`);
-        
-        // Update the session with this frontend session ID and activity time
-        try {
-          await globalSessionCollection.updateOne(
-            { _id: mostRecentSession._id },
-            { 
-              $set: { 
-                lastActivity: now.toISOString(),
-                frontendSessionIds: [...(mostRecentSession.frontendSessionIds || []), frontendSessionId]
-              }
-            }
-          );
-        } catch (updateError) {
-          console.warn('⚠️ Could not update recent session:', updateError);
-        }
-        
-        const sessionInfo = {
-          sessionId: mostRecentSession.sessionId,
-          conversationId: mostRecentSession.conversationId,
-          startedAt: mostRecentSession.startedAt,
-          lastActivity: now.toISOString()
-        };
-        
-        // Cache this session for future use
-        global.sessionCache.set(frontendSessionId, sessionInfo);
-        
-        return sessionInfo;
-      }
-    } catch (findError) {
-      console.error('❌ Error finding recent sessions:', findError);
-    }
-    
+    // REMOVED: IP-based session reuse code to prevent grouping different users
+
     // Create a new session if no matching session was found
-    // Use the frontendSessionId itself as the conversationId for consistency
+    // Use a new conversation ID that includes the frontend session ID plus timestamp for uniqueness
+    const newConversationId = `${frontendSessionId}_${Date.now()}`;
+    
     const newSession = {
       type: 'chat_session',
       frontendSessionId: frontendSessionId, // Store the frontend session ID
       frontendSessionIds: [frontendSessionId], // Keep track of all associated session IDs
-      userIp: userIp, // Store IP for future matching
+      userIp: userIp, // Store IP for analytics only (not for session matching)
       sessionId: frontendSessionId, // Use the frontend session ID directly
-      conversationId: frontendSessionId, // Use same ID for consistency
+      conversationId: newConversationId, // Use a unique conversation ID
       startedAt: now.toISOString(),
       lastActivity: now.toISOString()
     };
@@ -1699,7 +1776,7 @@ async function getOrCreateSession(conversationData) {
     // Save to MongoDB
     try {
       await globalSessionCollection.insertOne(newSession);
-      console.log(`🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId} from IP: ${userIp}`);
+      console.log(`\n🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId} from IP: ${userIp}`);
     } catch (insertError) {
       console.warn('⚠️ Could not save new session to MongoDB:', insertError);
     }
@@ -1708,7 +1785,8 @@ async function getOrCreateSession(conversationData) {
       sessionId: newSession.sessionId,
       conversationId: newSession.conversationId,
       startedAt: newSession.startedAt,
-      lastActivity: newSession.lastActivity
+      lastActivity: newSession.lastActivity,
+      isNewSession: true
     };
     
     // Cache this session for future use
@@ -1718,11 +1796,13 @@ async function getOrCreateSession(conversationData) {
   } catch (error) {
     console.error('❌ Error with session management:', error);
     
-    // Create a fallback session using the frontend session ID
+    // Create a fallback session using the frontend session ID plus timestamp
     const frontendSessionId = conversationData?.sessionId || 'unknown-session';
+    const fallbackConversationId = `${frontendSessionId}_${Date.now()}`;
+    
     const fallbackSession = {
       sessionId: frontendSessionId, // Use the original ID!
-      conversationId: frontendSessionId, // Use same ID for consistency
+      conversationId: fallbackConversationId, // Use a unique conversation ID
       startedAt: new Date().toISOString(),
       lastActivity: new Date().toISOString()
     };
@@ -1733,7 +1813,7 @@ async function getOrCreateSession(conversationData) {
     }
     global.sessionCache.set(frontendSessionId, fallbackSession);
     
-    console.log(`⚠️ Using fallback session: ${fallbackSession.sessionId}`);
+    console.log(`\n⚠️ Using fallback session: ${fallbackSession.conversationId}`);
     return fallbackSession;
   }
 }
