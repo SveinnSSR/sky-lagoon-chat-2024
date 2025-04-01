@@ -1543,7 +1543,10 @@ const conversationBuffer = new Map(); // Buffer recent conversations
 // Track active chat sessions
 const chatSessions = new Map();
 
-// Define session timeout (period after which we create a new conversation)
+// This Map tracks messages already sent to analytics to prevent duplicates (then referenced later in the sendConversationToAnalytics function)
+const analyticsSentMessages = new Map();
+
+// Define session timeout (period after which we create a new conversation) - getOrCreateSession function then uses this
 const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes of inactivity = new conversation (15 seconds in milliseconds)
 
 /**
@@ -7982,20 +7985,35 @@ function normalizeConversationData(data) {
     }
   }
   
-  // CRITICAL CHANGE: Ensure each message has proper structure 
-  // WITHOUT OVERRIDING EXPLICIT ROLE/SENDER VALUES
+  // IMPROVED ROLE/SENDER CONSISTENCY: 
+  // This new logic more reliably identifies message types based on multiple signals
   normalized.messages = normalized.messages.map((msg, index) => {
-    // Determine if this is likely a user or bot message based on position and content
-    // Only use these for fallback if no role/sender exists
-    const isLikelyUser = index % 2 === 0; // Even indices are typically user messages
+    // First, determine message type based on existing explicit roles/senders
+    let isUserMessage = false;
+    let isAssistantMessage = false;
     
+    // Check explicit role/sender values first (these are most reliable)
+    if (msg.role === 'user' || msg.sender === 'user') {
+      isUserMessage = true;
+    } else if (msg.role === 'assistant' || msg.sender === 'bot') {
+      isAssistantMessage = true;
+    } 
+    // If no explicit role/sender, use position as a fallback
+    else {
+      // In conversation sequence, even indices are typically user messages in most chat systems
+      isUserMessage = index % 2 === 0;
+      isAssistantMessage = !isUserMessage;
+    }
+    
+    // Always enforce completely consistent role and sender pairs
+    // This ensures they never get out of sync
     return {
       id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
       content: msg.content || '',
-      // CRITICAL: Only use fallbacks if fields are undefined or null - preserve explicit values
-      role: msg.role || (msg.sender === 'user' ? 'user' : (msg.sender === 'bot' ? 'assistant' : (isLikelyUser ? 'user' : 'assistant'))),
-      sender: msg.sender || (msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'bot' : (isLikelyUser ? 'user' : 'bot'))),
-      // Ensure timestamps maintain sequence (odd indices are 1ms after even indices)
+      // Always set both role and sender to matching values
+      role: isUserMessage ? 'user' : 'assistant',
+      sender: isUserMessage ? 'user' : 'bot',
+      // Ensure timestamps maintain sequence
       timestamp: msg.timestamp || new Date(Date.now() + index).toISOString()
     };
   });
@@ -8063,6 +8081,33 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     if (!conversationData || !conversationData.id) {
       console.error('❌ Cannot send undefined conversation data - SKIPPING');
       return { success: false, postgresqlId: null };
+    }
+
+    // DEDUPLICATION CHECK: Create a signature for this specific message set
+    const botMessages = conversationData.messages ? 
+                        conversationData.messages.filter(m => m.role === 'assistant' || m.sender === 'bot') : 
+                        [];
+    
+    if (botMessages.length > 0) {
+      // Create signature from bot message content + timestamps
+      const messageSignature = botMessages.map(m => 
+        `${m.content?.substring(0, 50)}-${m.timestamp}`
+      ).join('|');
+      
+      // Check if we've already sent this exact set of bot messages
+      const previouslySent = analyticsSentMessages.get(messageSignature);
+      
+      if (previouslySent) {
+        const timeSinceLastSent = Date.now() - previouslySent.timestamp;
+        console.log(`🔍 Preventing duplicate analytics send. Same bot messages sent ${timeSinceLastSent}ms ago.`);
+        
+        // Return the previously recorded PostgreSQL ID so feedback still works
+        return { 
+          success: true, 
+          postgresqlId: previouslySent.postgresqlId,
+          deduplicated: true
+        };
+      }
     }
 
     // Extract the frontend session ID from the request context
@@ -8210,6 +8255,28 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
                         console.log(`🤖 Found bot message PostgreSQL ID: ${botMessagePostgresqlId}`);
                     }
                 }
+            }
+            
+            // RECORD THIS MESSAGE SET AS PROCESSED to prevent future duplicates
+            if (botMessages.length > 0) {
+              const messageSignature = botMessages.map(m => 
+                `${m.content?.substring(0, 50)}-${m.timestamp}`
+              ).join('|');
+              
+              analyticsSentMessages.set(messageSignature, {
+                timestamp: Date.now(),
+                postgresqlId: botMessagePostgresqlId
+              });
+              
+              // Cleanup old entries occasionally
+              if (analyticsSentMessages.size > 500) {
+                const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+                for (const [key, value] of analyticsSentMessages.entries()) {
+                  if (value.timestamp < oneDayAgo) {
+                    analyticsSentMessages.delete(key);
+                  }
+                }
+              }
             }
         } else {
             console.log('⚠️ Response does not contain messages array or has unexpected format');
