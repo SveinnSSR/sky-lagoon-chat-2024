@@ -3273,6 +3273,30 @@ CRITICAL RESPONSE RULES:
    - If you know related information, provide that instead`;
 }
 
+// Reykjanes peninsula volcanic eruption response section.
+const volcanoInformation = `
+CURRENT VOLCANIC ACTIVITY INFORMATION:
+${isIcelandic ? 
+`Sky Lagoon er algjörlega öruggt frá eldgosinu á Reykjanesskaga. Aðstaða okkar er staðsett í Reykjavík, langt frá áhrifasvæðinu nálægt Grindavík. Núverandi eldgos er hluti af eldvirkni sem hefur verið í gangi síðan 2021 í Sundhnúkagígaröðinni.` 
+: 
+`Sky Lagoon is completely safe from the volcanic eruption on the Reykjanes peninsula. Our facility is located in Reykjavík, well away from the affected area near Grindavík. The current eruption is part of volcanic activity that has been occurring since 2021 in the Sundhnúkagígaröðin volcanic system.
+
+While the Blue Lagoon (located closer to the eruption site) has temporarily closed, Sky Lagoon remains fully operational with no impact on our services or safety. Depending on visibility and weather conditions, you might even glimpse the distant volcanic activity from our infinity pool, which would be a unique and safe viewing opportunity.
+
+Keflavík International Airport may experience some disruptions, so we recommend checking with your airline about any potential travel adjustments. Within Reykjavík, all services and attractions including Sky Lagoon continue to operate normally.`}
+
+When responding to questions about volcanic activity:
+1. Always emphasize Sky Lagoon's safety and distance from the eruption
+2. Mention the possible views of the eruption (weather permitting) as a unique feature
+3. Note that the Blue Lagoon is closer to the eruption and has closed, but Sky Lagoon is unaffected
+4. Suggest checking with airlines about potential airport disruptions
+5. Reassure visitors that Reykjavík and Sky Lagoon operate normally
+6. Never suggest there is any safety concern for Sky Lagoon guests
+`;
+
+// Add it to your basePrompt
+basePrompt += volcanoInformation;
+
 // ADD THIS RIGHT HERE - After the language-specific base prompts are initialized
 const linkEnhancement = `
 CRITICAL LINK INCLUSION:
