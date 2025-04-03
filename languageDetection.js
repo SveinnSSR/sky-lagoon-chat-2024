@@ -1,4 +1,4 @@
-// languageDetection.js - Enhanced version with Icelandic priority
+// languageDetection.js - Enhanced version with Icelandic priority and English detection improvements
 export const detectLanguage = (message, context = null) => {
     // Add the helper function here
     function containsBotName(text) {
@@ -18,6 +18,32 @@ export const detectLanguage = (message, context = null) => {
     
     // Create hotel and location exclusion regex
     const hotelAndLocationRegex = /\b(hótel|hotel|bus stop|strætóstoppistöð|hallgrímskirkja|óðinsvé|harpa|ráðhúsið|tjörnin|lækjargata|miðbakki|vesturbugt|höfðatorg|rauðarárstígur|austurbær|snorrabraut|skúlagata|reykjavík|kópavogur)\b/gi;
+    
+    // ===== NEW CODE: PRIORITY ENGLISH DETECTION =====
+    // Check for clear English indicators FIRST, before any Icelandic business term check
+    
+    // 1. Check for English pronouns and possessives (my, I, your, etc.)
+    const hasEnglishPronouns = /\b(i|my|mine|me|we|our|ours|us|you|your|yours|he|his|him|she|her|hers|it|its|they|their|theirs|them)\b/i.test(cleanMessage);
+    
+    // 2. Check for English articles and common function words
+    const hasEnglishFunctionWords = /\b(the|a|an|this|that|these|those|here|there|is|am|are|was|were|be|been|will|would|can|could|should|may|might)\b/i.test(cleanMessage);
+    
+    // 3. Check specifically for "my" at the beginning of a sentence
+    const startsWithMy = /^my\b/i.test(cleanMessage);
+    
+    // 4. Check for reservation/booking/number patterns that are clearly English
+    const hasReservationPattern = /\b(reservation|booking|number|is)\b.*\b\d+\b/i.test(cleanMessage);
+    
+    // If we have clear English indicators, return English immediately
+    if (startsWithMy || hasReservationPattern || (hasEnglishPronouns && hasEnglishFunctionWords)) {
+        return {
+            isIcelandic: false,
+            language: 'en',
+            confidence: 'high',
+            reason: 'priority_english_detection'
+        };
+    }
+    // ===== END NEW CODE =====
     
     // FOCUS PRIMARILY ON ICELANDIC VS ENGLISH DETECTION
     // Immediate check for uniquely Icelandic characters
@@ -54,6 +80,48 @@ export const detectLanguage = (message, context = null) => {
             reason: 'clear_english_detected'
         };
     }
+    
+    // Check for English sentence structure patterns (moved up for priority)
+    const hasEnglishSentenceStructure = (
+        /^(tell|what|how|where|when|why|is|are|do|does|can|could|would|will|please|i want|i need|i would like|may i|could you|would you)/i.test(cleanMessage) ||
+        /\bi\s+(?:am|was|have|had|would|will|want|need|chose|choose)\b/i.test(cleanMessage) ||
+        /\bif\s+i\b/i.test(cleanMessage) ||
+        /\bhow\s+(?:long|much|many|do|does|can|could)\b/i.test(cleanMessage)
+    );
+    
+    if (hasEnglishSentenceStructure) {
+        return {
+            isIcelandic: false,
+            language: 'en',
+            confidence: 'high',
+            reason: 'english_sentence_structure'
+        };
+    }
+    
+    // ===== NEW CODE: PACKAGE NAMES WITH ENGLISH CHECK =====
+    // Check if message contains Icelandic package names but has clear English structure
+    const hasPackageName = /\b(saman|sér|skjól|ritúal)\b/i.test(cleanMessage);
+    const restOfMessage = cleanMessage
+        .replace(/\b(saman|sér|skjól|ritúal)\b/gi, '')
+        .replace(/\b(sky\s*lagoon|pure\s*pass|sky\s*pass)\b/gi, '')
+        .trim();
+    
+    // Check if the rest of the message (without package names) has enough English indicators
+    if (hasPackageName && restOfMessage.length > 0) {
+        const englishWordsInRest = (restOfMessage.match(/\b(the|and|but|or|if|so|my|your|i|we|you|in|at|on|for|with|from|by|to|into|person|number|is|reservation|booking|change|modify|cancel|want|need|has|have|had|been|being|do|does|did|what|where|when|why|who|how|which)\b/gi) || []).length;
+        const totalWordsInRest = restOfMessage.split(/\s+/).filter(w => w.length > 1).length;
+        
+        // If enough English words are found in the rest of the message
+        if (englishWordsInRest >= 2 || (totalWordsInRest > 0 && englishWordsInRest / totalWordsInRest > 0.3)) {
+            return {
+                isIcelandic: false,
+                language: 'en',
+                confidence: 'high',
+                reason: 'english_with_package_names'
+            };
+        }
+    }
+    // ===== END NEW CODE =====
     
 // *****************************************************************
     // ENHANCED LANGUAGE DETECTION WITH SCORING SYSTEM
@@ -255,17 +323,25 @@ export const detectLanguage = (message, context = null) => {
             }
         }       
 
+        // ===== MODIFY EXISTING CODE: BETTER ENGLISH DETECTION WITH BUSINESS TERMS =====
         // Find the dominant language by checking indicators and density
         
-        // English detection - reusing existing variables
-        if (hasEnglishIndicators && (englishDensity > 0.25 || businessTermEnglishWordCount >= 3)) {
-            return {
-                isIcelandic: false,
-                language: 'en',
-                confidence: 'high',
-                reason: 'english_with_icelandic_terms'
-            };
+        // English detection - enhanced to catch more English with business terms
+        if (hasEnglishIndicators) {
+            // Lower the threshold and check for specific English patterns with business terms
+            const hasNumerals = /\d+/.test(cleanMessage);
+            const hasEnglishWithNumber = hasNumerals && businessTermEnglishWordCount >= 1;
+            
+            if (englishDensity > 0.2 || businessTermEnglishWordCount >= 2 || hasEnglishWithNumber) {
+                return {
+                    isIcelandic: false,
+                    language: 'en',
+                    confidence: 'high',
+                    reason: 'english_with_icelandic_terms'
+                };
+            }
         }
+        // ===== END MODIFIED CODE =====
         
         // Spanish detection - reusing existing variables from earlier in the code
         if (hasSpanishIndicators && (spanishDensity > 0.25 || spanishWordCount >= 2)) {
@@ -339,6 +415,31 @@ export const detectLanguage = (message, context = null) => {
     }
 // *****************************************************************
     
+    // ===== NEW CODE: CONTEXT OVERRIDE CHECK =====
+    // Add strong override for context-based language decisions
+    // If we have context from previous messages but clear indicators of a different language now
+    if (context?.language === 'is') {
+        // Check if current message has strong English indicators despite previous Icelandic context
+        const hasStrongEnglishIndicators = 
+            // English pronouns at start of sentence are strong indicators
+            /^(my|i|we|your|you)\b/i.test(cleanMessage) ||
+            // English question words at start are strong indicators
+            /^(what|when|where|how|why|which|who)\b/i.test(cleanMessage) ||
+            // Multiple English words in a short message
+            (cleanMessage.split(/\s+/).length <= 5 && 
+             (cleanMessage.match(/\b(the|my|i|you|your|we|our|is|are|am|was|were|number|reservation|booking|for|with|change|modify|cancel)\b/gi) || []).length >= 2);
+            
+        if (hasStrongEnglishIndicators) {
+            return {
+                isIcelandic: false,
+                language: 'en',
+                confidence: 'high',
+                reason: 'english_override_context'
+            };
+        }
+    }
+    // ===== END NEW CODE =====
+    
     // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
     // Add bot name exclusion - match both "sólrún" and "solrun"
@@ -350,23 +451,6 @@ export const detectLanguage = (message, context = null) => {
         .replace(botNameRegex, '') // Remove bot name before language detection
         .replace(hotelAndLocationRegex, '') // Remove hotel and location references
         .trim();
-    
-    // Check for English sentence structure patterns
-    const hasEnglishSentenceStructure = (
-        /^(tell|what|how|where|when|why|is|are|do|does|can|could|would|will|please|i want|i need|i would like|may i|could you|would you)/i.test(cleanMessage) ||
-        /\bi\s+(?:am|was|have|had|would|will|want|need|chose|choose)\b/i.test(cleanMessage) ||
-        /\bif\s+i\b/i.test(cleanMessage) ||
-        /\bhow\s+(?:long|much|many|do|does|can|could)\b/i.test(cleanMessage)
-    );
-    
-    if (hasEnglishSentenceStructure) {
-        return {
-            isIcelandic: false,
-            language: 'en',
-            confidence: 'high',
-            reason: 'english_sentence_structure'
-        };
-    }
     
     // Check if this is a greeting with bot name - if so, check for English greeting patterns
     if (botNameRegex.test(cleanMessage)) {
@@ -673,12 +757,25 @@ export const detectLanguage = (message, context = null) => {
     if (context?.language) {
         // Check if it's a likely follow-up
         const isFollowUp = /^(and|or|but|so|also|what about)/i.test(cleanMessage);
+        
+        // ===== MODIFY EXISTING CODE: BE MORE CAUTIOUS WITH CONTEXT =====
+        // If we have English words in what might be a follow-up, lean toward English
+        if (isFollowUp && businessTermEnglishWordCount >= 1) {
+            return {
+                isIcelandic: false,
+                language: 'en',
+                confidence: 'medium',
+                reason: 'english_followup_override'
+            };
+        }
+        
         return {
             isIcelandic: context.language === 'is',
             language: context.language,
             confidence: isFollowUp ? 'high' : 'medium',
             reason: 'context_based'
         };
+        // ===== END MODIFIED CODE =====
     }
 
     // Default to English
