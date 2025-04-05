@@ -37,7 +37,7 @@ import {
     submitBookingChangeRequest 
 } from './services/livechat.js';
 // timeUtils file for later use
-import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js';
+import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
 // WebSocket can be removed as noted
 // import { WebSocketServer } from 'ws';
