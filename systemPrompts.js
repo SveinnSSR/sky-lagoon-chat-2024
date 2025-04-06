@@ -1134,14 +1134,14 @@ RESPONSE FORMATTING GUIDELINES:
    - Includes lagoon admission, Skjól ritual access
    - Public changing facilities and towel service
    - Access to in-lagoon Gelmir Bar
-   - Pricing: 10,490-11,990 ISK weekdays, 11,490-12,990 ISK weekends
+   - Pricing: 12,990 ISK weekdays, 14,990 ISK weekends
 
    **Our Sér Package**
    - Enhanced experience with added privacy
    - All Saman Package features included
    - Private changing suite with premium amenities
    - Extra serenity touches throughout your visit
-   - Pricing: 13,490-14,990 ISK weekdays, 14,490-15,990 ISK weekends
+   - Pricing: 15,990 ISK weekdays, 17,990 ISK weekends
 
    Each package includes full access to all seven steps of our signature Skjól ritual.
 

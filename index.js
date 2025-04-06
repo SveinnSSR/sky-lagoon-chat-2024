@@ -9,6 +9,15 @@ import rateLimit from 'express-rate-limit';
 import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 import Pusher from 'pusher';
+// Add import for new context system at the top of your file
+import { 
+    getSessionContext, 
+    updateLanguageContext, 
+    addMessageToContext, 
+    updateTopicContext 
+  } from './contextSystem.js';
+// Add after your other imports
+import { getVectorKnowledge } from './contextSystem.js';  
 // System prompts from systemPrompts.js
 import { getSystemPrompt, setContextFunction, setGetCurrentSeasonFunction } from './systemPrompts.js';
 // Knowledge base and language detection
@@ -54,6 +63,37 @@ console.log('██████████████████████�
 
 // MongoDB integration - add this after imports but before Pusher initialization
 import { MongoClient } from 'mongodb';
+
+/**
+ * Synchronizes the old context system with the new one
+ * This allows gradual migration without breaking existing functionality
+ * 
+ * @param {Object} oldContext - The old context object
+ * @param {Object} newContext - The new context object 
+ */
+function syncContextSystems(oldContext, newContext) {
+  // Update language information
+  oldContext.language = newContext.language;
+  
+  // Update last topic if new one was detected
+  if (newContext.topics.length > 0 && newContext.topics[newContext.topics.length - 1] !== oldContext.lastTopic) {
+    oldContext.lastTopic = newContext.topics[newContext.topics.length - 1];
+  }
+  
+  // Add conversation history
+  if (oldContext.messages && newContext.messages) {
+    // Only add messages that aren't already in old context
+    const oldMessageContents = oldContext.messages.map(m => m.content);
+    for (const msg of newContext.messages) {
+      if (!oldMessageContents.includes(msg.content)) {
+        oldContext.messages.push(msg);
+      }
+    }
+  }
+  
+  // Keep last interaction time synchronized
+  oldContext.lastInteraction = Date.now();
+}
 
 // Add these maps at the top of your file with other globals
 const sessionConversations = new Map(); // Maps sessionId -> conversationId
@@ -2641,14 +2681,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // No longer storing in global 'currentSession' to prevent context bleeding
         // Other parts of code may still need to read it, but we don't update it here
         
-        // Get initial context for this specific session
+        // Get or create context using the new system
+        const newContext = getSessionContext(sessionId);
+
+        // Get initial context for this specific session (for backward compatibility)
         context = conversationContext.get(sessionId);
 
         // Do language detection first, with null context if we don't have one yet
-        const languageDecision = newDetectLanguage(userMessage, context);        
+        const languageDecision = newDetectLanguage(userMessage, context || newContext);        
 
         // NEW CODE: Extract language code in addition to isIcelandic
         const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
+        
+        // Update language info in the new context
+        updateLanguageContext(newContext, userMessage);
         
         // Enhanced logging for language detection
         console.log('\n🌍 Enhanced Language Detection:', {
@@ -2670,6 +2716,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
             
+            // Add to new context system before responding
+            addMessageToContext(newContext, { role: 'user', content: userMessage });
+            
             // Use the unified broadcast system but don't send response yet
             const responseData = await sendBroadcastAndPrepareResponse({
                 message: unsupportedLanguageResponse,
@@ -2690,11 +2739,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             source: 'old_system'
         };
 
-        // Now initialize context if it doesn't exist, using our language detection
+        // Now initialize old context if it doesn't exist, using our language detection
         if (!context) {
             context = initializeContext(sessionId, languageDecision);
             conversationContext.set(sessionId, context);
         }
+        
+        // Add this message to the new context system
+        addMessageToContext(newContext, { role: 'user', content: userMessage });
+        
+        // Update topics in the new context system
+        updateTopicContext(newContext, userMessage);
 
         // Log session info for debugging
         console.log('\n🔍 Session ID:', {
@@ -3177,9 +3232,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const contentLanguageDecision = newDetectLanguage(userMessage, context);
 
             // Get knowledge base results immediately based on language decision
-            const baseResults = contentLanguageDecision.isIcelandic ? 
-                getRelevantKnowledge_is(userMessage) : 
-                getRelevantKnowledge(userMessage);
+            let baseResults = [];
+            try {
+                baseResults = contentLanguageDecision.isIcelandic ? 
+                    getRelevantKnowledge_is(userMessage) : 
+                    getRelevantKnowledge(userMessage);
+                
+                // Ensure baseResults is an array
+                if (!Array.isArray(baseResults)) {
+                    console.warn('⚠️ baseResults is not an array, using empty array instead');
+                    baseResults = [];
+                }
+            } catch (error) {
+                console.error('❌ Error getting knowledge base results:', error.message);
+                // Keep baseResults as empty array
+            }
 
             // Time context detection
             const timeContext = detectTimeContext(userMessage, getCurrentSeason(), contentLanguageDecision);
@@ -3390,9 +3457,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
                 
                 // Use our new language detection system directly
-                const results = contentLanguageDecision.isIcelandic ? 
-                    getRelevantKnowledge_is(userMessage) : 
-                    getRelevantKnowledge(userMessage);
+                let results = [];
+                try {
+                    results = contentLanguageDecision.isIcelandic ? 
+                        getRelevantKnowledge_is(userMessage) : 
+                        getRelevantKnowledge(userMessage);
+                    
+                    // Ensure results is an array
+                    if (!Array.isArray(results)) {
+                        console.warn('⚠️ results is not an array, using empty array instead');
+                        results = [];
+                    }
+                } catch (error) {
+                    console.error('❌ Error getting contextual knowledge results:', error.message);
+                    // Keep results as empty array
+                }
                     
                 // Enhanced contextual results filtering
                 const contextualResults = results.filter(k => {
@@ -3479,9 +3558,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
 
             // Get knowledge base results based on language
-            let results = contentLanguageDecision.isIcelandic ? 
-                getRelevantKnowledge_is(userMessage) : 
-                getRelevantKnowledge(userMessage);
+            let results = [];
+            try {
+                results = contentLanguageDecision.isIcelandic ? 
+                    getRelevantKnowledge_is(userMessage) : 
+                    getRelevantKnowledge(userMessage);
+                
+                // Ensure results is an array
+                if (!Array.isArray(results)) {
+                    console.warn('⚠️ results is not an array, using empty array instead');
+                    results = [];
+                }
+            } catch (error) {
+                console.error('❌ Error getting knowledge base results:', error.message);
+                // Keep results as empty array
+            }
 
             // Store the original results length
             const hasResults = results && results.length > 0;
@@ -3542,8 +3633,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return hasResults ? results : [];
         };
 
-        // Use the smart context function instead of direct knowledge base calls
-        let knowledgeBaseResults = getRelevantContent(userMessage);  // Remove isIcelandic parameter
+        // Use vector search with fallback to traditional search
+        let knowledgeBaseResults = [];
+        try {
+            // First try vector search with the new context system
+            console.log('\n🔍 Attempting vector search...');
+            knowledgeBaseResults = await getVectorKnowledge(userMessage, newContext);
+            
+            // Log vector search results
+            console.log('\n🔍 Vector search results:', {
+                count: knowledgeBaseResults.length,
+                language: newContext.language,
+                query: userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : '')
+            });
+            
+            // If vector search yielded no results, fall back to traditional search
+            if (!knowledgeBaseResults || knowledgeBaseResults.length === 0) {
+                console.log('\n🔍 No vector results, falling back to traditional search');
+                try {
+                    const results = getRelevantContent(userMessage);
+                    // Ensure results is an array
+                    knowledgeBaseResults = Array.isArray(results) ? results : [];
+                } catch (error) {
+                    console.error('\n❌ Traditional search fallback error:', error.message);
+                    knowledgeBaseResults = []; // Empty array on error
+                }
+            }
+        } catch (error) {
+            // If vector search fails, log error and fall back to traditional search
+            console.error('\n❌ Vector search error:', error.message);
+            console.log('\n🔍 Falling back to traditional search after error');
+            try {
+                const results = getRelevantContent(userMessage);
+                // Ensure results is an array
+                knowledgeBaseResults = Array.isArray(results) ? results : [];
+            } catch (fallbackError) {
+                console.error('\n❌ Traditional search also failed:', fallbackError.message);
+                knowledgeBaseResults = []; // Empty array as last resort
+            }
+        }
 
         // Preserve non-zero results by making a copy
         let originalResults = null;
@@ -3756,21 +3884,29 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
             // Force knowledge base lookup for dining/hours queries
             if (isHoursQuery || isDiningQuery) {
-                // Use language detection with confidence check
-                knowledgeBaseResults = languageDecision.isIcelandic && languageDecision.confidence === 'high' ? 
-                    getRelevantKnowledge_is(userMessage) : 
-                    getRelevantKnowledge(userMessage);
+                try {
+                    // Use language detection with confidence check
+                    const results = languageDecision.isIcelandic && languageDecision.confidence === 'high' ? 
+                        getRelevantKnowledge_is(userMessage) : 
+                        getRelevantKnowledge(userMessage);
+                        
+                    // Ensure results is an array
+                    knowledgeBaseResults = Array.isArray(results) ? results : [];
+                    
+                    // Set relevant topic in context
+                    context.lastTopic = isHoursQuery ? 'hours' : 'dining';
 
-                // Set relevant topic in context
-                context.lastTopic = isHoursQuery ? 'hours' : 'dining';
-
-                // Enhanced debug logging
-                console.log('\n🍽️ Forced Knowledge Base Lookup:', {
-                    message: userMessage,
-                    isDiningQuery,
-                    isHoursQuery,
-                    gotResults: knowledgeBaseResults.length > 0
-                });
+                    // Enhanced debug logging
+                    console.log('\n🍽️ Forced Knowledge Base Lookup:', {
+                        message: userMessage,
+                        isDiningQuery,
+                        isHoursQuery,
+                        gotResults: knowledgeBaseResults.length > 0
+                    });
+                } catch (error) {
+                    console.error('\n❌ Forced Knowledge Base Error:', error.message);
+                    knowledgeBaseResults = []; // Use empty array on error
+                }
             }
         }
 
@@ -3782,8 +3918,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 reason: languageDecision.reason,
                 patterns: languageDecision.patterns
             },
-            matches: knowledgeBaseResults.length,
-            types: knowledgeBaseResults.map(k => k.type)
+            matches: Array.isArray(knowledgeBaseResults) ? knowledgeBaseResults.length : 0,
+            types: Array.isArray(knowledgeBaseResults) ? knowledgeBaseResults.map(k => k.type) : []
         });
 
         // Confidence score calculation and logging (without early returns)
@@ -3982,6 +4118,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             Please include these specific times in your response.`;
         }
+
+        // Sync new context system with old context before generating response
+        syncContextSystems(context, newContext);
         
         // Prepare messages array
         const messages = [
@@ -4095,10 +4234,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
 
+        // Also add AI response to the new context system
+        addMessageToContext(newContext, { role: 'assistant', content: response });
+
         // Apply terminology enhancement
         const enhancedResponse = enforceTerminology(response);
             
         console.log('\n✨ Enhanced Response:', enhancedResponse);
+
+        // Update assistant message in new context with enhanced response
+        addMessageToContext(newContext, { role: 'assistant', content: enhancedResponse });
 
         // Remove any non-approved emojis
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
@@ -4937,6 +5082,11 @@ function handleFeedbackUpdate(feedbackData) {
 
 // Helper function to detect topic with enhanced language detection
 const detectTopic = (message, knowledgeBaseResults, context, languageDecision) => {
+    // Defensive check for knowledgeBaseResults
+    if (!knowledgeBaseResults || !Array.isArray(knowledgeBaseResults)) {
+        console.error('❌ detectTopic received invalid knowledgeBaseResults:', knowledgeBaseResults);
+        knowledgeBaseResults = []; // Default to empty array
+    }   
     const msg = message.toLowerCase();
     let topic = null;
     let transition = null;
