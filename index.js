@@ -4094,6 +4094,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             topicResult = { topic: context?.lastTopic || 'general' };
         }
 
+        // NEW: Check for booking context from contextSystem
+        if (newContext?.lastTopic === 'booking' || newContext?.bookingContext?.hasBookingIntent) {
+            console.log('\n📅 Using booking context from contextSystem');
+            topicResult = { topic: 'booking' };
+            // Update old context system for compatibility
+            context.lastTopic = 'booking';
+        }
+
         // Simplified first-time message handling (no early return)
         if (!context.conversationStarted) { 
             context.conversationStarted = true;
