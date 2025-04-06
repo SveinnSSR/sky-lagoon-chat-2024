@@ -4,6 +4,7 @@
 // Import required dependencies
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, knowledgeBase_is } from './knowledgeBase_is.js';
+import { validateDate } from './contextSystem.js'; // Add this line
 
 // Function to get context - this is imported from index.js
 // We need to have this imported since getSystemPrompt depends on it
@@ -1241,6 +1242,23 @@ IF user says "yes" to more information:
 - FOR WINTER: Offer winter-specific options only
 `;
     }
+
+// ADD THIS NEW SECTION HERE - Date validation
+if (context?.bookingContext?.lastDateMention) {
+  try {
+    // Use the imported validateDate function directly
+    const dateValidation = validateDate(context.bookingContext.lastDateMention);
+    
+    if (dateValidation && dateValidation.isValid) {
+      basePrompt += `\n\nDATE INFORMATION:
+- The user has mentioned: ${context.bookingContext.lastDateMention}
+- This date (${dateValidation.formattedDate}) falls on a ${dateValidation.dayOfWeek}
+- Keep this accurate date information in mind when responding.`;
+    }
+  } catch (error) {
+    console.error('❌ Error using date validation in prompt:', error);
+  }
+}
 
     if (relevantKnowledge.length > 0) {
         basePrompt += '\n\nKNOWLEDGE BASE DATA:';
