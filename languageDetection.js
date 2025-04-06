@@ -47,13 +47,73 @@ export const detectLanguage = (message, context = null) => {
     }
     
     // 2. SECOND CHECK: UNIQUE ICELANDIC CHARACTERS
-    // Include all distinctive Icelandic characters
-    if (/[þðæöáéíóúý]/i.test(cleanedForDetection)) {
+    // Prioritize checking for uniquely Icelandic characters first (þ, ð)
+    if (/[þð]/i.test(cleanedForDetection)) {
         return { 
             isIcelandic: true, 
             language: 'is', 
             confidence: 'high', 
-            reason: 'icelandic_characters' 
+            reason: 'unique_icelandic_characters' 
+        };
+    }
+    
+    // 3. NEW EXPLICIT SPANISH DETECTION
+    // Only detect Spanish when there are very strong indicators and no Icelandic indicators
+    if (
+        // Must have clear Spanish words/phrases and patterns
+        (
+            // Must have strong Spanish indicators like question words, unique characters, or verbs
+            (/[ñ¿¡]/i.test(cleanedForDetection) || // Unique Spanish characters
+            /\b(quiero|necesito|puedo|podría|cómo|cuándo|dónde|cuál|quién|cuánto|por qué)\b/i.test(cleanedForDetection))
+            &&
+            // Must have Spanish nouns or context words
+            /\b(reservar|reserva|personas|adultos|niños|el día|la hora|viernes|lunes|martes|miércoles|jueves|sábado|domingo|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(cleanMessage)
+        )
+        && 
+        // Make sure there are NO Icelandic indicators
+        !/\b(hver|hvað|hvernig|hvenær|af hverju|opnunartími|lokað|opið|verð|kostar|bóka|tími)\b/i.test(cleanMessage)
+    ) {
+        return {
+            isIcelandic: false,
+            language: 'es',
+            confidence: 'high',
+            reason: 'spanish_reservation_context'
+        };
+    }
+    
+    // 4. SHARED CHARACTERS CHECK - Now includes more robust Icelandic protection
+    // For characters that appear in both languages (æöáéíóúý)
+    if (/[æöáéíóúý]/i.test(cleanedForDetection)) {
+        // If there are Icelandic context words, ALWAYS classify as Icelandic
+        if (/\b(hver|hvað|hvernig|hvenær|af hverju|opnunartími|lokað|opið|verð|kostar|bóka|tími)\b/i.test(cleanMessage)) {
+            return {
+                isIcelandic: true,
+                language: 'is',
+                confidence: 'high',
+                reason: 'icelandic_context_with_shared_characters'
+            };
+        }
+        
+        // Only consider Spanish if there are very strong indicators and NO Icelandic terms
+        const hasStrongSpanishContext = 
+            /\b(quiero reservar|necesito reservar|puedo reservar|para personas|el día|la hora)\b/i.test(cleanMessage) &&
+            /\b(viernes|lunes|martes|miércoles|jueves|sábado|domingo|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(cleanMessage);
+            
+        if (hasStrongSpanishContext && !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                language: 'es',
+                confidence: 'high',
+                reason: 'strong_spanish_context'
+            };
+        }
+        
+        // Default to treating shared characters as Icelandic unless proven otherwise
+        return { 
+            isIcelandic: true, 
+            language: 'is', 
+            confidence: 'high', 
+            reason: 'shared_characters_default_to_icelandic' 
         };
     }
     
@@ -106,71 +166,66 @@ export const detectLanguage = (message, context = null) => {
         /[¿¡ñ]/i.test(cleanMessage);
 
     // DISABLED: French indicators
-    // const hasFrenchIndicators = 
-    //     // Function words
-    //     /\b(le|la|les|un|une|des|du|de la|au|aux|en|dans|sur|sous|avec|sans|pour|par|chez)\b/i.test(cleanMessage) ||
-    //     // Verbs
-    //     /\b(est|sont|a|ont|être|avoir|faire|aller|venir|voir|savoir|pouvoir|vouloir|devoir|falloir)\b/i.test(cleanMessage) ||
-    //     // Pronouns
-    //     /\b(je|tu|il|elle|nous|vous|ils|elles|mon|ton|son|notre|votre|leur|moi|toi|lui|eux)\b/i.test(cleanMessage) ||
-    //     // Question words
-    //     /\b(quoi|qui|quand|où|comment|pourquoi|combien|quel|quelle|quels|quelles|lequel|laquelle)\b/i.test(cleanMessage) ||
-    //     // French-specific characters
-    //     /[èêëçôœ]/i.test(cleanMessage);
-    const hasFrenchIndicators = false;
+    const hasFrenchIndicators = 
+        // Function words
+        /\b(le|la|les|un|une|des|du|de la|au|aux|en|dans|sur|sous|avec|sans|pour|par|chez)\b/i.test(cleanMessage) ||
+        // Verbs
+        /\b(est|sont|a|ont|être|avoir|faire|aller|venir|voir|savoir|pouvoir|vouloir|devoir|falloir)\b/i.test(cleanMessage) ||
+        // Pronouns
+        /\b(je|tu|il|elle|nous|vous|ils|elles|mon|ton|son|notre|votre|leur|moi|toi|lui|eux)\b/i.test(cleanMessage) ||
+        // Question words
+        /\b(quoi|qui|quand|où|comment|pourquoi|combien|quel|quelle|quels|quelles|lequel|laquelle)\b/i.test(cleanMessage) ||
+        // French-specific characters
+        /[èêëçôœ]/i.test(cleanMessage);
 
     // DISABLED: German indicators
-    // const hasGermanIndicators = 
-    //     // Articles and common words
-    //     /\b(der|die|das|den|dem|des|ein|eine|einer|eines|einem|einen|im)\b/i.test(cleanMessage) ||
-    //     // Verbs
-    //     /\b(ist|sind|war|waren|sein|haben|hatte|hatten|können|kann|könnte|müssen|muss|wollen|will|sollen|dürfen|enthalten)\b/i.test(cleanMessage) ||
-    //     // Pronouns
-    //     /\b(ich|du|er|sie|es|wir|ihr|mein|dein|sein|unser|euer|mir|dir|ihm|ihr|uns|euch|ihnen)\b/i.test(cleanMessage) ||
-    //     // Question words
-    //     /\b(was|wer|wo|wann|wie|warum|weshalb|welche|welcher|welches|wem|wen)\b/i.test(cleanMessage) ||
-    //     // Prepositions
-    //     /\b(in|an|auf|mit|nach|bei|zu|von|bis|über|unter|durch|für|gegen|ohne|um|zwischen)\b/i.test(cleanMessage) ||
-    //     // German-specific characters
-    //     /[äöüß]/i.test(cleanMessage) ||
-    //     // Specific package-related German words
-    //     /\b(paket|preis|kosten|beinhaltet|enthält|inbegriffen)\b/i.test(cleanMessage);
-    const hasGermanIndicators = false;
+    const hasGermanIndicators = 
+        // Articles and common words
+        /\b(der|die|das|den|dem|des|ein|eine|einer|eines|einem|einen|im)\b/i.test(cleanMessage) ||
+        // Verbs
+        /\b(ist|sind|war|waren|sein|haben|hatte|hatten|können|kann|könnte|müssen|muss|wollen|will|sollen|dürfen|enthalten)\b/i.test(cleanMessage) ||
+        // Pronouns
+        /\b(ich|du|er|sie|es|wir|ihr|mein|dein|sein|unser|euer|mir|dir|ihm|ihr|uns|euch|ihnen)\b/i.test(cleanMessage) ||
+        // Question words
+        /\b(was|wer|wo|wann|wie|warum|weshalb|welche|welcher|welches|wem|wen)\b/i.test(cleanMessage) ||
+        // Prepositions
+        /\b(in|an|auf|mit|nach|bei|zu|von|bis|über|unter|durch|für|gegen|ohne|um|zwischen)\b/i.test(cleanMessage) ||
+        // German-specific characters
+        /[äöüß]/i.test(cleanMessage) ||
+        // Specific package-related German words
+        /\b(paket|preis|kosten|beinhaltet|enthält|inbegriffen)\b/i.test(cleanMessage);
 
     // DISABLED: Add specific package query patterns for German
-    // const hasGermanPackageQuery = /\b(was|welche)\b.*\b(paket|pakete|enthält|enthalten|inbegriffen|beinhaltet|kosten)\b/i.test(cleanMessage) ||
-    //                          /\b(preis|kosten)\b.*\b(paket|pakete)\b/i.test(cleanMessage);
-    const hasGermanPackageQuery = false;
+    const hasGermanPackageQuery = /\b(was|welche)\b.*\b(paket|pakete|enthält|enthalten|inbegriffen|beinhaltet|kosten)\b/i.test(cleanMessage) ||
+                             /\b(preis|kosten)\b.*\b(paket|pakete)\b/i.test(cleanMessage);
 
     // DISABLED: Italian indicators
-    // const hasItalianIndicators = 
-    //     // Articles and common words
-    //     /\b(il|lo|la|i|gli|le|un|uno|una|del|dello|della|dei|degli|delle)\b/i.test(cleanMessage) ||
-    //     // Verbs and verb forms
-    //     /\b(è|sono|era|erano|essere|avere|ha|hanno|fare|va|vanno|venire|vedere|sapere|potere|volere|dovere|vorrei|voglio|prenotare|prenoto|prendo|prenoterò)\b/i.test(cleanMessage) ||
-    //     // Pronouns
-    //     /\b(io|tu|lui|lei|noi|voi|loro|mio|tuo|suo|nostro|vostro|me|te|lui|lei|noi|voi|loro)\b/i.test(cleanMessage) ||
-    //     // Question words
-    //     /\b(cosa|chi|quando|dove|come|perché|quanto|quale|quali|che)\b/i.test(cleanMessage) ||
-    //     // Common Italian prepositions and adverbs
-    //     /\b(per|con|da|su|tra|fra|dopo|prima|domani|oggi|ieri|qui|qua|lì|là)\b/i.test(cleanMessage) ||
-    //     // Common Italian nouns
-    //     /\b(pacchetto|prezzo|costo|biglietto|ingresso|visita|orario|giorno|ora|prenotazione)\b/i.test(cleanMessage);
-    const hasItalianIndicators = false;
+    const hasItalianIndicators = 
+        // Articles and common words
+        /\b(il|lo|la|i|gli|le|un|uno|una|del|dello|della|dei|degli|delle)\b/i.test(cleanMessage) ||
+        // Verbs and verb forms
+        /\b(è|sono|era|erano|essere|avere|ha|hanno|fare|va|vanno|venire|vedere|sapere|potere|volere|dovere|vorrei|voglio|prenotare|prenoto|prendo|prenoterò)\b/i.test(cleanMessage) ||
+        // Pronouns
+        /\b(io|tu|lui|lei|noi|voi|loro|mio|tuo|suo|nostro|vostro|me|te|lui|lei|noi|voi|loro)\b/i.test(cleanMessage) ||
+        // Question words
+        /\b(cosa|chi|quando|dove|come|perché|quanto|quale|quali|che)\b/i.test(cleanMessage) ||
+        // Common Italian prepositions and adverbs
+        /\b(per|con|da|su|tra|fra|dopo|prima|domani|oggi|ieri|qui|qua|lì|là)\b/i.test(cleanMessage) ||
+        // Common Italian nouns
+        /\b(pacchetto|prezzo|costo|biglietto|ingresso|visita|orario|giorno|ora|prenotazione)\b/i.test(cleanMessage);
 
     // DISABLED: Portuguese indicators 
-    // const hasPortugueseIndicators = 
-    //     // Articles and common words
-    //     /\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas)\b/i.test(cleanMessage) ||
-    //     // Verbs
-    //     /\b(é|são|era|eram|ser|estar|tem|têm|tinha|tinham|fazer|ir|vir|ver|saber|poder|querer|dever)\b/i.test(cleanMessage) ||
-    //     // Pronouns
-    //     /\b(eu|tu|você|ele|ela|nós|vós|vocês|eles|elas|meu|teu|seu|nosso|vosso|me|te|lhe|nos)\b/i.test(cleanMessage) ||
-    //     // Question words
-    //     /\b(o que|quem|quando|onde|como|por que|quanto|qual|quais|que)\b/i.test(cleanMessage) ||
-    //     // Portuguese-specific characters
-    //     /[àâãêõç]/i.test(cleanMessage);
-    const hasPortugueseIndicators = false;
+    const hasPortugueseIndicators = 
+        // Articles and common words
+        /\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas)\b/i.test(cleanMessage) ||
+        // Verbs
+        /\b(é|são|era|eram|ser|estar|tem|têm|tinha|tinham|fazer|ir|vir|ver|saber|poder|querer|dever)\b/i.test(cleanMessage) ||
+        // Pronouns
+        /\b(eu|tu|você|ele|ela|nós|vós|vocês|eles|elas|meu|teu|seu|nosso|vosso|me|te|lhe|nos)\b/i.test(cleanMessage) ||
+        // Question words
+        /\b(o que|quem|quando|onde|como|por que|quanto|qual|quais|que)\b/i.test(cleanMessage) ||
+        // Portuguese-specific characters
+        /[àâãêõç]/i.test(cleanMessage);
 
     // 4. ASSESS MESSAGE CHARACTERISTICS
     // For ambiguous cases, check overall characteristics
@@ -195,28 +250,20 @@ export const detectLanguage = (message, context = null) => {
     const spanishDensity = businessTermMessageWords > 0 ? spanishWordCount / businessTermMessageWords : 0;
     
     // DISABLED: French density
-    // const frenchWordCount = (cleanMessage.match(/\b(le|la|les|un|une|des|du|de|la|au|aux|en|dans|sur|sous|avec|sans|pour|par|chez|est|sont|a|ont|être|avoir|faire|aller|venir|voir|savoir|pouvoir|vouloir|devoir|falloir|je|tu|il|elle|nous|vous|ils|elles|et|ou|mais|si|parce|que|quand|comme|où)\b/gi) || []).length;
-    // const frenchDensity = businessTermMessageWords > 0 ? frenchWordCount / businessTermMessageWords : 0;
-    const frenchWordCount = 0;
-    const frenchDensity = 0;
+    const frenchWordCount = (cleanMessage.match(/\b(le|la|les|un|une|des|du|de|la|au|aux|en|dans|sur|sous|avec|sans|pour|par|chez|est|sont|a|ont|être|avoir|faire|aller|venir|voir|savoir|pouvoir|vouloir|devoir|falloir|je|tu|il|elle|nous|vous|ils|elles|et|ou|mais|si|parce|que|quand|comme|où)\b/gi) || []).length;
+    const frenchDensity = businessTermMessageWords > 0 ? frenchWordCount / businessTermMessageWords : 0;
     
     // DISABLED: German density
-    // const germanWordCount = (cleanMessage.match(/\b(der|die|das|den|dem|des|ein|eine|einer|eines|einem|einen|ist|sind|war|waren|sein|haben|hatte|hatten|können|kann|könnte|müssen|muss|wollen|will|sollen|dürfen|ich|du|er|sie|es|wir|ihr|und|oder|aber|wenn|weil|dass|als|wie|wo|im|paket|enthalten)\b/gi) || []).length;
-    // const germanDensity = businessTermMessageWords > 0 ? germanWordCount / businessTermMessageWords : 0;
-    const germanWordCount = 0;
-    const germanDensity = 0;
+    const germanWordCount = (cleanMessage.match(/\b(der|die|das|den|dem|des|ein|eine|einer|eines|einem|einen|ist|sind|war|waren|sein|haben|hatte|hatten|können|kann|könnte|müssen|muss|wollen|will|sollen|dürfen|ich|du|er|sie|es|wir|ihr|und|oder|aber|wenn|weil|dass|als|wie|wo|im|paket|enthalten)\b/gi) || []).length;
+    const germanDensity = businessTermMessageWords > 0 ? germanWordCount / businessTermMessageWords : 0;
 
     // DISABLED: Italian density
-    // const italianWordCount = (cleanMessage.match(/\b(il|lo|la|i|gli|le|un|uno|una|del|dello|della|dei|degli|delle|è|sono|era|erano|essere|avere|ha|hanno|fare|va|vanno|venire|vedere|sapere|potere|volere|dovere|vorrei|voglio|prenotare|prenoto|e|o|ma|se|perché|quando|come|dove|per|con|da|su|tra|fra|dopo|prima|domani|oggi|ieri|qui|qua|lì|là|pacchetto|prezzo|costo|biglietto|ingresso|visita|orario)\b/gi) || []).length;
-    // const italianDensity = businessTermMessageWords > 0 ? italianWordCount / businessTermMessageWords : 0;
-    const italianWordCount = 0;
-    const italianDensity = 0;
+    const italianWordCount = (cleanMessage.match(/\b(il|lo|la|i|gli|le|un|uno|una|del|dello|della|dei|degli|delle|è|sono|era|erano|essere|avere|ha|hanno|fare|va|vanno|venire|vedere|sapere|potere|volere|dovere|vorrei|voglio|prenotare|prenoto|e|o|ma|se|perché|quando|come|dove|per|con|da|su|tra|fra|dopo|prima|domani|oggi|ieri|qui|qua|lì|là|pacchetto|prezzo|costo|biglietto|ingresso|visita|orario)\b/gi) || []).length;
+    const italianDensity = businessTermMessageWords > 0 ? italianWordCount / businessTermMessageWords : 0;
     
     // DISABLED: Portuguese density
-    // const portugueseWordCount = (cleanMessage.match(/\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas|é|são|era|eram|ser|estar|tem|têm|tinha|tinham|fazer|ir|vir|ver|saber|poder|querer|dever|e|ou|mas|se|porque|quando|como|onde)\b/gi) || []).length;
-    // const portugueseDensity = businessTermMessageWords > 0 ? portugueseWordCount / businessTermMessageWords : 0;
-    const portugueseWordCount = 0;
-    const portugueseDensity = 0;
+    const portugueseWordCount = (cleanMessage.match(/\b(o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas|é|são|era|eram|ser|estar|tem|têm|tinha|tinham|fazer|ir|vir|ver|saber|poder|querer|dever|e|ou|mas|se|porque|quando|como|onde)\b/gi) || []).length;
+    const portugueseDensity = businessTermMessageWords > 0 ? portugueseWordCount / businessTermMessageWords : 0;
 
     // COMPREHENSIVE LANGUAGE DECISION WITH BUSINESS TERMS
     if (hasIcelandicBusinessTerms) {
@@ -273,44 +320,44 @@ export const detectLanguage = (message, context = null) => {
         }
         
         // DISABLED: German detection
-        // if (hasGermanIndicators && (germanDensity > 0.2 || germanWordCount >= 2 || hasGermanPackageQuery)) {
-        //     return {
-        //         isIcelandic: false,
-        //         language: 'de',
-        //         confidence: 'high',
-        //         reason: 'german_with_icelandic_terms'
-        //     };
-        // }
+        if (hasGermanIndicators && (germanDensity > 0.2 || germanWordCount >= 2 || hasGermanPackageQuery)) {
+            return {
+                isIcelandic: false,
+                language: 'de',
+                confidence: 'high',
+                reason: 'german_with_icelandic_terms'
+            };
+        }
         
         // DISABLED: French detection
-        // if (hasFrenchIndicators && (frenchDensity > 0.25 || frenchWordCount >= 2)) {
-        //     return {
-        //         isIcelandic: false,
-        //         language: 'fr',
-        //         confidence: 'high',
-        //         reason: 'french_with_icelandic_terms'
-        //     };
-        // }
+        if (hasFrenchIndicators && (frenchDensity > 0.25 || frenchWordCount >= 2)) {
+            return {
+                isIcelandic: false,
+                language: 'fr',
+                confidence: 'high',
+                reason: 'french_with_icelandic_terms'
+            };
+        }
         
         // DISABLED: Italian detection
-        // if (hasItalianIndicators && (italianDensity > 0.25 || italianWordCount >= 2)) {
-        //     return {
-        //         isIcelandic: false,
-        //         language: 'it',
-        //         confidence: 'high',
-        //         reason: 'italian_with_icelandic_terms'
-        //     };
-        // }
+        if (hasItalianIndicators && (italianDensity > 0.25 || italianWordCount >= 2)) {
+            return {
+                isIcelandic: false,
+                language: 'it',
+                confidence: 'high',
+                reason: 'italian_with_icelandic_terms'
+            };
+        }
         
         // DISABLED: Portuguese detection
-        // if (hasPortugueseIndicators && (portugueseDensity > 0.25 || portugueseWordCount >= 2)) {
-        //     return {
-        //         isIcelandic: false,
-        //         language: 'pt',
-        //         confidence: 'high',
-        //         reason: 'portuguese_with_icelandic_terms'
-        //     };
-        // }
+        if (hasPortugueseIndicators && (portugueseDensity > 0.25 || portugueseWordCount >= 2)) {
+            return {
+                isIcelandic: false,
+                language: 'pt',
+                confidence: 'high',
+                reason: 'portuguese_with_icelandic_terms'
+            };
+        }
         
         // If no other language has strong indicators, it's likely Icelandic
         if (!hasEnglishIndicators && !hasSpanishIndicators) {
@@ -351,24 +398,24 @@ export const detectLanguage = (message, context = null) => {
     }
 
     // DISABLED: Check for German detection in regular flow
-    // if (hasGermanIndicators && (germanDensity > 0.25 || germanWordCount >= 3 || hasGermanPackageQuery)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'de',
-    //         confidence: 'high',
-    //         reason: 'german_detected'
-    //     };
-    // }
+    if (hasGermanIndicators && (germanDensity > 0.25 || germanWordCount >= 3 || hasGermanPackageQuery)) {
+        return {
+            isIcelandic: false,
+            language: 'de',
+            confidence: 'high',
+            reason: 'german_detected'
+        };
+    }
     
     // DISABLED: Standalone Italian detection
-    // if (hasItalianIndicators && (italianDensity > 0.2 || italianWordCount >= 2)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'it',
-    //         confidence: 'high',
-    //         reason: 'italian_detected'
-    //     };
-    // }
+    if (hasItalianIndicators && (italianDensity > 0.2 || italianWordCount >= 2)) {
+        return {
+            isIcelandic: false,
+            language: 'it',
+            confidence: 'high',
+            reason: 'italian_detected'
+        };
+    }
     
     //============================================================
     // DETECT OTHER LANGUAGES (Use ISO language codes, but let the system decide responses)
@@ -381,63 +428,63 @@ export const detectLanguage = (message, context = null) => {
     //-----------------------------------------------------
     
     // DISABLED: Thai detection (unique script)
-    // if (/[\u0E00-\u0E7F]/u.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'th',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (/[\u0E00-\u0E7F]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'th',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Asian languages detection
-    // if (/[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F\u3131-\uD79D]/u.test(cleanMessage)) {
-    //     // Detect specific East Asian language
-    //     if (/[\u3040-\u309F\u30A0-\u30FF]/u.test(cleanMessage)) {
-    //         return {
-    //             isIcelandic: false,
-    //             language: 'ja',
-    //             confidence: 'high',
-    //             reason: 'other_language_detected'
-    //         };
-    //     }
-    //     if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/u.test(cleanMessage)) {
-    //         return {
-    //             isIcelandic: false,
-    //             language: 'ko',
-    //             confidence: 'high',
-    //             reason: 'other_language_detected'
-    //         };
-    //     }
-    //     if (/[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/u.test(cleanMessage)) {
-    //         return {
-    //             isIcelandic: false,
-    //             language: 'zh',
-    //             confidence: 'high',
-    //             reason: 'other_language_detected'
-    //         };
-    //     }
-    // }
+    if (/[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F\u3131-\uD79D]/u.test(cleanMessage)) {
+        // Detect specific East Asian language
+        if (/[\u3040-\u309F\u30A0-\u30FF]/u.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                language: 'ja',
+                confidence: 'high',
+                reason: 'other_language_detected'
+            };
+        }
+        if (/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/u.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                language: 'ko',
+                confidence: 'high',
+                reason: 'other_language_detected'
+            };
+        }
+        if (/[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/u.test(cleanMessage)) {
+            return {
+                isIcelandic: false,
+                language: 'zh',
+                confidence: 'high',
+                reason: 'other_language_detected'
+            };
+        }
+    }
     
     // DISABLED: Cyrillic detection (Russian and other Slavic languages)
-    // if (/[\u0400-\u04FF]/u.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'ru',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (/[\u0400-\u04FF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'ru',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Arabic script detection
-    // if (/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'ar',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'ar',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     //-----------------------------------------------------
     // LANGUAGES WITH SPECIFIC CHARACTERS OR DIACRITICS
@@ -446,29 +493,30 @@ export const detectLanguage = (message, context = null) => {
     //-----------------------------------------------------
     
     // DISABLED: Croatian detection
-    // if (/[čćđšž]/i.test(cleanMessage) && 
-    //     !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'hr',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (/[čćđšž]/i.test(cleanMessage) && 
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'hr',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Polish detection (with Icelandic exclusion)
-    // if ((/[ąćęłńśźż]/i.test(cleanMessage) || // Note: removed ó which is also in Icelandic
-    //      /\b(dzień dobry|dziękuję|proszę|jak|gdzie|kiedy|dlaczego)\b/i.test(cleanMessage)) && 
-    //     !/\b(hver|hvað|hvernig|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'pl',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if ((/[ąćęłńśźż]/i.test(cleanMessage) || // Note: removed ó which is also in Icelandic
+         /\b(dzień dobry|dziękuję|proszę|jak|gdzie|kiedy|dlaczego)\b/i.test(cleanMessage)) && 
+        !/\b(hver|hvað|hvernig|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'pl',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // Spanish detection (with Icelandic exclusion) - KEEP THIS
+    // Only if we have EXTREMELY clear Spanish indicators and NO Icelandic indicators
     if (((/[ñ¿¡]/i.test(cleanMessage) || // Unique Spanish characters
           /\b(hola|gracias|buenos días|cuál|cómo|qué|dónde|cuándo)\b/i.test(cleanMessage)) && 
          !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) ||
@@ -484,7 +532,8 @@ export const detectLanguage = (message, context = null) => {
     }
 
     // Spanish question patterns - additional check for Spanish questions - KEEP THIS
-    if (/\b(cómo|cuándo|dónde|por qué|cuánto|qué|quién|cuál)\b.*\?/i.test(cleanMessage)) {
+    if (/\b(cómo|cuándo|dónde|por qué|cuánto|qué|quién|cuál)\b.*\?/i.test(cleanMessage) &&
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
         return {
             isIcelandic: false,
             language: 'es',
@@ -494,47 +543,47 @@ export const detectLanguage = (message, context = null) => {
     }    
 
     // DISABLED: Portuguese detection
-    // if (((/[àâãêõç]/i.test(cleanMessage) || // Characters unique to Portuguese, not shared with Icelandic or Spanish
-    //       /\b(você|obrigado|todos|isso|muito|bem|não|sim|para|um|uma)\b/i.test(cleanMessage)) && 
-    //      !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage) &&
-    //      !/\b(hola|cómo|estás|qué tal|buenos días|buenas tardes)\b/i.test(cleanMessage)) || // Exclude Spanish
-    //     // Extra check for multiple Portuguese indicators together
-    //     (/\b(o que|quando|onde|por que|quanto)\b/i.test(cleanMessage) && 
-    //      /\b(você|obrigado|todos|isso|muito|bem|não|sim)\b/i.test(cleanMessage) &&
-    //      !/\b(hola|cómo|estás|qué)\b/i.test(cleanMessage))) { // Exclude Spanish
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'pt',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (((/[àâãêõç]/i.test(cleanMessage) || // Characters unique to Portuguese, not shared with Icelandic or Spanish
+          /\b(você|obrigado|todos|isso|muito|bem|não|sim|para|um|uma)\b/i.test(cleanMessage)) && 
+         !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage) &&
+         !/\b(hola|cómo|estás|qué tal|buenos días|buenas tardes)\b/i.test(cleanMessage)) || // Exclude Spanish
+        // Extra check for multiple Portuguese indicators together
+        (/\b(o que|quando|onde|por que|quanto)\b/i.test(cleanMessage) && 
+         /\b(você|obrigado|todos|isso|muito|bem|não|sim)\b/i.test(cleanMessage) &&
+         !/\b(hola|cómo|estás|qué)\b/i.test(cleanMessage))) { // Exclude Spanish
+        return {
+            isIcelandic: false,
+            language: 'pt',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: French detection (with Icelandic exclusion)
-    // if (((/[èêëçôœ]/i.test(cleanMessage) || // Characters unique to French, not shared with Icelandic
-    //       /\b(bonjour|merci|s'il vous plaît|où|comment|quand|pourquoi)\b/i.test(cleanMessage)) && 
-    //      !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) ||
-    //     // Extra check for multiple French indicators
-    //     (/\b(je|tu|il|elle|nous|vous|ils|elles)\b/i.test(cleanMessage) && 
-    //      /\b(suis|es|est|sommes|êtes|sont)\b/i.test(cleanMessage))) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'fr',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if (((/[èêëçôœ]/i.test(cleanMessage) || // Characters unique to French, not shared with Icelandic
+          /\b(bonjour|merci|s'il vous plaît|où|comment|quand|pourquoi)\b/i.test(cleanMessage)) && 
+         !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) ||
+        // Extra check for multiple French indicators
+        (/\b(je|tu|il|elle|nous|vous|ils|elles)\b/i.test(cleanMessage) && 
+         /\b(suis|es|est|sommes|êtes|sont)\b/i.test(cleanMessage))) {
+        return {
+            isIcelandic: false,
+            language: 'fr',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Italian detection (with Icelandic exclusion)
-    // if ((/\b(ciao|grazie|prego|come|dove|quando|perché|buongiorno|buonasera|vorrei|pacchetto|prenotare|prenoto|domani|oggi|orario|prezzo|visita)\b/i.test(cleanMessage)) && 
-    //     !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'it',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if ((/\b(ciao|grazie|prego|come|dove|quando|perché|buongiorno|buonasera|vorrei|pacchetto|prenotare|prenoto|domani|oggi|orario|prezzo|visita)\b/i.test(cleanMessage)) && 
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'it',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     //-----------------------------------------------------
     // NORDIC LANGUAGES - These often conflict with Icelandic
@@ -542,46 +591,46 @@ export const detectLanguage = (message, context = null) => {
     //-----------------------------------------------------
     
     // DISABLED: Danish detection (with stronger differentiation from Icelandic)
-    // if ((/[æø]/i.test(cleanMessage) && // Danish-specific chars
-    //     !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
-    //     /\b(jeg|du|han|hun|vi|de|er|var|har|havde|vil|skal|kan|kunne|må|at|med|og|eller|hvad|hvor|hvornår)\b/i.test(cleanMessage)) &&
-    //     // Not containing Icelandic business terms or product names
-    //     !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'da',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if ((/[æø]/i.test(cleanMessage) && // Danish-specific chars
+        !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
+        /\b(jeg|du|han|hun|vi|de|er|var|har|havde|vil|skal|kan|kunne|må|at|med|og|eller|hvad|hvor|hvornår)\b/i.test(cleanMessage)) &&
+        // Not containing Icelandic business terms or product names
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'da',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Norwegian detection (with stronger differentiation from Icelandic)
-    // if ((/[æø]/i.test(cleanMessage) && // Norwegian-specific chars
-    //     !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
-    //     /\b(jeg|du|han|hun|vi|de|er|var|har|hadde|vil|skal|kan|kunne|må|at|med|og|eller|hva|hvor|når)\b/i.test(cleanMessage)) &&
-    //     // Not containing Icelandic business terms or product names
-    //     !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'no',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if ((/[æø]/i.test(cleanMessage) && // Norwegian-specific chars
+        !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
+        /\b(jeg|du|han|hun|vi|de|er|var|har|hadde|vil|skal|kan|kunne|må|at|med|og|eller|hva|hvor|når)\b/i.test(cleanMessage)) &&
+        // Not containing Icelandic business terms or product names
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'no',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
     
     // DISABLED: Swedish detection (with stronger differentiation from Icelandic)
-    // if ((/[åäö]/i.test(cleanMessage) && // Swedish-specific chars
-    //     !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
-    //     /\b(är|för|och|att|om|den|det|hej|tack|välkommen|vilka|öppet|tider)\b/i.test(cleanMessage)) &&
-    //     // Not containing Icelandic business terms or product names
-    //     !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
-    //     return {
-    //         isIcelandic: false,
-    //         language: 'sv',
-    //         confidence: 'high',
-    //         reason: 'other_language_detected'
-    //     };
-    // }
+    if ((/[åäö]/i.test(cleanMessage) && // Swedish-specific chars
+        !/[þ]/i.test(cleanMessage) && // Not containing unique Icelandic chars
+        /\b(är|för|och|att|om|den|det|hej|tack|välkommen|vilka|öppet|tider)\b/i.test(cleanMessage)) &&
+        // Not containing Icelandic business terms or product names
+        !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|leiðin|ritúal)\b/i.test(cleanMessage)) {
+        return {
+            isIcelandic: false,
+            language: 'sv',
+            confidence: 'high',
+            reason: 'other_language_detected'
+        };
+    }
 
     //===========================================================
     // CONTINUE WITH ICELANDIC DETECTION
@@ -601,6 +650,24 @@ export const detectLanguage = (message, context = null) => {
     if (context?.language) {
         // Check if it's a likely follow-up
         const isFollowUp = /^(and|or|but|so|also|what about)/i.test(cleanMessage);
+        
+        // Check if it's a Spanish follow-up
+        const isSpanishFollowUp = /^(y|pero|tambien|además|o|entonces|si|por)/i.test(cleanMessage);
+        
+        // If we have Spanish words in what might be a follow-up, lean toward Spanish
+        // But ONLY if there are NO Icelandic context words
+        if (isSpanishFollowUp && spanishWordCount >= 1 && 
+            !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér|bóka|tími)\b/i.test(cleanMessage)) {
+            // Additional check: only return Spanish if we explicitly know context is Spanish
+            if (context.language === 'es') {
+                return {
+                    isIcelandic: false,
+                    language: 'es',
+                    confidence: 'medium',
+                    reason: 'spanish_followup_context'
+                };
+            }
+        }
         
         // If we have English words in what might be a follow-up, lean toward English
         if (isFollowUp && businessTermEnglishWordCount >= 1) {

@@ -105,6 +105,63 @@ export function updateLanguageContext(context, message) {
 }
 
 /**
+ * Validates and provides information about a date mentioned in conversation
+ * @param {string} dateString - The date string to validate
+ * @returns {Object} - Date validation information
+ */
+export function validateDate(dateString) {
+  try {
+    // Extract date components
+    const monthNames = ["january", "february", "march", "april", "may", "june", 
+                      "july", "august", "september", "october", "november", "december"];
+    
+    // Extract year
+    const yearMatch = dateString.match(/\b(202\d)\b/);
+    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+    
+    // Extract month
+    const monthMatch = dateString.toLowerCase().match(new RegExp(`\\b(${monthNames.join('|')})\\b`));
+    const monthIndex = monthMatch ? monthNames.indexOf(monthMatch[1]) : -1;
+    
+    // Extract day
+    const dayMatch = dateString.match(/\b(\d{1,2})(st|nd|rd|th)?\b/);
+    const day = dayMatch ? parseInt(dayMatch[1]) : -1;
+    
+    // If we couldn't extract required components, return invalid
+    if (monthIndex === -1 || day === -1) {
+      return { isValid: false };
+    }
+    
+    // Create a proper date object and validate it
+    const dateObj = new Date(year, monthIndex, day);
+    
+    // Check if the date is valid (e.g., not February 30th)
+    if (dateObj.getMonth() !== monthIndex || dateObj.getDate() !== day) {
+      return { isValid: false };
+    }
+    
+    // Get the day of week
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayOfWeek = daysOfWeek[dateObj.getDay()];
+    
+    console.log(`🗓️ Date Validation: ${dateString} in ${year} falls on ${dayOfWeek}`);
+    
+    return {
+      isValid: true,
+      year,
+      month: monthNames[monthIndex],
+      day,
+      dayOfWeek,
+      dateObject: dateObj,
+      formattedDate: `${monthNames[monthIndex].charAt(0).toUpperCase() + monthNames[monthIndex].slice(1)} ${day}, ${year}`
+    };
+  } catch (error) {
+    console.error('❌ Error validating date:', error);
+    return { isValid: false, error: error.message };
+  }
+}
+
+/**
  * Adds a message to the conversation history with enhanced context tracking
  * @param {Object} context - Session context
  * @param {Object} message - Message to add (role, content)
@@ -118,25 +175,56 @@ export function addMessageToContext(context, message) {
   context.lastInteraction = Date.now();
   
   // NEW: For very short messages, check if they match context patterns
-  if (message.role === 'user' && message.content && message.content.split(' ').length <= 3) {
+  if (message.role === 'user' && message.content && message.content.split(' ').length <= 5) {
     const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
     
-    if (datePattern.test(message.content) && context.lastTopic === 'booking') {
-      console.log(`🧠 Short message detected as booking date modification`);
+    if (datePattern.test(message.content)) {
+      // Validate the date to get accurate day of week information
+      const dateValidation = validateDate(message.content);
       
-      // Explicitly update context to maintain booking intent
-      context.lastTopic = 'booking';
-      context.bookingContext.hasBookingIntent = true;
-      context.bookingContext.dateModifications.push({
-        previousDate: context.bookingContext.lastDateMention,
-        newDate: message.content,
-        timestamp: Date.now()
-      });
+      // If it's a valid date, log and store the information
+      if (dateValidation && dateValidation.isValid) {
+        console.log(`🧠 Date validated: ${dateValidation.formattedDate} (${dateValidation.dayOfWeek})`);
+      }
+      
+      // Even if not fully valid, still track as a date mention
+      console.log(`🧠 Date mention detected: "${message.content}"`);
+      
+      // Track in booking context if we have it
+      if (!context.bookingContext) {
+        context.bookingContext = {
+          hasBookingIntent: false,
+          dates: [],
+          preferredDate: null,
+          dateModifications: [],
+          lastDateMention: null,
+          people: null,
+          packages: null
+        };
+      }
+      
       context.bookingContext.lastDateMention = message.content;
-      
-      // Store this as the preferred date
-      context.bookingContext.preferredDate = message.content;
       context.bookingContext.dates.push(message.content);
+      
+      // If it looks booking related, update booking intent
+      if (context.lastTopic === 'booking' || context.topics.includes('booking')) {
+        context.bookingContext.hasBookingIntent = true;
+        
+        // Also track modifications
+        if (context.bookingContext.preferredDate && 
+            context.bookingContext.preferredDate !== message.content) {
+          context.bookingContext.dateModifications.push({
+            previousDate: context.bookingContext.preferredDate,
+            newDate: message.content,
+            timestamp: Date.now()
+          });
+          
+          console.log(`🧠 Date modification detected: "${context.bookingContext.preferredDate}" → "${message.content}"`);
+        }
+        
+        context.bookingContext.preferredDate = message.content;
+        context.lastTopic = 'booking';
+      }
     }
   }
   
