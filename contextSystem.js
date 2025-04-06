@@ -206,8 +206,14 @@ export function addMessageToContext(context, message) {
       context.bookingContext.lastDateMention = message.content;
       context.bookingContext.dates.push(message.content);
       
-      // If it looks booking related, update booking intent
-      if (context.lastTopic === 'booking' || context.topics.includes('booking')) {
+      // Check for ANY previous booking intent or booking-related history
+      const hasExistingBookingHistory = context.lastTopic === 'booking' || 
+                                       context.topics.includes('booking') || 
+                                       context.bookingContext?.hasBookingIntent || 
+                                       context.bookingContext?.dates?.length > 0;
+
+      if (hasExistingBookingHistory) {
+        console.log(`🔄 Maintaining booking context for date: "${message.content}"`);
         context.bookingContext.hasBookingIntent = true;
         
         // Also track modifications
