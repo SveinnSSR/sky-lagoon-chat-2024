@@ -4077,7 +4077,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                            userMessage.toLowerCase().includes('á morgun');  // "tomorrow" often used with hours
 
         // Detect topic and get initial transitions
-        let topicResult = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
+        let topicResult;
+        try {
+            // Check if knowledgeBaseResults is a Promise and await it if needed
+            const resolvedResults = knowledgeBaseResults instanceof Promise 
+                ? await knowledgeBaseResults 
+                : knowledgeBaseResults;
+                
+            // Ensure results is an array before calling detectTopic
+            const safeResults = Array.isArray(resolvedResults) ? resolvedResults : [];
+            
+            topicResult = detectTopic(userMessage, safeResults, context, languageDecision);
+        } catch (error) {
+            console.error('\n❌ Error in topic detection:', error);
+            // Fallback to previous topic or general
+            topicResult = { topic: context?.lastTopic || 'general' };
+        }
 
         // Simplified first-time message handling (no early return)
         if (!context.conversationStarted) { 
