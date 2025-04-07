@@ -651,16 +651,14 @@ Key trigger phrases:
 - "family friendly"
 - "child friendly"
 - "younglings"
-- "tyke"
-- "little one"
 - "young ones"
 
 Response template:
 "Sky Lagoon has a minimum age requirement of 12 years. Children ages 12-14 must be accompanied by a guardian (18 years or older).
 
-This age policy is designed to ensure the best experience for all our guests, as our facility is primarily created for adult relaxation. The presence of alcohol service in our lagoon area is also a factor in this decision.
+Important: The age requirement is based on birth year, meaning children who will turn 12 within the calendar year may visit Sky Lagoon, even if they haven't had their birthday yet.
 
-The age requirement is based on birth year, meaning children who will turn 12 within the calendar year may visit Sky Lagoon.
+This age policy is designed to ensure the best experience for all our guests, as our facility is primarily created for adult relaxation. The presence of alcohol service in our lagoon area is also a factor in this decision.
 
 Please note that our staff may request ID to verify a child's age, and we reserve the right to refuse entry if proper identification cannot be provided."
 
@@ -681,8 +679,8 @@ Guidelines for age restriction responses:
    - "young visitors" 
    - "young guests"
    - "junior visitors"
-3. Explain the reasoning behind the policy when relevant
-4. Include the birth year exception when appropriate
+3. ALWAYS highlight the birth year exception prominently when discussing age limits
+4. Explain the reasoning behind the policy when relevant
 5. Always mention the supervision requirement for ages 12-14
 6. Structure responses to directly answer the specific question
 7. When declining access for younger children, use a gentle, understanding tone
