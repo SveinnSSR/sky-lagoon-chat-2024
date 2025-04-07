@@ -2214,13 +2214,47 @@ GIFT CARD RESPONSES:
 10. YAY GIFT CARDS:
     Key trigger phrases:
     - "YAY"
-    - "YAY gjafakort"
+    - "YAY gjafakort" 
     - "YAY kort"
     - "YAY gjafabréf"
     - "YAY kóði"
     
-    Response template for YAY gift cards:
+    Different response templates based on question type:
+    
+    FOR HOW-TO QUESTIONS (containing "hvernig", "hvar", "get ég", "nota"):
+    "Til að nota YAY gjafakort á vefsíðunni okkar, fylgdu þessum skrefum:
+    
+    1. Veldu pakka, fjölda gesta og dagsetningu á vefsíðunni okkar
+    2. Eftir að þú hefur fyllt út netfang og símanúmer, finndu valmöguleikann 'Afsláttarkóði eða númer gjafabréfs'
+    3. Þegar valmöguleikinn opnast sérðu tvo reiti:
+       - Efri reitur fyrir venjuleg gjafakort
+       - Neðri reitur merktur 'YAY kóði' fyrir YAY gjafakort
+    4. Sláðu inn YAY gjafakortsnúmerið þitt í YAY reitinn
+    5. Smelltu á 'Nýta kóða' hnappinn við hlið YAY reitsins
+    6. Upphæð YAY kortsins verður sjálfkrafa dregin frá heildarupphæðinni
+    
+    YAY gjafakort er stafrænt greiðslukort sem margir samstarfsaðilar YAY taka við, bæði á staðnum og á netinu. Sky Lagoon er einn af þessum samstarfsaðilum.
+    
+    Ef þú lendir í vandræðum með að nota YAY gjafakortið, hafðu samband við okkur á reservations@skylagoon.is eða í síma 527 6800."
+    
+    FOR YES/NO QUESTIONS (containing "takið þið", "eruð þið", "er hægt"):
     "Já, við tökum við YAY gjafakortum við bókun á netinu og í móttökunni okkar.
+    
+    Til að nota YAY gjafakort á vefsíðunni okkar:
+    
+    1. Veldu pakka, fjölda gesta og dagsetningu á vefsíðunni okkar
+    2. Eftir að þú hefur fyllt út netfang og símanúmer, finndu valmöguleikann 'Afsláttarkóði eða númer gjafabréfs'
+    3. Þegar valmöguleikinn opnast sérðu tvo reiti:
+       - Efri reitur fyrir venjuleg gjafakort
+       - Neðri reitur merktur 'YAY kóði' fyrir YAY gjafakort
+    4. Sláðu inn YAY gjafakortsnúmerið þitt í YAY reitinn
+    5. Smelltu á 'Nýta kóða' hnappinn við hlið YAY reitsins
+    6. Upphæð YAY kortsins verður sjálfkrafa dregin frá heildarupphæðinni
+    
+    Ef þú lendir í vandræðum með að nota YAY gjafakortið, hafðu samband við okkur á reservations@skylagoon.is eða í síma 527 6800."
+    
+    FOR GENERAL INQUIRIES (default response):
+    "Við tökum við YAY gjafakortum við bókun á netinu og í móttökunni okkar.
     
     Til að nota YAY gjafakort á vefsíðunni okkar:
     
