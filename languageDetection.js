@@ -56,8 +56,22 @@ export const detectLanguage = (message, context = null) => {
             reason: 'unique_icelandic_characters' 
         };
     }
-    
-    // 3. NEW EXPLICIT SPANISH DETECTION
+
+    // 3. EARLY CHECK FOR SHORT ICELANDIC PHRASES
+    // This prevents common short Icelandic questions from being misidentified
+    if (cleanMessage.split(/\s+/).length <= 3) {
+        // Check for common Icelandic short phrases and questions
+        if (/^(er|eru|má|get|hver|hvað|hvar|hvenær|hvernig|af hverju)\b/i.test(cleanMessage)) {
+            return { 
+                isIcelandic: true, 
+                language: 'is', 
+                confidence: 'high', 
+                reason: 'short_icelandic_phrase' 
+            };
+        }
+    }    
+
+    // 4. NEW EXPLICIT SPANISH DETECTION
     // Only detect Spanish when there are very strong indicators and no Icelandic indicators
     if (
         // Must have clear Spanish words/phrases and patterns
@@ -81,7 +95,7 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // 4. SHARED CHARACTERS CHECK - Now includes more robust Icelandic protection
+    // 5. SHARED CHARACTERS CHECK - Now includes more robust Icelandic protection
     // For characters that appear in both languages (æöáéíóúý)
     if (/[æöáéíóúý]/i.test(cleanedForDetection)) {
         // If there are Icelandic context words, ALWAYS classify as Icelandic
@@ -117,7 +131,7 @@ export const detectLanguage = (message, context = null) => {
         };
     }
     
-    // 3. CHECK PACKAGE COMPARISON QUESTIONS IN ENGLISH
+    // 6. CHECK PACKAGE COMPARISON QUESTIONS IN ENGLISH
     if (isPackageComparison(cleanMessage)) {
         return {
             isIcelandic: false,
@@ -396,7 +410,8 @@ export const detectLanguage = (message, context = null) => {
             };
         }
     }
-
+    // TRULY DISABLE THE GERMAN DETECTION BY COMMENTING IT OUT (the german word 'er' is interfering with icelandic responses)
+    /*
     // DISABLED: Check for German detection in regular flow
     if (hasGermanIndicators && (germanDensity > 0.25 || germanWordCount >= 3 || hasGermanPackageQuery)) {
         return {
@@ -406,7 +421,8 @@ export const detectLanguage = (message, context = null) => {
             reason: 'german_detected'
         };
     }
-    
+    */
+
     // DISABLED: Standalone Italian detection
     if (hasItalianIndicators && (italianDensity > 0.2 || italianWordCount >= 2)) {
         return {
