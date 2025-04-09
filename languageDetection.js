@@ -518,6 +518,23 @@ export const detectLanguage = (message, context = null) => {
             reason: 'other_language_detected'
         };
     }
+
+    // Czech detection - with safeguards for Icelandic
+    if (
+        // Unique Czech characters not in Icelandic
+        /[ěščřž]/i.test(cleanMessage) || 
+        // OR both shared characters AND Czech words, but only if no Icelandic words
+        (/[áíéý]/i.test(cleanMessage) && 
+         /\b(mohu|koupit|kde|jak|proc|kdy|kolik|prosím|děkuji|netu|vaší)\b/i.test(cleanMessage) &&
+         !/\b(hver|hvað|hvernig|hvenær|af hverju|opnunartími|lokað|opið|verð|kostar|bóka|tími)\b/i.test(cleanMessage))
+    ) {
+        return {
+            isIcelandic: false,
+            language: 'en', // Return English since we probably don't support Czech
+            confidence: 'high',
+            reason: 'czech_detected_english_response'
+        };
+    }  
     
     // DISABLED: Polish detection (with Icelandic exclusion)
     if ((/[ąćęłńśźż]/i.test(cleanMessage) || // Note: removed ó which is also in Icelandic
@@ -558,7 +575,7 @@ export const detectLanguage = (message, context = null) => {
         };
     }    
 
-    // DISABLED: Portuguese detection
+    // DISABLED: Portuguese detection (returns English response)
     if (((/[àâãêõç]/i.test(cleanMessage) || // Characters unique to Portuguese, not shared with Icelandic or Spanish
           /\b(você|obrigado|todos|isso|muito|bem|não|sim|para|um|uma)\b/i.test(cleanMessage)) && 
          !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage) &&
@@ -569,13 +586,13 @@ export const detectLanguage = (message, context = null) => {
          !/\b(hola|cómo|estás|qué)\b/i.test(cleanMessage))) { // Exclude Spanish
         return {
             isIcelandic: false,
-            language: 'pt',
+            language: 'en', // Return English since we don't fully support Portuguese
             confidence: 'high',
-            reason: 'other_language_detected'
+            reason: 'portuguese_detected_english_response'
         };
     }
     
-    // DISABLED: French detection (with Icelandic exclusion)
+    // DISABLED: French detection (returns English response)
     if (((/[èêëçôœ]/i.test(cleanMessage) || // Characters unique to French, not shared with Icelandic
           /\b(bonjour|merci|s'il vous plaît|où|comment|quand|pourquoi)\b/i.test(cleanMessage)) && 
          !/\b(hver|hvað|hvernig|af hverju|pakka|gjafakort|saman|sér)\b/i.test(cleanMessage)) ||
@@ -584,9 +601,9 @@ export const detectLanguage = (message, context = null) => {
          /\b(suis|es|est|sommes|êtes|sont)\b/i.test(cleanMessage))) {
         return {
             isIcelandic: false,
-            language: 'fr',
+            language: 'en', // Return English since we don't fully support French
             confidence: 'high',
-            reason: 'other_language_detected'
+            reason: 'french_detected_english_response'
         };
     }
     
