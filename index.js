@@ -3117,28 +3117,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 message: userMessage
             });
             
-            // Handle ritual skipping queries
+            // Handle ritual skipping queries - MODIFIED
             if (isRitualSkippingQuery) {
-                console.log('\n❌ Skip Ritual Query Found');
+                console.log('\n❌ Skip Ritual Query Found - Forwarding to normal processing');
                 
-                const response = "Skjól ritúal meðferðin er innifalin í öllum pökkum okkar og er órjúfanlegur hluti af Sky Lagoon upplifuninni. Þú getur valið á milli tveggja pakka - Saman eða Sér - sem báðir innihalda aðgang að lóninu og Skjól ritúal meðferðina.";
-                
-                // Update context
+                // Just add to context but don't hardcode response
                 context.lastTopic = 'ritual';
+                context.ritualSkipping = true; // Add this flag for GPT context
                 conversationContext.set(sessionId, context);
                 
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: 'Icelandic',
-                        confidence: languageDecision.confidence,
-                        reason: 'ritual_mandatory'
-                    },
-                    topicType: 'ritual',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
+                // Continue to normal processing - NO early return
             }
         
             // Enhanced booking detection/Simplified for better performance - Add this BEFORE late arrival check
