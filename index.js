@@ -3152,11 +3152,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 processingTime: Date.now() - startTime
             });
             
-            // Add availability handler
+            // Add availability to context but remove hardcoded handler
             if (isAvailabilityQuery) {
-                console.log('\n🗓️ Handling availability query');
+                console.log('\n🗓️ Availability Query Found - Forwarding to normal processing');
                 
-                // Extract day from message if present
+                // Extract day from message if present for context
                 let dayMentioned = "";
                 if (userMessage.toLowerCase().includes('mánudag')) dayMentioned = "mánudegi";
                 else if (userMessage.toLowerCase().includes('þriðjudag')) dayMentioned = "þriðjudegi";
@@ -3166,33 +3166,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 else if (userMessage.toLowerCase().includes('laugardag')) dayMentioned = "laugardegi";
                 else if (userMessage.toLowerCase().includes('sunnudag')) dayMentioned = "sunnudegi";
                 
-                // Create a dynamic response based on context with proper link formatting
-                let response = "";
-                if (dayMentioned) {
-                    response = `Við erum oft með laus pláss á ${dayMentioned}, en framboð getur verið takmarkað, sérstaklega á annatímum. Til að sjá nákvæma tíma sem eru lausir og bóka beint, mælum við með að heimsækja vefsíðuna okkar: [Bóka heimsókn] (https://www.skylagoon.com/is/boka)`;
-                } else {
-                    response = "Til að sjá nákvæmt framboð og bóka tíma mælum við með að heimsækja vefsíðuna okkar: [Bóka heimsókn] (https://www.skylagoon.com/is/boka). Þar sérðu í rauntíma hvaða tímar eru lausir á þeim degi sem þú vilt heimsækja okkur.";
-                }
-                
-                // Update context
+                // Just update context without hardcoding a response
                 context.lastTopic = 'availability';
+                context.availabilityQuery = true;
+                context.dayMentioned = dayMentioned || null;
                 conversationContext.set(sessionId, context);
                 
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: response,
-                    language: {
-                        detected: 'Icelandic',
-                        confidence: languageDecision.confidence,
-                        reason: 'availability_query'
-                    },
-                    topicType: 'availability',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
+                // Continue to normal processing - NO early return
             }  
 
-            const msg = userMessage.toLowerCase();            
+            const msg = userMessage.toLowerCase();                  
 
         // Simple context setting for small talk/identity/greeting questions
         if (userMessage) {
