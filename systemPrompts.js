@@ -151,7 +151,7 @@ export const LATE_ARRIVAL_RULES_IS = `
  * @param {Object} languageDecision - Information about detected language
  * @returns {string} The system prompt
  */
-const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision) => {
+const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) => {
     const context = getContext(sessionId);
     const seasonInfo = getCurrentSeason();
 
@@ -2411,6 +2411,20 @@ GIFT CARD RESPONSES:
     
     Eða hringdu í okkur í síma 527 6800 á opnunartíma. Við getum hjálpað þér að leysa vandamálið eða búið til bókun handvirkt fyrir þig."`;
 }
+
+    // Add sunset information if available
+    if (sunsetData) {
+        basePrompt += `\n\nSUNSET INFORMATION:
+Today's sunset time in Reykjavik is at ${sunsetData.todaySunset.formatted} (${sunsetData.todaySunset.formattedLocal}).
+Today's opening hours are ${sunsetData.todayOpeningHours}.
+`;
+        
+        if (sunsetData.specificMonth && !sunsetData.specificMonth.isCurrentMonth) {
+            basePrompt += `\nFor ${sunsetData.specificMonth.name}, the average sunset time is ${sunsetData.specificMonth.sunsetTime.formatted} (${sunsetData.specificMonth.sunsetTime.formattedLocal}).\n`;
+        }
+        
+        basePrompt += `\nFor ideal sunset viewing at Sky Lagoon, guests should arrive 1-2 hours before sunset. The views of the sunset from our infinity edge are spectacular.\n`;
+    }
 
     // MODIFY THIS SECTION: Update final instruction to handle all languages
     if (isStandardLanguage) {

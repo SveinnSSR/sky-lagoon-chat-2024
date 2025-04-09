@@ -1019,9 +1019,10 @@ const isSunsetQuery = (message, languageDecision) => {
 };
 
 // Add this function to generate sunset responses
-const generateSunsetResponse = (message, languageDecision) => {
-    const msg = message.toLowerCase();
+// STEP 3: Replace generateSunsetResponse with this new function
+const getSunsetDataForContext = (userMessage, languageDecision) => {
     const isIcelandic = languageDecision.isIcelandic;
+    const msg = userMessage.toLowerCase();
     
     // Get today's sunset time
     const todaySunset = getTodaySunset();
@@ -1056,65 +1057,25 @@ const generateSunsetResponse = (message, languageDecision) => {
             currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
     }
     
-    if (!sunsetTime) {
-        return isIcelandic ?
-            "Því miður get ég ekki fundið nákvæmar upplýsingar um sólarlagstíma fyrir þennan tíma. Vinsamlegast spurðu um annan mánuð eða hafðu samband við þjónustuver okkar fyrir nákvæmari upplýsingar." :
-            "I'm sorry, I couldn't find precise sunset time information for that period. Please ask about a different month or contact our service desk for more accurate information.";
-    }
-    
     // Get today's opening hours
     const todayHours = getCurrentOpeningHours();
-    const todayHoursString = `${todayHours.open}:00-${todayHours.close}:00`;
     
-    // Get month-specific opening hours if needed
-    let monthHours;
-    let monthHoursString;
-    if (monthInQuery) {
-        monthHours = getMonthOpeningHours(monthInQuery);
-        
-        if (monthInQuery === 'june' || monthInQuery === 'july' || 
-            monthInQuery === 'august' || monthInQuery === 'september' || 
-            monthInQuery === 'october') {
-            // For months with same hours all week
-            const openHour = monthHours.weekdays.open;
-            const closeHour = monthHours.weekdays.close;
-            monthHoursString = isIcelandic ? 
-                `${openHour}:00-${closeHour}:00 alla daga` : 
-                `${openHour}:00-${closeHour}:00 every day`;
-        } else {
-            // For winter months with different weekend/weekday hours
-            monthHoursString = isIcelandic ? 
-                `${monthHours.weekdays.open}:00-${monthHours.weekdays.close}:00 á virkum dögum og ${monthHours.weekends.open}:00-${monthHours.weekends.close}:00 um helgar` : 
-                `${monthHours.weekdays.open}:00-${monthHours.weekdays.close}:00 on weekdays and ${monthHours.weekends.open}:00-${monthHours.weekends.close}:00 on weekends`;
-        }
-    }
-    
-    // Generate response based on language
-    if (isIcelandic) {
-        // For specific month query
-        if (monthInQuery) {
-            if (isCurrentMonth) {
-                return `Í dag, ${currentDay}. ${monthName}, sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er ${todayHoursString}.`;
-            } else {
-                return `Í ${monthName} sest sólin að meðaltali um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er frábært útsýni yfir sólarlagið, þar sem þú getur slakað á í heitu lóninu okkar og notið þess að horfa á himininn fyllast af litum. Til að upplifa þetta sem best er mælt með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar er ${monthHoursString}.`;
-            }
-        }
-        
-        // For today/general query
-        return `Í dag sest sólin um kl. ${sunsetTime.formatted} í Reykjavík. Frá Sky Lagoon er einstakt útsýni yfir sólarlagið, þar sem þú getur slakað á í jarðhitavatninu og notið töfrandi litbrigða himinsins. Til að upplifa þetta sem best mælum við með að koma 1-2 klukkustundum fyrir sólsetur. Opnunartími okkar í dag er ${todayHoursString}.`;
-    } else {
-        // For specific month query
-        if (monthInQuery) {
-            if (isCurrentMonth) {
-                return `Today, ${monthName} ${currentDay}, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours today are ${todayHoursString}.`;
-            } else {
-                return `In ${monthName}, the sun sets at approximately ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers an exceptional view of the sunset where you can enjoy watching the sky fill with colors while relaxing in our warm lagoon. We recommend arriving 1-2 hours before sunset for the best experience. Our opening hours are ${monthHoursString}.`;
-            }
-        }
-        
-        // For today/general query
-        return `Today, the sun sets at ${sunsetTime.formatted} (${sunsetTime.formattedLocal}) in Reykjavik. Sky Lagoon offers a spectacular view of the sunset where you can enjoy the magical colors of the sky while relaxing in our geothermal waters. We recommend arriving 1-2 hours before sunset to get the full experience. Our opening hours today are ${todayHoursString}.`;
-    }
+    return {
+        isSunsetRelated: true,
+        todaySunset: todaySunset ? {
+            formatted: todaySunset.formatted,
+            formattedLocal: todaySunset.formattedLocal
+        } : null,
+        specificMonth: monthInQuery ? {
+            name: monthName,
+            sunsetTime: sunsetTime ? {
+                formatted: sunsetTime.formatted,
+                formattedLocal: sunsetTime.formattedLocal
+            } : null,
+            isCurrentMonth
+        } : null,
+        todayOpeningHours: `${todayHours.open}:00-${todayHours.close}:00`
+    };
 };
 
 const isBookingQuery = (message) => {
@@ -3913,59 +3874,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.potentiallyUnknownTopic = true;
         }
         
-        // Sunset query handling WITH early return (since it provides specialized data)
+        // Detect if sunset information is relevant (but don't short-circuit)
+        let sunsetData = null;
         if (isSunsetQuery(userMessage, languageDecision)) {
-            console.log('\n🌅 Sunset query detected');
-            
-            // Generate sunset response
-            const sunsetResponse = generateSunsetResponse(userMessage, languageDecision);
-            
-            // Apply brand terminology enforcement
-            const formattedResponse = enforceTerminology(sunsetResponse);
-            
-            // Add appropriate emoji suffix
-            const formattedResponseWithEmoji = formattedResponse + " 🌅";
-            
-            // Log the response
-            console.log('\n✅ Providing sunset information:', {
-                query: userMessage,
-                response: formattedResponseWithEmoji,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                }
-            });
-            
-            // Update context with this interaction
-            updateContext(sessionId, userMessage, formattedResponseWithEmoji, languageDecision);
-            
-            // Add to response cache
-            responseCache.set(`${sessionId}:${userMessage.toLowerCase().trim()}`, {
-                response: {
-                    message: formattedResponseWithEmoji,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    }
-                },
-                timestamp: Date.now()
-            });
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: formattedResponseWithEmoji,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                },
-                topicType: 'sunset',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }      
+            console.log('\n🌅 Sunset-related query detected - adding data to context');
+            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
+        }
 
         // Detect topic for appropriate transitions and follow-ups (KEEP AS IS)
         const { topic } = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
@@ -4093,7 +4007,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage, {
             ...languageDecision,
             language: language // Pass explicit language code
-        });
+        }, sunsetData); // Add sunsetData as the fifth parameter
 
         // Get current season information
         const seasonInfo = getCurrentSeason();
