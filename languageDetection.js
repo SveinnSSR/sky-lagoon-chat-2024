@@ -522,10 +522,10 @@ export const detectLanguage = (message, context = null) => {
     // Czech detection - with safeguards for Icelandic
     if (
         // Unique Czech characters not in Icelandic
-        /[ěščřž]/i.test(cleanMessage) || 
+        /[ěščřžůň]/i.test(cleanMessage) || 
         // OR both shared characters AND Czech words, but only if no Icelandic words
         (/[áíéý]/i.test(cleanMessage) && 
-         /\b(mohu|koupit|kde|jak|proc|kdy|kolik|prosím|děkuji|netu|vaší)\b/i.test(cleanMessage) &&
+         /\b(mohu|někde|koupit|na netu|vaší|kosmetiku|kde|jak|proc|kdy|kolik|prosím|děkuji)\b/i.test(cleanMessage) &&
          !/\b(hver|hvað|hvernig|hvenær|af hverju|opnunartími|lokað|opið|verð|kostar|bóka|tími)\b/i.test(cleanMessage))
     ) {
         return {
@@ -534,7 +534,7 @@ export const detectLanguage = (message, context = null) => {
             confidence: 'high',
             reason: 'czech_detected_english_response'
         };
-    }  
+    }
     
     // DISABLED: Polish detection (with Icelandic exclusion)
     if ((/[ąćęłńśźż]/i.test(cleanMessage) || // Note: removed ó which is also in Icelandic
