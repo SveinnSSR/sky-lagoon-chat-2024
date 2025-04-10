@@ -19,6 +19,9 @@ export const detectLanguage = (message, context = null) => {
     // Create hotel and location exclusion regex
     const hotelAndLocationRegex = /\b(hótel|hotel|bus stop|strætóstoppistöð|hallgrímskirkja|óðinsvé|harpa|ráðhúsið|tjörnin|lækjargata|miðbakki|vesturbugt|höfðatorg|rauðarárstígur|austurbær|snorrabraut|skúlagata|reykjavík|kópavogur)\b/gi;
     
+    // Add exclusion for common Icelandic cultural terms, holidays, and places that tourists might use
+    const icelandicCulturalTermsRegex = /\b(hvítasunnudagur|hvítasunnudag|jól|páska|þorrablót|þorri|silfra|gullfoss|geysir|bláa lónið|hallgrímskirkja|jökulsárlón|þingvellir|eyjafjallajökull|skyr|hákarl|brennivín|þjóðhátíð|menningarnótt|hátíð|foss|fjörður|jökull|dalur|á íslandi|island)\b/gi;
+
     // Exclude Sky Lagoon package names and bot name from language detection
     const packageExclusionRegex = /\b(saman|sér|ser|hefd|hefð|venja|skjól|ritual|ritúal)\b/gi;
     // Add bot name exclusion - match both "sólrún" and "solrun"
@@ -30,9 +33,33 @@ export const detectLanguage = (message, context = null) => {
         .replace(packageExclusionRegex, '')
         .replace(botNameRegex, '')
         .replace(hotelAndLocationRegex, '')
+        .replace(icelandicCulturalTermsRegex, '')  // Add this line
         .trim();
     
-    // ====== PROFESSIONAL PRIORITY BASED DETECTION ======
+    // Special handling for English sentences with Icelandic cultural terms - WITH SAFEGUARDS
+    if (/\b(hvítasunnudagur|hvítasunnudag|jól|páska|þorrablót|þorri|silfra|gullfoss|geysir|bláa lónið|hallgrímskirkja|jökulsárlón|þingvellir|eyjafjallajökull)\b/gi.test(cleanMessage)) {
+        // Only consider this an English message if it has VERY CLEAR English sentence structure
+        const hasStrongEnglishIndicators = 
+            /^(hi|hello|hey|good morning|good afternoon|good evening|i am|i'm|im|can you|do you|will you|are you|is it|does it|just wondering|quick question)\b/i.test(cleanMessage) ||
+            /\b(open|closed|hours|time|price|cost|ticket|when|what time|how much)\s+\b(for|on|during)\s+\b(hvítasunnudagur|hvítasunnudag|jól|páska)\b/i.test(cleanMessage);
+            
+        // SAFETY CHECK - if there are ANY Icelandic grammar structures, do NOT classify as English
+        const hasIcelandicStructures = /\b(er|eru|verður|verða|get|getur|getum|má|mega|við|þið|þær|þeir|þau|þessi|þetta|þessi|þessu)\s+\b(hvítasunnudagur|hvítasunnudag|jól|páska)\b/i.test(cleanMessage);
+        
+        if (hasStrongEnglishIndicators && !hasIcelandicStructures) {
+            return {
+                isIcelandic: false,
+                language: 'en',
+                confidence: 'high',
+                reason: 'english_with_icelandic_cultural_terms'
+            };
+        }
+        
+        // Do NOT return any default here - let the rest of the detection logic run
+        // This ensures Icelandic queries continue through the detection pipeline
+    }
+
+        // ====== PROFESSIONAL PRIORITY BASED DETECTION ======
     
     // 1. FIRST CHECK: CLEAR ENGLISH SENTENCE STRUCTURES
     // This catches patterns like "will I get", "I'm already", etc.
