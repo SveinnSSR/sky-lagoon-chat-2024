@@ -4,33 +4,8 @@
 // Import required dependencies
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, knowledgeBase_is } from './knowledgeBase_is.js';
-import { validateDate } from './contextSystem.js'; // Add this line
-
-// Function to get context - this is imported from index.js
-// We need to have this imported since getSystemPrompt depends on it
-let getContextFunction;
-
-/**
- * Set the getContext function that should be used by system prompts
- * This is called from index.js to avoid circular dependencies
- * @param {Function} contextFunction - The getContext function from index.js
- */
-export const setContextFunction = (contextFunction) => {
-  getContextFunction = contextFunction;
-};
-
-/**
- * Wrapper for getContext that uses the function set by setContextFunction
- * @param {string} sessionId - The session ID to get context for
- * @returns {Object} The conversation context
- */
-const getContext = (sessionId) => {
-  if (!getContextFunction) {
-    console.warn('⚠️ getContext function not set in systemPrompts.js');
-    return {}; // Return empty object if not set
-  }
-  return getContextFunction(sessionId);
-};
+// MIGRATION: Import getSessionContext directly from contextSystem.js
+import { getSessionContext, validateDate } from './contextSystem.js';
 
 // Import the getCurrentSeason function - this is imported from index.js
 let getCurrentSeasonFunction;
@@ -152,7 +127,8 @@ export const LATE_ARRIVAL_RULES_IS = `
  * @returns {string} The system prompt
  */
 const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) => {
-    const context = getContext(sessionId);
+    // MIGRATION: Get context directly from the new context system
+    const context = getSessionContext(sessionId);
     const seasonInfo = getCurrentSeason();
 
     console.log('\n👀 Context Check:', {
@@ -2356,7 +2332,7 @@ GIFT CARD RESPONSES:
      
      Ef þú ert með Pure Lite gjafakort, mælum við með að þú hafir samband við okkur í gegnum reservations@skylagoon.is með upplýsingum þínum og gjafakortsnúmerinu. Við getum þá útbúið bókun fyrir þig þar sem gjafakortið þitt mun greiða hluta af kostnaðinum."
    
-   For Generic Legacy Gift Card Inquiries:
+   For Generic Legacy Gift Card Inquiries
    - Provide reassurance and booking instructions
    - Response template:
      "Heiti pakkanna okkar hafa breyst, en öll eldri gjafakort eru enn í fullu gildi.

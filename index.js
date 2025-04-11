@@ -14,12 +14,14 @@ import {
     getSessionContext, 
     updateLanguageContext, 
     addMessageToContext, 
-    updateTopicContext 
+    updateTopicContext,
+    isLateArrivalMessage,
+    updateTimeContext
   } from './contextSystem.js';
 // Add after your other imports
 import { getVectorKnowledge } from './contextSystem.js';  
 // System prompts from systemPrompts.js
-import { getSystemPrompt, setContextFunction, setGetCurrentSeasonFunction } from './systemPrompts.js';
+import { getSystemPrompt, setGetCurrentSeasonFunction } from './systemPrompts.js';
 // Knowledge base and language detection
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { 
@@ -63,37 +65,6 @@ console.log('██████████████████████�
 
 // MongoDB integration - add this after imports but before Pusher initialization
 import { MongoClient } from 'mongodb';
-
-/**
- * Synchronizes the old context system with the new one
- * This allows gradual migration without breaking existing functionality
- * 
- * @param {Object} oldContext - The old context object
- * @param {Object} newContext - The new context object 
- */
-function syncContextSystems(oldContext, newContext) {
-  // Update language information
-  oldContext.language = newContext.language;
-  
-  // Update last topic if new one was detected
-  if (newContext.topics.length > 0 && newContext.topics[newContext.topics.length - 1] !== oldContext.lastTopic) {
-    oldContext.lastTopic = newContext.topics[newContext.topics.length - 1];
-  }
-  
-  // Add conversation history
-  if (oldContext.messages && newContext.messages) {
-    // Only add messages that aren't already in old context
-    const oldMessageContents = oldContext.messages.map(m => m.content);
-    for (const msg of newContext.messages) {
-      if (!oldMessageContents.includes(msg.content)) {
-        oldContext.messages.push(msg);
-      }
-    }
-  }
-  
-  // Keep last interaction time synchronized
-  oldContext.lastInteraction = Date.now();
-}
 
 // Add these maps at the top of your file with other globals
 const sessionConversations = new Map(); // Maps sessionId -> conversationId
@@ -269,7 +240,6 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 
 // Cache and state management
 const responseCache = new Map();
-const conversationContext = new Map();
 
 // Seasonal opening hours object
 const OPENING_HOURS = {
@@ -1428,11 +1398,11 @@ const getErrorMessage = (isIcelandic) => {
         ERROR_MESSAGES.en.general;
 };
 
-// ADD THE NEW CONSTANTS HERE 👇 (These seem unused)
+// ADD THE NEW CONSTANTS HERE 👇 (These seem unused - Can I delete them?)
 const activeConnections = new Map();  // Track active WebSocket connections
 const conversationBuffer = new Map(); // Buffer recent conversations
 
-// Track active chat sessions
+// Track active chat sessions (Seems unused?)
 const chatSessions = new Map();
 
 // This Map tracks messages already sent to analytics to prevent duplicates (then referenced later in the sendConversationToAnalytics function)
@@ -1754,111 +1724,6 @@ const CONTEXT_PATTERNS = {
             'segðu mér meira um'
         ]
     }
-};
-
-// Initialize context before any usage
-const initializeContext = (sessionId, languageDecision) => {
-    return {
-        messages: [],
-        bookingTime: null,
-        lateArrival: null,
-        lastInteraction: Date.now(),
-        language: languageDecision.isIcelandic ? 'is' : 'en',  // Use languageDecision
-        languageInfo: {  // Add new language tracking
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason,
-            lastUpdate: Date.now()
-        },
-        conversationStarted: true,  // Initialize as true since ChatWidget handles first greeting
-        messageCount: 0,
-        lastTopic: null,
-        lastResponse: null,
-        conversationMemory: {
-            topics: [],
-            lastResponse: null,
-            contextualQuestions: {},
-            previousInteractions: [],
-            addTopic: function(topic, details) {
-                this.topics.unshift({ 
-                    topic, 
-                    details, 
-                    timestamp: Date.now(),
-                    language: languageDecision.isIcelandic ? 'is' : 'en'  // Add language tracking to topics
-                });
-                if (this.topics.length > 5) this.topics.pop();
-            },
-            getLastTopic: function() {
-                return this.topics[0]?.topic || null;
-            },
-            getTopicDetails: function(topic) {
-                return this.topics.find(t => t.topic === topic)?.details || null;
-            }
-        },
-        lateArrivalContext: {
-            isLate: false,
-            type: null,
-            minutes: null,
-            lastUpdate: null,
-            previousResponses: [],
-            addResponse: function(response) {
-                this.previousResponses.unshift({
-                    response,
-                    timestamp: Date.now(),
-                    language: languageDecision.isIcelandic ? 'is' : 'en'  // Add language tracking to responses
-                });
-                if (this.previousResponses.length > 3) this.previousResponses.pop();
-            },
-            hasRecentInteraction: function() {
-                return this.lastUpdate && 
-                       (Date.now() - this.lastUpdate) < 5 * 60 * 1000;
-            }
-        },
-        icelandicTopics: [],
-        timeContext: {
-            bookingTime: null,
-            activityDuration: {
-                ritual: 45,
-                dining: 60,
-                bar: 30
-            },
-            sequence: [],
-            lastDiscussedTime: null
-        },
-        lastQuestion: null,
-        lastAnswer: null,
-        prevQuestions: [],
-        contextualReferences: [],
-        relatedTopics: [],
-        questionContext: null,
-        selectedGreeting: null,
-        isFirstGreeting: true,
-        selectedAcknowledgment: null,
-        isAcknowledgment: false,
-        seasonalContext: {
-            type: null,
-            subtopic: null,
-            lastFollowUp: null,
-            previousSeason: null,
-            holidayContext: {
-                isHoliday: false,
-                holidayType: null,
-                specialHours: null
-            },
-            transitionDate: null,
-            currentInfo: null
-        },
-        currentSeason: null,
-        referenceContext: null,
-        lateArrivalScenario: null,
-        soldOutStatus: false,
-        lastTransition: null,
-        bookingModification: {
-            requested: false,
-            type: null,
-            originalTime: null
-        }
-    };
 };
 
 // Add new code here
@@ -2218,333 +2083,8 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
         messages.general;
 };
 
-// Context management
-const updateContext = (sessionId, message, response, languageDecision) => {
-    let context = conversationContext.get(sessionId) || 
-                 initializeContext(sessionId, languageDecision?.isIcelandic ? 'is' : 'en');
-    
-    // Enhanced language context maintenance
-    const previousContext = conversationContext.get(sessionId);
-    
-    // If previous context exists, strongly maintain its language
-    if (previousContext) {
-        context.language = previousContext.language;
-    }
-    
-    // Only override if current message has clear language indicators from new system
-    if (languageDecision) {
-        if (languageDecision.isIcelandic && languageDecision.confidence === 'high') {
-            context.language = 'is';
-        } else if (!languageDecision.isIcelandic && languageDecision.confidence === 'high') {
-            context.language = 'en';
-        }
-    }
-
-    // NEW: Improved topic detection - check if message is about arrival time/period but not late arrival
-    const isAboutArrivalPeriod = 
-        message.toLowerCase().includes('arrival period') || 
-        message.toLowerCase().includes('check-in window') || 
-        message.toLowerCase().includes('when should i arrive') ||
-        message.toLowerCase().includes('how early can i arrive') ||
-        message.toLowerCase().includes('when can i arrive');
-
-    // NEW: Better detection for price/purchase topics
-    const isAboutPricing = 
-        message.toLowerCase().includes('price') || 
-        message.toLowerCase().includes('cost') || 
-        message.toLowerCase().includes('isk') || 
-        message.toLowerCase().includes('package') ||
-        message.toLowerCase().includes('purchase') ||
-        message.toLowerCase().includes('buy') ||
-        /\d+,\d+/.test(message.toLowerCase()) || // Price format with commas
-        (message.toLowerCase().includes('child') && /\d+/.test(message.toLowerCase())) || // Children pricing
-        (message.toLowerCase().includes('adult') && /\d+/.test(message.toLowerCase()));   // Adult pricing
-
-    // NEW: Better detection for transportation status
-    const isAboutTransportation = 
-        (message.toLowerCase().includes('bus') || 
-         message.toLowerCase().includes('transfer') || 
-         message.toLowerCase().includes('shuttle')) &&
-        (message.toLowerCase().includes('arrived') || 
-         message.toLowerCase().includes('waiting') || 
-         message.toLowerCase().includes('stop')) &&
-        !message.toLowerCase().includes('booking') && 
-        !message.toLowerCase().includes('reservation');
-
-    // Reset specific contexts when appropriate
-    if (message.toLowerCase().includes('reschedule') || 
-        message.toLowerCase().includes('change') || 
-        message.toLowerCase().includes('modify') ||
-        isAboutArrivalPeriod ||
-        isAboutPricing ||
-        isAboutTransportation) {
-        // Reset late arrival context when explicitly asking about booking changes
-        // or when asking about unrelated topics
-        context.lateArrivalContext = {
-            ...context.lateArrivalContext,
-            isLate: false,
-            lastUpdate: Date.now()
-        };
-
-        // Set topic based on content
-        if (isAboutArrivalPeriod) {
-            context.lastTopic = 'arrival_info';
-        } else if (isAboutPricing) {
-            context.lastTopic = 'pricing';
-        } else if (isAboutTransportation) {
-            context.lastTopic = 'transportation';
-        }
-
-        // Reset sold out status unless explicitly mentioned in current message
-        if (!message.toLowerCase().includes('sold out')) {
-            context.soldOutStatus = false;
-        }
-    }
-
-    // Clear late arrival context if conversation moves to a different topic
-    if (!message.toLowerCase().includes('late') && 
-        !message.toLowerCase().includes('delay') &&
-        !message.toLowerCase().includes('flight') &&
-        context.lastTopic === 'late_arrival') {
-        // Use simple pattern matching instead of complex detection
-        if (!isLateArrivalTopic(message, languageDecision) && !message.match(/it|that|this|these|those|they|there/i)) {
-            context.lateArrivalContext = {
-                ...context.lateArrivalContext,
-                isLate: false,
-                lastUpdate: Date.now()
-            };
-            // Only clear lastTopic if we're sure we're moving to a different subject
-            if (!message.toLowerCase().includes('book')) {
-                context.lastTopic = null;
-            }
-        }
-    }
-
-    // Update late arrival context if detected with simplified detection
-    if (isLateArrivalTopic(message, languageDecision)) {
-        context.lateArrivalContext = {
-            ...context.lateArrivalContext,
-            isLate: true,
-            lastUpdate: Date.now()
-        };
-        context.lastTopic = 'late_arrival';
-        console.log('\n🕒 Late arrival topic detected in context update');
-    }
-
-    // Enhanced context tracking
-    if (message) {
-        // Store question and update history
-        context.lastQuestion = message;
-        context.prevQuestions = [
-            ...(context.prevQuestions || []).slice(-2),
-            message
-        ];
-
-        // Enhanced conversation memory tracking
-        context.conversationMemory.previousInteractions.push({
-            type: 'user',
-            content: message,
-            timestamp: Date.now(),
-            topic: context.lastTopic || null
-        });
-
-        // Maintain memory limit
-        if (context.conversationMemory.previousInteractions.length > CONTEXT_MEMORY_LIMIT * 2) {
-            context.conversationMemory.previousInteractions = 
-                context.conversationMemory.previousInteractions.slice(-CONTEXT_MEMORY_LIMIT * 2);
-        }
-
-        // Detect follow-up patterns
-        const patterns = CONTEXT_PATTERNS.followUp[context.language === 'is' ? 'is' : 'en'];
-        if (patterns.some(pattern => message.toLowerCase().includes(pattern))) {
-            context.questionContext = context.lastTopic;
-        }
-
-        // Track topic relationships
-        if (context.lastTopic) {
-            context.relatedTopics = [...new Set([
-                ...(context.relatedTopics || []),
-                context.lastTopic
-            ])];
-        }
-    }
-
-    if (response) {
-        // Store answer and track references
-        context.lastAnswer = response;
-
-        // Track response in conversation memory
-        context.conversationMemory.previousInteractions.push({
-            type: 'assistant',
-            content: response,
-            timestamp: Date.now(),
-            topic: context.lastTopic || null
-        });        
-
-        // Detect references to previous content
-        const referencePatterns = CONTEXT_PATTERNS.reference[context.language === 'is' ? 'is' : 'en'];
-        if (referencePatterns.some(pattern => response.toLowerCase().includes(pattern))) {
-            context.contextualReferences.push({
-                topic: context.lastTopic,
-                timestamp: Date.now()
-            });
-        }
-    }
-
-    // Increment message count
-    context.messageCount++;
-
-    // Track topics discussed in specific languages
-    if (message) {
-        const currentTopic = detectTopic(message, 
-            languageDecision?.isIcelandic ? 
-            getRelevantKnowledge_is(message) : 
-            getRelevantKnowledge(message),
-            context,
-            languageDecision
-        ).topic;
-
-        if (currentTopic) {
-            if (languageDecision?.isIcelandic) {
-                context.icelandicTopics = [...new Set([
-                    ...(context.icelandicTopics || []),
-                    currentTopic
-                ])];
-                console.log('\n🌍 Updated Icelandic Topics:', {
-                    topics: context.icelandicTopics,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence
-                    }
-                });
-            }
-        }
-    }
-
-    // ADD NEW TIME TRACKING CODE HERE 👇
-    // Check for time-related queries
-    if (message) {
-        const timePatterns = {
-            duration: /how long|hversu lengi|what time|hvað tekur|hvað langan tíma|hve lengi|hversu langan|takes how long|how much time|does it take/i,  // Added "does it take"
-            booking: /book for|bóka fyrir|at|kl\.|klukkan|time slot|tíma|mæta|coming at|arrive at/i,
-            specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i,
-            dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar|eat|dining/i,
-            activities: /ritual|ritúal|dinner|food|mat|borða/i,  // Moved ritual first
-            closing: /close|closing|lok|loka|lokar|lokun/i
-        };
-    
-        // Track if message is asking about duration
-        if (timePatterns.duration.test(message)) {
-            if (context.lastTopic || message.toLowerCase().includes('ritual')) {
-                context.timeContext.lastDiscussedTime = {
-                    topic: message.toLowerCase().includes('ritual') ? 'ritual' : context.lastTopic,
-                    type: 'duration',
-                    timestamp: Date.now(),
-                    activity: message.toLowerCase().includes('ritual') ? 'ritual' : context.lastTopic
-                };
-                console.log('\n⏰ Duration Question Detected:', message);
-            }
-        }
-
-        // Track activities mentioned together
-        if (timePatterns.activities.test(message)) {
-            const activities = [];
-            if (message.match(/ritual|ritúal/i)) activities.push('ritual');
-            if (message.match(/dinner|food|mat|borða|dining/i)) activities.push('dining');
-            if (activities.length > 0) {
-                context.timeContext.sequence = activities;
-                console.log('\n🔄 Activity Sequence Updated:', activities);
-            }
-        }
-
-        // Track specific times mentioned
-        const timeMatch = message.match(timePatterns.specific);
-        if (timeMatch) {
-            const time = timeMatch[0];
-            context.timeContext.lastDiscussedTime = {
-                time: time,
-                type: 'specific',
-                timestamp: Date.now()
-            };
-            
-            // If booking-related, update booking time
-            if (timePatterns.booking.test(message)) {
-                context.timeContext.bookingTime = time;
-                console.log('\n⏰ Booking Time Updated:', time);
-            }
-        }
-
-        // Enhanced logging
-        if (context.timeContext.lastDiscussedTime || context.timeContext.sequence.length > 0) {
-            console.log('\n⏰ Time Context Updated:', {
-                lastDiscussed: context.timeContext.lastDiscussedTime,
-                bookingTime: context.timeContext.bookingTime,
-                sequence: context.timeContext.sequence,
-                message: message,
-                totalDuration: context.timeContext.sequence.reduce((total, activity) => 
-                    total + (context.timeContext.activityDuration[activity] || 0), 0)
-            });
-        }
-    }
-
-    // Track if a follow-up was offered
-    if (response && response.toLowerCase().includes('would you like')) {
-        context.offeredMoreInfo = true;
-    }
-
-    // Update messages array
-    if (message) {
-        context.messages.push({
-            role: 'user',
-            content: message
-        });
-    }
-    if (response) {
-        context.messages.push({
-            role: 'assistant',
-            content: response
-        });
-    }
-
-    // Maintain reasonable history size
-    if (context.messages.length > MAX_CONTEXT_MESSAGES) {
-        context.messages = context.messages.slice(-MAX_CONTEXT_MESSAGES);
-    }
-
-    // Update last interaction time
-    context.lastInteraction = Date.now();
-    context.lastResponse = response;
-    
-    // Enhanced language context persistence
-    if (response) {
-        // If previous context was Icelandic, maintain it strongly
-        if (previousContext?.language === 'is') {
-            context.language = 'is';
-        } 
-        // If response contains Icelandic characters, set to Icelandic
-        else if (/[þæðöáíúéó]/i.test(response)) {
-            context.language = 'is';
-        }
-        // If response is clearly in Icelandic, set to Icelandic
-        else if (context.lastResponse?.includes('þú') || 
-                context.messages?.some(m => m.content.includes('þú'))) {
-            context.language = 'is';
-        }
-    }
-
-    // Save context
-    conversationContext.set(sessionId, context);
-    return context;
-};
-
-const getContext = (sessionId) => conversationContext.get(sessionId);
-
-setContextFunction(getContext);
-
-// Enhanced chat endpoint with GPT-4 optimization
+// Modified chat endpoint using only the new context system
 app.post('/chat', verifyApiKey, async (req, res) => {
-    let context;  // Single declaration at the top
-    
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -2586,11 +2126,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     };
     
     try {
-        // Keep variable for backward compatibility with other code references
-        const currentSession = conversationContext.get('currentSession');
-        
-        // IMPORTANT CHANGE: Get sessionId directly from the request body - ALWAYS prioritize this
-        // Never fall back to the global currentSession to prevent context bleeding
+        // MIGRATION: Get sessionId directly from the request body
         const sessionId = req.body.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         
         console.log('\n🔍 Full request body:', req.body);
@@ -2601,23 +2137,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // No longer storing in global 'currentSession' to prevent context bleeding
-        // Other parts of code may still need to read it, but we don't update it here
-        
-        // Get or create context using the new system
-        const newContext = getSessionContext(sessionId);
+        // MIGRATION: Get or create context using ONLY the new system
+        const context = getSessionContext(sessionId);
 
-        // Get initial context for this specific session (for backward compatibility)
-        context = conversationContext.get(sessionId);
+        // Do language detection with the context
+        const languageDecision = newDetectLanguage(userMessage, context);        
 
-        // Do language detection first, with null context if we don't have one yet
-        const languageDecision = newDetectLanguage(userMessage, context || newContext);        
-
-        // NEW CODE: Extract language code in addition to isIcelandic
+        // Extract language code in addition to isIcelandic
         const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
         
-        // Update language info in the new context
-        updateLanguageContext(newContext, userMessage);
+        // Update language info in the context
+        updateLanguageContext(context, userMessage);
         
         // Enhanced logging for language detection
         console.log('\n🌍 Enhanced Language Detection:', {
@@ -2629,7 +2159,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             sessionId: sessionId // Add session ID to logs for traceability
         });
 
-        // NEW: Check for non-supported languages
+        // Check for non-supported languages
         if (languageDecision.reason === 'non_supported_language') {
             console.log('\n🌐 Non-supported language detected:', {
                 message: userMessage,
@@ -2640,7 +2170,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
             
             // Add to new context system before responding
-            addMessageToContext(newContext, { role: 'user', content: userMessage });
+            addMessageToContext(context, { role: 'user', content: userMessage });
             
             // Use the unified broadcast system but don't send response yet
             const responseData = await sendBroadcastAndPrepareResponse({
@@ -2656,29 +2186,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(responseData.status || 200).json(responseData);
         }
 
-        // Keep old system during testing (modified to work without languageResult)
-        const oldSystemResult = {
-            isIcelandic: detectLanguage(userMessage),  // Simplified old system check
-            source: 'old_system'
-        };
-
-        // Now initialize old context if it doesn't exist, using our language detection
-        if (!context) {
-            context = initializeContext(sessionId, languageDecision);
-            conversationContext.set(sessionId, context);
-        }
+        // Add this message to the context system
+        addMessageToContext(context, { role: 'user', content: userMessage });
         
-        // Add this message to the new context system
-        addMessageToContext(newContext, { role: 'user', content: userMessage });
-        
-        // Update topics in the new context system
-        updateTopicContext(newContext, userMessage);
+        // Update topics in the context system
+        updateTopicContext(context, userMessage);
 
         // Log session info for debugging
         console.log('\n🔍 Session ID:', {
             sessionId,
-            isNewSession: !currentSession,
-            currentSession: conversationContext.get('currentSession')
+            language: context.language,
+            lastTopic: context.lastTopic,
+            topics: context.topics
         });
 
         // Enhanced logging for language detection results
@@ -2700,35 +2219,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Enhanced logging to compare systems
-        console.log('\n🔍 Language Detection Comparison:', {
-            message: userMessage,
-            oldSystem: oldSystemResult,
-            newSystem: languageDecision,
-            match: oldSystemResult.isIcelandic === languageDecision.isIcelandic
-        });
-
-        // During testing phase, still use old system result
-        const isIcelandic = oldSystemResult.isIcelandic;
-
-        // Add simplified languageCheck object using new system
-        const languageCheck = {
-            hasDefiniteEnglish: !languageDecision.isIcelandic && languageDecision.confidence === 'high',
-            hasIcelandicStructure: languageDecision.isIcelandic,
-            hasEnglishStructure: !languageDecision.isIcelandic,
-            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-            rawDetection: languageDecision
-        };
-
-        // Enhanced language decision logging
-        console.log('\n🌍 Language Decision:', {
-            message: userMessage,
-            decision: languageDecision,
-            finalDecision: languageDecision.isIcelandic ? 'Icelandic' : 'English'
-        });
-        
-        // Endpoint Booking Change Request System structure
-        // FIRST: Handle booking form submissions
+        // MIGRATION: Handle booking form submissions
         if (req.body.isBookingChangeRequest) {
             try {
                 // Parse the message as form data
@@ -2760,6 +2251,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
                     "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
                 
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: confirmationMessage });
+                
                 // Use the unified broadcast system but don't send response yet
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: confirmationMessage,
@@ -2780,6 +2274,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
                     "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
                 
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: errorMessage });
+                
                 // Use the unified broadcast system but don't send response yet
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: errorMessage,
@@ -2797,10 +2294,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // SECOND: Check if we should show booking change form.
+        // MIGRATION: Check if we should show booking change form - using context system's booking context
         const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision);
 
-        if (bookingFormCheck.shouldShowForm) {
+        if (bookingFormCheck.shouldShowForm || context.bookingContext?.hasBookingIntent) {
             try {
                 // Create chat using bot for the booking change request
                 console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
@@ -2816,6 +2313,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const bookingChangeMessage = languageDecision.isIcelandic ?
                     `Ég sé að þú vilt breyta bókuninni þinni. ${!bookingFormCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
                     `I see you'd like to change your booking. ${!bookingFormCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
+
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
 
                 // Use the unified broadcast system but don't send response yet
                 const responseData = await sendBroadcastAndPrepareResponse({
@@ -2841,6 +2341,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
                     "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
 
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
+
                 // Use the unified broadcast system but don't send response yet
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
@@ -2856,7 +2359,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // Check if we should transfer to human agent (only if not a booking change)
+        // MIGRATION: Check if we should transfer to human agent - using new context system's lastTopic
         const transferCheck = await shouldTransferToAgent(userMessage, languageDecision, context);
         
         console.log('\n🔄 Transfer Check Result:', {
@@ -2887,6 +2390,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
                     "I'm connecting you with a customer service representative. One moment...";
 
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: transferMessage });
+
                 // Use the unified broadcast system but don't send response yet
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: transferMessage,
@@ -2912,6 +2418,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     "Því miður er ekki hægt að tengja þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
                     "I'm sorry, I couldn't connect you with an agent at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
 
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
+
                 // Use the unified broadcast system but don't send response yet
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
@@ -2928,6 +2437,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
+            // Add response to context
+            addMessageToContext(context, { role: 'assistant', content: transferCheck.response });
+            
             // Use the unified broadcast system but don't send response yet
             const responseData = await sendBroadcastAndPrepareResponse({
                 message: transferCheck.response,
@@ -2971,573 +2483,40 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // If not transferring or transfer failed, continue with regular chatbot flow...
-
-        // Simplified greeting context setting (replacing the entire previous block)
-        if (userMessage && userMessage.trim()) {
-            // Set conversation started flag for any message
-            if (!context.conversationStarted) {
-                context.conversationStarted = true;
-                console.log('\n👋 Setting conversation started flag');
-            }
-            
-            // Update language in context
-            if (languageDecision) {
-                context.language = languageDecision.isIcelandic ? 'is' : 'en';
-            }
-            
-            // Save context
-            conversationContext.set(sessionId, context);
+        // MIGRATION: Detect if sunset information is relevant
+        let sunsetData = null;
+        if (isSunsetQuery(userMessage, languageDecision)) {
+            console.log('\n🌅 Sunset-related query detected - adding data to context');
+            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
         }
 
-        // MOVE TOPIC CONTEXT CODE HERE - after context initialization
-        if (userMessage.toLowerCase().includes('ritual') || 
-            (context.lastTopic === 'ritual' && 
-             userMessage.toLowerCase().match(/how long|take|duration|time/i))) {
-            context.lastTopic = 'ritual';
-            context.timeContext = context.timeContext || {};
-            context.timeContext.activityDuration = context.timeContext.activityDuration || {
-                ritual: 45,
-                dining: 60,
-                bar: 30
-            };
+        // Detect late arrival scenario - now using context system's late arrival tracking
+        if (isLateArrivalMessage(userMessage, languageDecision.isIcelandic)) {
+            console.log('\n🕒 Late arrival message detected');
+            context.lateArrivalContext.isLate = true;
+            context.lastTopic = 'late_arrival';
         }
 
-        // Late arrival simple detection
-        if (isLateArrivalTopic(userMessage, languageDecision)) {
-                console.log('\n🕒 Late arrival topic detected via simple pattern matching');
-                context.lastTopic = 'late_arrival';
-                // Simplified context - no complex categorization
-                context.lateArrivalContext = {
-                        isLate: true,
-                        lastUpdate: Date.now()
-                };
-        }        
-
-        // ADD THE NEW CODE RIGHT HERE 👇
-            // Add timestamp for performance tracking
-            const startTime = Date.now();
-
-            // Add logging before check
-            console.log('\n🔍 Processing Query:', {
-                message: userMessage,
-                isIcelandic,
-                timestamp: new Date().toISOString()
-            });        
+        // Get current season info for hours
+        const seasonInfo = getCurrentSeason();
         
-            // First check for ritual skipping queries
-            const isRitualSkippingQuery = isIcelandic && (
-                (userMessage.toLowerCase().includes('bara') && (userMessage.toLowerCase().includes('lón') || userMessage.toLowerCase().includes('laug'))) ||
-                (userMessage.toLowerCase().includes('án') && userMessage.toLowerCase().includes('ritúal')) ||
-                (userMessage.toLowerCase().includes('sleppa') && userMessage.toLowerCase().includes('ritúal')) ||
-                (userMessage.toLowerCase().includes('bóka') && userMessage.toLowerCase().includes('bara') && userMessage.toLowerCase().includes('laug')) ||
-                (userMessage.toLowerCase().includes('hægt') && userMessage.toLowerCase().includes('bara') && userMessage.toLowerCase().includes('laug'))
-            );
-            
-            // Add ritual skipping check logging
-            console.log('\n🧘 Ritual Skipping Check:', {
-                isRitualSkippingQuery,
-                message: userMessage
-            });
-            
-            // Handle ritual skipping queries - MODIFIED
-            if (isRitualSkippingQuery) {
-                console.log('\n❌ Skip Ritual Query Found - Forwarding to normal processing');
-                
-                // Just add to context but don't hardcode response
-                context.lastTopic = 'ritual';
-                context.ritualSkipping = true; // Add this flag for GPT context
-                conversationContext.set(sessionId, context);
-                
-                // Continue to normal processing - NO early return
-            }
-        
-            // Enhanced booking detection/Simplified for better performance - Add this BEFORE late arrival check
-            const isAvailabilityQuery = isIcelandic && (
-                userMessage.toLowerCase().includes('eigið laust') ||
-                userMessage.toLowerCase().includes('laust pláss') ||
-                userMessage.toLowerCase().includes('laus pláss') ||   // Add this variation
-                userMessage.toLowerCase().includes('lausar tímar') ||  // Add this variation (available times)
-                userMessage.toLowerCase().includes('lausir tímar') ||  // Add this variation (another gender form)
-                userMessage.toLowerCase().includes('hægt að bóka') ||
-                userMessage.toLowerCase().includes('á morgun') ||
-                userMessage.toLowerCase().includes('laust fyrir') || 
-                userMessage.toLowerCase().includes('pláss á') ||      // Add this more generic check
-                userMessage.toLowerCase().includes('pláss í') ||
-                userMessage.toLowerCase().includes('eitthvað laust') ||  // Add this pattern
-                userMessage.toLowerCase().includes('er laust')           // Add this pattern   
-            );
-
-            // Add logging after check
-            console.log('\n✅ Availability Check:', {
-                isAvailabilityQuery,
-                message: userMessage,
-                processingTime: Date.now() - startTime
-            });
-            
-            // Add availability to context but remove hardcoded handler
-            if (isAvailabilityQuery) {
-                console.log('\n🗓️ Availability Query Found - Forwarding to normal processing');
-                
-                // Extract day from message if present for context
-                let dayMentioned = "";
-                if (userMessage.toLowerCase().includes('mánudag')) dayMentioned = "mánudegi";
-                else if (userMessage.toLowerCase().includes('þriðjudag')) dayMentioned = "þriðjudegi";
-                else if (userMessage.toLowerCase().includes('miðvikudag')) dayMentioned = "miðvikudegi";
-                else if (userMessage.toLowerCase().includes('fimmtudag')) dayMentioned = "fimmtudegi";
-                else if (userMessage.toLowerCase().includes('föstudag')) dayMentioned = "föstudegi";
-                else if (userMessage.toLowerCase().includes('laugardag')) dayMentioned = "laugardegi";
-                else if (userMessage.toLowerCase().includes('sunnudag')) dayMentioned = "sunnudegi";
-                
-                // Just update context without hardcoding a response
-                context.lastTopic = 'availability';
-                context.availabilityQuery = true;
-                context.dayMentioned = dayMentioned || null;
-                conversationContext.set(sessionId, context);
-                
-                // Continue to normal processing - NO early return
-            }  
-
-            const msg = userMessage.toLowerCase();                  
-
-        // Simple context setting for small talk/identity/greeting questions
-        if (userMessage) {
-            // Detect small talk for context (but don't handle it directly)
-            const isSmallTalkQuestion = 
-                /^how (?:are you|(?:you )?doing|is it going)/i.test(userMessage) ||
-                /^(?:what'?s up|what up|sup|yo|wassup)/i.test(userMessage) || 
-                /^(?:who are you|are you (?:ai|a bot|human|real))/i.test(userMessage) ||
-                // Icelandic equivalents
-                /^(?:hvernig|hvað) (?:hefur[ðd]u (?:það|það)|gengu[rd]|líður þér)/i.test(userMessage) ||
-                /^(?:hvað segir[uð]|sæll og blessaður|sæl og blessuð)/i.test(userMessage) ||
-                /^(?:hver ert þú|ertu (?:ai|gervigreind|vélmenni|bot))/i.test(userMessage);
-            
-            if (isSmallTalkQuestion) {
-                console.log('\n💬 Small talk question detected, setting context');
-                context.lastTopic = 'small_talk';
-                // No return - continue to ChatGPT
-            }
+        // Update time context tracking if relevant
+        if (userMessage.toLowerCase().match(/hour|time|opin|lokar|when|hvenær|ritual|duration/i)) {
+            const timeContext = updateTimeContext(userMessage, context, seasonInfo);
+            console.log('\n⏰ Time context updated:', timeContext);
         }
-
-        // ADD NEW SMART CONTEXT CODE Right HERE 👇 .
-        // Smart context-aware knowledge base selection
-        const getRelevantContent = (userMessage) => {  // Remove isIcelandic parameter
-            // Use our new language detection with existing context
-            const contentLanguageDecision = newDetectLanguage(userMessage, context);
-
-            // Get knowledge base results immediately based on language decision
-            let baseResults = [];
-            try {
-                baseResults = contentLanguageDecision.isIcelandic ? 
-                    getRelevantKnowledge_is(userMessage) : 
-                    getRelevantKnowledge(userMessage);
-                
-                // Ensure baseResults is an array
-                if (!Array.isArray(baseResults)) {
-                    console.warn('⚠️ baseResults is not an array, using empty array instead');
-                    baseResults = [];
-                }
-            } catch (error) {
-                console.error('❌ Error getting knowledge base results:', error.message);
-                // Keep baseResults as empty array
-            }
-
-            // Time context detection
-            const timeContext = detectTimeContext(userMessage, getCurrentSeason(), contentLanguageDecision);
-            if (timeContext.type && context) {
-                // Update existing timeContext with new information
-                context.timeContext = {
-                    ...context.timeContext,
-                    lastDiscussedTime: {
-                        type: timeContext.type,
-                        activity: timeContext.activity,
-                        timestamp: Date.now()
-                    },
-                    // Keep existing sequence and activityDuration
-                    sequence: timeContext.activity ? 
-                        [...context.timeContext.sequence, timeContext.activity] :
-                        context.timeContext.sequence,
-                    // Keep existing durations
-                    activityDuration: context.timeContext.activityDuration
-                };
-                
-                console.log('\n⏰ Time Context Updated:', {
-                    type: timeContext.type,
-                    activity: timeContext.activity,
-                    sequence: context.timeContext.sequence,
-                    operatingHours: timeContext.operatingHours,
-                    language: {
-                        isIcelandic: contentLanguageDecision.isIcelandic,
-                        confidence: contentLanguageDecision.confidence
-                    }
-                });
-            }
-
-            // Enhanced package detection
-            const isSamanQuery = userMessage.toLowerCase().includes('saman');
-            const isSerQuery = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
-            
-            // Update package context
-            if (context) {
-                // Update package type if explicitly mentioned
-                if (isSamanQuery) context.lastPackage = 'saman';
-                if (isSerQuery) context.lastPackage = 'ser';
-                
-                // Maintain existing package context for follow-up questions
-                if (!context.lastPackage && (context.lastTopic === 'packages' || context.previousPackage)) {
-                    context.lastPackage = context.previousPackage;
-                }
-                
-                // Store current package as previous for next query
-                if (context.lastPackage) {
-                    context.previousPackage = context.lastPackage;
-                }
-
-                // Persist package context for dining queries
-                if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|matur|veitingar/)) {
-                    context.lastTopic = 'dining';
-                    // Ensure package context carries over to dining
-                    if (context.previousPackage && !context.lastPackage) {
-                        context.lastPackage = context.previousPackage;
-                    }
-                }
-            }
-
-            // Enhanced context logging
-            console.log('\n🧠 Context Analysis:', {
-                message: userMessage,
-                lastTopic: context?.lastTopic,
-                lastPackage: context?.lastPackage,
-                lastLocation: context?.lastLocation,
-                language: {
-                    isIcelandic: contentLanguageDecision.isIcelandic,
-                    confidence: contentLanguageDecision.confidence,
-                    reason: contentLanguageDecision.reason
-                },
-                packageDetected: isSamanQuery ? 'saman' : isSerQuery ? 'ser' : null
-            });
-
-            // Add package context debug log
-            if (context?.lastPackage) {
-                console.log('\n📦 Package Context:', {
-                    current: context.lastPackage,
-                    previous: context.previousPackage,
-                    topic: context.lastTopic,
-                    language: {
-                        isIcelandic: contentLanguageDecision.isIcelandic,
-                        confidence: contentLanguageDecision.confidence
-                    }
-                });
-            }
-
-            // Check for package upgrade or modification questions first
-            const isPackageContext = context?.lastTopic === 'packages';
-            const isSamanMention = userMessage.toLowerCase().includes('saman');
-            const isSerMention = userMessage.toLowerCase().match(/private|changing|sér|einkaaðstöðu/);
-
-            if (isPackageContext || isSamanMention || isSerMention) {
-                // Handle upgrade to private changing
-                if (userMessage.toLowerCase().match(/private|changing|sér|upgrade|better/)) {
-                    console.log('\n📦 Package Upgrade Detected:', {
-                        language: {
-                            isIcelandic: contentLanguageDecision.isIcelandic,
-                            confidence: contentLanguageDecision.confidence
-                        }
-                    });
-                    return [{
-                        type: 'packages',
-                        content: {
-                            type: 'ser',
-                            context: 'upgrade',
-                            previousPackage: context?.lastPackage || 'saman'
-                        }
-                    }];
-                }
-
-                // Handle dining within package context
-                if (userMessage.toLowerCase().match(/food|eat|dining|restaurant|bar|smakk|keimur|gelmir|matur|veitingar|innifalinn/)) {
-                    const currentPackage = context?.lastPackage || 'standard';
-                    
-                    console.log('\n🍽️ Package Dining Query Detected:', {
-                        package: currentPackage,
-                        query: userMessage,
-                        language: {
-                            isIcelandic: contentLanguageDecision.isIcelandic,
-                            confidence: contentLanguageDecision.confidence
-                        }
-                    });
-                    
-                    return [{
-                        type: 'dining',
-                        content: {
-                            packageType: currentPackage,
-                            dining: {
-                                options: ['Smakk Bar', 'Keimur Café', 'Gelmir Bar'],
-                                packageInclusions: currentPackage === 'ser' ? 
-                                    ['Premium Dining Access', 'Sky Products'] :
-                                    currentPackage === 'stefnumot' ? 
-                                    ['Sky Platter', 'Welcome Drink'] : []
-                            },
-                            isIncluded: userMessage.toLowerCase().includes('innifalinn'),
-                            packageSpecific: true
-                        }
-                    }];
-                }
-            }
-
-            // Handle location/facilities context
-            if (context?.lastServiceType === 'ser' || 
-                context?.lastPackage === 'ser' || 
-                userMessage.toLowerCase().includes('facilities')) {
-                
-                if (userMessage.toLowerCase().match(/where|location|facilities|changing|locker|shower|private/)) {
-                    console.log('\n🏢 Facilities Query Detected', {
-                        language: {
-                            isIcelandic: contentLanguageDecision.isIcelandic,
-                            confidence: contentLanguageDecision.confidence
-                        }
-                    });
-                    return [{
-                        type: 'facilities',
-                        content: {
-                            type: 'ser',
-                            facilities: {
-                                changingRooms: 'private',
-                                amenities: ['Sky Products', 'Private Shower', 'Hair Dryer']
-                            }
-                        }
-                    }];
-                }
-            }
-
-            // Check for context-dependent words (follow-up questions)
-            const contextWords = /it|that|this|these|those|they|there/i;
-            const isContextQuestion = userMessage.toLowerCase().match(contextWords);
-
-            // More specific question type detection
-            const isDurationQuestion = userMessage.toLowerCase().match(/how long|take|duration|time|hvað tekur|hversu lengi/i) || 
-                                     userMessage.toLowerCase().match(/how much time/i);
-            const isPriceQuestion = userMessage.toLowerCase().match(/how much (?!time)|cost|price|expensive/i);
-            const isLocationQuestion = userMessage.toLowerCase().match(/where|location|address|find|get there/i);
-            const isComparisonQuestion = userMessage.toLowerCase().match(/difference|compare|versus|vs|better/i);
-
-            // Enhanced logging for question type detection
-            console.log('\n❓ Question Analysis:', {
-                isDuration: !!isDurationQuestion,
-                isPrice: !!isPriceQuestion,
-                isLocation: !!isLocationQuestion,
-                isComparison: !!isComparisonQuestion,
-                isFollowUp: !!isContextQuestion,
-                lastTopic: context?.lastTopic || null,
-                language: {
-                    isIcelandic: contentLanguageDecision.isIcelandic,
-                    confidence: contentLanguageDecision.confidence,
-                    reason: contentLanguageDecision.reason
-                }
-            });
-            
-            // If we have context and it's a follow-up question
-            if (context?.lastTopic) {
-                console.log('\n🧠 Using Context:', {
-                    lastTopic: context.lastTopic,
-                    previousTopic: context.prevQuestions,
-                    question: userMessage,
-                    isDuration: isDurationQuestion,
-                    isLateArrival: context.lastTopic === 'late_arrival',
-                    language: {
-                        isIcelandic: contentLanguageDecision.isIcelandic,
-                        confidence: contentLanguageDecision.confidence
-                    }
-                });
-                
-                // Use our new language detection system directly
-                let results = [];
-                try {
-                    results = contentLanguageDecision.isIcelandic ? 
-                        getRelevantKnowledge_is(userMessage) : 
-                        getRelevantKnowledge(userMessage);
-                    
-                    // Ensure results is an array
-                    if (!Array.isArray(results)) {
-                        console.warn('⚠️ results is not an array, using empty array instead');
-                        results = [];
-                    }
-                } catch (error) {
-                    console.error('❌ Error getting contextual knowledge results:', error.message);
-                    // Keep results as empty array
-                }
-                    
-                // Enhanced contextual results filtering
-                const contextualResults = results.filter(k => {
-                    // Only process content matching our current topic
-                    if (k.type !== context.lastTopic) return false;
-                    
-                    // For duration questions
-                    if (isDurationQuestion) {
-                        // Get topic from conversationMemory
-                        const lastTopic = context.conversationMemory.getLastTopic();
-                        
-                        if (lastTopic === 'ritual') {
-                            console.log('\n⏱️ Ritual Duration Question:', {
-                                language: {
-                                    isIcelandic: contentLanguageDecision.isIcelandic,
-                                    confidence: contentLanguageDecision.confidence
-                                }
-                            });
-                            return {
-                                type: 'ritual',
-                                content: {
-                                    duration: {
-                                        answer: contentLanguageDecision.isIcelandic ?
-                                            "Skjól ritúalið okkar tekur venjulega 45 mínútur. Þú getur tekið þinn tíma og notið hvers skrefs á þínum hraða. ✨" :
-                                            "Our Skjól ritual typically takes 45 minutes. You're welcome to take your time and fully enjoy each step at your own pace. ✨"
-                                    }
-                                }
-                            };
-                        }
-                        
-                        if (lastTopic === 'packages') {
-                            console.log('\n⏱️ Package Duration Question:', {
-                                language: {
-                                    isIcelandic: contentLanguageDecision.isIcelandic,
-                                    confidence: contentLanguageDecision.confidence
-                                }
-                            });
-                            return {
-                                type: 'packages',
-                                content: {
-                                    duration: {
-                                        answer: contentLanguageDecision.isIcelandic ?
-                                            "Venjuleg heimsókn tekur 1,5-2 klukkustundir, sem felur í sér 45 mínútna ritúal. Þú getur að sjálfsögðu dvalið lengur og slakað á í lóninu okkar. ✨" :
-                                            "A typical visit takes 1.5-2 hours, which includes the 45-minute ritual. You're welcome to stay longer and relax in our lagoon. ✨"
-                                    }
-                                }
-                            };
-                        }
-                    }
-                    
-                    // For non-duration questions
-                    return true;
-                });
-                
-                if (contextualResults.length > 0) {
-                    // Enhanced logging for custom responses
-                    console.log('\n🎯 Using Contextual Results:', {
-                        count: contextualResults.length,
-                        types: contextualResults.map(r => r.type),
-                        language: {
-                            isIcelandic: contentLanguageDecision.isIcelandic,
-                            confidence: contentLanguageDecision.confidence,
-                            reason: contentLanguageDecision.reason
-                        }
-                    });
-
-                    // If we have a custom response, prevent caching
-                    if (contextualResults.some(r => r.forceCustomResponse)) {
-                        console.log('\n🚫 Using custom response - bypassing cache');
-                        contextualResults.forEach(r => r.bypassCache = true);
-                    }
-                    return contextualResults;
-                }
-            }
-            
-            // Use our new language detection consistently
-            console.log('\n🔍 Knowledge Base Selection:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: contentLanguageDecision.isIcelandic,
-                    confidence: contentLanguageDecision.confidence,
-                    reason: contentLanguageDecision.reason
-                }
-            });
-
-            // Get knowledge base results based on language
-            let results = [];
-            try {
-                results = contentLanguageDecision.isIcelandic ? 
-                    getRelevantKnowledge_is(userMessage) : 
-                    getRelevantKnowledge(userMessage);
-                
-                // Ensure results is an array
-                if (!Array.isArray(results)) {
-                    console.warn('⚠️ results is not an array, using empty array instead');
-                    results = [];
-                }
-            } catch (error) {
-                console.error('❌ Error getting knowledge base results:', error.message);
-                // Keep results as empty array
-            }
-
-            // Store the original results length
-            const hasResults = results && results.length > 0;
-
-            // Enhanced results logging
-            console.log('\n📚 Knowledge Base Results:', {
-                count: results.length,
-                types: results.map(r => r.type),
-                language: {
-                    isIcelandic: contentLanguageDecision.isIcelandic,
-                    confidence: contentLanguageDecision.confidence,
-                    reason: contentLanguageDecision.reason
-                }
-            });
-
-            // Only proceed with filtering if we have results
-            if (hasResults) {
-                // Filter results based on time context
-                if (timeContext.type) {
-                    // For duration questions about specific activities
-                    if (timeContext.type === 'duration' && timeContext.activity) {
-                        const filteredResults = results.filter(r => r.type === timeContext.activity)
-                            .map(r => ({
-                                ...r,
-                                priority: 'duration',
-                                activityDuration: context.timeContext.activityDuration[timeContext.activity],
-                                language: {
-                                    isIcelandic: contentLanguageDecision.isIcelandic,
-                                    confidence: contentLanguageDecision.confidence
-                                }
-                            }));
-                        // Only return filtered results if we found matches
-                        if (filteredResults.length > 0) {
-                            return filteredResults;
-                        }
-                    }
-
-                    // For hours queries
-                    if (timeContext.type === 'hours') {
-                        const filteredResults = results.filter(r => r.type === 'hours' || r.type === 'seasonal_information')
-                            .map(r => ({
-                                ...r,
-                                operatingHours: timeContext.operatingHours,
-                                language: {
-                                    isIcelandic: contentLanguageDecision.isIcelandic,
-                                    confidence: contentLanguageDecision.confidence
-                                }
-                            }));
-                        // Only return filtered results if we found matches
-                        if (filteredResults.length > 0) {
-                            return filteredResults;
-                        }
-                    }
-                }
-            }
-
-            // Return original results if we had them
-            return hasResults ? results : [];
-        };
 
         // Use vector search with fallback to traditional search
         let knowledgeBaseResults = [];
         try {
-            // First try vector search with the new context system
+            // First try vector search with the context system
             console.log('\n🔍 Attempting vector search...');
-            knowledgeBaseResults = await getVectorKnowledge(userMessage, newContext);
+            knowledgeBaseResults = await getVectorKnowledge(userMessage, context);
             
             // Log vector search results
             console.log('\n🔍 Vector search results:', {
                 count: knowledgeBaseResults.length,
-                language: newContext.language,
+                language: context.language,
                 query: userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : '')
             });
             
@@ -3545,7 +2524,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (!knowledgeBaseResults || knowledgeBaseResults.length === 0) {
                 console.log('\n🔍 No vector results, falling back to traditional search');
                 try {
-                    const results = getRelevantContent(userMessage);
+                    // Use the appropriate language's traditional search
+                    const results = context.language === 'is' ? 
+                        getRelevantKnowledge_is(userMessage) : 
+                        getRelevantKnowledge(userMessage);
+                    
                     // Ensure results is an array
                     knowledgeBaseResults = Array.isArray(results) ? results : [];
                 } catch (error) {
@@ -3558,7 +2541,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.error('\n❌ Vector search error:', error.message);
             console.log('\n🔍 Falling back to traditional search after error');
             try {
-                const results = getRelevantContent(userMessage);
+                // Use the appropriate language's traditional search
+                const results = context.language === 'is' ? 
+                    getRelevantKnowledge_is(userMessage) : 
+                    getRelevantKnowledge(userMessage);
+                
                 // Ensure results is an array
                 knowledgeBaseResults = Array.isArray(results) ? results : [];
             } catch (fallbackError) {
@@ -3578,295 +2565,45 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Log full results
-        console.log('\n📝 Full Knowledge Base Results:', {
-            count: knowledgeBaseResults.length,
-            message: userMessage,
-            hasDefiniteEnglish: !languageDecision.isIcelandic && languageDecision.confidence === 'high',
-            finalLanguage: languageDecision.isIcelandic ? 'is' : 'en'
-        });
-
-        // Update conversation memory with current topic
+        // Update conversation memory with current topic if we found knowledge
         if (knowledgeBaseResults.length > 0) {
             const mainTopic = knowledgeBaseResults[0].type;
-            // Add language info to topic tracking
+            context.lastTopic = mainTopic;
+            
+            // Add to conversation memory with language info
             context.conversationMemory.addTopic(mainTopic, {
                 query: userMessage,
                 response: knowledgeBaseResults[0].content,
-                language: languageDecision.isIcelandic ? 'is' : 'en'
+                language: context.language
             });
         }
 
-        // Update context with the current message and language info
-        let updatedContext = updateContext(sessionId, userMessage, null, languageDecision); // Pass languageDecision here
-        context = {
-            ...updatedContext,
-            language: languageDecision.isIcelandic ? 'is' : 'en'
-        };
-
-        // Add language info to cache key using new language detection
-        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${languageDecision.isIcelandic ? 'is' : 'en'}`;
-        const cached = responseCache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-            console.log('\n📦 Using cached response:', {
-                message: userMessage,
-                language: languageDecision.isIcelandic ? 'is' : 'en',
-                confidence: languageDecision.confidence
-            });
-           return res.json(cached.response);
-       }
-
-        // Keep just this question pattern detection logging (but remove handlers)
-        const hasBookingPattern = !languageDecision.isIcelandic ? 
-            questionPatterns.booking.en.some(pattern => msg.includes(pattern)) :
-            (languageDecision.confidence === 'high' ? 
-                questionPatterns.booking.is.some(pattern => msg.includes(pattern)) :
-                questionPatterns.booking.en.some(pattern => msg.includes(pattern)));
-
-        const hasQuestionWord = !languageDecision.isIcelandic ?
-            questionPatterns.question.en.some(word => msg.includes(word)) :
-            (languageDecision.confidence === 'high' ? 
-                questionPatterns.question.is.some(word => msg.includes(word)) :
-                questionPatterns.question.en.some(word => msg.includes(word)));
-
-        // Enhanced logging for question detection
-        console.log('\n❓ Question Pattern Detection:', {
-            message: userMessage,
-            language: {
-                isIcelandic: languageDecision.isIcelandic,
-                confidence: languageDecision.confidence,
-                reason: languageDecision.reason
-            },
-            hasBookingPattern,
-            hasQuestionWord,
-            patterns: {
-                booking: hasBookingPattern,
-                question: hasQuestionWord,
-                detectedLanguage: languageDecision.isIcelandic ? 'is' : 'en'
-            }
-        });
-
-        // Optional: Simple context setting (no early returns)
-        if (knowledgeBaseResults.length === 0 && !hasBookingPattern && !hasQuestionWord) {
-            // Set context but DON'T return - just let it flow to ChatGPT
-            if (userMessage.split(' ').length <= 4) {
-                context.lastTopic = 'acknowledgment';
-                console.log('\n👍 Simple acknowledgment detected, but continuing to ChatGPT');
-            }
-        }
-
-        // Keep just the business topic detection for context (but remove all handlers)
-        const isKnownBusinessTopic = userMessage.toLowerCase().includes('lagoon') ||
-                                  userMessage.toLowerCase().includes('ritual') ||
-                                  userMessage.toLowerCase().includes('package') ||
-                                  userMessage.toLowerCase().includes('booking') ||
-                                  userMessage.toLowerCase().includes('bóka') ||
-                                  userMessage.toLowerCase().includes('panta') ||
-                                  userMessage.toLowerCase().includes('pakk') ||
-                                  userMessage.toLowerCase().includes('ritúal') ||
-                                  userMessage.toLowerCase().includes('swim') ||
-                                  userMessage.toLowerCase().includes('pool') ||
-                                  userMessage.toLowerCase().includes('water') ||
-                                  userMessage.toLowerCase().includes('facilities') ||
-                                  userMessage.toLowerCase().includes('discount') ||
-                                  userMessage.toLowerCase().includes('offer') ||
-                                  userMessage.toLowerCase().includes('deal') ||
-                                  userMessage.toLowerCase().includes('price') ||
-                                  userMessage.toLowerCase().includes('cost') ||
-                                  userMessage.toLowerCase().includes('tíma') ||
-                                  userMessage.toLowerCase().includes('stefnumót') ||
-                                  userMessage.toLowerCase().includes('hvernig bóka') ||
-                                  userMessage.toLowerCase().includes('bóka tíma');
-
-        // Add shouldBeUnknown check
-        const shouldBeUnknown = !knowledgeBaseResults.length && !isKnownBusinessTopic;
-
-        // Simplified logging for business topic detection
-        console.log('\n🏢 Business Topic Check:', {
-            isKnownBusinessTopic,
-            shouldBeUnknown,
-            hasResults: knowledgeBaseResults.length > 0
-        });
-
-        // Optional: Add to context but don't return early
-        if (isKnownBusinessTopic) {
-            context.isBusinessRelated = true;
-        }
-
-        // Group booking context setting
-        const groupBookingTerms = ['hóp', 'manna', 'hópabókun', 'group', 'booking for', 'people'];
-        if (groupBookingTerms.some(term => userMessage.toLowerCase().includes(term))) {
-            // Just set the context topic
-            context.lastTopic = 'group_bookings';
+        // Check for seasonal context
+        if (context.lastTopic === 'seasonal' || 
+            userMessage.toLowerCase().match(/winter|summer|holiday|season|vetur|sumar|hátíð|árstíð/i)) {
             
-            // Enhanced logging with complete language detection info
-            console.log('\n👥 Group Booking Query Detected:', {
-                message: userMessage,
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason,
-                    patterns: languageDecision.patterns
-                }
-            });
-
-            // Use the unified broadcast system for tracking (not a user-visible response)
-            await sendBroadcastAndPrepareResponse({
-                message: 'group_booking_detection',  // Not a response, just tracking the detection
-                suppressMessage: true, // Don't actually send a message to the user
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'group_bookings',
-                responseType: 'detection'
-            });
-            // Continue to normal flow to let GPT handle with knowledge base content
-        }
-
-        // Simplified Yes confirmation handling (just sets context, no early return)
-        if (userMessage.toLowerCase().trim() === 'yes' && context.lastTopic) {
-            console.log('\n👍 "Yes" confirmation detected for topic:', context.lastTopic);
-            
-            // Set seasonal context if relevant
-            if (context.lastTopic === 'seasonal') {
-                context.confirmedSeasonalInterest = true;
-                context.seasonalContextConfirmed = context.seasonalContext?.type || 'current';
-            }
-            
-            // Add confirmation context but don't return - let ChatGPT handle it
-            context.lastConfirmation = {
-                topic: context.lastTopic,
-                timestamp: Date.now(),
-                confirmed: true
-            };
-        }
-
-        // Hours and dining query detection with forced knowledge base lookup
-        if (knowledgeBaseResults.length === 0) {
-            const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
-                                userMessage.toLowerCase().includes('open') || 
-                                userMessage.toLowerCase().includes('close') ||
-                                userMessage.toLowerCase().includes('time') ||
-                                userMessage.toLowerCase().includes('opin') ||
-                                userMessage.toLowerCase().includes('opið') ||
-                                userMessage.toLowerCase().includes('lokað') ||
-                                userMessage.toLowerCase().includes('lokar') ||
-                                userMessage.toLowerCase().includes('opnun') ||
-                                userMessage.toLowerCase().includes('lokun') ||
-                                userMessage.toLowerCase().includes('í dag') ||
-                                userMessage.toLowerCase().includes('á morgun') ||
-                                userMessage.toLowerCase().includes('hvenær');
-
-            const isDiningQuery = userMessage.toLowerCase().includes('veitingastað') ||
-                                userMessage.toLowerCase().includes('veitingar') ||
-                                userMessage.toLowerCase().includes('veitingarstað') ||
-                                userMessage.toLowerCase().includes('veitingastaður') ||
-                                userMessage.toLowerCase().includes('restaurant') ||
-                                userMessage.toLowerCase().includes('food') ||
-                                userMessage.toLowerCase().includes('dining') ||
-                                userMessage.toLowerCase().includes('matur') ||
-                                userMessage.toLowerCase().includes('borða') ||
-                                userMessage.toLowerCase().includes('matseðil') ||
-                                userMessage.toLowerCase().includes('með veitinga') ||
-                                userMessage.toLowerCase().includes('sýna matseðil') ||
-                                userMessage.toLowerCase().includes('sýnt mér') ||
-                                userMessage.toLowerCase().includes('eruð þið með') ||
-                                userMessage.toLowerCase().includes('hafið þið') ||
-                                userMessage.toLowerCase().includes('er hægt að fá mat') ||
-                                userMessage.toLowerCase().includes('hægt að borða');
-
-            // Force knowledge base lookup for dining/hours queries
-            if (isHoursQuery || isDiningQuery) {
-                try {
-                    // Use language detection with confidence check
-                    const results = languageDecision.isIcelandic && languageDecision.confidence === 'high' ? 
-                        getRelevantKnowledge_is(userMessage) : 
-                        getRelevantKnowledge(userMessage);
-                        
-                    // Ensure results is an array
-                    knowledgeBaseResults = Array.isArray(results) ? results : [];
-                    
-                    // Set relevant topic in context
-                    context.lastTopic = isHoursQuery ? 'hours' : 'dining';
-
-                    // Enhanced debug logging
-                    console.log('\n🍽️ Forced Knowledge Base Lookup:', {
-                        message: userMessage,
-                        isDiningQuery,
-                        isHoursQuery,
-                        gotResults: knowledgeBaseResults.length > 0
-                    });
-                } catch (error) {
-                    console.error('\n❌ Forced Knowledge Base Error:', error.message);
-                    knowledgeBaseResults = []; // Use empty array on error
-                }
-            }
-        }
-
-        // Knowledge base match logging
-        console.log('\n📚 Knowledge Base Match:', {
-            language: {
-                isIcelandic: languageDecision.isIcelandic,
-                confidence: languageDecision.confidence,
-                reason: languageDecision.reason,
-                patterns: languageDecision.patterns
-            },
-            matches: Array.isArray(knowledgeBaseResults) ? knowledgeBaseResults.length : 0,
-            types: Array.isArray(knowledgeBaseResults) ? knowledgeBaseResults.map(k => k.type) : []
-        });
-
-        // Confidence score calculation and logging (without early returns)
-        const confidenceScore = calculateConfidence(userMessage, knowledgeBaseResults, languageDecision);
-        console.log('\n📊 Query Confidence Score:', {
-            score: confidenceScore,
-            hasKnowledgeResults: knowledgeBaseResults.length > 0,
-            isBusinessTopic: isKnownBusinessTopic
-        });
-
-        // Flag potential unknown topics but don't return early
-        if (!isKnownBusinessTopic && 
-            confidenceScore < 0.1 && 
-            knowledgeBaseResults.length === 0 && 
-            userMessage.split(' ').length > 3 && 
-            !userMessage.toLowerCase().startsWith('welcome')) {
-            
-            console.log('\n⚠️ Potential unknown topic outside of business domain');
-            // Set context flag but don't return - let ChatGPT try to handle it
-            context.potentiallyUnknownTopic = true;
-        }
-        
-        // Detect if sunset information is relevant (but don't short-circuit)
-        let sunsetData = null;
-        if (isSunsetQuery(userMessage, languageDecision)) {
-            console.log('\n🌅 Sunset-related query detected - adding data to context');
-            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
-        }
-
-        // Detect topic for appropriate transitions and follow-ups (KEEP AS IS)
-        const { topic } = detectTopic(userMessage, knowledgeBaseResults, context, languageDecision);
-
-        // Enhanced seasonal handling (KEEP COMPLETELY AS IS)
-        if (topic === 'seasonal') {
             let seasonalInfo = knowledgeBaseResults.find(k => k.type === 'seasonal_information');
+            
             if (seasonalInfo) {
-                // Use new language detection for seasonal terms
+                // Determine season type
                 const isWinter = userMessage.toLowerCase().includes('winter') || 
-                               userMessage.toLowerCase().includes('northern lights') ||
-                               (languageDecision.isIcelandic && (
-                                   userMessage.toLowerCase().includes('vetur') ||
-                                   userMessage.toLowerCase().includes('vetrar') ||
-                                   userMessage.toLowerCase().includes('norðurljós')
-                               ));
-                               
-                // Store previous season if it's changing
+                                userMessage.toLowerCase().includes('northern lights') ||
+                                (context.language === 'is' && (
+                                    userMessage.toLowerCase().includes('vetur') ||
+                                    userMessage.toLowerCase().includes('vetrar') ||
+                                    userMessage.toLowerCase().includes('norðurljós')
+                                ));
+                
+                // Store season info
                 const newType = isWinter ? 'winter' : 'summer';
-                               
+                context.lastTopic = 'seasonal';
+                
+                // Update seasonal context
                 if (context.seasonalContext.type && context.seasonalContext.type !== newType) {
                     context.seasonalContext.previousSeason = context.seasonalContext.type;
                     context.seasonalContext.transitionDate = Date.now();
                 }
-
+                
                 // Update holiday context if needed
                 const currentSeason = getCurrentSeason();
                 context.seasonalContext.holidayContext = {
@@ -3879,104 +2616,52 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         lagoonClose: currentSeason.lagoonClose
                     } : null
                 };
-
+                
                 // Update the main seasonal context
                 context.seasonalContext = {
                     ...context.seasonalContext,
                     type: newType,
                     subtopic: userMessage.toLowerCase().includes('northern lights') ? 'northern_lights' : 
-                             userMessage.toLowerCase().includes('midnight sun') ? 'midnight_sun' : 'general',
-                    currentInfo: seasonalInfo.content,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence
-                    }
+                              userMessage.toLowerCase().includes('midnight sun') ? 'midnight_sun' : 'general',
+                    currentInfo: seasonalInfo.content
                 };
-
-                console.log('\n🌍 Seasonal Context Updated:', {
-                    newSeason: newType,
-                    previousSeason: context.seasonalContext.previousSeason,
-                    holiday: context.seasonalContext.holidayContext,
-                    language: {
-                        isIcelandic: languageDecision.isIcelandic,
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    },
-                    transitionDate: context.seasonalContext.transitionDate ? 
-                        new Date(context.seasonalContext.transitionDate).toLocaleString() : null
-                });
+                
+                console.log('\n🌍 Seasonal Context Updated:', context.seasonalContext);
             }
         }
 
-        // Check if this is an hours-related query
-        const isHoursQuery = userMessage.toLowerCase().includes('hour') || 
-                           userMessage.toLowerCase().includes('open') || 
-                           userMessage.toLowerCase().includes('close') ||
-                           userMessage.toLowerCase().includes('time') ||
-                           // Add these Icelandic patterns
-                           userMessage.toLowerCase().includes('opin') ||
-                           userMessage.toLowerCase().includes('opið') ||
-                           userMessage.toLowerCase().includes('lokað') ||
-                           userMessage.toLowerCase().includes('lokar') ||
-                           userMessage.toLowerCase().includes('opnun') ||
-                           userMessage.toLowerCase().includes('lokun') ||
-                           userMessage.toLowerCase().includes('í dag') ||  // "today" often used with hours
-                           userMessage.toLowerCase().includes('á morgun');  // "tomorrow" often used with hours
-
-        // Detect topic and get initial transitions
-        let topicResult;
-        try {
-            // Check if knowledgeBaseResults is a Promise and await it if needed
-            const resolvedResults = knowledgeBaseResults instanceof Promise 
-                ? await knowledgeBaseResults 
-                : knowledgeBaseResults;
-                
-            // Ensure results is an array before calling detectTopic
-            const safeResults = Array.isArray(resolvedResults) ? resolvedResults : [];
-            
-            topicResult = detectTopic(userMessage, safeResults, context, languageDecision);
-        } catch (error) {
-            console.error('\n❌ Error in topic detection:', error);
-            // Fallback to previous topic or general
-            topicResult = { topic: context?.lastTopic || 'general' };
-        }
-
-        // NEW: Check for booking context from contextSystem
-        if (newContext?.lastTopic === 'booking' || newContext?.bookingContext?.hasBookingIntent) {
-            console.log('\n📅 Using booking context from contextSystem');
-            topicResult = { topic: 'booking' };
-            // Update old context system for compatibility
-            context.lastTopic = 'booking';
-        }
-
-        // Simplified first-time message handling (no early return)
-        if (!context.conversationStarted) { 
-            context.conversationStarted = true;
-            console.log('\n👋 Setting conversation started flag for first-time message');
-            // No return - continue to ChatGPT
-        }
-
-        // Force hours topic if it's an hours query
-        if (isHoursQuery) {
-            topicResult = {
-                topic: 'hours'
-            };
-            const seasonInfo = getCurrentSeason();
-            context.operatingHours = seasonInfo;
-        }
-
-        // Enhanced system prompt with all context - MODIFIED TO PASS LANGUAGE
-        let systemPrompt = getSystemPrompt(sessionId, isHoursQuery, userMessage, {
-            ...languageDecision,
-            language: language // Pass explicit language code
-        }, sunsetData); // Add sunsetData as the fifth parameter
-
-        // Get current season information
-        const seasonInfo = getCurrentSeason();
+        // Add cache key with language
+        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
+        const responseCache = new Map(); // Getting it from the global scope
+        const cached = responseCache.get(cacheKey);
         
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            console.log('\n📦 Using cached response:', {
+                message: userMessage,
+                language: languageDecision.isIcelandic ? 'is' : 'en',
+                confidence: languageDecision.confidence
+            });
+           return res.json(cached.response);
+       }
+
+        // Enhanced system prompt with all context
+        let systemPrompt = getSystemPrompt(sessionId, 
+            userMessage.toLowerCase().match(/hour|open|close|time/i), 
+            userMessage, 
+            {
+                ...languageDecision,
+                language: language // Pass explicit language code
+            }, 
+            sunsetData
+        );
+
         // Add seasonal context to prompt if relevant
-        if (topic === 'hours' || topic === 'seasonal' || userMessage.toLowerCase().includes('hour') || 
-            userMessage.toLowerCase().includes('open') || userMessage.toLowerCase().includes('close')) {
+        if (context.lastTopic === 'hours' || 
+            context.lastTopic === 'seasonal' || 
+            userMessage.toLowerCase().includes('hour') || 
+            userMessage.toLowerCase().includes('open') || 
+            userMessage.toLowerCase().includes('close')) {
+            
             systemPrompt += `\n\nCURRENT OPERATING HOURS:
             Today (${seasonInfo.greeting}):
             Opening Hours: ${seasonInfo.season === 'summer' ? '09:00' : 
@@ -3988,9 +2673,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             Please include these specific times in your response.`;
         }
-
-        // Sync new context system with old context before generating response
-        syncContextSystems(context, newContext);
         
         // Prepare messages array
         const messages = [
@@ -4000,24 +2682,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         ];
 
-        // Add context awareness
+        // Add context awareness from conversation history
         if (context.messages && context.messages.length > 0) {
             messages.push(...context.messages.slice(-5));
         }
 
-        if (context?.lateArrivalScenario || context?.bookingModification?.requested) {
+        // Add special context for late arrival or booking modification
+        if (context.lateArrivalContext?.isLate || context.bookingContext?.hasBookingIntent) {
             messages.push({
                 role: "system",
                 content: `CURRENT CONTEXT:
-                    Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
-                    Late Arrival: ${context.lateArrivalScenario ? JSON.stringify(context.lateArrivalScenario) : 'No'}
+                    Language: ${context.language === 'is' ? 'Icelandic' : 'English'}
+                    Late Arrival: ${context.lateArrivalContext?.isLate ? 'Yes' : 'No'}
                     Sold Out Status: ${context.soldOutStatus ? 'Yes' : 'No'}
-                    Booking Modification: ${context.bookingModification?.requested ? 'Requested' : 'No'}
+                    Booking Modification: ${context.bookingContext?.hasBookingIntent ? 'Requested' : 'No'}
                     Time of Day: ${new Date().getHours() >= 9 && new Date().getHours() < 19 ? 'During support hours' : 'After hours'}`
             });
         }
 
-        // ADD THIS NEW PART: Additional context message for likely conversational messages
+        // Add special context for likely conversational messages
         if (userMessage.split(' ').length <= 4 || 
             /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {
             
@@ -4027,7 +2710,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // MODIFY THIS PART: Updated user message to include language instructions
+        // Updated user message with language instructions
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
@@ -4038,7 +2721,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 For greetings, small talk, or acknowledgments, respond naturally without requiring knowledge base information.
                 
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                Response MUST be in ${language} language.`
+                Response MUST be in ${context.language} language.`
         });
 
         // Make GPT-4 request with retries
@@ -4080,11 +2763,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Use the unified broadcast system for the GPT response
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
-            // Create an intermediate response object that sendBroadcastAndPrepareResponse will use
+            // Create an intermediate response object
             const responseObj = {
                 message: completion.choices[0].message.content,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: context.language === 'is' ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
                 },
@@ -4092,7 +2775,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 responseType: 'gpt_response'
             };
             
-            // We'll pass this through sendBroadcastAndPrepareResponse to broadcast without responding yet
+            // Pass through sendBroadcastAndPrepareResponse to broadcast
             const result = await sendBroadcastAndPrepareResponse(responseObj);
             
             // Extract the PostgreSQL ID if available from the result
@@ -4104,16 +2787,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
 
-        // Also add AI response to the new context system
-        addMessageToContext(newContext, { role: 'assistant', content: response });
+        // Add AI response to the context system
+        addMessageToContext(context, { role: 'assistant', content: response });
 
         // Apply terminology enhancement
         const enhancedResponse = enforceTerminology(response);
             
         console.log('\n✨ Enhanced Response:', enhancedResponse);
 
-        // Update assistant message in new context with enhanced response
-        addMessageToContext(newContext, { role: 'assistant', content: enhancedResponse });
+        // Update assistant message in context with enhanced response
+        addMessageToContext(context, { role: 'assistant', content: enhancedResponse });
 
         // Remove any non-approved emojis
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
@@ -4123,13 +2806,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
 
-        // Cache the response with new language system
+        // Cache the response
         responseCache.set(cacheKey, {
             response: {
                 message: enhancedResponse,
-                postgresqlMessageId: postgresqlMessageId, // Add PostgreSQL ID to cache
+                postgresqlMessageId: postgresqlMessageId,
                 language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    detected: context.language === 'is' ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
                 }
@@ -4137,18 +2820,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             timestamp: Date.now()
         });
 
-        // Update conversation context with new language system
-        context.lastInteraction = Date.now();
-        context.language = languageDecision.isIcelandic ? 'is' : 'en';
-        conversationContext.set(sessionId, context);
-
-        // MODIFY THE RESPONSE: Include language in the response
+        // Return the response
         return res.status(200).json({
             message: enhancedResponse,
-            postgresqlMessageId: postgresqlMessageId, // Add PostgreSQL ID to response
+            postgresqlMessageId: postgresqlMessageId,
             language: {
-                detected: language,
-                isIcelandic: languageDecision.isIcelandic,
+                detected: context.language,
+                isIcelandic: context.language === 'is',
                 confidence: languageDecision.confidence,
                 reason: languageDecision.reason
             }
@@ -4164,8 +2842,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
-        // Get language using new detection system
+        // Get language using detection system
         const userMsg = req.body?.message || req.body?.question || '';
+        const sessionId = req.body?.sessionId || null;
+        
+        // Try to get context if possible, for language determination
+        let context;
+        try {
+            context = sessionId ? getSessionContext(sessionId) : null;
+        } catch (ctxError) {
+            console.error('Error getting context for error handler:', ctxError);
+            context = null;
+        }
+        
+        // Detect language for error message
         const errorLanguageDecision = newDetectLanguage(userMsg, context);
 
         // Enhanced error logging
@@ -4949,14 +3639,11 @@ const detectTopic = (message, knowledgeBaseResults, context, languageDecision) =
 // =====================================================================
 // Test GET endpoint for the analytics proxy
 
-// Cleanup old contexts and cache
+// Cleanup old cache entries
 setInterval(() => {
     const oneHourAgo = Date.now() - CACHE_TTL;
-    for (const [key, value] of conversationContext.entries()) {
-        if (value.lastInteraction < oneHourAgo) conversationContext.delete(key);
-    }
     for (const [key, value] of responseCache.entries()) {
-        if (Date.now() - value.timestamp > CACHE_TTL) responseCache.delete(key);
+        if (value.timestamp < oneHourAgo) responseCache.delete(key);
     }
 }, CACHE_TTL);
 
