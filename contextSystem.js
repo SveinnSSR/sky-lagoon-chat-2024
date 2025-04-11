@@ -50,6 +50,100 @@ const CONTEXT_PATTERNS = {
 };
 
 /**
+ * Manages and tracks user intents throughout a conversation with time-based decay
+ */
+export class IntentHierarchy {
+  constructor() {
+    this.primaryIntent = null;
+    this.secondaryIntents = [];
+    this.intentStrength = new Map(); // Topic name -> strength
+    this.lastUpdate = Date.now();
+  }
+  
+  /**
+   * Updates the intent hierarchy with a new intent
+   * @param {string} newIntent - The intent/topic to update
+   * @param {number} confidence - Confidence level (0-1)
+   * @returns {IntentHierarchy} - This instance for chaining
+   */
+  updateIntent(newIntent, confidence = 0.5) {
+    if (!newIntent) return this;
+    
+    const now = Date.now();
+    
+    // Always track this intent
+    if (!this.intentStrength.has(newIntent)) {
+      this.intentStrength.set(newIntent, 0);
+    }
+    
+    // Update intent strength
+    const currentStrength = this.intentStrength.get(newIntent);
+    this.intentStrength.set(newIntent, currentStrength + confidence);
+    
+    // Apply time decay to all intents (except the new one)
+    for (const [intent, strength] of this.intentStrength.entries()) {
+      if (intent !== newIntent) {
+        // 20% decay - adjust based on desired persistence
+        const decayedStrength = strength * 0.8; 
+        this.intentStrength.set(intent, decayedStrength);
+      }
+    }
+    
+    // Update hierarchy
+    const sortedIntents = [...this.intentStrength.entries()]
+      .sort((a, b) => b[1] - a[1]);
+    
+    this.primaryIntent = sortedIntents[0]?.[0] || null;
+    this.secondaryIntents = sortedIntents.slice(1, 3).map(entry => entry[0]);
+    this.lastUpdate = now;
+    
+    return this;
+  }
+  
+  /**
+   * Gets the current intent context
+   * @returns {Object} Intent context information
+   */
+  getIntentContext() {
+    return {
+      primary: this.primaryIntent,
+      secondary: this.secondaryIntents,
+      all: Object.fromEntries(this.intentStrength)
+    };
+  }
+  
+  /**
+   * Gets the most relevant intent for a given topic
+   * @param {string} topic - Topic to check
+   * @returns {Object} Relevant intent information
+   */
+  getRelevantIntent(topic) {
+    if (this.primaryIntent === topic) {
+      return { intent: this.primaryIntent, strength: this.intentStrength.get(this.primaryIntent) || 0 };
+    }
+    
+    if (this.secondaryIntents.includes(topic)) {
+      return { intent: topic, strength: this.intentStrength.get(topic) || 0 };
+    }
+    
+    return { intent: this.primaryIntent, strength: this.intentStrength.get(this.primaryIntent) || 0 };
+  }
+  
+  /**
+   * Calculates probability that user is still talking about an intent
+   * @param {string} intent - Intent to check
+   * @returns {number} Probability (0-1)
+   */
+  intentProbability(intent) {
+    const totalStrength = Array.from(this.intentStrength.values()).reduce((a, b) => a + b, 0);
+    const intentStrength = this.intentStrength.get(intent) || 0;
+    
+    if (totalStrength === 0) return 0;
+    return intentStrength / totalStrength;
+  }
+}
+
+/**
  * Gets or creates a session context with enhanced structure
  * @param {string} sessionId - Unique session ID
  * @returns {Object} - Session context
@@ -76,6 +170,9 @@ export function getSessionContext(sessionId) {
       topics: [],
       activeTopicChain: [], // NEW: Track related topics in sequence
       topicRelationships: new Map(), // NEW: Track how topics relate to each other
+      
+      // ===== Intent Tracking System =====
+      intentHierarchy: new IntentHierarchy(),
       
       // ===== Sky Lagoon Specific Context =====
       lastTopic: null,
@@ -368,6 +465,12 @@ export function addMessageToContext(context, message) {
         timestamp: Date.now()
       });
     }
+    
+    // NEW: Reinforce current intent with assistant responses
+    if (context.intentHierarchy && context.lastTopic) {
+      // Smaller confidence boost from assistant responses
+      context.intentHierarchy.updateIntent(context.lastTopic, 0.2);
+    }
   }
   
   // NEW: For very short messages, check if they match context patterns
@@ -520,6 +623,24 @@ export function updateTopicContext(context, message) {
     }
   }
   
+  // NEW: Update intent hierarchy with detected topics
+  if (detectedTopics.length > 0) {
+    if (!context.intentHierarchy) {
+      context.intentHierarchy = new IntentHierarchy();
+    }
+    
+    // Update hierarchy with the first (most important) detected topic
+    // Higher confidence (0.7) for explicitly mentioned topics
+    context.intentHierarchy.updateIntent(detectedTopics[0], 0.7);
+    
+    console.log(`\n🧠 Updated intent hierarchy: primary=${context.intentHierarchy.primaryIntent}, secondary=[${context.intentHierarchy.secondaryIntents.join(', ')}]`);
+  } else if (context.lastTopic) {
+    // If no new topics but we have a last topic, reinforce it with lower confidence
+    if (context.intentHierarchy) {
+      context.intentHierarchy.updateIntent(context.lastTopic, 0.3);
+    }
+  }
+  
   // Check for date patterns in messages (for booking context)
   const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
   if (datePattern.test(message)) {
@@ -622,33 +743,94 @@ export async function getVectorKnowledge(message, context) {
     // ENHANCED: Improve search query with context for short messages
     let searchQuery = message;
     let usedContext = false;
+    let enhancementStrategy = 'none';
     
-    // If this is a very short message and we have context, enhance the query
-    if (message.split(' ').length <= 3) {
-      // For dates in booking context
+    // Check if this is a short or follow-up query
+    const isShortQuery = message.split(' ').length <= 4; // Increased from 3 to 4
+    const isFollowUp = /^(and|what about|how about|is there|what if|og|hvað með|en hvað|er það)/i.test(message);
+    
+    // Build contextual enhancement based on various signals
+    if (isShortQuery || isFollowUp) {
+      // Create array to collect context pieces
+      const contextPieces = [];
+      
+      // 1. For dates in booking context
       const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
       
       if (datePattern.test(message) && (context.lastTopic === 'booking' || context.bookingContext?.hasBookingIntent)) {
-        // Enhance query with booking context
-        searchQuery = `booking information for ${message}`;
-        usedContext = true;
-        console.log(`\n🔍 Enhanced short query with booking context: "${searchQuery}"`);
+        // Add booking context
+        contextPieces.push('booking information');
+        
+        // If we have a preferred date, mention it
+        if (context.bookingContext?.preferredDate) {
+          contextPieces.push(`for ${context.bookingContext.preferredDate}`);
+        }
+        
+        enhancementStrategy = 'booking_date';
       }
-      // For follow-up questions using topic chains
-      else if (context.activeTopicChain && context.activeTopicChain.length > 0) {
-        // Use the topic chain to enhance the query
-        searchQuery = `${context.activeTopicChain.join(' ')} ${message}`;
-        usedContext = true;
-        console.log(`\n🔍 Enhanced short query with topic chain: "${searchQuery}"`);
+      
+      // 2. For follow-up questions using topic chains
+      if (context.activeTopicChain && context.activeTopicChain.length > 0) {
+        // Use the topic chain for context
+        contextPieces.push(...context.activeTopicChain);
+        enhancementStrategy = 'topic_chain';
       }
-      // For messages with lastTopic
-      else if (context.lastTopic) {
-        searchQuery = `${context.lastTopic} ${message}`;
-        usedContext = true;
-        console.log(`\n🔍 Enhanced short query with lastTopic: "${searchQuery}"`);
+      
+      // 3. Add last topic if available and not yet included
+      if (context.lastTopic && 
+          !contextPieces.includes(context.lastTopic) && 
+          !context.activeTopicChain?.includes(context.lastTopic)) {
+        contextPieces.push(context.lastTopic);
+        if (enhancementStrategy === 'none') enhancementStrategy = 'last_topic';
+      }
+      
+      // 4. NEW: Add most recent user message for context (if different)
+      const lastUserMessages = context.messages
+        .filter(m => m.role === 'user')
+        .slice(-3); // Get last 3 user messages
+        
+      // Get the previous message (not the current one)
+      const previousMessage = lastUserMessages.length > 1 ? 
+                              lastUserMessages[lastUserMessages.length - 2]?.content : null;
+      
+      if (previousMessage && 
+          !message.includes(previousMessage) && 
+          previousMessage !== message) {
+        
+        // Extract keywords from previous message (words with 4+ characters)
+        const keywords = previousMessage.split(' ')
+          .filter(word => word.length >= 4 && !message.includes(word))
+          .slice(0, 2); // Take up to 2 keywords
+          
+        if (keywords.length > 0) {
+          contextPieces.push(keywords.join(' '));
+          if (enhancementStrategy === 'none') enhancementStrategy = 'previous_message';
+        }
+      }
+      
+      // 5. NEW: Add intent information if available
+      if (context.intentHierarchy?.primaryIntent && 
+          !contextPieces.includes(context.intentHierarchy.primaryIntent)) {
+        contextPieces.push(context.intentHierarchy.primaryIntent);
+        if (enhancementStrategy === 'none') enhancementStrategy = 'primary_intent';
+      }
+      
+      // Create enhanced query if we have context pieces
+      if (contextPieces.length > 0) {
+        // Remove duplicates
+        const uniqueContextPieces = [...new Set(contextPieces)];
+        const contextPrefix = uniqueContextPieces.join(' ');
+        
+        // Don't repeat information that's already in the message
+        if (!message.includes(contextPrefix)) {
+          searchQuery = `${contextPrefix} ${message}`;
+          usedContext = true;
+          
+          console.log(`\n🧠 Enhanced query with ${enhancementStrategy}: "${searchQuery}"`);
+        }
       }
     } 
-    // For medium-length messages that look like follow-ups
+    // Special case for medium-length messages that look like follow-ups
     else if (message.split(' ').length <= 5 && 
             (message.toLowerCase().startsWith('and ') || 
              message.toLowerCase().startsWith('what about ') ||
@@ -659,17 +841,21 @@ export async function getVectorKnowledge(message, context) {
       if (context.lastTopic) {
         searchQuery = `${context.lastTopic} ${message}`;
         usedContext = true;
+        enhancementStrategy = 'follow_up';
         console.log(`\n🔍 Enhanced follow-up query with lastTopic: "${searchQuery}"`);
       }
     }
     
     // Track the vector query used (for analysis and improvement)
     if (usedContext) {
+      if (!context.vectorQueryHistory) {
+        context.vectorQueryHistory = [];
+      }
+      
       context.vectorQueryHistory.push({
         original: message,
         enhanced: searchQuery,
-        strategy: context.activeTopicChain ? 'topic_chain' : 
-                 context.lastTopic ? 'last_topic' : 'none',
+        strategy: enhancementStrategy,
         timestamp: Date.now()
       });
     }
@@ -691,7 +877,7 @@ export async function getVectorKnowledge(message, context) {
       return [];
     }
     
-    console.log(`\n🔍 Found ${results.length} vector search results`);
+    console.log(`\n🔍 Found ${results.length} vector search results using ${usedContext ? 'enhanced' : 'standard'} query`);
     
     // Transform and normalize results to expected format
     const transformedResults = results.map(result => ({
