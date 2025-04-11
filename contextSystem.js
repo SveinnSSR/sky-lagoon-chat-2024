@@ -873,3 +873,113 @@ export function extractDateFromMessage(message) {
   
   return result;
 }
+
+/**
+ * Updates booking context with more precise change intent detection
+ * @param {Object} context - Session context
+ * @param {string} message - User message
+ * @param {Object} detectionResult - Result from shouldShowBookingForm
+ * @returns {Object} Updated context
+ */
+export function updateBookingChangeContext(context, message, detectionResult) {
+  // Initialize booking context if it doesn't exist
+  if (!context.bookingContext) {
+    context.bookingContext = {
+      hasBookingIntent: false,
+      hasBookingChangeIntent: false,
+      dates: [],
+      preferredDate: null,
+      dateModifications: [],
+      lastDateMention: null,
+      people: null,
+      packages: null,
+      bookingChangeConfidence: 0
+    };
+  }
+  
+  // Log the detection result
+  console.log('\n🧠 Booking change detection result:', {
+    shouldShowForm: detectionResult?.shouldShowForm || false,
+    confidence: detectionResult?.confidence || 0,
+    reasoning: detectionResult?.reasoning || null
+  });
+  
+  // Update booking change intent based on detection result
+  if (detectionResult && detectionResult.shouldShowForm === true) {
+    console.log('\n✅ Setting hasBookingChangeIntent = true based on detection');
+    context.bookingContext.hasBookingChangeIntent = true;
+    context.bookingContext.bookingChangeConfidence = detectionResult.confidence || 0.9;
+    context.lastTopic = 'booking_change';
+  } 
+  // Special case: If we explicitly detect this is NOT a booking change request, reset it
+  else if (detectionResult && 
+          detectionResult.shouldShowForm === false && 
+          (detectionResult.confidence > 0.7 || message.toLowerCase().includes('package'))) {
+    console.log('\n❌ Explicitly setting hasBookingChangeIntent = false based on detection');
+    context.bookingContext.hasBookingChangeIntent = false;
+    context.bookingContext.bookingChangeConfidence = 0;
+  }
+  
+  // Clear booking change intent if message is about packages or differences
+  const lowercaseMsg = message.toLowerCase();
+  if ((lowercaseMsg.includes('difference') || lowercaseMsg.includes('different')) && 
+      (lowercaseMsg.includes('package') || lowercaseMsg.includes('saman') || 
+       lowercaseMsg.includes('pure') || lowercaseMsg.includes('sér'))) {
+    console.log('\n❌ Clearing booking change intent due to package difference question');
+    context.bookingContext.hasBookingChangeIntent = false;
+    context.bookingContext.bookingChangeConfidence = 0;
+  }
+  
+  // Return the updated context
+  return context;
+}
+
+/**
+ * Processes the result from shouldShowBookingForm to update context
+ * and determine if the form should be shown
+ * @param {Object} bookingFormCheck - Result from shouldShowBookingForm
+ * @param {Object} context - Session context
+ * @returns {Object} Updated check result
+ */
+export function processBookingFormCheck(bookingFormCheck, context) {
+  // Default values if check is incomplete
+  const result = {
+    shouldShowForm: bookingFormCheck?.shouldShowForm || false,
+    isWithinAgentHours: bookingFormCheck?.isWithinAgentHours || false,
+    confidence: bookingFormCheck?.confidence || 0
+  };
+  
+  // Only show form if we have high confidence or explicit detection
+  const shouldShow = result.shouldShowForm || 
+                    (context.bookingContext?.hasBookingChangeIntent === true && 
+                     context.bookingContext?.bookingChangeConfidence >= 0.8);
+  
+  // Low confidence scenarios where we should not show the form
+  const lowConfidenceScenarios = [
+    // Check for package questions or pricing that should not trigger booking change
+    context.topics?.includes('packages') && !context.topics?.includes('booking_change'),
+    context.lastTopic === 'packages' && context.bookingContext?.bookingChangeConfidence < 0.8,
+    // If this is an informational query about options or differences
+    context.messages?.length > 0 && 
+      context.messages[context.messages.length-1]?.content?.toLowerCase().includes('difference')
+  ];
+  
+  // If any of our low confidence scenarios match, don't show the form
+  const definitelyDontShow = lowConfidenceScenarios.some(scenario => scenario === true);
+  
+  if (definitelyDontShow) {
+    console.log('\n❌ Blocking form display due to low confidence scenario');
+    result.shouldShowForm = false;
+  } else {
+    result.shouldShowForm = shouldShow;
+  }
+  
+  console.log('\n📝 Final booking form decision:', {
+    shouldShowForm: result.shouldShowForm,
+    confidence: context.bookingContext?.bookingChangeConfidence || 0,
+    lastTopic: context.lastTopic,
+    hasExplicitDetection: bookingFormCheck?.shouldShowForm || false
+  });
+  
+  return result;
+}

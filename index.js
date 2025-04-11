@@ -20,6 +20,8 @@ import {
   } from './contextSystem.js';
 // Add after your other imports
 import { getVectorKnowledge } from './contextSystem.js';  
+// Import at the top of your file
+import { updateBookingChangeContext, processBookingFormCheck } from './contextSystem.js';
 // System prompts from systemPrompts.js
 import { getSystemPrompt, setGetCurrentSeasonFunction } from './systemPrompts.js';
 // Knowledge base and language detection
@@ -2294,10 +2296,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // MIGRATION: Check if we should show booking change form - using context system's booking context
-        const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision);
+        // MIGRATION: Check if we should show booking change form with enhanced detection
+        const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision, context);
 
-        if (bookingFormCheck.shouldShowForm || context.bookingContext?.hasBookingIntent) {
+        // Update the booking context with detection results
+        updateBookingChangeContext(context, userMessage, bookingFormCheck);
+
+        // Process the final decision using context
+        const finalBookingCheck = processBookingFormCheck(bookingFormCheck, context);
+
+        // Only show form if the final check determines we need it
+        if (finalBookingCheck.shouldShowForm) {
             try {
                 // Create chat using bot for the booking change request
                 console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
@@ -2311,8 +2320,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Prepare booking change message based on language and agent hours
                 const bookingChangeMessage = languageDecision.isIcelandic ?
-                    `Ég sé að þú vilt breyta bókuninni þinni. ${!bookingFormCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
-                    `I see you'd like to change your booking. ${!bookingFormCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
+                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
+                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
 
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
@@ -2335,7 +2344,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             } catch (error) {
                 console.error('\n❌ Booking Change Request Error:', error);
                 // Fall through to AI response if request fails
-                
+
                 // Provide fallback response when request fails
                 const fallbackMessage = languageDecision.isIcelandic ?
                     "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :

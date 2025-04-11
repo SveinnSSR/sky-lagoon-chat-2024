@@ -1243,3 +1243,57 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
         return false;
     }
 }
+
+// Helper function to check if booking change form should be shown
+export const shouldShowBookingForm = async (message, languageDecision, context = null) => {
+    try {
+        // First check if it's an explicit form submission
+        if (message.toLowerCase().startsWith('booking change request:')) {
+            console.log('\n✅ Form submission detected');
+            return {
+                shouldShowForm: true,
+                isWithinAgentHours: isWithinOperatingHours(),
+                confidence: 1.0,
+                reasoning: "Form submission"
+            };
+        }
+        
+        // Check for package difference questions - these should NOT trigger the form
+        const lowercaseMsg = message.toLowerCase();
+        if ((lowercaseMsg.includes('difference') || lowercaseMsg.includes('different')) && 
+            (lowercaseMsg.includes('package') || lowercaseMsg.includes('saman') || 
+             lowercaseMsg.includes('pure') || lowercaseMsg.includes('sér'))) {
+            console.log('\n❌ Package difference question detected - NOT a booking change request');
+            return {
+                shouldShowForm: false,
+                isWithinAgentHours: isWithinOperatingHours(),
+                confidence: 0.9,
+                reasoning: "Package difference question"
+            };
+        }
+        
+        // Use the existing keyword-based detection
+        const isBookingChange = await detectBookingChangeRequest(message, languageDecision);
+        
+        console.log('\n📅 Booking Change Form Check:', {
+            message: message.substring(0, 30) + '...',
+            isBookingChange: isBookingChange,
+            language: languageDecision.isIcelandic ? 'Icelandic' : 'English'
+        });
+        
+        return {
+            shouldShowForm: isBookingChange,
+            isWithinAgentHours: isWithinOperatingHours(),
+            confidence: isBookingChange ? 0.9 : 0.1,
+            reasoning: isBookingChange ? "Keyword pattern match" : "No booking change patterns detected"
+        };
+    } catch (error) {
+        console.error('\n❌ Error in shouldShowBookingForm:', error);
+        return {
+            shouldShowForm: false,
+            isWithinAgentHours: isWithinOperatingHours(),
+            confidence: 0,
+            error: error.message
+        };
+    }
+};
