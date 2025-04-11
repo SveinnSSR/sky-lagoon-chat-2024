@@ -1000,7 +1000,7 @@ export const knowledgeBase_is = {
             important_note: "Athugið að Smakk Bar tekur síðustu pantanir 30 mínútum fyrir lokun.",
             ser: {
                 name: "Sér Stefnumót",
-                price: "Verð frá ISK 39,480",
+                price: "Verð frá ISK 41,480",
                 includes: [
                     "2 x Sér passar",
                     "Drykkur á mann (vín hússins, af krana eða óáfengt)",
@@ -1009,7 +1009,7 @@ export const knowledgeBase_is = {
             },
             saman: {
                 name: "Saman Stefnumót",
-                price: "Verð frá ISK 33,480",
+                price: "Verð frá ISK 35,480",
                 includes: [
                     "2 x Saman passar",
                     "Drykkur á mann (vín hússins, af krana eða óáfengt)",
@@ -1294,12 +1294,12 @@ export const knowledgeBase_is = {
                 types: {
                     saman: {
                         name: "Saman stefnumót",
-                        price: "ISK 33,480",
+                        price: "ISK 35,480",
                         description: "Inniheldur Saman aðgang, einn frískandi drykk á mann og ljúffengan sælkeraplatta á Smakk Bar."
                     },
                     ser: {
                         name: "Sér stefnumót",
-                        price: "ISK 39,480",
+                        price: "ISK 41,480",
                         description: "Inniheldur Sér aðgang, einn frískandi drykk á mann og ljúffengan sælkeraplatta á Smakk Bar."
                     }
                 }

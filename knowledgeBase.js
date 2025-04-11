@@ -294,7 +294,7 @@ export const knowledgeBase = {
             options: {
                 ser_for_two: {
                     name: "Sér for Two",
-                    price: "From ISK 39,480",
+                    price: "From ISK 341,480",
                     includes: [
                         "2 x Sér passes",
                         "Private changing facilities",
@@ -307,7 +307,7 @@ export const knowledgeBase = {
                 },
                 saman_for_two: {
                     name: "Saman for Two",
-                    price: "From ISK 33,480",
+                    price: "From ISK 35,480",
                     includes: [
                         "2 x Saman passes",
                         "Public changing facilities",
@@ -403,7 +403,7 @@ export const knowledgeBase = {
                 options: {
                     saman_for_two: {
                         name: "Saman for Two",
-                        price: "33,480 ISK",
+                        price: "35,480 ISK",
                         description: "Two Saman passes to share a rejuvenating journey together",
                         includes: [
                             "Two Saman Passes",
@@ -413,7 +413,7 @@ export const knowledgeBase = {
                     },
                     ser_for_two: {
                         name: "Sér for Two",
-                        price: "39,480 ISK",
+                        price: "41,480 ISK",
                         description: "Two Sér passes for the ultimate shared experience",
                         includes: [
                             "Two Sér Passes",
