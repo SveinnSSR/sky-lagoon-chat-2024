@@ -267,35 +267,6 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
     }
 };
 
-// Add this right after your broadcastConversation function
-// const broadcastFeedback = async (messageId, isPositive, messageContent, chatId, language) => {
-//    try {
-//        console.log('\n📢 broadcastFeedback CALLED with:', {
-//            messageId,
-//            isPositive,
-//            chatId,
-//            language
-//        });
-//        
-//        const messageType = determineMessageType(messageContent, language);
-//        
-//        const feedbackData = {
-//            messageId,
-//            isPositive,
-//            messageContent,
-//            messageType,
-//            timestamp: new Date().toISOString(),
-//            chatId,
-//            language
-//        };
-//        
-//        return await handleFeedbackUpdate(feedbackData);
-//    } catch (error) {
-//        console.error('❌ Error in broadcastFeedback:', error);
-//        return false;
-//    }
-//};
-
 // Cache and state management
 const responseCache = new Map();
 const conversationContext = new Map();
@@ -1096,15 +1067,6 @@ function matchesWholeWord(text, pattern) {
     // Test if the pattern matches as a whole word
     return regex.test(text);
 }
-
-// Common Icelandic question words and starters
-const icelandicQuestionStarters = [
-    'er ', 'má ', 'get ', 'getur ', 'hefur ',
-    'fylgja ', 'kostar ', 'þarf ', 'hvar ',
-    'hvenær ', 'hvernig ', 'hvað ', 'hver ',
-    'verð ', 'eru ', 'eigið ', 'eigum ',
-    'geturðu ', 'mætti ', 'megið ', 'væri '
-];
 
 const questionPatterns = {
     booking: {
@@ -4239,62 +4201,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     }
 });
 
-// Feedback endpoint - Add this right after your main chat endpoint.
-//app.post('/chat/feedback', async (req, res) => {
-//    try {
-//      const { messageId, isPositive, messageContent, timestamp, chatId, language } = req.body;
-//      
-//      console.log('\n📝 /chat/feedback endpoint CALLED with:', {
-//        messageId,
-//        isPositive,
-//        chatId,
-//        language
-//      });
-//      
-//      // Determine message type
-//      const messageType = determineMessageType(messageContent, language);
-//      
-//      // Store feedback in your database with message type
-//      await db.collection('message_feedback').insertOne({
-//        messageId,
-//        isPositive,
-//        messageContent,
-//        messageType,
-//        timestamp: new Date(timestamp),
-//        chatId,
-//        language,
-//        createdAt: new Date()
-//      });
-//      
-//      console.log('\n💾 Feedback saved to MongoDB, now broadcasting...');
-//      
-//      // Always call broadcastFeedback - this is critical!
-//      const broadcastResult = await broadcastFeedback(
-//        messageId, 
-//        isPositive, 
-//        messageContent, 
-//        chatId, 
-//        language
-//     );
-//      
-//      console.log('\n📣 Broadcast result:', broadcastResult ? 'Success' : 'Failed');
-//      
-//      return res.status(200).json({
-//        success: true,
-//        message: 'Feedback received and broadcast',
-//        messageType: messageType,
-//        broadcastSuccess: broadcastResult
-//      });
-//    } catch (error) {
-//      console.error('\n❌ Error in /chat/feedback endpoint:', error);
-//      
-//      return res.status(500).json({
-//        success: false,
-//        message: 'Failed to process feedback'
-//      });
-//    }
-//});
-
 // =====================================================================
 // HELPER FUNCTIONS FOR FEEDBACK PROCESSING.
 // =====================================================================
@@ -4501,28 +4407,6 @@ function determineMessageType(content, language) {
     // Default category for messages that don't fit specific patterns
     return 'general';
 }
-
-// =====================================================================
-// FEEDBACK PUSHER ENDPOINT
-// =====================================================================
-// This endpoint triggers Pusher events for feedback, which are listened for
-// by the analytics system through the WebSocketContext
-// =====================================================================
-// app.post('/feedback-pusher', verifyApiKey, async (req, res) => {
-//    try {
-//        const feedbackData = req.body;
-//        console.log('Feedback pusher event received:', feedbackData);
-//
-//        // Trigger the Pusher event for the feedback
-//        pusher.trigger('chat-channel', 'feedback_event', feedbackData);
-//        console.log('Feedback sent to Pusher');
-//
-//        res.status(200).json({ success: true });
-//    } catch (error) {
-//        console.error('Error processing feedback event:', error);
-//        res.status(500).json({ error: 'Failed to process feedback' });
-//    }
-// });
 
 // Pusher broadcast function with enhanced language detection
 function handleConversationUpdate(conversationData, languageInfo) {
@@ -4955,37 +4839,6 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
     console.error('❌ Stack trace:', error.stack);
     return { success: false, postgresqlId: null };
   }
-}
-
-// Add this right near the handleConversationUpdate function (possibly unused currently - handleFeedbackUpdate is declared but it's value is never read)
-function handleFeedbackUpdate(feedbackData) {
-    try {
-        console.log('🚀 Broadcasting feedback via Pusher:', {
-            event: 'feedback_event',
-            channel: 'chat-channel',
-            data: feedbackData,
-            timestamp: new Date().toISOString()
-        });
-        
-        return pusher.trigger('chat-channel', 'feedback_event', feedbackData)
-            .then(() => {
-                console.log('✅ Feedback Pusher message sent successfully');
-                return true;
-            })
-            .catch(error => {
-                console.error('❌ Pusher error in feedback:', error);
-                console.log('Environment check:', {
-                    hasAppId: !!process.env.PUSHER_APP_ID,
-                    hasKey: !!process.env.PUSHER_KEY,
-                    hasSecret: !!process.env.PUSHER_SECRET,
-                    hasCluster: !!process.env.PUSHER_CLUSTER
-                });
-                throw error;
-            });
-    } catch (error) {
-        console.error('❌ Error in handleFeedbackUpdate:', error);
-        return Promise.resolve(false);
-    }
 }
 
 // Helper function to detect topic with enhanced language detection
