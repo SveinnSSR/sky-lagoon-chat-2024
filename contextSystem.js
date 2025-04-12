@@ -144,6 +144,267 @@ export class IntentHierarchy {
 }
 
 /**
+ * Tracks relationships between conversation topics and predicts transitions
+ */
+export class TopicGraph {
+  constructor() {
+    this.nodes = new Map(); // Topic name -> metadata
+    this.edges = new Map(); // Source-Target -> relationship data
+  }
+  
+  /**
+   * Adds or updates a topic in the graph
+   * @param {string} topic - Topic name
+   * @param {Object} metadata - Additional topic information
+   */
+  addTopic(topic, metadata = {}) {
+    if (!topic) return;
+    
+    if (!this.nodes.has(topic)) {
+      this.nodes.set(topic, {
+        count: 1,
+        firstSeen: Date.now(),
+        lastSeen: Date.now(),
+        ...metadata
+      });
+    } else {
+      const node = this.nodes.get(topic);
+      node.count++;
+      node.lastSeen = Date.now();
+      // Merge any new metadata
+      Object.assign(node, metadata);
+    }
+  }
+  
+  /**
+   * Adds or strengthens a relationship between topics
+   * @param {string} sourceTopic - Source topic name
+   * @param {string} targetTopic - Target topic name
+   * @param {number} weight - Relationship strength to add
+   */
+  addRelationship(sourceTopic, targetTopic, weight = 1) {
+    if (!sourceTopic || !targetTopic || sourceTopic === targetTopic) return;
+    
+    // Ensure both topics exist as nodes
+    this.addTopic(sourceTopic);
+    this.addTopic(targetTopic);
+    
+    // Track the relationship
+    const edgeKey = `${sourceTopic}→${targetTopic}`;
+    
+    if (!this.edges.has(edgeKey)) {
+      this.edges.set(edgeKey, { 
+        count: weight,
+        lastUsed: Date.now() 
+      });
+    } else {
+      const edge = this.edges.get(edgeKey);
+      edge.count += weight;
+      edge.lastUsed = Date.now();
+    }
+  }
+  
+  /**
+   * Gets topics related to the specified topic
+   * @param {string} topic - Topic to find relationships for
+   * @param {number} limit - Maximum number of results
+   * @returns {Array} Related topics with relationship strength
+   */
+  getRelatedTopics(topic, limit = 3) {
+    if (!topic) return [];
+    
+    const related = [];
+    
+    // Find edges from this topic
+    for (const [edgeKey, edge] of this.edges.entries()) {
+      const [source, target] = edgeKey.split('→');
+      
+      if (source === topic) {
+        related.push({
+          topic: target,
+          strength: edge.count,
+          lastUsed: edge.lastUsed
+        });
+      }
+    }
+    
+    // Sort by strength and return top results
+    return related
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, limit);
+  }
+  
+  /**
+   * Predicts likely next topics based on current topic
+   * @param {string} currentTopic - Current conversation topic
+   * @param {number} limit - Maximum predictions to return
+   * @returns {Array} Predicted next topics
+   */
+  predictNextTopics(currentTopic, limit = 3) {
+    return this.getRelatedTopics(currentTopic, limit);
+  }
+  
+  /**
+   * Calculates probability of transition between topics
+   * @param {string} fromTopic - Source topic
+   * @param {string} toTopic - Target topic
+   * @returns {number} Transition probability (0-1)
+   */
+  transitionProbability(fromTopic, toTopic) {
+    if (!fromTopic || !toTopic) return 0;
+    
+    // Get all outgoing edges from the source topic
+    let totalOutgoing = 0;
+    let targetWeight = 0;
+    
+    for (const [edgeKey, edge] of this.edges.entries()) {
+      const [source, target] = edgeKey.split('→');
+      
+      if (source === fromTopic) {
+        totalOutgoing += edge.count;
+        
+        if (target === toTopic) {
+          targetWeight = edge.count;
+        }
+      }
+    }
+    
+    if (totalOutgoing === 0) return 0;
+    return targetWeight / totalOutgoing;
+  }
+}
+
+/**
+ * Stores and manages conversation memories with importance and recency weighting
+ */
+export class AdaptiveMemory {
+  constructor(capacity = 20) {
+    this.memories = [];
+    this.capacity = capacity;
+    this.categories = new Set();
+  }
+  
+  /**
+   * Adds a new memory with metadata
+   * @param {any} content - Memory content (can be string or object)
+   * @param {Object} metadata - Additional memory information
+   * @returns {Object} - The created memory
+   */
+  addMemory(content, metadata = {}) {
+    const memory = {
+      id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      content,
+      importance: metadata.importance || 0.5,
+      category: metadata.category || 'general',
+      timestamp: Date.now(),
+      metadata
+    };
+    
+    // Add category to tracking set
+    this.categories.add(memory.category);
+    
+    // Add to memories
+    this.memories.push(memory);
+    
+    // Prune if we exceed capacity
+    if (this.memories.length > this.capacity) {
+      this.prune();
+    }
+    
+    return memory;
+  }
+  
+  /**
+   * Prunes memories based on importance and recency
+   */
+  prune() {
+    // Calculate recency scores (0-1 where 1 is most recent)
+    const now = Date.now();
+    const oldestTime = Math.min(...this.memories.map(m => m.timestamp));
+    const timespan = now - oldestTime;
+    
+    // Score each memory
+    const scoredMemories = this.memories.map(memory => {
+      const recencyScore = timespan ? (now - memory.timestamp) / timespan : 0;
+      const score = (memory.importance * 0.7) + ((1 - recencyScore) * 0.3);
+      return { memory, score };
+    });
+    
+    // Sort by score and keep the top ones
+    scoredMemories.sort((a, b) => b.score - a.score);
+    this.memories = scoredMemories.slice(0, this.capacity).map(item => item.memory);
+  }
+  
+  /**
+   * Gets memories relevant to a query, using recency and category
+   * @param {string} query - Search query
+   * @param {string} category - Optional category filter
+   * @param {number} limit - Maximum results to return
+   * @returns {Array} - Relevant memories
+   */
+  getRelevantMemories(query, category = null, limit = 3) {
+    // Calculate recency scores
+    const now = Date.now();
+    const oldestTime = Math.min(...this.memories.map(m => m.timestamp));
+    const timespan = now - oldestTime;
+    
+    // Filter and score memories
+    const scoredMemories = this.memories
+      .filter(memory => !category || memory.category === category)
+      .map(memory => {
+        // Recency score (0-1)
+        const recencyScore = timespan ? 1 - ((now - memory.timestamp) / timespan) : 1;
+        
+        // Relevance score based on term overlap (simple approach)
+        const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 3);
+        const contentStr = typeof memory.content === 'string' ? memory.content : JSON.stringify(memory.content);
+        const contentTerms = contentStr.toLowerCase().split(/\s+/);
+        
+        let relevanceScore = 0;
+        if (queryTerms.length > 0) {
+          const matchingTerms = queryTerms.filter(term => contentTerms.includes(term));
+          relevanceScore = matchingTerms.length / queryTerms.length;
+        }
+        
+        // Combined score
+        const score = (memory.importance * 0.4) + (recencyScore * 0.3) + (relevanceScore * 0.3);
+        
+        return { memory, score, relevanceScore, recencyScore };
+      });
+    
+    // Sort by score and return top results
+    return scoredMemories
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(item => item.memory);
+  }
+  
+  /**
+   * Gets memories by category
+   * @param {string} category - Category to filter by
+   * @param {number} limit - Maximum results
+   * @returns {Array} - Memories in the category
+   */
+  getMemoriesByCategory(category, limit = 5) {
+    return this.memories
+      .filter(memory => memory.category === category)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  }
+  
+  /**
+   * Gets most recent memories
+   * @param {number} limit - Maximum results
+   * @returns {Array} - Most recent memories
+   */
+  getRecentMemories(limit = 5) {
+    return [...this.memories]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  }
+}
+
+/**
  * Gets or creates a session context with enhanced structure
  * @param {string} sessionId - Unique session ID
  * @returns {Object} - Session context
@@ -173,7 +434,13 @@ export function getSessionContext(sessionId) {
       
       // ===== Intent Tracking System =====
       intentHierarchy: new IntentHierarchy(),
-      
+
+      // ===== Topic Relationship Tracking =====
+      topicGraph: new TopicGraph(),
+
+      // ===== Memory Management System =====
+      adaptiveMemory: new AdaptiveMemory(30), // Store up to 30 memories      
+
       // ===== Sky Lagoon Specific Context =====
       lastTopic: null,
       lastResponse: null,
@@ -443,7 +710,18 @@ export function addMessageToContext(context, message) {
       topic: context.lastTopic || null
     });
   }
-  
+
+  // NEW: Store in adaptive memory with moderate importance
+  if (!context.adaptiveMemory) {
+    context.adaptiveMemory = new AdaptiveMemory(30);
+  }
+  context.adaptiveMemory.addMemory(message.content, {
+    importance: 0.6, // User messages are moderately important
+    category: 'user_message',
+    topic: context.lastTopic,
+    timestamp: Date.now()
+  });  
+
   if (message.role === 'assistant') {
     // Store answer
     context.lastAnswer = message.content;
@@ -472,7 +750,18 @@ export function addMessageToContext(context, message) {
       context.intentHierarchy.updateIntent(context.lastTopic, 0.2);
     }
   }
-  
+
+  // NEW: Store in adaptive memory with high importance
+  if (!context.adaptiveMemory) {
+    context.adaptiveMemory = new AdaptiveMemory(30);
+  }
+  context.adaptiveMemory.addMemory(message.content, {
+    importance: 0.7, // Assistant responses are high importance
+    category: 'assistant_response',
+    topic: context.lastTopic,
+    timestamp: Date.now()
+  });  
+
   // NEW: For very short messages, check if they match context patterns
   if (message.role === 'user' && message.content && message.content.split(' ').length <= 5) {
     const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
@@ -640,7 +929,35 @@ export function updateTopicContext(context, message) {
       context.intentHierarchy.updateIntent(context.lastTopic, 0.3);
     }
   }
-  
+
+  // NEW: Update topic graph with transitions
+  if (detectedTopics.length > 0) {
+    // Initialize topic graph if needed
+    if (!context.topicGraph) {
+      context.topicGraph = new TopicGraph();
+    }
+    
+    // Add each detected topic to the graph
+    for (const topic of detectedTopics) {
+      context.topicGraph.addTopic(topic, {
+        query: message,
+        language: context.language
+      });
+    }
+    
+    // Track transition from previous topic to new topic
+    if (context.lastTopic && context.lastTopic !== detectedTopics[0]) {
+      context.topicGraph.addRelationship(context.lastTopic, detectedTopics[0]);
+      console.log(`\n🔄 Topic transition: ${context.lastTopic} → ${detectedTopics[0]}`);
+      
+      // Get predictions for future topics
+      const predictions = context.topicGraph.predictNextTopics(detectedTopics[0]);
+      if (predictions.length > 0) {
+        console.log(`\n🔮 Predicted next topics: ${predictions.map(t => t.topic).join(', ')}`);
+      }
+    }
+  }  
+
   // Check for date patterns in messages (for booking context)
   const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
   if (datePattern.test(message)) {
@@ -814,7 +1131,40 @@ export async function getVectorKnowledge(message, context) {
         contextPieces.push(context.intentHierarchy.primaryIntent);
         if (enhancementStrategy === 'none') enhancementStrategy = 'primary_intent';
       }
-      
+
+      // 6. NEW: Add predicted topic information if available
+      if (context.topicGraph && context.lastTopic) {
+        const predictions = context.topicGraph.predictNextTopics(context.lastTopic, 1);
+        if (predictions.length > 0 && 
+            !contextPieces.includes(predictions[0].topic) && 
+            predictions[0].strength > 2) { // Only use strong predictions
+          contextPieces.push(predictions[0].topic);
+          if (enhancementStrategy === 'none') enhancementStrategy = 'predicted_topic';
+        }
+      }      
+
+      // 7. NEW: Add relevant memories for very short queries
+      if (message.split(' ').length <= 2 && context.adaptiveMemory) {
+        // Get recent highly relevant memories
+        const relevantMemories = context.adaptiveMemory.getRelevantMemories(message, null, 1);
+        
+        if (relevantMemories.length > 0) {
+          // Extract keywords from memory (words with 4+ characters)
+          const memoryContent = typeof relevantMemories[0].content === 'string' ? 
+                                 relevantMemories[0].content : 
+                                 JSON.stringify(relevantMemories[0].content);
+                                 
+          const keywords = memoryContent.split(' ')
+            .filter(word => word.length >= 4 && !contextPieces.includes(word) && !message.includes(word))
+            .slice(0, 2); // Take up to 2 keywords
+            
+          if (keywords.length > 0) {
+            contextPieces.push(keywords.join(' '));
+            if (enhancementStrategy === 'none') enhancementStrategy = 'memory_keywords';
+          }
+        }
+      }      
+
       // Create enhanced query if we have context pieces
       if (contextPieces.length > 0) {
         // Remove duplicates
@@ -886,6 +1236,21 @@ export async function getVectorKnowledge(message, context) {
       metadata: result.metadata || {},
       similarity: result.similarity
     }));
+
+    // NEW: Save important vector search results to memory
+    if (transformedResults.length > 0 && context.adaptiveMemory) {
+      // Store the first (most relevant) result
+      const firstResult = transformedResults[0];
+      if (firstResult.similarity > 0.8) { // Only store high-quality matches
+        context.adaptiveMemory.addMemory(firstResult.content, {
+          importance: 0.8, // High importance for knowledge results
+          category: 'knowledge',
+          topic: firstResult.type,
+          query: message,
+          timestamp: Date.now()
+        });
+      }
+    }    
     
     return normalizeVectorResults(transformedResults);
     
