@@ -948,18 +948,73 @@ export function updateTopicContext(context, message) {
   // NEW: Update intent hierarchy with detected topics
   if (detectedTopics.length > 0) {
     if (!context.intentHierarchy) {
+      console.log('Creating new intentHierarchy');
       context.intentHierarchy = new IntentHierarchy();
     }
     
-    // Update hierarchy with the first (most important) detected topic
-    // Higher confidence (0.7) for explicitly mentioned topics
-    context.intentHierarchy.updateIntent(detectedTopics[0], 0.7);
+    // Check if updateIntent is a function and reinitialize if needed
+    if (typeof context.intentHierarchy.updateIntent !== 'function') {
+      console.log('Reinitializing intentHierarchy - method missing');
+      // Save existing data if available
+      const primaryIntent = context.intentHierarchy.primaryIntent || null;
+      const secondaryIntents = context.intentHierarchy.secondaryIntents || [];
+      const intentStrength = context.intentHierarchy.intentStrength || new Map();
+      const lastUpdate = context.intentHierarchy.lastUpdate || Date.now();
+      
+      // Create a new instance
+      context.intentHierarchy = new IntentHierarchy();
+      
+      // Restore previous data
+      context.intentHierarchy.primaryIntent = primaryIntent;
+      context.intentHierarchy.secondaryIntents = secondaryIntents;
+      context.intentHierarchy.lastUpdate = lastUpdate;
+      
+      // Handle Map restoration - Maps don't serialize well in MongoDB
+      if (intentStrength && typeof intentStrength === 'object') {
+        // If it's a plain object, convert back to Map
+        if (!intentStrength.set && !intentStrength.get) {
+          const newMap = new Map();
+          Object.keys(intentStrength).forEach(key => {
+            newMap.set(key, intentStrength[key]);
+          });
+          context.intentHierarchy.intentStrength = newMap;
+        } else {
+          // It's already a Map
+          context.intentHierarchy.intentStrength = intentStrength;
+        }
+      }
+    }
     
-    console.log(`\n🧠 Updated intent hierarchy: primary=${context.intentHierarchy.primaryIntent}, secondary=[${context.intentHierarchy.secondaryIntents.join(', ')}]`);
+    try {
+      // Update hierarchy with the first (most important) detected topic
+      // Higher confidence (0.7) for explicitly mentioned topics
+      context.intentHierarchy.updateIntent(detectedTopics[0], 0.7);
+      
+      console.log(`\n🧠 Updated intent hierarchy: primary=${context.intentHierarchy.primaryIntent}, secondary=[${context.intentHierarchy.secondaryIntents.join(', ')}]`);
+    } catch (intentError) {
+      console.error('Error updating intentHierarchy:', intentError);
+      // Continue processing without failing
+    }
   } else if (context.lastTopic) {
     // If no new topics but we have a last topic, reinforce it with lower confidence
-    if (context.intentHierarchy) {
+    if (!context.intentHierarchy) {
+      console.log('Creating new intentHierarchy for reinforcement');
+      context.intentHierarchy = new IntentHierarchy();
+    }
+    
+    // Check if updateIntent is a function and reinitialize if needed
+    if (typeof context.intentHierarchy.updateIntent !== 'function') {
+      console.log('Reinitializing intentHierarchy for reinforcement - method missing');
+      // Create a new instance with default values
+      context.intentHierarchy = new IntentHierarchy();
+      context.intentHierarchy.primaryIntent = context.lastTopic;
+    }
+    
+    try {
       context.intentHierarchy.updateIntent(context.lastTopic, 0.3);
+    } catch (intentError) {
+      console.error('Error reinforcing intentHierarchy:', intentError);
+      // Continue processing without failing
     }
   }
 
@@ -967,29 +1022,72 @@ export function updateTopicContext(context, message) {
   if (detectedTopics.length > 0) {
     // Initialize topic graph if needed
     if (!context.topicGraph) {
+      console.log('Creating new topicGraph');
       context.topicGraph = new TopicGraph();
     }
     
-    // Add each detected topic to the graph
-    for (const topic of detectedTopics) {
-      context.topicGraph.addTopic(topic, {
-        query: message,
-        language: context.language
-      });
-    }
-    
-    // Track transition from previous topic to new topic
-    if (context.lastTopic && context.lastTopic !== detectedTopics[0]) {
-      context.topicGraph.addRelationship(context.lastTopic, detectedTopics[0]);
-      console.log(`\n🔄 Topic transition: ${context.lastTopic} → ${detectedTopics[0]}`);
+    // Check if addTopic is a function and reinitialize if needed
+    if (typeof context.topicGraph.addTopic !== 'function') {
+      console.log('Reinitializing topicGraph - method missing');
+      // Save existing data if available
+      const oldNodes = context.topicGraph.nodes || new Map();
+      const oldEdges = context.topicGraph.edges || new Map();
       
-      // Get predictions for future topics
-      const predictions = context.topicGraph.predictNextTopics(detectedTopics[0]);
-      if (predictions.length > 0) {
-        console.log(`\n🔮 Predicted next topics: ${predictions.map(t => t.topic).join(', ')}`);
+      // Create new instance
+      context.topicGraph = new TopicGraph();
+      
+      // Handle Map restoration for nodes
+      if (oldNodes && typeof oldNodes === 'object') {
+        if (!oldNodes.set && !oldNodes.get) {
+          const newNodesMap = new Map();
+          Object.keys(oldNodes).forEach(key => {
+            newNodesMap.set(key, oldNodes[key]);
+          });
+          context.topicGraph.nodes = newNodesMap;
+        } else {
+          context.topicGraph.nodes = oldNodes;
+        }
+      }
+      
+      // Handle Map restoration for edges
+      if (oldEdges && typeof oldEdges === 'object') {
+        if (!oldEdges.set && !oldEdges.get) {
+          const newEdgesMap = new Map();
+          Object.keys(oldEdges).forEach(key => {
+            newEdgesMap.set(key, oldEdges[key]);
+          });
+          context.topicGraph.edges = newEdgesMap;
+        } else {
+          context.topicGraph.edges = oldEdges;
+        }
       }
     }
-  }  
+    
+    try {
+      // Add each detected topic to the graph
+      for (const topic of detectedTopics) {
+        context.topicGraph.addTopic(topic, {
+          query: message,
+          language: context.language
+        });
+      }
+      
+      // Track transition from previous topic to new topic
+      if (context.lastTopic && context.lastTopic !== detectedTopics[0]) {
+        context.topicGraph.addRelationship(context.lastTopic, detectedTopics[0]);
+        console.log(`\n🔄 Topic transition: ${context.lastTopic} → ${detectedTopics[0]}`);
+        
+        // Get predictions for future topics
+        const predictions = context.topicGraph.predictNextTopics(detectedTopics[0]);
+        if (predictions.length > 0) {
+          console.log(`\n🔮 Predicted next topics: ${predictions.map(t => t.topic).join(', ')}`);
+        }
+      }
+    } catch (graphError) {
+      console.error('Error updating topicGraph:', graphError);
+      // Continue processing without failing
+    }
+  } 
 
   // Check for date patterns in messages (for booking context)
   const datePattern = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\b\d{1,2}(st|nd|rd|th)?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
@@ -1067,11 +1165,51 @@ export function updateTopicContext(context, message) {
   // Update the conversationMemory topics (from legacy system) 
   if (detectedTopics.length > 0) {
     const mainTopic = detectedTopics[0];
-    context.conversationMemory.addTopic(mainTopic, {
-      query: message,
-      timestamp: Date.now(),
-      language: context.language
-    });
+    
+    // Check if conversationMemory exists and has addTopic method
+    if (!context.conversationMemory || typeof context.conversationMemory.addTopic !== 'function') {
+      console.log('Reinitializing conversationMemory - addTopic method missing');
+      
+      // Save existing data
+      const oldTopics = context.conversationMemory?.topics || [];
+      const oldLastResponse = context.conversationMemory?.lastResponse || null;
+      const oldContextualQuestions = context.conversationMemory?.contextualQuestions || {};
+      const oldPreviousInteractions = context.conversationMemory?.previousInteractions || [];
+      
+      // Create new conversationMemory with all required methods
+      context.conversationMemory = {
+        topics: oldTopics,
+        lastResponse: oldLastResponse,
+        contextualQuestions: oldContextualQuestions,
+        previousInteractions: oldPreviousInteractions,
+        addTopic: function(topic, details) {
+          this.topics.unshift({ 
+            topic, 
+            details, 
+            timestamp: Date.now(),
+            language: context.language
+          });
+          if (this.topics.length > 5) this.topics.pop();
+        },
+        getLastTopic: function() {
+          return this.topics[0]?.topic || null;
+        },
+        getTopicDetails: function(topic) {
+          return this.topics.find(t => t.topic === topic)?.details || null;
+        }
+      };
+    }
+    
+    try {
+      context.conversationMemory.addTopic(mainTopic, {
+        query: message,
+        timestamp: Date.now(),
+        language: context.language
+      });
+    } catch (memoryError) {
+      console.error('Error adding topic to conversationMemory:', memoryError);
+      // Continue processing without failing
+    }
   }
   
   return context.topics;
@@ -1546,25 +1684,129 @@ export async function getPersistentSessionContext(sessionId) {
     const savedSession = await sessionCollection.findOne({ sessionId });
     
     if (savedSession) {
-      console.log(`✅ Recovered session ${sessionId} from MongoDB`);
-      
-      // Convert MongoDB format to context format
-      const recoveredContext = {
-        ...savedSession,
-        lastInteraction: Date.now()
-      };
-      
-      // Ensure adaptiveMemory is properly initialized as a class instance
-      if (!recoveredContext.adaptiveMemory || typeof recoveredContext.adaptiveMemory.addMemory !== 'function') {
-        console.log('Initializing AdaptiveMemory for recovered session');
-        const oldMemories = recoveredContext.adaptiveMemory?.memories || [];
-        recoveredContext.adaptiveMemory = new AdaptiveMemory(30);
-        recoveredContext.adaptiveMemory.memories = oldMemories;
-      }
-      
-      // Update in-memory cache
-      sessions.set(sessionId, recoveredContext);
-      return recoveredContext;
+        console.log(`✅ Recovered session ${sessionId} from MongoDB`);
+        
+        // Convert MongoDB format to context format
+        const recoveredContext = {
+            ...savedSession,
+            lastInteraction: Date.now()
+        };
+        
+        // Ensure adaptiveMemory is properly initialized as a class instance
+        if (!recoveredContext.adaptiveMemory || typeof recoveredContext.adaptiveMemory.addMemory !== 'function') {
+            console.log('Initializing AdaptiveMemory for recovered session');
+            const oldMemories = recoveredContext.adaptiveMemory?.memories || [];
+            recoveredContext.adaptiveMemory = new AdaptiveMemory(30);
+            recoveredContext.adaptiveMemory.memories = oldMemories;
+        }
+        
+        // Ensure intentHierarchy is properly initialized as a class instance
+        if (!recoveredContext.intentHierarchy || typeof recoveredContext.intentHierarchy.updateIntent !== 'function') {
+            console.log('Initializing IntentHierarchy for recovered session');
+            
+            // Save existing data
+            const oldPrimaryIntent = recoveredContext.intentHierarchy?.primaryIntent || null;
+            const oldSecondaryIntents = recoveredContext.intentHierarchy?.secondaryIntents || [];
+            const oldIntentStrength = recoveredContext.intentHierarchy?.intentStrength || {};
+            const oldLastUpdate = recoveredContext.intentHierarchy?.lastUpdate || Date.now();
+            
+            // Create new instance
+            recoveredContext.intentHierarchy = new IntentHierarchy();
+            
+            // Restore data
+            recoveredContext.intentHierarchy.primaryIntent = oldPrimaryIntent;
+            recoveredContext.intentHierarchy.secondaryIntents = oldSecondaryIntents;
+            recoveredContext.intentHierarchy.lastUpdate = oldLastUpdate;
+            
+            // Handle Map restoration
+            if (oldIntentStrength && typeof oldIntentStrength === 'object') {
+                if (!oldIntentStrength.set && !oldIntentStrength.get) {
+                    const newMap = new Map();
+                    Object.keys(oldIntentStrength).forEach(key => {
+                        newMap.set(key, oldIntentStrength[key]);
+                    });
+                    recoveredContext.intentHierarchy.intentStrength = newMap;
+                } else {
+                    recoveredContext.intentHierarchy.intentStrength = oldIntentStrength;
+                }
+            }
+        }
+        
+        // Ensure topicGraph is properly initialized as a class instance
+        if (!recoveredContext.topicGraph || typeof recoveredContext.topicGraph.addTopic !== 'function') {
+            console.log('Initializing TopicGraph for recovered session');
+            
+            // Save existing data
+            const oldNodes = recoveredContext.topicGraph?.nodes || new Map();
+            const oldEdges = recoveredContext.topicGraph?.edges || new Map();
+            
+            // Create new instance
+            recoveredContext.topicGraph = new TopicGraph();
+            
+            // Handle Map restoration for nodes
+            if (oldNodes && typeof oldNodes === 'object') {
+                if (!oldNodes.set && !oldNodes.get) {
+                    const newNodesMap = new Map();
+                    Object.keys(oldNodes).forEach(key => {
+                        newNodesMap.set(key, oldNodes[key]);
+                    });
+                    recoveredContext.topicGraph.nodes = newNodesMap;
+                } else {
+                    recoveredContext.topicGraph.nodes = oldNodes;
+                }
+            }
+            
+            // Handle Map restoration for edges
+            if (oldEdges && typeof oldEdges === 'object') {
+                if (!oldEdges.set && !oldEdges.get) {
+                    const newEdgesMap = new Map();
+                    Object.keys(oldEdges).forEach(key => {
+                        newEdgesMap.set(key, oldEdges[key]);
+                    });
+                    recoveredContext.topicGraph.edges = newEdgesMap;
+                } else {
+                    recoveredContext.topicGraph.edges = oldEdges;
+                }
+            }
+        }
+        
+        // Ensure conversationMemory is properly initialized with methods
+        if (!recoveredContext.conversationMemory || typeof recoveredContext.conversationMemory.addTopic !== 'function') {
+            console.log('Initializing conversationMemory for recovered session');
+            
+            // Save existing data
+            const oldTopics = recoveredContext.conversationMemory?.topics || [];
+            const oldLastResponse = recoveredContext.conversationMemory?.lastResponse || null;
+            const oldContextualQuestions = recoveredContext.conversationMemory?.contextualQuestions || {};
+            const oldPreviousInteractions = recoveredContext.conversationMemory?.previousInteractions || [];
+            
+            // Create new conversationMemory with all required methods
+            recoveredContext.conversationMemory = {
+                topics: oldTopics,
+                lastResponse: oldLastResponse,
+                contextualQuestions: oldContextualQuestions,
+                previousInteractions: oldPreviousInteractions,
+                addTopic: function(topic, details) {
+                    this.topics.unshift({ 
+                        topic, 
+                        details, 
+                        timestamp: Date.now(),
+                        language: recoveredContext.language
+                    });
+                    if (this.topics.length > 5) this.topics.pop();
+                },
+                getLastTopic: function() {
+                    return this.topics[0]?.topic || null;
+                },
+                getTopicDetails: function(topic) {
+                    return this.topics.find(t => t.topic === topic)?.details || null;
+                }
+            };
+        }
+        
+        // Update in-memory cache
+        sessions.set(sessionId, recoveredContext);
+        return recoveredContext;
     }
     
     // If no session found, create new one
