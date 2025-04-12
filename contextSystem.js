@@ -714,14 +714,30 @@ export function addMessageToContext(context, message) {
 
   // NEW: Store in adaptive memory with moderate importance
   if (!context.adaptiveMemory) {
+    console.log('Creating new adaptiveMemory for context');
     context.adaptiveMemory = new AdaptiveMemory(30);
   }
-  context.adaptiveMemory.addMemory(message.content, {
-    importance: 0.6, // User messages are moderately important
-    category: 'user_message',
-    topic: context.lastTopic,
-    timestamp: Date.now()
-  });  
+
+  // Check if addMemory is a function and reinitialize if needed
+  if (typeof context.adaptiveMemory.addMemory !== 'function') {
+    console.log('Reinitializing adaptiveMemory - method missing');
+    // Save existing memories if available
+    const oldMemories = context.adaptiveMemory.memories || [];
+    context.adaptiveMemory = new AdaptiveMemory(30);
+    context.adaptiveMemory.memories = oldMemories;
+  }
+
+  try {
+    context.adaptiveMemory.addMemory(message.content, {
+      importance: 0.6, // User messages are moderately important
+      category: 'user_message',
+      topic: context.lastTopic,
+      timestamp: Date.now()
+    });
+  } catch (memoryError) {
+    console.error('Error adding to adaptiveMemory:', memoryError);
+    // Continue processing without failing
+  }
 
   if (message.role === 'assistant') {
     // Store answer
@@ -754,14 +770,30 @@ export function addMessageToContext(context, message) {
 
   // NEW: Store in adaptive memory with high importance
   if (!context.adaptiveMemory) {
+    console.log('Creating new adaptiveMemory for assistant response');
     context.adaptiveMemory = new AdaptiveMemory(30);
   }
-  context.adaptiveMemory.addMemory(message.content, {
-    importance: 0.7, // Assistant responses are high importance
-    category: 'assistant_response',
-    topic: context.lastTopic,
-    timestamp: Date.now()
-  });  
+
+  // Check if addMemory is a function and reinitialize if needed
+  if (typeof context.adaptiveMemory.addMemory !== 'function') {
+    console.log('Reinitializing adaptiveMemory - method missing');
+    // Save existing memories if available
+    const oldMemories = context.adaptiveMemory.memories || [];
+    context.adaptiveMemory = new AdaptiveMemory(30);
+    context.adaptiveMemory.memories = oldMemories;
+  }
+
+  try {
+    context.adaptiveMemory.addMemory(message.content, {
+      importance: 0.7, // Assistant responses are high importance
+      category: 'assistant_response',
+      topic: context.lastTopic,
+      timestamp: Date.now()
+    });
+  } catch (memoryError) {
+    console.error('Error adding to adaptiveMemory:', memoryError);
+    // Continue processing without failing
+  }  
 
   // NEW: For very short messages, check if they match context patterns
   if (message.role === 'user' && message.content && message.content.split(' ').length <= 5) {
@@ -1521,6 +1553,14 @@ export async function getPersistentSessionContext(sessionId) {
         ...savedSession,
         lastInteraction: Date.now()
       };
+      
+      // Ensure adaptiveMemory is properly initialized as a class instance
+      if (!recoveredContext.adaptiveMemory || typeof recoveredContext.adaptiveMemory.addMemory !== 'function') {
+        console.log('Initializing AdaptiveMemory for recovered session');
+        const oldMemories = recoveredContext.adaptiveMemory?.memories || [];
+        recoveredContext.adaptiveMemory = new AdaptiveMemory(30);
+        recoveredContext.adaptiveMemory.memories = oldMemories;
+      }
       
       // Update in-memory cache
       sessions.set(sessionId, recoveredContext);
