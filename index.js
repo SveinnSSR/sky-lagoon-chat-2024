@@ -12,26 +12,28 @@ import Pusher from 'pusher';
 // Add import for new context system at the top of your file
 import { 
     getSessionContext, 
+    getPersistentSessionContext,
     updateLanguageContext, 
     addMessageToContext, 
     updateTopicContext,
     isLateArrivalMessage,
-    updateTimeContext
-  } from './contextSystem.js';
-// Add after your other imports
-import { getVectorKnowledge } from './contextSystem.js';  
+    updateTimeContext,
+    // getVectorKnowledge is used internally by getKnowledgeWithFallbacks
+    getKnowledgeWithFallbacks
+} from './contextSystem.js';
 // Import at the top of your file
 import { updateBookingChangeContext, processBookingFormCheck } from './contextSystem.js';
 // System prompts from systemPrompts.js
 import { getSystemPrompt, setGetCurrentSeasonFunction } from './systemPrompts.js';
-// Knowledge base and language detection
-import { getRelevantKnowledge } from './knowledgeBase.js';
-import { 
-    knowledgeBase_is,
-    getRelevantKnowledge_is, 
-    detectLanguage, 
-    getLanguageContext 
-} from './knowledgeBase_is.js';
+// Legacy knowledge base imports - kept for reference
+// These are now handled through contextSystem.js getKnowledgeWithFallbacks
+// import { getRelevantKnowledge } from './knowledgeBase.js';
+// import { 
+//     knowledgeBase_is,
+//     getRelevantKnowledge_is, 
+//     detectLanguage, 
+//     getLanguageContext 
+// } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 // Sunset times functionality
 import { 
@@ -49,6 +51,8 @@ import {
     createBookingChangeRequest,
     submitBookingChangeRequest 
 } from './services/livechat.js';
+// MongoDB integration - add this after imports but before Pusher initialization
+import { connectToDatabase } from './database.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
@@ -65,48 +69,9 @@ console.log('██████████████████████�
 console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
 console.log('███████████████████████████████████████████');
 
-// MongoDB integration - add this after imports but before Pusher initialization
-import { MongoClient } from 'mongodb';
-
 // Add these maps at the top of your file with other globals
 const sessionConversations = new Map(); // Maps sessionId -> conversationId
 const broadcastTracker = new Map(); // For deduplication
-
-// MongoDB Connection
-let cachedClient = null;
-let cachedDb = null;
-
-async function connectToDatabase() {
-  try {
-    // If we already have a connection, use it
-    if (cachedClient && cachedDb) {
-      console.log('Using cached database connection');
-      return { client: cachedClient, db: cachedDb };
-    }
-
-    // Check for MongoDB URI
-    if (!process.env.MONGODB_URI) {
-      console.error('MONGODB_URI environment variable not set');
-      throw new Error('Please define the MONGODB_URI environment variable');
-    }
-
-    // Connect to MongoDB
-    console.log('Connecting to MongoDB...');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    
-    // Cache the connection
-    cachedClient = client;
-    cachedDb = db;
-    
-    console.log('MongoDB connected successfully');
-    return { client, db };
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
-  }
-}
 
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
@@ -2139,8 +2104,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // MIGRATION: Get or create context using ONLY the new system
-        const context = getSessionContext(sessionId);
+        // MIGRATION: Get or create context using MongoDB-backed persistent session
+        let context;
+        try {
+                context = await getPersistentSessionContext(sessionId);
+        } catch (sessionError) {
+                console.error(`❌ Session recovery error:`, sessionError);
+                // Fallback to in-memory session
+                context = getSessionContext(sessionId);
+        }
 
         // Do language detection with the context
         const languageDecision = newDetectLanguage(userMessage, context);        
@@ -2515,53 +2487,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n⏰ Time context updated:', timeContext);
         }
 
-        // Use vector search with fallback to traditional search
-        let knowledgeBaseResults = [];
-        try {
-            // First try vector search with the context system
-            console.log('\n🔍 Attempting vector search...');
-            knowledgeBaseResults = await getVectorKnowledge(userMessage, context);
-            
-            // Log vector search results
-            console.log('\n🔍 Vector search results:', {
+        // Use comprehensive knowledge retrieval with fallbacks
+        console.log('\n📚 Starting knowledge retrieval with fallback system...');
+        const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
+
+        // Log the final results
+        console.log('\n🔍 Knowledge retrieval results:', {
                 count: knowledgeBaseResults.length,
                 language: context.language,
-                query: userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : '')
-            });
-            
-            // If vector search yielded no results, fall back to traditional search
-            if (!knowledgeBaseResults || knowledgeBaseResults.length === 0) {
-                console.log('\n🔍 No vector results, falling back to traditional search');
-                try {
-                    // Use the appropriate language's traditional search
-                    const results = context.language === 'is' ? 
-                        getRelevantKnowledge_is(userMessage) : 
-                        getRelevantKnowledge(userMessage);
-                    
-                    // Ensure results is an array
-                    knowledgeBaseResults = Array.isArray(results) ? results : [];
-                } catch (error) {
-                    console.error('\n❌ Traditional search fallback error:', error.message);
-                    knowledgeBaseResults = []; // Empty array on error
-                }
-            }
-        } catch (error) {
-            // If vector search fails, log error and fall back to traditional search
-            console.error('\n❌ Vector search error:', error.message);
-            console.log('\n🔍 Falling back to traditional search after error');
-            try {
-                // Use the appropriate language's traditional search
-                const results = context.language === 'is' ? 
-                    getRelevantKnowledge_is(userMessage) : 
-                    getRelevantKnowledge(userMessage);
-                
-                // Ensure results is an array
-                knowledgeBaseResults = Array.isArray(results) ? results : [];
-            } catch (fallbackError) {
-                console.error('\n❌ Traditional search also failed:', fallbackError.message);
-                knowledgeBaseResults = []; // Empty array as last resort
-            }
-        }
+                query: userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : ''),
+                types: knowledgeBaseResults.map(r => r.type)
+        });
 
         // Preserve non-zero results by making a copy
         let originalResults = null;

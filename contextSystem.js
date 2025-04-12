@@ -3,6 +3,7 @@
 // Import required dependencies
 import { detectLanguage as oldDetectLanguage } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
+import { connectToDatabase } from './database.js';
 
 // Store sessions in memory
 const sessions = new Map();
@@ -1262,6 +1263,205 @@ export async function getVectorKnowledge(message, context) {
 }
 
 /**
+ * Comprehensive knowledge retrieval with fallback mechanisms
+ * @param {string} message - User message
+ * @param {Object} context - Session context
+ * @returns {Promise<Array>} - Knowledge entries with fallback handling
+ */
+export async function getKnowledgeWithFallbacks(message, context) {
+  try {
+    console.log(`\n📚 Starting comprehensive knowledge retrieval for: "${message}"`);
+    
+    // Track retrieval attempts for analytics
+    if (!context.retrievalStats) {
+      context.retrievalStats = {
+        attempts: 0,
+        fallbacks: 0,
+        successRate: 0,
+        history: []
+      };
+    }
+    
+    // Increment attempt counter
+    context.retrievalStats.attempts++;
+    
+    // 1. Primary retrieval using enhanced vector search
+    console.log(`\n🔍 ATTEMPT 1: Primary vector search`);
+    let results = await getVectorKnowledge(message, context);
+    
+    // Track this attempt
+    context.retrievalStats.history.push({
+      strategy: 'primary_vector',
+      query: message,
+      resultCount: results?.length || 0,
+      timestamp: Date.now()
+    });
+    
+    // If we got results, return them
+    if (results && results.length > 0) {
+      console.log(`\n✅ Primary vector search successful: ${results.length} results`);
+      return results;
+    }
+    
+    // 2. If no results, try with topic-enhanced query
+    console.log(`\n🔍 ATTEMPT 2: Topic fallback`);
+    
+    // Use topics from context to enhance query
+    if (context.lastTopic) {
+      const topicEnhancedQuery = `${context.lastTopic} ${message}`;
+      console.log(`\n🔍 Trying topic-enhanced query: "${topicEnhancedQuery}"`);
+      
+      results = await getVectorKnowledge(topicEnhancedQuery, context);
+      
+      // Track this attempt
+      context.retrievalStats.history.push({
+        strategy: 'topic_fallback',
+        query: topicEnhancedQuery,
+        resultCount: results?.length || 0,
+        timestamp: Date.now()
+      });
+      
+      if (results && results.length > 0) {
+        console.log(`\n✅ Topic fallback successful: ${results.length} results`);
+        return results;
+      }
+    }
+    
+    // 3. If still no results, try with intent-based fallback
+    console.log(`\n🔍 ATTEMPT 3: Intent fallback`);
+    
+    // Use intent hierarchy for query enhancement
+    if (context.intentHierarchy?.primaryIntent) {
+      const intentEnhancedQuery = `${context.intentHierarchy.primaryIntent} ${message}`;
+      console.log(`\n🔍 Trying intent-enhanced query: "${intentEnhancedQuery}"`);
+      
+      results = await getVectorKnowledge(intentEnhancedQuery, context);
+      
+      // Track this attempt
+      context.retrievalStats.history.push({
+        strategy: 'intent_fallback',
+        query: intentEnhancedQuery,
+        resultCount: results?.length || 0,
+        timestamp: Date.now()
+      });
+      
+      if (results && results.length > 0) {
+        console.log(`\n✅ Intent fallback successful: ${results.length} results`);
+        return results;
+      }
+    }
+    
+    // 4. Try with secondary intents if available
+    if (context.intentHierarchy?.secondaryIntents?.length > 0) {
+      console.log(`\n🔍 ATTEMPT 4: Secondary intent fallback`);
+      
+      // Try each secondary intent
+      for (const intent of context.intentHierarchy.secondaryIntents) {
+        const secondaryIntentQuery = `${intent} ${message}`;
+        console.log(`\n🔍 Trying secondary intent query: "${secondaryIntentQuery}"`);
+        
+        results = await getVectorKnowledge(secondaryIntentQuery, context);
+        
+        // Track this attempt
+        context.retrievalStats.history.push({
+          strategy: 'secondary_intent_fallback',
+          intent,
+          query: secondaryIntentQuery,
+          resultCount: results?.length || 0,
+          timestamp: Date.now()
+        });
+        
+        if (results && results.length > 0) {
+          console.log(`\n✅ Secondary intent fallback successful: ${results.length} results`);
+          return results;
+        }
+      }
+    }
+    
+    // 5. Last resort - try keyword extraction
+    console.log(`\n🔍 ATTEMPT 5: Keyword fallback`);
+    
+    // Extract keywords (words with 4+ chars)
+    const keywords = message.split(' ')
+      .filter(word => word.length >= 4)
+      .slice(0, 3);
+      
+    if (keywords.length > 0) {
+      const keywordQuery = keywords.join(' ');
+      console.log(`\n🔍 Trying keyword search: "${keywordQuery}"`);
+      
+      results = await getVectorKnowledge(keywordQuery, context);
+      
+      // Track this attempt
+      context.retrievalStats.history.push({
+        strategy: 'keyword_fallback',
+        keywords,
+        query: keywordQuery,
+        resultCount: results?.length || 0,
+        timestamp: Date.now()
+      });
+      
+      if (results && results.length > 0) {
+        console.log(`\n✅ Keyword fallback successful: ${results.length} results`);
+        return results;
+      }
+    }
+    
+    // All fallbacks failed, update stats
+    context.retrievalStats.fallbacks++;
+    context.retrievalStats.successRate = 
+      (context.retrievalStats.attempts - context.retrievalStats.fallbacks) / 
+      context.retrievalStats.attempts;
+    
+    console.log(`\n⚠️ Knowledge retrieval failed after all fallback attempts`);
+    console.log(`📊 Retrieval stats: ${context.retrievalStats.successRate * 100}% success rate after ${context.retrievalStats.attempts} attempts`);
+    
+    // Try to use a traditional search method if all fallbacks failed
+    try {
+      // Use the imported functions from the top of the file instead of dynamic imports
+      console.log(`\n🔍 FINAL ATTEMPT: Traditional search fallback`);
+      
+      // Use the appropriate function based on language
+      const traditionalResults = context.language === 'is' ? 
+        getRelevantKnowledge_is(message) : 
+        getRelevantKnowledge(message);
+      
+      // Track this attempt
+      context.retrievalStats.history.push({
+        strategy: 'traditional_search',
+        query: message,
+        resultCount: traditionalResults?.length || 0,
+        timestamp: Date.now()
+      });
+      
+      if (traditionalResults && traditionalResults.length > 0) {
+        console.log(`\n✅ Traditional search fallback successful: ${traditionalResults.length} results`);
+        return traditionalResults;
+      }
+    } catch (traditionalError) {
+      console.error(`\n❌ Traditional search failed:`, traditionalError);
+    }
+    
+    // Return empty array if all fallbacks failed
+    return [];
+    
+  } catch (error) {
+    console.error(`\n❌ Error in comprehensive knowledge retrieval:`, error);
+    
+    // Log detailed error info
+    console.error(`Stack trace: ${error.stack}`);
+    console.error(`Message: ${message}`);
+    console.error(`Context: ${JSON.stringify({
+      language: context.language,
+      lastTopic: context.lastTopic,
+      topics: context.topics && context.topics.length
+    })}`);
+    
+    return []; // Ensure we always return something, even on error
+  }
+}
+
+/**
  * Normalizes vector search results to match expected format
  * @param {Array} results - Vector search results
  * @returns {Array} - Normalized results that match expected structure
@@ -1289,6 +1489,62 @@ function normalizeVectorResults(results) {
     
     return normalized;
   });
+}
+
+/**
+ * Get session context with MongoDB persistence to prevent session loss
+ * @param {string} sessionId - Unique session ID
+ * @returns {Object} - Session context
+ */
+export async function getPersistentSessionContext(sessionId) {
+  try {
+    // First check in-memory cache
+    if (sessions.has(sessionId)) {
+      const session = sessions.get(sessionId);
+      session.lastInteraction = Date.now();
+      return session;
+    }
+    
+    console.log(`🔍 Session not found in memory, attempting recovery for ${sessionId}`);
+    
+    // Check MongoDB for existing session
+    const { db } = await connectToDatabase();
+    const sessionCollection = db.collection('chat_sessions');
+    
+    const savedSession = await sessionCollection.findOne({ sessionId });
+    
+    if (savedSession) {
+      console.log(`✅ Recovered session ${sessionId} from MongoDB`);
+      
+      // Convert MongoDB format to context format
+      const recoveredContext = {
+        ...savedSession,
+        lastInteraction: Date.now()
+      };
+      
+      // Update in-memory cache
+      sessions.set(sessionId, recoveredContext);
+      return recoveredContext;
+    }
+    
+    // If no session found, create new one
+    console.log(`🧠 Creating new session context for ${sessionId}`);
+    const newContext = getSessionContext(sessionId);
+    
+    // Save to MongoDB for persistence
+    await sessionCollection.insertOne({
+      ...newContext,
+      sessionId,
+      createdAt: new Date(),
+      lastInteraction: Date.now()
+    });
+    
+    return newContext;
+  } catch (error) {
+    console.error(`❌ Error in persistent session recovery:`, error);
+    // Fallback to in-memory session
+    return getSessionContext(sessionId);
+  }
 }
 
 /**

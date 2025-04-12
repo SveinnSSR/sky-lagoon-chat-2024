@@ -374,7 +374,7 @@ export const detectLanguage = (message, context = null) => {
         if (hasFrenchIndicators && (frenchDensity > 0.25 || frenchWordCount >= 2)) {
             return {
                 isIcelandic: false,
-                language: 'fr',
+                language: 'en', // Change this to 'en' to ensure it returns English
                 confidence: 'high',
                 reason: 'french_with_icelandic_terms'
             };
