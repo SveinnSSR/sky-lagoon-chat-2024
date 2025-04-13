@@ -2659,14 +2659,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         messages.push({
             role: "user",
             content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
-                
+            
                 User Question: ${userMessage}
-                
+            
                 Please provide a natural, conversational response. For factual information about Sky Lagoon, use ONLY the information from the knowledge base.
                 For greetings, small talk, or acknowledgments, respond naturally without requiring knowledge base information.
-                
+            
                 Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                Response MUST be in ${context.language} language.`
+                ${language === 'auto' ? 'IMPORTANT: Respond in the same language as the user\'s question.' : `Response MUST be in ${language} language.`}`
         });
 
         // Make GPT-4 request with retries

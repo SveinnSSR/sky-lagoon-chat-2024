@@ -185,19 +185,20 @@ const getSystemPrompt = (sessionId, isHoursQuery, userMessage, languageDecision,
     // Get detected language
     const language = languageDecision?.language || (languageDecision?.isIcelandic ? 'is' : 'en');
 
-    // Determine if it's English, Icelandic, or other
+    // Determine if it's English, Icelandic, auto or other
     const isEnglish = language === 'en';
     const isIcelandic = language === 'is';
-    const isStandardLanguage = isEnglish || isIcelandic; // Add this line
-    const isOtherLanguage = !isStandardLanguage; // Changed to use isStandardLanguage
-    
-    // Add logging for language determination
-    console.log('\n🌍 Language determined for prompt:', {
+    const isAuto = language === 'auto';
+    const isStandardLanguage = isEnglish || isIcelandic; 
+    const isOtherLanguage = !isStandardLanguage || isAuto; // Now includes "auto" as "other"
+
+    // Add this logging for better debugging
+    console.log('\n🌐 systemPrompts language determination:', {
         language,
+        isAuto,
         isEnglish,
         isIcelandic,
-        isOtherLanguage,
-        confidence: languageDecision?.confidence
+        isOtherLanguage
     });
 
     let basePrompt = '';
@@ -1401,6 +1402,7 @@ ICELANDIC RESPONSE GUIDELINES:
    - NEVER use "geothermal" in Icelandic text - THIS IS AN ABSOLUTE REQUIREMENT
    - NEVER use "premium" in Icelandic text - NO EXCEPTIONS
    - NEVER use "lúxus" in Icelandic text
+   - NEVER use "sundlaug" in Icelandic text (even though this is Icelandic)
    - NEVER use "jarðhitalón" (even though this is Icelandic)
    - NEVER use any English words mixed with Icelandic
 
@@ -2507,8 +2509,12 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
     }
 
     // MODIFY THIS SECTION: Update final instruction to handle all languages
-    if (isStandardLanguage) {
-        basePrompt += `\n\nRESPOND IN ${languageDecision.isIcelandic ? 'ICELANDIC' : 'ENGLISH'}.`;
+    if (isIcelandic) {
+        basePrompt += `\n\nRESPOND IN ICELANDIC.`;
+    } else if (isEnglish) {
+        basePrompt += `\n\nRESPOND IN ENGLISH.`;
+    } else if (isAuto) {
+        basePrompt += `\n\nIMPORTANT: RESPOND IN THE SAME LANGUAGE AS THE USER'S QUESTION. If the user writes in Icelandic, respond in Icelandic. If they write in English, respond in English. If they write in any other language, respond in that same language.`;
     } else {
         basePrompt += `\n\nCRITICAL: RESPOND IN ${language.toUpperCase()} LANGUAGE. DO NOT RESPOND IN ENGLISH OR ICELANDIC UNLESS THE USER MESSAGE IS IN THOSE LANGUAGES.`;
     }
