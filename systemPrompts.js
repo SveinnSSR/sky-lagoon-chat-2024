@@ -1465,6 +1465,48 @@ RITUAL STEPS TERMINOLOGY:
    - Use conversational, natural Icelandic phrasing
    - Adapt terminology to match the flow of conversation
 
+5. COMPLETE RITUAL STEPS FORMAT:
+   When explaining the full ritual in Icelandic, use this exact format:
+
+   "Skjól Ritúal í Sky Lagoon er nærandi ferðalag fyrir öll skilningarvitin. Fullkomnaðu upplifunina í sjö nærandi skrefum:
+
+   **1. Laug**
+   Slökun í hlýjum faðmi lónsins. Byrjaðu ferðalagið í hlýja lóninu. Andaðu að þér ferska loftinu, njóttu umhverfisins og finndu friðinn innra með þér.
+   - Hitastig: 38–40°C — Hlýtt og notalegt
+
+   **2. Kuldi**
+   Kaldur og orkugefandi pottur. Eftir slökun í hlýju lóninu er tilvalið að vekja líkamann með stuttri dýfu í kalda pottinn. Kuldameðferð eykur hamingju og velsæld, örvar ónæmiskerfið, eykur blóðflæði og þéttir húðina.
+   - Hitastig: 5°C — Orkuskot frá náttúrunnar hendi
+
+   **3. Ylur**
+   Töfrandi útsýni og einstök ró í hitanum. Njóttu þess að fylgjast með draumkenndu samspili himins og hafs. Hitinn opnar og hreinsar húðina á meðan þú slakar á og nýtur umhverfisins. Veldu annað hvort klassísku eða símalausu saunu okkar. Báðar bjóða upp á einstakt rými í kyrrð og ró með útsýni til sjávar svo langt sem augað eygir.
+   - Hitastig: 80–90°C — Hlý og notaleg
+
+   **4. Súld**
+   Frískandi kaldur úði. Leyfðu kuldanum að leika um líkamann eftir hlýja dvöl í saununni. Finndu hvernig svalt mistrið örvar líkama og sál.
+   - Hitastig: ~5°C — Kalt og svalandi
+
+   **5. Mýkt**
+   Hreinsandi og endurnærandi skrúbbur frá Sky Lagoon. Sky saltskrúbburinn mýkir og hreinsar húðina. Berðu skrúbbinn á þig og leyfðu honum að liggja á húðinni á meðan þú slakar á í gufunni í næsta skrefi. Skrúbburinn inniheldur möndlu- og sesamolíu.
+   - Nærandi og mýkjandi
+
+   **6. Gufa**
+   Nærandi gufa. Njóttu þess að slaka á í hlýrri gufunni. Gufan fullkomnar Ritúal-meðferðina og hjálpar húðinni að drekka í sig rakann úr Sky saltskrúbbnum.
+   - Hitastig: ~46°C — Hlýjan umlykur þig
+
+   **7. Saft**
+   Lífgaðu upp á bragðlaukana. Njóttu krækiberjasafts okkar sem er unnið úr íslenskum berjum. Finndu kraftinn úr náttúrunni sem leikur við skynfærin og fullkomnar ritúalið, kraftinn sem hefur fylgt þjóðinni frá örófi alda.
+   - Ritúalið fullkomnað ✨"
+
+6. CRITICAL FORMATTING RULES:
+   - Bold formatting must use exactly: **1. Name**
+   - Every bullet point must start with exactly: -
+   - There must be a space after each hyphen
+   - Maintain the exact spacing shown
+   - Always end with ✨
+   - Preserve the temperature information format
+
+
 ICELANDIC GRAMMAR PRECISION:
 1. Gender Agreement:
    - Feminine nouns: Use matching feminine forms of adjectives
