@@ -53,6 +53,8 @@ import {
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
+// Import from Data Models:
+import { normalizeConversation, normalizeMessage } from './dataModels.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
@@ -82,11 +84,10 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Updated broadcastConversation function with improved session handling
+// Updated broadcastConversation function with data normalization
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
         // IMPROVED SESSION HANDLING: ALWAYS use client-provided sessionId or generate a new one
-        // REMOVED conversationContext.get('currentSession') to prevent context bleeding
         const chatSessionId = clientSessionId || 
                              `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
@@ -122,19 +123,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             reason: languageCheck.reason
         };
 
-        // CRITICAL: Always define roles and senders consistently
-        const userRole = 'user';
-        const botRole = 'assistant';
-        const userSender = 'user';
-        const botSender = 'bot';
-
-        // Create message timestamps with a guaranteed sequence
-        // User message timestamp is now, bot message timestamp is 1ms later
-        // This ensures messages appear in correct order
-        const userTimestamp = new Date();
-        const botTimestamp = new Date(userTimestamp.getTime() + 1); // Add 1ms
-
-        // Add messageId in MongoDB format for feedback correlation
+        // Generate message IDs with timestamps for tracking
         const userMessageId = `user-msg-${Date.now()}`;
         const botMessageId = `bot-msg-${Date.now() + 1}`; // Ensure different IDs
 
@@ -149,32 +138,63 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             console.log(`🆕 Created new conversation ID: ${conversationId} for session: ${chatSessionId}`);
         }
 
-        const conversationData = {
-            id: conversationId, // Use consistent ID per session instead of new uuidv4() each time
-            timestamp: userTimestamp.toISOString(),
-            messages: [
-              {
-                id: userMessageId,
-                content: userMessage,
-                role: userRole,      // CRITICAL: Always explicitly 'user'
-                sender: userSender,  // CRITICAL: Always explicitly 'user'
-                timestamp: userTimestamp.toISOString()
-              },
-              {
-                id: botMessageId, 
-                content: botResponse,
-                role: botRole,       // CRITICAL: Always explicitly 'assistant'
-                sender: botSender,   // CRITICAL: Always explicitly 'bot'
-                timestamp: botTimestamp.toISOString() // CRITICAL: Sequential timestamp
-              }
-            ],
+        // === Use normalizeMessage explicitly for each message ===
+        // Create raw message data
+        const rawUserMessage = {
+            id: userMessageId,
+            content: userMessage,
+            role: 'user',
+            sender: 'user',
+            timestamp: new Date().toISOString()
+        };
+        
+        const rawBotMessage = {
+            id: botMessageId,
+            content: botResponse,
+            role: 'assistant',
+            sender: 'bot',
+            timestamp: new Date(Date.now() + 1).toISOString() // 1ms later for ordering
+        };
+        
+        // Explicitly normalize each message using normalizeMessage
+        const normalizedUserMessage = normalizeMessage(rawUserMessage);
+        const normalizedBotMessage = normalizeMessage(rawBotMessage);
+        
+        // Create a standard conversation structure
+        const rawConversationData = {
+            id: conversationId,
+            sessionId: chatSessionId,
+            clientId: 'sky-lagoon',
+            messages: [normalizedUserMessage, normalizedBotMessage],
+            startedAt: new Date().toISOString(),
+            endedAt: new Date().toISOString(),
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
-            type,
-            sessionId: chatSessionId  // Always include the session ID
+            type
         };
+        
+        // Normalize the conversation data
+        const conversationData = normalizeConversation(rawConversationData);
+        
+        // Add debugging logs to verify normalization
+        console.log('\n✅ Normalized messages:', {
+            userMessageRole: normalizedUserMessage.role,
+            userMessageType: normalizedUserMessage.type,
+            botMessageRole: normalizedBotMessage.role,
+            botMessageType: normalizedBotMessage.type
+        });
+        
+        console.log('\n✅ Normalized conversation data:', {
+            id: conversationData.id,
+            sessionId: conversationData.sessionId,
+            messageCount: conversationData.messages.length,
+            firstMessageRole: conversationData.messages[0]?.role,
+            secondMessageRole: conversationData.messages[1]?.role,
+            firstMessageType: conversationData.messages[0]?.type,
+            secondMessageType: conversationData.messages[1]?.type
+        });
 
-        // Keep these for backward compatibility
+        // Keep these for backward compatibility (can be removed later)
         conversationData.userMessage = userMessage;
         conversationData.botResponse = botResponse;
 
