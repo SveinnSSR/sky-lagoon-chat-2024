@@ -53,8 +53,10 @@ import {
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
-// Import from Data Models:
+// Import from Data Models
 import { normalizeConversation, normalizeMessage } from './dataModels.js';
+// Import from sessionManager
+import { getOrCreateSession } from './sessionManager.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
@@ -72,8 +74,9 @@ console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ██�
 console.log('███████████████████████████████████████████');
 
 // Add these maps at the top of your file with other globals
-const sessionConversations = new Map(); // Maps sessionId -> conversationId
 const broadcastTracker = new Map(); // For deduplication
+// 15.4 - comment this out - its being used in sessionManager.js instead with global.sessionCache
+// const sessionConversations = new Map(); // Maps sessionId -> conversationId
 
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
@@ -84,17 +87,17 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Updated broadcastConversation function with data normalization
+// Updated broadcastConversation function with session management
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
-        // IMPROVED SESSION HANDLING: ALWAYS use client-provided sessionId or generate a new one
-        const chatSessionId = clientSessionId || 
-                             `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-
-        console.log(`📊 Using session ID: ${chatSessionId}${clientSessionId ? ' (from client)' : ' (generated)'}`);
+        // Get or create a session using the new session manager
+        const sessionInfo = await getOrCreateSession(clientSessionId);
+        const chatSessionId = sessionInfo.sessionId;
         
-        // Create a unique key for this message pair to prevent duplicate broadcasts
-        const messageKey = `${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
+        console.log(`📊 Using session ID: ${chatSessionId}, conversation ID: ${sessionInfo.conversationId}`);
+        
+        // Create a unique key for this message pair that includes the conversation ID
+        const messageKey = `${sessionInfo.conversationId}:${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
         
         // Check if we've already broadcast this exact message pair in the last 2 seconds
         const lastBroadcast = broadcastTracker.get(messageKey);
@@ -112,6 +115,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             language,
             type,
             sessionId: chatSessionId,
+            conversationId: sessionInfo.conversationId,
             languageCheck,
             hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
         });
@@ -126,17 +130,6 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         // Generate message IDs with timestamps for tracking
         const userMessageId = `user-msg-${Date.now()}`;
         const botMessageId = `bot-msg-${Date.now() + 1}`; // Ensure different IDs
-
-        // Use existing conversation ID for this session, or create a new one
-        let conversationId;
-        if (sessionConversations.has(chatSessionId)) {
-            conversationId = sessionConversations.get(chatSessionId);
-            console.log(`📝 Using existing conversation ID: ${conversationId} for session: ${chatSessionId}`);
-        } else {
-            conversationId = uuidv4();
-            sessionConversations.set(chatSessionId, conversationId);
-            console.log(`🆕 Created new conversation ID: ${conversationId} for session: ${chatSessionId}`);
-        }
 
         // === Use normalizeMessage explicitly for each message ===
         // Create raw message data
@@ -162,11 +155,11 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         
         // Create a standard conversation structure
         const rawConversationData = {
-            id: conversationId,
+            id: sessionInfo.conversationId,  // Use conversationId from session manager
             sessionId: chatSessionId,
             clientId: 'sky-lagoon',
             messages: [normalizedUserMessage, normalizedBotMessage],
-            startedAt: new Date().toISOString(),
+            startedAt: sessionInfo.startedAt,
             endedAt: new Date().toISOString(),
             language: languageInfo.isIcelandic ? 'is' : 'en',
             topic,
@@ -1386,16 +1379,19 @@ const getErrorMessage = (isIcelandic) => {
 };
 
 // ADD THE NEW CONSTANTS HERE 👇 (These seem unused - Can I delete them?)
-const activeConnections = new Map();  // Track active WebSocket connections
-const conversationBuffer = new Map(); // Buffer recent conversations
+// 15.4 - comment out these as they are the variables that will now be managed by sessionManager.js:
+// const activeConnections = new Map();  // Track active WebSocket connections
+// const conversationBuffer = new Map(); // Buffer recent conversations
 
 // Track active chat sessions (Seems unused?)
-const chatSessions = new Map();
+// 15.4 - comment out these as they are the variables that will now be managed by sessionManager.js:
+// const chatSessions = new Map();
 
 // This Map tracks messages already sent to analytics to prevent duplicates (then referenced later in the sendConversationToAnalytics function)
 const analyticsSentMessages = new Map();
 
 // Define session timeout (period after which we create a new conversation) - getOrCreateSession function then uses this
+// 15.4 - comment out these as they are the variables that will now be managed by sessionManager.js:
 const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes of inactivity = new conversation (15 seconds in milliseconds)
 
 /**
@@ -1407,6 +1403,8 @@ const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes of inactivity = new conver
  * @param {Object} conversationData - The conversation data including session information
  * @returns {Promise<Object>} Session information
  */
+// Comment out the entire function:
+/*
 async function getOrCreateSession(conversationData) {
   try {
     // Extract the frontend session ID first - we'll need this even if DB connection fails
@@ -1669,6 +1667,7 @@ async function getOrCreateSession(conversationData) {
     return fallbackSession;
   }
 }
+*/
 
 // Context tracking constants
 const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
@@ -3313,10 +3312,11 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
       }
     }
 
-    // Get persistent session from MongoDB - now passing the conversation data
+    // FIXED: Get persistent session from MongoDB - now passing just the sessionId
     let sessionInfo;
     try {
-      sessionInfo = await getOrCreateSession(conversationData);
+      // Extract just the sessionId string, not the entire object
+      sessionInfo = await getOrCreateSession(conversationData.sessionId);
       
       // CRITICAL FIX: Validate session info
       if (!sessionInfo || !sessionInfo.conversationId || !sessionInfo.sessionId) {
@@ -3324,7 +3324,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
         // Generate new valid IDs if missing
         sessionInfo = {
           conversationId: uuidv4(),
-          sessionId: uuidv4(),
+          sessionId: conversationData.sessionId || uuidv4(),
           startedAt: new Date().toISOString(),
           lastActivity: new Date().toISOString()
         };
@@ -3335,7 +3335,7 @@ async function sendConversationToAnalytics(conversationData, languageInfo) {
       // Fallback to generating new IDs
       sessionInfo = {
         conversationId: uuidv4(),
-        sessionId: uuidv4(),
+        sessionId: conversationData.sessionId || uuidv4(),
         startedAt: new Date().toISOString(),
         lastActivity: new Date().toISOString()
       };
