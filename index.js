@@ -57,6 +57,8 @@ import { connectToDatabase } from './database.js';
 import { normalizeConversation, normalizeMessage } from './dataModels.js';
 // Import from sessionManager
 import { getOrCreateSession } from './sessionManager.js';
+// Add this import near the top of index.js with your other imports
+import { processMessagePair } from './messageProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
@@ -87,134 +89,89 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Updated broadcastConversation function with session management
+// Simplified broadcastConversation that preserves Pusher functionality and uses the new message processor
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
-        // Get or create a session using the new session manager
-        const sessionInfo = await getOrCreateSession(clientSessionId);
-        const chatSessionId = sessionInfo.sessionId;
+        console.log('\n🔄 Using message processor for message pair');
         
-        console.log(`📊 Using session ID: ${chatSessionId}, conversation ID: ${sessionInfo.conversationId}`);
-        
-        // Create a unique key for this message pair that includes the conversation ID
-        const messageKey = `${sessionInfo.conversationId}:${userMessage.substring(0, 20)}-${botResponse.substring(0, 20)}`;
-        
-        // Check if we've already broadcast this exact message pair in the last 2 seconds
-        const lastBroadcast = broadcastTracker.get(messageKey);
-        if (lastBroadcast && (Date.now() - lastBroadcast.timestamp < 2000)) {
-            console.log(`⚠️ Prevented duplicate broadcast for message: ${messageKey}`);
-            return lastBroadcast.result; // Return previous result
-        }
-        
-        // First check if it's a simple Icelandic message
-        const languageCheck = newDetectLanguage(userMessage);
-        
-        // Enhanced logging with language info and session ID
-        console.log('\n📨 Processing message:', {
+        // Use the message processor for message processing, MongoDB and analytics
+        const processResult = await processMessagePair(
             userMessage,
-            language,
-            type,
-            sessionId: chatSessionId,
-            conversationId: sessionInfo.conversationId,
-            languageCheck,
-            hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage)
-        });
-
-        // Language info object using our detection
-        const languageInfo = {
-            isIcelandic: language === 'is' || languageCheck.isIcelandic,
-            confidence: languageCheck.confidence,
-            reason: languageCheck.reason
-        };
-
-        // Generate message IDs with timestamps for tracking
-        const userMessageId = `user-msg-${Date.now()}`;
-        const botMessageId = `bot-msg-${Date.now() + 1}`; // Ensure different IDs
-
-        // === Use normalizeMessage explicitly for each message ===
-        // Create raw message data
-        const rawUserMessage = {
-            id: userMessageId,
-            content: userMessage,
-            role: 'user',
-            sender: 'user',
-            timestamp: new Date().toISOString()
-        };
-        
-        const rawBotMessage = {
-            id: botMessageId,
-            content: botResponse,
-            role: 'assistant',
-            sender: 'bot',
-            timestamp: new Date(Date.now() + 1).toISOString() // 1ms later for ordering
-        };
-        
-        // Explicitly normalize each message using normalizeMessage
-        const normalizedUserMessage = normalizeMessage(rawUserMessage);
-        const normalizedBotMessage = normalizeMessage(rawBotMessage);
-        
-        // Create a standard conversation structure
-        const rawConversationData = {
-            id: sessionInfo.conversationId,  // Use conversationId from session manager
-            sessionId: chatSessionId,
-            clientId: 'sky-lagoon',
-            messages: [normalizedUserMessage, normalizedBotMessage],
-            startedAt: sessionInfo.startedAt,
-            endedAt: new Date().toISOString(),
-            language: languageInfo.isIcelandic ? 'is' : 'en',
-            topic,
-            type
-        };
-        
-        // Normalize the conversation data
-        const conversationData = normalizeConversation(rawConversationData);
-        
-        // Add debugging logs to verify normalization
-        console.log('\n✅ Normalized messages:', {
-            userMessageRole: normalizedUserMessage.role,
-            userMessageType: normalizedUserMessage.type,
-            botMessageRole: normalizedBotMessage.role,
-            botMessageType: normalizedBotMessage.type
-        });
-        
-        console.log('\n✅ Normalized conversation data:', {
-            id: conversationData.id,
-            sessionId: conversationData.sessionId,
-            messageCount: conversationData.messages.length,
-            firstMessageRole: conversationData.messages[0]?.role,
-            secondMessageRole: conversationData.messages[1]?.role,
-            firstMessageType: conversationData.messages[0]?.type,
-            secondMessageType: conversationData.messages[1]?.type
-        });
-
-        // Keep these for backward compatibility (can be removed later)
-        conversationData.userMessage = userMessage;
-        conversationData.botResponse = botResponse;
-
-        // Process conversation and get result
-        const result = await handleConversationUpdate(conversationData, languageInfo) || { success: false, postgresqlId: null };
-        
-        // Store the result with timestamp for deduplication
-        broadcastTracker.set(messageKey, {
-            timestamp: Date.now(),
-            result: result
-        });
-        
-        // Cleanup old entries occasionally (optional)
-        if (broadcastTracker.size > 100) {
-            // Remove entries older than 5 minutes
-            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-            for (const [key, value] of broadcastTracker.entries()) {
-                if (value.timestamp < fiveMinutesAgo) {
-                    broadcastTracker.delete(key);
-                }
+            botResponse,
+            {
+                sessionId: clientSessionId,
+                language: language,
+                topic: topic,
+                type: type,
+                clientId: 'sky-lagoon'
             }
-        }
+        );
         
-        return result;
+        // Check if processing was successful
+        if (processResult.success) {
+            console.log('\n✅ Successfully processed message pair with message processor');
+            
+            // We still need Pusher broadcasting which isn't in messageProcessor.js yet
+            try {
+                const sessionInfo = await getOrCreateSession(clientSessionId);
+                
+                // Create minimal conversation data for Pusher
+                const conversationData = {
+                    id: sessionInfo.conversationId,
+                    sessionId: sessionInfo.sessionId,
+                    clientId: 'sky-lagoon',
+                    userMessage: userMessage,   // Keep for compatibility
+                    botResponse: botResponse,   // Keep for compatibility
+                    messages: [
+                        {
+                            id: processResult.userMessageId,
+                            content: userMessage,
+                            role: 'user',
+                            type: 'user'
+                        },
+                        {
+                            id: processResult.botMessageId,
+                            content: botResponse,
+                            role: 'assistant',
+                            type: 'bot'
+                        }
+                    ],
+                    startedAt: sessionInfo.startedAt,
+                    endedAt: new Date().toISOString(),
+                    language: language,
+                    topic: topic
+                };
+                
+                // Pusher-only broadcast (MongoDB and analytics already handled by processMessagePair)
+                await pusher.trigger('chat-channel', 'conversation-update', conversationData);
+                console.log('✅ Pusher message sent successfully');
+            } catch (pusherError) {
+                console.error('❌ Pusher error:', pusherError);
+                // Continue even if Pusher fails - critical data is already saved
+            }
+            
+            return {
+                success: true,
+                postgresqlId: processResult.postgresqlId
+            };
+        } else if (processResult.error === 'duplicate_message') {
+            console.log('\n⚠️ Duplicate message detected by message processor');
+            return { 
+                success: true,
+                postgresqlId: null,
+                deduplicated: true
+            };
+        } else {
+            console.log('\n❌ Message processor error:', processResult.error, processResult.reason);
+            return { 
+                success: false, 
+                postgresqlId: null,
+                error: processResult.error || 'processing_error'
+            };
+        }
     } catch (error) {
-      console.error('❌ Error in broadcastConversation:', error);
-      return { success: false, postgresqlId: null };
+        console.error('❌ Error in broadcastConversation:', error);
+        return { success: false, postgresqlId: null };
     }
 };
 
