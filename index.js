@@ -53,7 +53,7 @@ import {
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
-// Import from Data Models
+// Import from Data Models - You can safely remove these imports as it's handled inside messageProcessor.js
 import { normalizeConversation, normalizeMessage } from './dataModels.js';
 // Import from sessionManager
 import { getOrCreateSession } from './sessionManager.js';
