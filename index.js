@@ -2621,6 +2621,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
+        // Conversation continuity check - Check if this is an ongoing conversation
+        const isOngoingConversation = context.messages && 
+                                     context.messages.filter(m => m.role === 'assistant').length > 0;
+
+        if (isOngoingConversation) {
+            messages.push({
+                role: "system",
+                content: `Note: This is a continuing conversation. Maintain conversation flow without 
+                introducing new greetings like "Hello" or "Hello there".`
+            });
+        }        
+
         // Add special context for likely conversational messages
         if (userMessage.split(' ').length <= 4 || 
             /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {

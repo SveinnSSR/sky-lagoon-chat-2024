@@ -4,6 +4,9 @@
 import { detectLanguage as oldDetectLanguage } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 import { connectToDatabase } from './database.js';
+// Import knowledge base functions at the top of contextSystem.js
+import { getRelevantKnowledge } from './knowledgeBase.js';
+import { getRelevantKnowledge_is } from './knowledgeBase_is.js';
 
 // Store sessions in memory
 const sessions = new Map();
@@ -1611,6 +1614,22 @@ export async function getKnowledgeWithFallbacks(message, context) {
     } catch (traditionalError) {
       console.error(`\n❌ Traditional search failed:`, traditionalError);
     }
+
+    // Check if this is an ongoing conversation
+    if (context && context.messages && context.messages.filter(m => m.role === 'assistant').length > 0) {
+        // This is an ongoing conversation, not the first interaction
+        console.log('\n🔄 Adding conversation continuity context for failed knowledge retrieval');
+        
+        return [{
+            type: 'conversation_context',
+            content: {
+                isOngoing: true,
+                messageCount: context.messages.length,
+                shouldAvoidGreeting: true,
+                lastTopic: context.lastTopic || 'general'
+            }
+        }];
+    }    
     
     // Return empty array if all fallbacks failed
     return [];
