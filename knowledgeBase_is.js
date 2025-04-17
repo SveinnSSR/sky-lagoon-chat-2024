@@ -4559,6 +4559,8 @@ function keywordSearch_is(userMessage) {
         message.includes('útsýni') ||
         message.includes('norðurljós') ||
         message.includes('bessastað') ||
+        message.includes('bessastaði') ||
+        message.includes('bessastaðir') ||
         message.includes('keili') ||
         message.includes('snæfellsjökul') ||
         message.includes('sólarlag') ||
