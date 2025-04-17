@@ -567,20 +567,29 @@ const enforceTerminology = (text) => {
         }
     });
 
-    // ADD THIS SECTION HERE - Handle Icelandic terminology
-    // Check if the text is in Icelandic (simple heuristic: contains Icelandic-specific characters)
+    // IMPROVED ICELANDIC TERMINOLOGY HANDLING - Check if the text is in Icelandic (simple heuristic: contains Icelandic-specific characters)
     if (/[áðéíóúýþæö]/i.test(modifiedText)) {
         console.log('🇮🇸 Detected Icelandic text, applying Icelandic terminology rules');
+        let icelandicChanges = false;
         
-        // Apply Icelandic terminology fixes
-        if (SKY_LAGOON_GUIDELINES.icelandicTerminology) {
-            Object.entries(SKY_LAGOON_GUIDELINES.icelandicTerminology).forEach(([incorrect, correct]) => {
-                const icelandicRegex = new RegExp(`\\b${incorrect}\\b`, 'gi');
-                if (icelandicRegex.test(modifiedText)) {
-                    console.log(`🇮🇸 Replacing "${incorrect}" with "${correct}"`);
-                    modifiedText = modifiedText.replace(icelandicRegex, correct);
+        // Apply Icelandic terminology fixes - use simpler approach that's proven to work
+        if (SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology) {
+            Object.entries(SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology).forEach(([incorrect, correct]) => {
+                // First use includes() to check if the term is present (more reliable check)
+                if (modifiedText.includes(incorrect)) {
+                    console.log(`🇮🇸 Found incorrect term: "${incorrect}", replacing with "${correct}"`);
+                    
+                    // Then do the replacement with proper regex
+                    modifiedText = modifiedText.replace(new RegExp(incorrect, 'g'), correct);
+                    icelandicChanges = true;
                 }
             });
+        }
+        
+        if (icelandicChanges) {
+            console.log('🇮🇸 Icelandic terminology changes applied');
+        } else {
+            console.log('🇮🇸 No Icelandic terminology changes needed');
         }
     }
 
@@ -685,8 +694,8 @@ const enforceTerminology = (text) => {
     // Log any changes made
     if (modifiedText !== text) {
         console.log('✨ Text modified for terminology:', {
-            original: text,
-            modified: modifiedText
+            original: text.substring(0, 100) + "...",
+            modified: modifiedText.substring(0, 100) + "..."
         });
     } else {
         console.log('✅ No terminology changes needed');
