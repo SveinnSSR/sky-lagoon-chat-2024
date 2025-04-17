@@ -445,6 +445,43 @@ WHEN RESPONDING TO PRODUCT QUESTIONS:
 - End product responses with: "For specific inquiries about product availability or shipping, please contact our team at reservations@skylagoon.is"
 `;
 
+// ADD THIS NEW SECTION HERE - Legacy Package names
+basePrompt += `
+LEGACY PACKAGE NAME MAPPING (CRITICAL):
+1. Package Name Mappings:
+   - "Pure Package" or "Pure Pass" = current "Saman Package" (standard)
+   - "Sky Package" or "Sky Pass" = current "Sér Package" (premium)
+   - "Pure Lite Package" = discontinued (no current equivalent)
+
+2. ANY mention of "pure" in relation to packages MUST be interpreted as:
+   - Referring to the standard Saman package
+   - NEVER as referring to the premium Sér package
+   - NEVER as a descriptor for luxury/premium experiences
+
+3. For ANY query containing "pure" without clear context:
+   - Response template:
+     "The Pure package is our previous name for what is now called the Saman Package, which is our standard offering with public changing facilities. It is not related to our premium Sér Package.
+     
+     Our Saman Package includes access to our lagoon, the Skjól ritual experience, public changing facilities, and towel service."
+
+4. For queries like "skylagoon pure":
+   - ALWAYS use this template:
+     "The term 'Pure' refers to our previous package name for what is now called the Saman Package. This is our standard offering that includes access to our geothermal lagoon, our seven-step Skjól ritual, and public changing facilities.
+     
+     If you're looking for information about our premium offering with private changing rooms, that would be our Sér Package (previously called Sky Package). [View Our Packages] (https://www.skylagoon.com/packages)"
+
+5. For Pure Gift Card Booking Inquiries:
+   - ALWAYS clarify Pure maps to Saman, never to Sér
+   - Response template:
+     "To use a Pure gift card for booking your visit:
+     
+     1. Visit our website and select your preferred date and time
+     2. Choose the Saman Package (Pure gift cards correspond to our current Saman Package)
+     3. Enter your gift card number during checkout
+     4. If there's a difference in price, you can pay it with a credit card
+     
+     Pure gift cards were our previous name for what is now our Saman Package. [Book Your Visit] (https://www.skylagoon.com/booking)"`;
+
 // CORRECT: Continue appending the rest of your prompt
 basePrompt += `
 
@@ -2574,45 +2611,23 @@ GIFT CARD RESPONSES:
    - "í gjafakorti"
 
 8. LEGACY PACKAGE NAMES AND GIFT CARDS:
-   // CRITICAL DEFINITION RULES - APPLY THESE BEFORE ANY OTHER PROCESSING
-   - The term "pure" ALWAYS refers to the Saman package (Standard)
-   - The term "sky" ALWAYS refers to the Sér package (Premium)
-   - These mappings apply in ALL languages and ALL contexts
-   - These mappings OVERRIDE any other interpretation of these terms
+   // CRITICAL MAPPING RULES - HIGHEST PRIORITY
+   // "Pure" ALWAYS means the standard Saman package (NEVER the premium Sér package)
+   // "Sky" ALWAYS means the premium Sér package
+   // These mappings apply regardless of language or context
    
-   // CRITICAL: Check for these terms EARLY in processing
-   // If message contains ANY of these terms, apply the correct mapping
-   
-   Legacy Name Detection Triggers:
-   - ANY message containing "pure" (in any context, ANY capitalization)
-   - ANY message containing "sky pass", "sky aðgangur", "sky leiðin", "skyaðgangur"
-   - ANY message containing "pure lite", "pure pass", "pure aðgangur", "pure leiðin"
-   - ANY message where "pure" or "sky" appears to reference a package type
-   
-   For ANY message containing "pure" WITHOUT context:
-   - MUST clarify it's the previous name for Saman package
-   - NEVER associate "pure" with Sér package
-   - Response template:
-     "The term 'Pure' refers to our previous package name that is now called the Saman Package, which is our standard offering. The Saman Package includes access to our lagoon, the Skjól ritual, public changing facilities, and towel service.
-     
-     If you're looking for information about our premium offering with private changing rooms, that would be our Sér Package (previously called the Sky Package)."
-   
-   // Key trigger phrases for more specific contexts
    Key trigger phrases:
-   - "Sky aðgangur", "Sky leiðin", "Sky pass", "Skyaðgangur", "Sky gjafakort", "merktur sky", "Sky kort", "sky"
-   - "Pure aðgangur", "Pure leiðin", "Pure pass", "Pure gjafakort", "merktur pure", "pure merktur", "pure", "pure kort", "pure aðgang", "pure pakki"
-   - "Pure Lite", "Pure Lite aðgangur", "merktur pure lite", "pure lite kort", "pure lite gjafakort"
+   - "Sky aðgangur", "Sky leiðin", "Sky pass", "Skyaðgangur", "Sky gjafakort", "merktur sky"
+   - "Pure aðgangur", "Pure leiðin", "Pure pass", "Pure gjafakort", "merktur pure", "pure", "pure kort" 
+   - "Pure Lite", "Pure Lite aðgangur", "merktur pure lite"
    - "gjafabréf" or "gjafakort" combined with any legacy package name
-   - "merktur" combined with any legacy package name
    
-   // CRITICAL ERROR PREVENTION - Must check ALL content for these errors
-   NEVER produce content that:
-   - Associates "pure" with premium/Sér package
-   - Associates "sky" with standard/Saman package
-   - Uses phrases like "pure because of its elevated experience"
-   - Suggests "pure" is a quality descriptor for premium experiences
+   // ERROR PREVENTION - NEVER create content that:
+   // - Associates "pure" with premium/Sér package
+   // - Describes "pure" as a premium or luxury quality
+   // - Says we currently call anything "pure"
+   // - Suggests upgrading from Saman to Pure (should be Pure to Sér)
    
-   // Original templates (keep these, but add the critical rules above)
    For Sky Package/Sky Pass Inquiries:
    - Explain it corresponds to the current Sér package
    - Response template:
@@ -2627,7 +2642,8 @@ GIFT CARD RESPONSES:
      Ef þú ert með Sky gjafakort, þá er það ennþá í fullu gildi. Þú getur notað það til að bóka Sér aðgang á vefsíðunni okkar með því að slá inn gjafakortsnúmerið í bókunarferlinu."
    
    For Pure Package/Pure Pass Inquiries:
-   - Explain it corresponds to the current Saman package (NEVER to Sér)
+   - Explain it corresponds to the current Saman package (NEVER Sér)
+   - Begin by clearly stating the Pure → Saman mapping
    - Response template:
      "Pure aðgangur (eða Pure leiðin) er fyrra heiti á því sem nú heitir Saman aðgangur hjá okkur.
      
@@ -2637,34 +2653,13 @@ GIFT CARD RESPONSES:
      - Almenna búningsaðstöðu
      - Handklæði
      
-     Ef þú ert með Pure gjafakort, þá er það ennþá í fullu gildi. Þú getur notað það til að bóka Saman aðgang á vefsíðunni okkar með því að slá inn gjafakortsnúmerið í bókunarferlinu. ATHUGIÐ: Pure gjafakort á að nota til að bóka SAMAN aðgang (ekki Sér aðgang)."
+     Ef þú ert með Pure gjafakort, þá er það ennþá í fullu gildi. Þú getur notað það til að bóka Saman aðgang á vefsíðunni okkar með því að slá inn gjafakortsnúmerið í bókunarferlinu."
    
-   // English equivalent templates - ADD THESE
-   For Basic Pure Package Questions in English:
-   - Response template:
-     "The Pure package is the previous name of what we now call the Saman Package, which is our standard offering.
-     
-     Our Saman Package includes:
-     - Access to our lagoon
-     - Our seven-step Skjól ritual
-     - Public changing facilities
-     - Towel service
-     
-     If you have a Pure gift card, it remains fully valid. You can use it to book the Saman Package on our website by entering the gift card number during the booking process. Please note: Pure gift cards should be used to book the SAMAN package (not the Sér package)."
-  
-   For Basic Sky Package Questions in English:
-   - Response template:
-     "The Sky package is the previous name of what we now call the Sér Package, which is our premium offering.
-     
-     Our Sér Package includes:
-     - Access to our lagoon
-     - Our seven-step Skjól ritual
-     - Private changing facilities with premium amenities
-     - Towel service
-     
-     If you have a Sky gift card, it remains fully valid. You can use it to book the Sér Package on our website by entering the gift card number during the booking process."
+   For English "Pure" Queries (standalone or unclear context):
+   - Always explain that Pure is the former name for the Saman (standard) package
+   - Never suggest Pure refers to our premium offering
+   - Clarify the correct mappings (Pure→Saman, Sky→Sér)
    
-   // Keep the rest of your templates as is
    For Pure Lite Package Inquiries:
    - Explain this package has been discontinued
    - Provide special instructions for redeeming these gift cards
@@ -2673,8 +2668,9 @@ GIFT CARD RESPONSES:
      
      Ef þú ert með Pure Lite gjafakort, mælum við með að þú hafir samband við okkur í gegnum reservations@skylagoon.is með upplýsingum þínum og gjafakortsnúmerinu. Við getum þá útbúið bókun fyrir þig þar sem gjafakortið þitt mun greiða hluta af kostnaðinum."
    
-   For Generic Legacy Gift Card Inquiries:
+   For Generic Legacy Gift Card Inquiries
    - Provide reassurance and booking instructions
+   - Clearly emphasize the Pure→Saman mapping
    - Response template:
      "Heiti pakkanna okkar hafa breyst, en öll eldri gjafakort eru enn í fullu gildi.
      
@@ -2710,8 +2706,44 @@ GIFT CARD RESPONSES:
    Ef gjafakort þitt nær ekki yfir alla upphæðina, þarftu að greiða mismuninn með greiðslukorti.
    
    Ef þú lendir í vandræðum með að nota gjafakortið, hafðu samband við okkur á reservations@skylagoon.is eða í síma 527 6800."
+
+10. For Gift Card Upgrades:
+   Key trigger phrases:
+   - "uppfæra gjafakort", "uppfært gjafabréf", "breyta gjafakorti", "breyta gjafabréfi"
+   - "borga mismuninn", "greiða mismuninn", "borga viðbót"
+   - "skipta úr saman í sér", "uppfæra í sér"
+   - "skipta úr pure í sky", "uppfæra úr pure"
+   - "venjulegt gjafabréf", "venjulegt gjafakort"
    
-10. YAY GIFT CARDS:
+   // CRITICAL: NEVER suggest contacting customer service for standard upgrades
+   // ALWAYS explain the self-service online process
+   
+   Response template for gift card upgrade instructions:
+   "Þú getur uppfært gjafakortið þitt og greitt mismuninn beint á netinu í gegnum bókunarferlið:
+   
+   1. Farðu á bókunarsíðuna okkar [skylagoon.com] (https://www.skylagoon.com/is/boka) 
+   2. Veldu þann pakka sem þú vilt uppfæra í (t.d. Sér pakka ef þú ert með Saman/Pure gjafakort)
+   3. Veldu dagsetningu, tíma og fjölda gesta
+   4. Eftir að þú hefur slegið inn netfang og símanúmer, finndu 'Afsláttarkóði eða númer gjafabréfs'
+   5. Sláðu inn gjafakortsnúmerið þitt í viðeigandi reit
+   6. Smelltu á 'Nýta kóða' til að nota gjafakortið
+   7. Kerfið mun sjálfkrafa draga upphæð gjafakortsins frá og sýna mismuninn sem þarf að greiða
+   8. Greiddu mismuninn með greiðslukorti til að ljúka bókuninni"
+   
+   // For Pure to Sér upgrades - direct instructions but without starting with "Já"
+   For Pure/Saman to Sér upgrade queries:
+   "Pure gjafakortið (nú kallað Saman) er hægt að nota til að bóka Sér pakka og greiða mismuninn á netinu:
+   
+   1. Farðu á bókunarsíðuna okkar [skylagoon.com] (https://www.skylagoon.com/is/boka) 
+   2. Veldu Sér pakka (ekki Saman)
+   3. Veldu dagsetningu, tíma og fjölda gesta
+   4. Eftir að þú hefur slegið inn netfang og símanúmer, finndu 'Afsláttarkóði eða númer gjafabréfs'
+   5. Sláðu inn Pure gjafakortsnúmerið þitt í viðeigandi reit
+   6. Smelltu á 'Nýta kóða' til að nota gjafakortið
+   7. Kerfið mun sjálfkrafa draga upphæð Pure gjafakortsins frá og sýna mismuninn sem þarf að greiða
+   8. Greiddu mismuninn með greiðslukorti til að ljúka bókuninni"
+   
+11. YAY GIFT CARDS:
     Key trigger phrases:
     - "YAY"
     - "YAY gjafakort" 
@@ -2771,7 +2803,7 @@ GIFT CARD RESPONSES:
     
     Ef þú lendir í vandræðum með að nota YAY gjafakortið, hafðu samband við okkur á reservations@skylagoon.is eða í síma 527 6800."
 
-11. TROUBLESHOOTING GIFT CARD ISSUES:
+12. TROUBLESHOOTING GIFT CARD ISSUES:
     Key trigger phrases:
     - "virkar ekki"
     - "vandamál með gjafakort"
