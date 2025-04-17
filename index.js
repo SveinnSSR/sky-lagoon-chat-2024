@@ -2702,12 +2702,51 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             throw new Error('Failed to get completion after retries');
         }
 
-        // Use the unified broadcast system for the GPT response
+        // Get the response from GPT
+        const response = completion.choices[0].message.content;
+        console.log('\n🤖 GPT Response:', response);
+
+        // Add AI response to the context system
+        addMessageToContext(context, { role: 'assistant', content: response });
+
+        // APPLY TERMINOLOGY ENHANCEMENT FIRST
+        const enhancedResponse = enforceTerminology(response);
+        console.log('\n✨ Enhanced Response:', enhancedResponse);
+
+        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS
+        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+        let emojiFilterLogs = [];
+        const filteredResponse = enhancedResponse.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
+            if (approvedEmojis.includes(match)) {
+                // Approved emoji - keep it
+                return match;
+            } else {
+                // Non-approved emoji - log it and remove it
+                emojiFilterLogs.push(match);
+                return '';
+            }
+        });
+
+        // Log emoji filtering results
+        if (emojiFilterLogs.length > 0) {
+            console.log(`\n🧹 Emoji Filtering: Removed ${emojiFilterLogs.length} non-approved emojis`);
+            console.log(`\n🧹 Removed emojis: ${emojiFilterLogs.join(' ')}`);
+            console.log(`\n🧹 Approved emojis (for reference): ${approvedEmojis.join(' ')}`);
+        } else {
+            console.log(`\n🧹 Emoji Filtering: No non-approved emojis found`);
+        }
+
+        console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
+
+        // Update assistant message in context with filtered response
+        addMessageToContext(context, { role: 'assistant', content: filteredResponse });
+
+        // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
-            // Create an intermediate response object
+            // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
             const responseObj = {
-                message: completion.choices[0].message.content,
+                message: filteredResponse, // FIXED: Now using fully processed response
                 language: {
                     detected: context.language === 'is' ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
@@ -2726,32 +2765,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
         }
 
-        const response = completion.choices[0].message.content;
-        console.log('\n🤖 GPT Response:', response);
-
-        // Add AI response to the context system
-        addMessageToContext(context, { role: 'assistant', content: response });
-
-        // Apply terminology enhancement
-        const enhancedResponse = enforceTerminology(response);
-            
-        console.log('\n✨ Enhanced Response:', enhancedResponse);
-
-        // Update assistant message in context with enhanced response
-        addMessageToContext(context, { role: 'assistant', content: enhancedResponse });
-
-        // Remove any non-approved emojis
-        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-        const filteredResponse = enhancedResponse.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
-            return approvedEmojis.includes(match) ? match : '';
-        });
-
-        console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-
         // Cache the response
         responseCache.set(cacheKey, {
             response: {
-                message: enhancedResponse,
+                message: filteredResponse, // Use the fully processed response
                 postgresqlMessageId: postgresqlMessageId,
                 language: {
                     detected: context.language === 'is' ? 'Icelandic' : 'English',
@@ -2764,7 +2781,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Return the response
         return res.status(200).json({
-            message: enhancedResponse,
+            message: filteredResponse, // Return the fully processed response
             postgresqlMessageId: postgresqlMessageId,
             language: {
                 detected: context.language,
