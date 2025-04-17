@@ -2985,8 +2985,8 @@ export async function getRelevantKnowledge(query) {
       console.log(`📈 Average similarity score: ${avgSimilarity.toFixed(3)}`);
       
       // Check if confidence is too low and try keyword search anyway
-      if (avgSimilarity < 0.65) {
-        console.log('⚠️ Average similarity below threshold (< 0.65), checking keyword fallback...');
+      if (avgSimilarity < 0.61) {
+        console.log('⚠️ Average similarity below threshold (< 0.61), checking keyword fallback...');
         const keywordResults = keywordSearch(query);
         
         if (keywordResults && keywordResults.length > 0) {
