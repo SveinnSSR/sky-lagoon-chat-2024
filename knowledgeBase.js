@@ -2960,10 +2960,42 @@ export const knowledgeBase = {
 export async function getRelevantKnowledge(query) {
   try {
     // STEP 1: First try vector search approach with lower threshold
+    console.log('🔍 Vector search starting for English query with threshold: 0.5');
     const results = await searchSimilarContent(query, 5, 0.5, 'en');
     
     if (results && results.length > 0) {
       console.log('✅ Vector search returned results for query:', query);
+      
+      // Log details about vector search results
+      console.log('📊 Vector search result details:');
+      let totalSimilarity = 0;
+      
+      results.forEach((result, index) => {
+        totalSimilarity += result.similarity;
+        // Create a snippet of the content (first 50 characters)
+        const contentSnippet = result.content ? 
+          (result.content.substring(0, 50) + (result.content.length > 50 ? '...' : '')) : 
+          'No content';
+        
+        console.log(`  Result ${index + 1}: Type=${result.metadata?.type || 'unknown'}, Similarity=${result.similarity.toFixed(3)}, Snippet="${contentSnippet}"`);
+      });
+      
+      // Calculate and log average similarity
+      const avgSimilarity = totalSimilarity / results.length;
+      console.log(`📈 Average similarity score: ${avgSimilarity.toFixed(3)}`);
+      
+      // Check if confidence is too low and try keyword search anyway
+      if (avgSimilarity < 0.4) {
+        console.log('⚠️ Average similarity very low (< 0.4), checking keyword fallback...');
+        const keywordResults = keywordSearch(query);
+        
+        if (keywordResults && keywordResults.length > 0) {
+          console.log('🔑 Found keyword matches, using those instead of low-confidence vector results');
+          return keywordResults;
+        } else {
+          console.log('🔍 No keyword matches found, using vector results despite low confidence');
+        }
+      }
       
       // Transform the results into the format expected by the rest of the code
       return results.map(result => ({
