@@ -204,6 +204,14 @@ const OPENING_HOURS = {
     october: {
         weekdays: { open: 10, close: 23 },
         weekends: { open: 10, close: 23 }
+    },
+    // Holiday periods
+    holiday: {
+        easter: { open: 10, close: 22 },
+        christmasEve: { open: 11, close: 16 },
+        christmasDay: { open: 11, close: 18 },
+        newYearsEve: { open: 11, close: 22 },
+        newYearsDay: { open: 11, close: 22 }
     }
 };
 
@@ -211,8 +219,33 @@ const OPENING_HOURS = {
 const getCurrentOpeningHours = () => {
     const today = new Date();
     const month = today.getMonth(); // 0-11 (Jan-Dec)
+    const day = today.getDate();
     const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
     
+    // Check for holiday periods first - just like in getCurrentSeason()
+    if (isEasterPeriod2025(today)) {
+        // For Easter, return fixed hours regardless of weekday/weekend
+        return { open: 10, close: 22 };
+    }
+    
+    // Check for other specific holidays
+    if (month === 11 && day === 24) { // Christmas Eve
+        return { open: 11, close: 16 };
+    }
+    
+    if (month === 11 && day === 25) { // Christmas Day
+        return { open: 11, close: 18 };
+    }
+    
+    if (month === 11 && day === 31) { // New Year's Eve
+        return { open: 11, close: 22 };
+    }
+    
+    if (month === 0 && day === 1) { // New Year's Day
+        return { open: 11, close: 22 };
+    }
+    
+    // Regular seasonal logic (unchanged)
     let season;
     if (month >= 10 || month <= 4) { // Nov-May (10=Nov, 0=Jan, 4=May)
         season = 'winter';
@@ -229,7 +262,8 @@ const getCurrentOpeningHours = () => {
     return isWeekend ? OPENING_HOURS[season].weekends : OPENING_HOURS[season].weekdays;
 };
 
-// Function to get opening hours for a specific month
+// Function to get opening hours for a specific month - currently unused but maintained for consistency
+// Example usage: answering "What are your hours in December?"
 const getMonthOpeningHours = (monthName) => {
     const monthIndex = {
         'january': 0, 'february': 1, 'march': 2, 'april': 3, 'may': 4,
@@ -237,6 +271,17 @@ const getMonthOpeningHours = (monthName) => {
         'october': 9, 'november': 10, 'december': 11
     }[monthName.toLowerCase()];
     
+    // Special case for April 2025 (Easter month)
+    if (monthName.toLowerCase() === 'april' && new Date().getFullYear() === 2025) {
+        // Return an object that indicates Easter period exists
+        return {
+            weekdays: { open: 11, close: 22 },
+            weekends: { open: 10, close: 22 },
+            easter: { open: 10, close: 22, days: [17, 18, 19, 20, 21] }
+        };
+    }
+    
+    // Regular seasonal logic (unchanged)
     let season;
     if (monthIndex >= 10 || monthIndex <= 4) { // Nov-May
         season = 'winter';
@@ -1006,75 +1051,98 @@ const questionPatterns = {
 // Helper functions
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Add a function to get current opening hours
 const getCurrentSeason = () => {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
-
-    if (month === 12 && day === 24) {
+    const today = new Date();
+    const month = today.getMonth(); // 0-11 (Jan-Dec)
+    const day = today.getDate();
+    const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
+    
+    // Handle Easter 2025 (April 17-21, 2025)
+    if (month === 3 && day >= 17 && day <= 21) { // April is month 3 (0-indexed)
+        console.log(`🐣 Easter period detected: April ${day}, 2025`);
+        return {
+            season: 'holiday',
+            closingTime: '22:00',
+            lastRitual: '20:00',
+            barClose: '21:00',
+            lagoonClose: '21:30',
+            greeting: 'Easter Holiday',
+            openingTime: '10:00' // Special Easter opening time
+        };
+    }
+    
+    // Other holiday checks
+    if (month === 11 && day === 24) { // Dec is month 11 (0-indexed)
         return {
             season: 'holiday',
             closingTime: '16:00',
             lastRitual: '14:00',
             barClose: '15:00',
             lagoonClose: '15:30',
-            greeting: 'Christmas Eve'
+            greeting: 'Christmas Eve',
+            openingTime: '11:00'
         };
     }
     
-    if (month === 12 && day === 25) {
+    if (month === 11 && day === 25) {
         return {
             season: 'holiday',
             closingTime: '18:00',
             lastRitual: '16:00',
             barClose: '17:00',
             lagoonClose: '17:30',
-            greeting: 'Christmas Day'
+            greeting: 'Christmas Day',
+            openingTime: '11:00'
         };
     }
     
-    if (month === 12 && day === 31) {
+    if (month === 11 && day === 31) {
         return {
             season: 'holiday',
             closingTime: '22:00',
             lastRitual: '20:00',
             barClose: '21:00',
             lagoonClose: '21:30',
-            greeting: 'New Year\'s Eve'
+            greeting: 'New Year\'s Eve',
+            openingTime: '11:00'
         };
     }
     
-    if (month === 1 && day === 1) {
+    if (month === 0 && day === 1) { // Jan is month 0 (0-indexed)
         return {
             season: 'holiday',
             closingTime: '22:00',
             lastRitual: '20:00',
             barClose: '21:00',
             lagoonClose: '21:30',
-            greeting: 'New Year\'s Day'
+            greeting: 'New Year\'s Day',
+            openingTime: '11:00'
         };
     }
 
     // Regular seasons
-    if (month >= 11 || month <= 5) {
+    if (month >= 10 || month <= 4) { // Nov-May (10=Nov, 0=Jan, 4=May)
         return {
             season: 'winter',
             closingTime: '22:00',
             lastRitual: '20:00',
             barClose: '21:00',
             lagoonClose: '21:30',
-            greeting: 'winter'
+            greeting: 'winter',
+            openingTime: isWeekend ? '10:00' : '11:00' // Weekend vs weekday opening times
         };
     }
     
-    if (month >= 6 && month <= 9) {
+    if (month >= 5 && month <= 8) { // June-Sept (5=June, 8=Sept)
         return {
             season: 'summer',
             closingTime: '23:00',
             lastRitual: '21:00',
             barClose: '22:00',
             lagoonClose: '22:30',
-            greeting: 'summer'
+            greeting: 'summer',
+            openingTime: '08:00' // Summer opening time
         };
     }
     
@@ -1084,12 +1152,96 @@ const getCurrentSeason = () => {
         lastRitual: '21:00',
         barClose: '22:00',
         lagoonClose: '22:30',
-        greeting: 'autumn'
+        greeting: 'autumn',
+        openingTime: '10:00'
     };
 };
 
 setGetCurrentSeasonFunction(getCurrentSeason);
 
+// Helper function to check if a date is during Easter 2025
+const isEasterPeriod2025 = (date = new Date()) => {
+    // Easter 2025 period: April 17-21
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-indexed, so April is 3
+    const day = date.getDate();
+    
+    if (year === 2025 && month === 3 && day >= 17 && day <= 21) {
+        console.log(`🐣 Date ${date.toDateString()} is during Easter 2025 period`);
+        return true;
+    }
+    
+    return false;
+};
+
+// Helper to get Easter info for a specific date
+// Currently not being used - Helper function for future date-specific Easter queries
+// Can be used to interpret dates like "tomorrow" in relation to Easter period
+const getEasterInfo = (dateStr = null) => {
+    let targetDate;
+    
+    if (dateStr) {
+        // Parse date string like "tomorrow", "next day", etc.
+        if (dateStr.toLowerCase() === 'tomorrow') {
+            targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + 1);
+        } else if (dateStr.toLowerCase() === 'today' || dateStr.toLowerCase() === 'this evening') {
+            targetDate = new Date();
+        } else {
+            // Try to parse the date string (simplified)
+            try {
+                targetDate = new Date(dateStr);
+                if (isNaN(targetDate.getTime())) {
+                    // If invalid date, default to today
+                    targetDate = new Date();
+                }
+            } catch (e) {
+                targetDate = new Date();
+            }
+        }
+    } else {
+        targetDate = new Date();
+    }
+    
+    if (isEasterPeriod2025(targetDate)) {
+        return {
+            isEaster: true,
+            date: targetDate,
+            easterDay: getEasterDayName(targetDate),
+            openingTime: '10:00',
+            closingTime: '22:00',
+            lastRitual: '20:00',
+            barClose: '21:00',
+            lagoonClose: '21:30'
+        };
+    }
+    
+    return {
+        isEaster: false,
+        date: targetDate
+    };
+};
+
+// Helper to get Easter day name
+const getEasterDayName = (date) => {
+    // Easter 2025: April 17-21
+    const month = date.getMonth();
+    const day = date.getDate();
+    
+    if (month === 3) { // April
+        if (day === 17) return "Maundy Thursday";
+        if (day === 18) return "Good Friday";
+        if (day === 19) return "Holy Saturday";
+        if (day === 20) return "Easter Sunday";
+        if (day === 21) return "Easter Monday";
+    }
+    
+    return null;
+};
+
+// This function is no longer used - migrated to updateTimeContext in contextSystem.js
+// Keeping it commented for reference. Delete it later at some point.
+/*
 // Time context tracking helper
 const detectTimeContext = (message, seasonInfo, languageDecision) => {
     const msg = message.toLowerCase();
@@ -1179,6 +1331,7 @@ const detectTimeContext = (message, seasonInfo, languageDecision) => {
         }
     };
 };
+*/
 
 const UNKNOWN_QUERY_TYPES = {
     COMPLETELY_UNKNOWN: 'completely_unknown',    // No relevant knowledge found

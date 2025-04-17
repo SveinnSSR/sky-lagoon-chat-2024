@@ -1895,7 +1895,13 @@ export function updateTimeContext(message, context, seasonInfo) {
     specific: /(\d{1,2})[:\.]?(\d{2})?\s*(pm|am)?/i,
     dining: /mat|dinner|food|borða|máltíð|veitingar|restaurant|bar|eat|dining/i,
     activities: /ritual|ritúal|dinner|food|mat|borða/i,
-    closing: /close|closing|lok|loka|lokar|lokun/i
+    closing: /close|closing|lok|loka|lokar|lokun/i,
+    // Add opening pattern
+    opening: /open|opens|opening|when do you open|what time (do|does) you open|opið|opnið|opnar|hvenær opið|hvenær opnið|hvenær opnar/i,
+    // Add date-specific patterns
+    dateSpecific: /tomorrow|next day|tonight|today|this evening|for the weekend|weekend|á morgun|næsta dag|í kvöld|í dag|þetta kvöld|um helgina|helgina/i,
+    // Add holiday patterns
+    holiday: /easter|holiday|christmas|new year|special|páska|hátíðar|jól|áramót|sérstakur/i
   };
 
   // MIGRATED: Track if message is asking about duration
@@ -1909,6 +1915,28 @@ export function updateTimeContext(message, context, seasonInfo) {
       };
       console.log('\n⏰ Duration Question Detected:', message);
     }
+  }
+
+  // NEW: Track if message is asking about opening times
+  if (timePatterns.opening.test(msg)) {
+    const isHoliday = seasonInfo.season === 'holiday';
+    const hasDate = timePatterns.dateSpecific.test(msg);
+    
+    context.timeContext.lastDiscussedTime = {
+      type: 'opening',
+      timestamp: Date.now(),
+      holiday: isHoliday,
+      dateSpecific: hasDate,
+      text: msg
+    };
+    
+    console.log('\n⏰ Opening Time Question Detected:', {
+      message: message,
+      holiday: isHoliday, 
+      dateSpecific: hasDate,
+      season: seasonInfo.season,
+      openingTime: seasonInfo.openingTime || 'Not specified'
+    });
   }
 
   // MIGRATED: Track activities mentioned together
@@ -1939,15 +1967,58 @@ export function updateTimeContext(message, context, seasonInfo) {
     }
   }
 
-  // Build and return the time context result
+  // NEW: Track date-specific queries (tomorrow, weekend, etc.)
+  if (timePatterns.dateSpecific.test(msg)) {
+    // Extract the date reference
+    const dateMatches = msg.match(/tomorrow|next day|tonight|today|this evening|for the weekend|weekend|á morgun|næsta dag|í kvöld|í dag|þetta kvöld|um helgina|helgina/i);
+    const dateReference = dateMatches ? dateMatches[0] : null;
+    
+    if (dateReference) {
+      context.timeContext.dateReference = {
+        text: dateReference,
+        timestamp: Date.now()
+      };
+      
+      console.log('\n📅 Date-Specific Query Detected:', {
+        dateReference,
+        message: message
+      });
+    }
+  }
+
+  // NEW: Track holiday-specific queries (Easter, Christmas, etc.)
+  if (timePatterns.holiday.test(msg)) {
+    // Extract holiday reference
+    const holidayMatches = msg.match(/easter|christmas|new year|páska|jól|áramót/i);
+    const holidayReference = holidayMatches ? holidayMatches[0] : null;
+    
+    if (holidayReference) {
+      context.timeContext.holidayReference = {
+        text: holidayReference,
+        timestamp: Date.now()
+      };
+      
+      console.log('\n🎉 Holiday-Specific Query Detected:', {
+        holidayReference,
+        message: message
+      });
+    }
+  }
+
+  // Build and return the time context result with enhanced information
   const result = {
     type: timePatterns.duration.test(msg) ? 'duration' : 
-          timePatterns.closing.test(msg) ? 'hours' : null,
+          timePatterns.opening.test(msg) ? 'opening' :
+          timePatterns.closing.test(msg) ? 'closing' : 
+          (timePatterns.opening.test(msg) || timePatterns.closing.test(msg)) ? 'hours' : null,
     activity: msg.match(/ritual|ritúal/i) ? 'ritual' : 
              msg.match(/dinner|food|mat|borða|dining/i) ? 'dining' : null,
     season: seasonInfo?.season || 'regular',
+    isDateSpecific: timePatterns.dateSpecific.test(msg),
+    isHolidayRelated: timePatterns.holiday.test(msg),
     operatingHours: seasonInfo ? {
-      closing: seasonInfo.closingTime,
+      opening: seasonInfo.openingTime || 'Not specified',
+      closing: seasonInfo.closingTime || 'Not specified',
       lastRitual: seasonInfo.lastRitual,
       barClose: seasonInfo.barClose,
       lagoonClose: seasonInfo.lagoonClose
