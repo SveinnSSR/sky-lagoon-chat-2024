@@ -2959,25 +2959,2283 @@ export const knowledgeBase = {
 // Replace or modify your existing getRelevantKnowledge function
 export async function getRelevantKnowledge(query) {
   try {
-    // Use vector search approach with lower threshold
+    // STEP 1: First try vector search approach with lower threshold
     const results = await searchSimilarContent(query, 5, 0.5, 'en');
     
-    if (!results || results.length === 0) {
-      console.log('No vector search results found for query:', query);
-      return [];
+    if (results && results.length > 0) {
+      console.log('✅ Vector search returned results for query:', query);
+      
+      // Transform the results into the format expected by the rest of the code
+      return results.map(result => ({
+        type: result.metadata?.type || 'unknown',
+        content: result.content,
+        metadata: result.metadata || {},
+        similarity: result.similarity
+      }));
     }
     
-    // Transform the results into the format expected by the rest of the code
-    return results.map(result => ({
-      type: result.metadata?.type || 'unknown',
-      content: result.content,
-      metadata: result.metadata || {},
-      similarity: result.similarity
-    }));
+    // STEP 2: If no vector results, fall back to keyword search
+    console.log('No vector search results found for query:', query);
+    console.log('🔍 Falling back to keyword-based search...');
+    
+    return keywordSearch(query);
     
   } catch (error) {
     console.error('Error in vector search for getRelevantKnowledge:', error);
-    // Return empty array in case of error
-    return [];
+    
+    // Even if vector search fails, try keyword search as fallback
+    console.log('⚠️ Falling back to keyword-based search due to error...');
+    return keywordSearch(query);
   }
 }
+
+// Helper function containing the keyword search logic
+function keywordSearch(userMessage) {
+  const message = userMessage.toLowerCase();
+  let relevantInfo = [];
+  
+// Opening hours and timing
+    // Opening hours and timing
+    if (message.includes('open') || 
+        message.includes('hour') || 
+        message.includes('time') ||
+        message.includes('close') ||
+        message.includes('slot') ||
+        message.includes('when') ||
+        message.includes('schedule') ||
+        // Add these new patterns
+        message.includes('last entry') ||
+        message.includes('latest entry') ||
+        message.includes('last time to enter') ||
+        message.includes('latest time to enter') ||
+        message.includes('too late') ||
+        message.includes('latest booking') ||
+        message.includes('last booking') ||
+        message.includes('last time to arrive') ||
+        message.includes('last admission') ||
+        // Adding specific time-related queries
+        message.includes('opening') ||
+        message.includes('closing') ||
+        message.includes('early') ||
+        message.includes('late') ||
+        message.includes('winter hours') ||
+        message.includes('summer hours') ||
+        message.includes('weekend') ||
+        message.includes('weekday') ||
+        message.includes('saturday') ||
+        message.includes('sunday') ||
+        message.includes('monday') ||
+        message.includes('tuesday') ||
+        message.includes('wednesday') ||
+        message.includes('thursday') ||
+        message.includes('friday') ||
+        // Holiday specific
+        message.includes('holiday') ||
+        message.includes('christmas') ||
+        message.includes('new year') ||
+        message.includes('december 24') ||
+        message.includes('december 25') ||
+        message.includes('december 26') ||
+        message.includes('december 31') ||
+        message.includes('january 1') ||
+        // Time of day
+        message.includes('morning') ||
+        message.includes('evening') ||
+        message.includes('afternoon') ||
+        message.includes('night') ||
+        message.includes('tonight') ||
+        message.includes('today') ||
+        message.includes('tomorrow') ||
+        // Venue-specific queries
+        message.includes('ritual closing') ||
+        message.includes('bar closing') ||
+        message.includes('gelmir') ||
+        message.includes('cafe hour') ||
+        message.includes('café hour') ||
+        message.includes('keimur') ||
+        message.includes('smakk') ||
+        // Seasonal and monthly queries
+        (message.includes('season') && (
+            message.includes('time') || 
+            message.includes('hour') || 
+            message.includes('open') || 
+            message.includes('close')
+        )) ||
+        // Add our new seasonal patterns here
+        (message.includes('like') && 
+            (message.includes('during winter') || 
+             message.includes('during summer') || 
+             message.includes('in winter') || 
+             message.includes('in summer'))) ||
+        (message.includes('sky lagoon') && 
+            message.includes('during')) ||
+        message.includes('june') ||
+        message.includes('july') ||
+        message.includes('august') ||
+        message.includes('september') ||
+        message.includes('october') ||
+        message.includes('november') ||
+        message.includes('december') ||
+        message.includes('january') ||
+        message.includes('february') ||
+        message.includes('march') ||
+        message.includes('april') ||
+        message.includes('may') ||
+        // Common website phrases and questions
+        message.includes('visit hour') ||
+        message.includes('operating hour') ||
+        message.includes('business hour') ||
+        message.includes('what time do you') ||
+        message.includes('how late') ||
+        message.includes('how early') ||
+        message.includes('until when') ||
+        // Service timing questions
+        message.includes('kitchen') ||
+        message.includes('food service') ||
+        message.includes('last order') ||
+        message.includes('stop serving') ||
+        message.includes('when can i order') ||
+        // Check-in and arrival
+        message.includes('arrive') ||
+        message.includes('arrival') ||
+        message.includes('check in') ||
+        message.includes('check-in') ||
+        message.includes('get there')) {
+
+        // Add opening hours info
+        relevantInfo.push({
+            type: 'opening_hours',
+            content: knowledgeBase.opening_hours
+        });
+
+        // If query is about dining venues, also include dining info
+        if (message.includes('bar') || 
+            message.includes('cafe') || 
+            message.includes('café') || 
+            message.includes('smakk') || 
+            message.includes('keimur') ||
+            message.includes('gelmir') ||
+            message.includes('food') ||
+            message.includes('drink') ||
+            message.includes('dining') ||
+            message.includes('kitchen') ||
+            message.includes('last order') ||
+            message.includes('restaurant')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // If query is about ritual times, also include ritual info
+        if (message.includes('ritual') || 
+            message.includes('skjol') || 
+            message.includes('skjól') ||
+            message.includes('seven step') ||
+            message.includes('7 step')) {
+            relevantInfo.push({
+                type: 'ritual',
+                content: knowledgeBase.ritual
+            });
+        }
+
+        // If query mentions check-in or arrival, also include booking info
+        if (message.includes('arrive') ||
+            message.includes('arrival') ||
+            message.includes('check in') ||
+            message.includes('check-in') ||
+            message.includes('get there')) {
+            relevantInfo.push({
+                type: 'transportation',
+                content: knowledgeBase.transportation
+            });
+        }
+    }
+
+    // Booking modifications, upgrades, and late arrivals
+    if (message.includes('change') || 
+        message.includes('modify') ||
+        message.includes('reschedule') ||
+        message.includes('late') ||
+        message.includes('delayed') ||
+        message.includes('miss') ||
+        message.includes('missed') ||
+        message.includes('different time') ||
+        message.includes('different date') ||
+        message.includes('cancel') ||
+        message.includes('refund') ||
+        message.includes('change booking') ||
+        message.includes('modify booking') ||
+        message.includes('change date') ||
+        message.includes('money back') ||
+        message.includes('cancellation') ||
+        message.includes('rebook') ||
+        message.includes('update booking') ||
+        message.includes('move booking') ||
+        message.includes('switch time') ||
+        message.includes('switch date') ||
+        (message.includes('book') && message.includes('another day'))) {
+        
+        console.log('\n🔄 Booking Modification Query Match Found');
+        relevantInfo.push({
+            type: 'booking_modifications',
+            content: knowledgeBase.booking_modifications
+        });
+    }
+
+    // General booking upgrade queries (must come BEFORE gift ticket section)
+    if ((message.includes('upgrade') || 
+         (message.includes('change') && message.includes('package')) ||
+         (message.includes('switch') && message.includes('package')) ||
+         (message.includes('change') && message.includes('saman') && message.includes('sér')) ||
+         (message.includes('saman') && message.includes('to') && message.includes('sér')) ||
+         (message.includes('improve') && message.includes('booking')) ||
+         (message.includes('pay') && message.includes('difference'))) && 
+        (!message.includes('gift') && 
+         !message.includes('card') && 
+         !message.includes('voucher') && 
+         !message.includes('present'))) {
+        
+        console.log('\n📊 General Booking Upgrade Query Detected');
+        relevantInfo.push({
+            type: 'general_upgrades',
+            content: knowledgeBase.general_upgrades.day_of_entry
+        });
+        
+        // Return immediately to prevent gift card sections from processing this query
+        return relevantInfo;
+    } // End of Booking upgrade queries section
+
+    // Package and pricing related
+    if (message.includes('package') ||
+        message.includes('price') ||
+        message.includes('cost') ||
+        message.includes('saman') ||
+        message.includes('ser') ||
+        message.includes('sér') ||
+        message.includes('date night') ||
+        message.includes('for two') ||
+        message.includes('couple') ||
+        message.includes('romantic') ||
+        message.includes('together') ||  // Added from website language
+        message.includes('share') ||     // Added from website language
+        message.includes('partner') ||   // Added from website language
+        message.includes('youth') ||
+        message.includes('child') ||
+        message.includes('children') ||
+        message.includes('kid') ||
+        message.includes('kids') ||
+        (message.includes('12') && message.includes('year')) ||
+        (message.includes('13') && message.includes('year')) ||
+        (message.includes('14') && message.includes('year')) ||
+        message.includes('teenage') ||
+        message.includes('teen') ||
+        message.includes('young') ||
+        message.includes('booking') ||
+        message.includes('book') ||
+        message.includes('purchase') ||
+        message.includes('buy') ||
+        message.includes('before') ||
+        message.includes('advance') ||
+        message.includes('better to') ||
+        message.includes('should i') ||
+        message.includes('recommend') ||
+        message.includes('ahead') ||
+        message.includes('reservation') ||
+        message.includes('modify') ||
+        message.includes('change') ||
+        message.includes('facilities') ||
+        message.includes('amenities') ||
+        message.includes('premium') ||
+        message.includes('standard') ||
+        message.includes('pay') ||
+        message.includes('payment') ||
+        message.includes('wristband') ||
+        message.includes('wallet') ||
+        message.includes('cash') ||
+        message.includes('available') ||
+        message.includes('availability') ||
+        message.includes('space') ||
+        message.includes('capacity') ||
+        message.includes('spot') ||
+        message.includes('full') ||
+        message.includes('slot') ||
+        message.includes('room') ||
+        message.includes('spots left') ||
+        message.includes('seats') ||
+        message.includes('space left') ||
+        message.includes('ultimate') ||
+        message.includes('discover') ||
+        message.includes('journey') ||
+        message.includes('signature') ||
+        message.includes('classic') ||
+        message.includes('popular') ||
+        message.includes('admission') ||
+        message.includes('access') ||
+        message.includes('included') ||
+        message.includes('value')) {
+
+        // Check for youth-specific queries first
+        if (message.includes('youth') ||
+            message.includes('child') ||
+            message.includes('children') ||
+            message.includes('kid') ||
+            message.includes('kids') ||
+            (message.includes('12') && message.includes('year')) ||
+            (message.includes('13') && message.includes('year')) ||
+            (message.includes('14') && message.includes('year')) ||
+            message.includes('teenage') ||
+            message.includes('teen') ||
+            message.includes('young')) {
+            
+            // If asking specifically about Sér youth pricing
+            if (message.includes('ser') || message.includes('sér') || 
+                message.includes('premium') || message.includes('private')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_ser',
+                    content: {
+                        youth_pricing: knowledgeBase.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+            // If asking specifically about Saman youth pricing
+            else if (message.includes('saman') || message.includes('standard') || 
+                     message.includes('regular') || message.includes('basic')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_saman',
+                    content: {
+                        youth_pricing: knowledgeBase.packages.saman.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+            // For general youth pricing queries
+            else {
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_all',
+                    content: {
+                        saman: knowledgeBase.packages.saman.youth_pricing,
+                        ser: knowledgeBase.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase.policies.age_restrictions
+                    }
+                });
+            }
+        }
+        // Original package logic for non-youth queries
+        else {
+            relevantInfo.push({
+                type: 'policies',
+                content: knowledgeBase.policies
+            });
+            relevantInfo.push({
+                type: 'packages',
+                content: {
+                    ...knowledgeBase.packages,
+                    description: `Discover our unique packages designed for your ultimate relaxation experience. [View Our Packages] (https://www.skylagoon.com/packages)`
+                }
+            });
+        }
+
+        // Add dining info if they ask about food-related aspects
+        if (message.includes('platter') ||
+            message.includes('food') ||
+            message.includes('dinner') ||
+            message.includes('smakk') ||
+            message.includes('drinks included')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // Add ritual info if they ask about ritual-related aspects
+        if (message.includes('ritual') ||
+            message.includes('skjol') ||
+            message.includes('skjól') ||
+            message.includes('journey')) {
+            relevantInfo.push({
+                type: 'ritual',
+                content: knowledgeBase.ritual
+            });
+        }
+    }
+
+    // Gift ticket related queries
+    if (message.includes('gift') || 
+        message.includes('present') ||
+        message.includes('gifting') ||
+        message.includes('give as') ||
+        message.includes('buy for') ||
+        message.includes('redeem') ||
+        message.includes('gift code') ||
+        message.includes('gift ticket') ||
+        message.includes('gift card') ||
+        // Special occasions
+        message.includes('birthday') ||
+        message.includes('anniversary') ||
+        message.includes('celebration') ||
+        message.includes('thank you') ||
+        message.includes('special occasion') ||
+        // Redemption related
+        message.includes('how to use') ||
+        message.includes('redeem') ||
+        message.includes('activate') ||
+        message.includes('gift voucher') ||
+        message.includes('voucher code') ||
+        // Purchasing related
+        message.includes('buy a gift') ||
+        message.includes('purchase a gift') ||
+        message.includes('get a gift') ||
+        message.includes('giving') ||
+        message.includes('gift options') ||
+        // Multi-pass specific
+        message.includes('multi-pass gift') ||
+        message.includes('multi pass gift') ||
+        message.includes('hefð gift') ||
+        message.includes('hefd gift') ||
+        message.includes('venja gift') ||
+        // For Two packages
+        (message.includes('for two') && 
+            (message.includes('gift') || 
+             message.includes('present') || 
+             message.includes('buy') || 
+             message.includes('purchase'))) ||
+        message.includes('couple gift') ||
+        message.includes('together gift') ||
+        // Common questions
+        message.includes('gift price') ||
+        message.includes('gift cost') ||
+        message.includes('gift ticket price') ||
+        message.includes('gift validity') ||
+        message.includes('gift expiry') ||
+        message.includes('book with gift') ||
+        message.includes('use my gift') ||
+        // Legacy gift card detection
+        message.toLowerCase().includes('pure') ||
+        message.toLowerCase().includes('sky') ||
+        // Gift card specific upgrade patterns
+        (message.includes('upgrade') && (message.includes('gift') || message.includes('card') || message.includes('ticket') || message.includes('voucher'))) ||
+        (message.includes('use') && message.includes('gift') && message.includes('different')) ||
+        (message.includes('gift') && message.includes('saman') && message.includes('sér')) ||
+        (message.includes('gift card') && message.includes('difference'))) {
+
+        // First check for legacy gift card queries
+        if (message.toLowerCase().includes('pure') || 
+            message.toLowerCase().includes('sky') ||
+            (message.toLowerCase().includes('old') && message.includes('gift')) ||
+            (message.toLowerCase().includes('previous') && message.includes('gift'))) {
+            
+            console.log('\n🔄 Legacy Gift Card Query Found');
+            
+            let response = '';
+            
+            if (message.toLowerCase().includes('pure')) {
+                response = "Your Pure Pass (or Pure Package) gift card can be used to book our Saman Package. Simply select 'Saman Pass' when booking online. Your gift card is still fully valid.\n\n";
+            } else if (message.toLowerCase().includes('sky')) {
+                response = "Your Sky Pass (or Sky Package) gift card can be used to book our Sér Package. Simply select 'Sér Pass' when booking online. Your gift card is still fully valid.\n\n";
+            }
+
+            response += "Here's how to book:\n";
+            knowledgeBase.gift_tickets.redemption.steps.forEach((step, index) => {
+                response += `${index + 1}. ${step.description}\n`;
+            });
+            response += "\nIf you need any assistance with legacy gift cards or booking, please don't hesitate to contact us at reservations@skylagoon.is or call us at 527 6800.";
+
+            relevantInfo.push({
+                type: 'gift_tickets',
+                subtype: 'legacy',
+                content: response
+            });
+        } 
+        // Gift card specific upgrade detection
+        else if ((message.includes('upgrade') && 
+                 (message.includes('gift') || 
+                  message.includes('card') || 
+                  message.includes('ticket') || 
+                  message.includes('voucher'))) || 
+                 (message.includes('gift') && message.includes('saman') && message.includes('sér')) ||
+                 (message.includes('gift') && message.includes('pay') && message.includes('difference')) ||
+                 (message.includes('gift') && message.includes('change') && message.includes('package'))) {
+            
+            console.log('\n🔄 Gift Card Upgrade Query Found');
+            relevantInfo.push({
+                type: 'gift_tickets',
+                subtype: 'upgrade',
+                content: {
+                    upgrade_info: knowledgeBase.gift_tickets.upgrade_info.ser_from_saman,
+                    links: {
+                        booking: `[Book your visit] (${knowledgeBase.website_links.booking})`,
+                        gift_tickets: `[View Gift Tickets] (${knowledgeBase.website_links.gift_tickets})`
+                    }
+                }
+            });
+        } 
+        // Original else clause for standard gift ticket queries
+        else {
+            relevantInfo.push({
+                type: 'gift_tickets',
+                content: {
+                    ...knowledgeBase.gift_tickets,
+                    description: `Give the gift of relaxation with our gift cards. [View Gift Ticket Options] (https://www.skylagoon.com/buy-gift-tickets)`
+                }
+            });
+
+            // If asking about booking with gift tickets, also include opening hours
+            if (message.includes('book') || 
+                message.includes('redeem') || 
+                message.includes('use') || 
+                message.includes('when can i')) {
+                relevantInfo.push({
+                    type: 'opening_hours',
+                    content: knowledgeBase.opening_hours
+                });
+            }
+
+            // If asking about For Two packages, include dining info
+            if (message.includes('for two') || 
+                message.includes('couple') || 
+                message.includes('together') ||
+                message.includes('date night')) {
+                relevantInfo.push({
+                    type: 'dining',
+                    content: knowledgeBase.dining
+                });
+            }
+
+            // If asking about specific packages, include package info
+            if (message.includes('ser ') || 
+                message.includes('sér ') || 
+                message.includes('saman') || 
+                message.includes('premium') || 
+                message.includes('standard') ||
+                message.includes('classic')) {
+                relevantInfo.push({
+                    type: 'packages',
+                    content: knowledgeBase.packages
+                });
+            }
+        }
+    } // End of Gift ticket related queries section
+
+    // Ritual related queries
+    if (message.includes('ritual') || 
+        message.includes('skjol') ||
+        message.includes('skjól') ||
+        message.includes('without ritual') ||
+        message.includes('skip ritual') ||
+        message.includes('optional ritual') ||
+        message.includes('ritual included') ||
+        message.includes('ritual access') ||
+        // Health and medical related ritual queries
+        message.includes('cannot do ritual') ||
+        message.includes('can\'t do ritual') ||
+        message.includes('health') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('cold') ||
+            message.includes('steam') ||
+            message.includes('sauna')
+        ) ||
+        message.includes('medical') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('exempt')
+        ) ||
+        message.includes('condition') && (
+            message.includes('ritual') ||
+            message.includes('steps') ||
+            message.includes('skip')
+        ) ||
+        // Adding step-specific terms from website
+        message.includes('laug') ||
+        message.includes('kuldi') ||
+        message.includes('ylur') ||
+        message.includes('súld') ||
+        message.includes('suld') ||
+        message.includes('mykt') ||
+        message.includes('mýkt') ||
+        message.includes('gufa') ||
+        message.includes('saft') ||
+        // Adding descriptive terms from website
+        message.includes('seven step') ||
+        message.includes('7 step') ||
+        message.includes('steps') ||
+        message.includes('healing journey') ||
+        message.includes('wellness journey') ||
+        message.includes('bathing culture') ||
+        message.includes('cold plunge') ||
+        message.includes('sauna') ||
+        message.includes('steam') ||
+        message.includes('mist') ||
+        message.includes('body scrub') ||
+        message.includes('crowberry') ||
+        message.includes('krækiber') ||
+        message.includes('kraekiber') ||
+        // Adding wellness-focused terms
+        message.includes('benefit') ||
+        message.includes('wellness') ||
+        message.includes('healing') ||
+        message.includes('therapeutic') ||
+        message.includes('therapy') ||
+        message.includes('pain relief') ||
+        message.includes('muscle') ||
+        message.includes('stress') ||
+        message.includes('relax') ||
+        message.includes('relaxing') ||
+        message.includes('relaxation') ||
+        message.includes('detox') ||
+        message.includes('detoxify') ||
+        message.includes('mineral') ||
+        message.includes('breathing') ||
+        message.includes('congestion') ||
+        message.includes('sleep') ||
+        message.includes('community') ||
+        message.includes('peaceful') ||
+        message.includes('serenity') ||
+        message.includes('restore') ||
+        message.includes('restorative') ||
+        message.includes('skin') ||
+        message.includes('fresh') ||
+        message.includes('clean') ||
+        message.includes('glow') ||
+        message.includes('pain') ||
+        message.includes('ache') ||
+        message.includes('sore') ||
+        message.includes('peace') ||
+        message.includes('quiet') ||
+        message.includes('tranquil') ||
+        message.includes('rejuvenate') ||
+        message.includes('rejuvenation') ||
+        // Add these terms to the ritual detection section
+        message.includes('skjól meaning') ||
+        message.includes('skjol meaning') ||
+        message.includes('meaning of skjol') ||
+        message.includes('meaning of skjól') ||
+        message.includes('what does skjol mean') ||
+        message.includes('what does skjól mean') ||
+        message.includes('shelter') ||
+        message.includes('retreat') ||
+        message.includes('protection') ||
+        message.includes('tradition') ||
+        message.includes('traditional') ||
+        message.includes('ancestor') ||
+        message.includes('historic') ||
+        message.includes('historical') ||
+        message.includes('heritage') ||
+        message.includes('cultural') ||
+        message.includes('culture') ||
+        message.includes('element') ||
+        message.includes('root') ||
+        message.includes('origin') ||
+        message.includes('background') ||
+        message.includes('story behind') ||
+        message.includes('history') ||
+        message.includes('meaning behind') ||
+        message.includes('why is it called') ||
+        message.includes('where does the name') ||
+        message.includes('settlement') ||
+        message.includes('gathering') ||
+        message.includes('community') ||
+        // Temperature-related queries
+        message.includes('temperature') && (
+            message.includes('sauna') ||
+            message.includes('steam') ||
+            message.includes('mist') ||
+            message.includes('plunge')
+        )) {
+
+        // For health-related ritual queries, include both ritual and health safety info
+        if (message.includes('health') || 
+            message.includes('medical') || 
+            message.includes('condition') ||
+            message.includes('cannot do') ||
+            message.includes('can\'t do')) {
+            relevantInfo.push({
+                type: 'ritual_health',
+                content: {
+                    ritual_status: knowledgeBase.ritual.status,
+                    medical_exemption: knowledgeBase.ritual.status.medical_exemption,
+                    health_safety: knowledgeBase.policies.health_safety
+                }
+            });
+        }
+
+        // Standard ritual info
+        relevantInfo.push({
+            type: 'ritual',
+            content: {
+                ...knowledgeBase.ritual,
+                description: `Our Skjól ritual is a transformative seven-step journey deeply rooted in Icelandic bathing culture. [View Ritual Details] (https://www.skylagoon.com/experience/skjol-ritual)`
+            }
+        });
+
+        // Also include packages info since ritual is part of packages
+        relevantInfo.push({
+            type: 'packages',
+            content: knowledgeBase.packages
+        });
+
+        // Also include facilities info for specific wellness queries
+        if (message.includes('relax') ||
+            message.includes('peaceful') ||
+            message.includes('quiet') ||
+            message.includes('tranquil') ||
+            message.includes('community') ||
+            message.includes('healing')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+    } // End of full Ritual section
+
+    // Specific Payment system - checkout error detection
+    if (message.includes('error') ||
+        message.includes('issue') ||
+        message.includes('problem') ||
+        message.includes('trouble') ||
+        message.includes('can\'t checkout') ||
+        message.includes('cannot checkout') ||
+        message.includes('payment failed') ||
+        message.includes('payment error') ||
+        message.includes('checkout error') ||
+        message.includes('card declined') ||
+        message.includes('won\'t process') ||
+        message.includes('transaction') ||
+        message.includes('website error') ||
+        message.includes('payment not working') ||
+        message.includes('alternative payment') ||
+        message.includes('payment link')) {
+        
+        console.log('\n💰 Payment/Checkout Error Query Detected');
+        relevantInfo.push({
+            type: 'checkout_assistance',
+            content: {
+                checkout_assistance: knowledgeBase.payment_systems.checkout_assistance,
+                contact: {
+                    email: "reservations@skylagoon.is",
+                    phone: "+354 527 6800"
+                }
+            }
+        });
+    } // End of full Specific Payment system - checkout error detection
+    
+    // Policy related queries (// including age terms since they may relate to other policies)
+    if (message.includes('policy') || 
+        message.includes('policies') ||
+        message.includes('rule') ||
+        message.includes('requirement') ||
+        // Add these specific swimwear and personal items terms
+        message.includes('bikini') ||
+        message.includes('swimming costume') ||
+        message.includes('swimsuit') ||
+        message.includes('swim suit') ||
+        message.includes('swimming suit') ||
+        message.includes('bathing suit') ||
+        message.includes('swim wear') ||
+        message.includes('swimwear') ||
+        message.includes('trunks') ||
+        message.includes('shorts') ||
+        message.includes('can i wear') ||
+        message.includes('allowed to wear') ||
+        message.includes('permitted to wear') ||
+        message.includes('watch') ||
+        message.includes('jewelry') ||
+        message.includes('jewellery') ||
+        message.includes('necklace') ||
+        message.includes('ring') ||
+        message.includes('earring') ||
+        message.includes('bracelet') ||
+        message.includes('wearable') ||
+        message.includes('apple watch') ||
+        message.includes('smart watch') ||
+        message.includes('fitness tracker') ||
+        message.includes('garmin') ||
+        message.includes('fitbit') ||
+        message.includes('rashguard') ||
+        message.includes('rash guard') ||
+        message.includes('swim shirt') ||
+        message.includes('water shoe') ||
+        message.includes('water shoes') ||
+        message.includes('aqua shoes') ||
+        // Etiquette related
+        message.includes('etiquette') ||
+        message.includes('proper behavior') ||
+        message.includes('shoes') ||
+        message.includes('barefoot') ||
+        message.includes('shower') ||
+        message.includes('shower before') ||
+        message.includes('must shower') ||
+        message.includes('soap') ||
+        message.includes('clean') ||
+        message.includes('washing') ||
+        message.includes('voice') ||
+        message.includes('quiet') ||
+        message.includes('talk') ||
+        message.includes('volume') ||
+        message.includes('noise') ||
+        message.includes('dry off') ||
+        message.includes('drying') ||
+        message.includes('towel') ||
+        message.includes('social') ||
+        message.includes('tradition') ||
+        message.includes('custom') ||
+        message.includes('behavior') ||
+        message.includes('behave') ||
+        message.includes('proper') ||
+        message.includes('protocol') ||
+        message.includes('standard') ||
+        message.includes('expectation') ||
+        message.includes('what should i') ||
+        message.includes('how should i') ||
+        message.includes('do i need to') ||
+        message.includes('required to') ||
+        message.includes('must i') ||
+        message.includes('before entering') ||
+        message.includes('before going in') ||
+        message.includes('what do i do') ||
+        message.includes('how does it work') ||
+        message.includes('first time') ||
+        message.includes('never been') ||
+        message.includes('spa rules') ||
+        // Age related
+        message.includes('age') || 
+        message.includes('old') ||
+        message.includes('child') ||
+        message.includes('children') ||
+        message.includes('teenager') ||
+        message.includes('teen') ||
+        message.includes('kid') ||
+        message.includes('young') ||
+        message.includes('adult') ||
+        message.includes('guardian') ||
+        message.includes('parent') ||
+        message.includes('supervise') ||
+        message.includes('supervision') ||
+        message.includes('minimum age') ||
+        message.includes('age limit') ||
+        message.includes('bring my child') ||
+        message.includes('family') ||
+        message.includes('under 12') ||
+        message.includes('12 years') ||
+        message.includes('14 years') ||
+        // Age calculation specific patterns
+        message.includes('11 year') ||
+        message.includes('11-year') ||
+        message.includes('turning 12') ||
+        message.includes('will turn 12') ||
+        message.includes('almost 12') ||
+        message.includes('nearly 12') ||
+        message.includes('not quite 12') ||
+        message.includes('soon be 12') ||
+        message.includes('later this year') ||
+        message.includes('birth year') ||
+        message.includes('calendar year') ||
+        // Health and Safety
+        message.includes('medical') ||
+        message.includes('health') ||
+        message.includes('condition') ||
+        message.includes('pregnant') ||
+        message.includes('pregnancy') ||
+        message.includes('safe') ||
+        message.includes('doctor') ||
+        message.includes('epilepsy') ||
+        message.includes('heart') ||
+        message.includes('blood pressure') ||
+        message.includes('surgery') ||
+        message.includes('seizure') ||
+        message.includes('allergy') ||
+        message.includes('allergic') ||
+        message.includes('ingredients') ||
+        message.includes('scrub ingredients') ||
+        message.includes('body scrub') ||
+        message.includes('water') ||
+        message.includes('drink') ||
+        message.includes('hydrate') ||
+        message.includes('hydration') ||
+        message.includes('eat before') ||
+        message.includes('food before') ||
+        message.includes('empty stomach') ||
+        // Photography
+        message.includes('photo') ||
+        message.includes('picture') ||
+        message.includes('camera') ||
+        message.includes('phone') ||
+        message.includes('pictures allowed') ||
+        message.includes('take pictures') ||
+        message.includes('photography') ||
+        message.includes('waterproof') ||
+        message.includes('phone case') ||
+        message.includes('camera allowed') ||
+        message.includes('photography rules') ||
+        // Cancellation
+        message.includes('cancel') ||
+        message.includes('refund') ||
+        message.includes('change booking') ||
+        message.includes('modify booking') ||
+        message.includes('change date') ||
+        message.includes('reschedule') ||
+        message.includes('money back') ||
+        message.includes('cancellation policy') ||
+        // Booking and Capacity
+        message.includes('availability') ||
+        message.includes('available') ||
+        message.includes('full') ||
+        message.includes('capacity') ||
+        message.includes('spot') ||
+        message.includes('space') ||
+        message.includes('book') ||
+        message.includes('reservation') ||
+        message.includes('advance') ||
+        message.includes('walk in') ||
+        message.includes('walk-in') ||
+        message.includes('without booking') ||
+        message.includes('sold out') ||
+        // Add these new waiting list related terms
+        message.includes('waiting list') ||
+        message.includes('waitlist') ||
+        message.includes('wait list') ||
+        message.includes('waiting') ||
+        message.includes('standby') ||
+        message.includes('stand by') ||
+        message.includes('cancelled spot') ||
+        message.includes('canceled spot') ||
+        message.includes('if someone cancels') ||
+        message.includes('get in if') ||
+        message.includes('full but') ||
+        message.includes('no spots left') ||
+        message.includes('no availability') ||
+        message.includes('no slots') ||
+        message.includes('join list') ||
+        message.includes('put me on') ||
+        message.includes('add me to') ||
+        message.includes('notify') ||
+        message.includes('alert me') ||
+        message.includes('let me know') ||
+        message.includes('cancellation happens') ||
+        // Payment
+        message.includes('pay') ||
+        message.includes('payment') ||
+        message.includes('wristband') ||
+        message.includes('credit card') ||
+        message.includes('debit card') ||
+        message.includes('cash') ||
+        message.includes('money') ||
+        message.includes('wallet') ||
+        message.includes('purchase') ||
+        message.includes('buy') ||
+        message.includes('cost') ||
+        message.includes('price') ||
+        message.includes('locker') ||
+        message.includes('store items') ||
+        message.includes('belongings') ||
+        message.includes('valuables')) {
+
+        // Always include general policies
+        relevantInfo.push({
+            type: 'policies',
+            content: knowledgeBase.policies
+        });
+
+        // Add specific check for waiting list queries
+        if (message.includes('waiting list') ||
+            message.includes('waitlist') ||
+            message.includes('wait list') ||
+            message.includes('standby') ||
+            message.includes('stand by') ||
+            message.includes('cancelled spot') ||
+            message.includes('canceled spot') ||
+            message.includes('if someone cancels') ||
+            message.includes('notify') ||
+            message.includes('put me on') ||
+            message.includes('add me to')) {
+            
+            console.log('\n⏳ Waiting List Query Detected');
+            relevantInfo.push({
+                type: 'waiting_list',
+                content: knowledgeBase.policies.booking_capacity.availability.waiting_list
+            });
+        }
+
+        // Add specific check for swimwear and personal items
+        if (message.includes('bikini') ||
+            message.includes('swimsuit') ||
+            message.includes('swim') ||
+            message.includes('bathing suit') ||
+            message.includes('water shoe') ||
+            message.includes('rashguard') ||
+            message.includes('rash guard') ||
+            message.includes('watch') ||
+            message.includes('jewelry') ||
+            message.includes('can i wear') ||
+            message.includes('allowed to wear')) {
+            
+            console.log('\n👙 Swimwear/Personal Items Query Detected');
+            relevantInfo.push({
+                type: 'swimwear_personal_items',
+                content: {
+                    swimwear: knowledgeBase.policies.etiquette.general_rules.swimwear,
+                    personal_items: knowledgeBase.policies.etiquette.general_rules.personal_items
+                }
+            });
+        }
+
+        // Add specific related sections based on query
+        if (message.includes('pay') || 
+            message.includes('payment') || 
+            message.includes('wristband') ||
+            message.includes('credit card') ||
+            message.includes('cash') ||
+            message.includes('money') ||
+            message.includes('wallet')) {
+            relevantInfo.push({
+                type: 'payment_systems',
+                content: knowledgeBase.policies.payment_systems
+            });
+        }
+
+        // Add facility info for specific queries
+        if (message.includes('locker') || 
+            message.includes('store items') || 
+            message.includes('belongings') || 
+            message.includes('valuables') ||
+            message.includes('changing room') ||
+            message.includes('shower')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+
+        // Add dining info for food/drink related queries
+        if (message.includes('eat') || 
+            message.includes('food') || 
+            message.includes('drink') ||
+            message.includes('bar') ||
+            message.includes('cafe') ||
+            message.includes('restaurant')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+    }
+
+    // Age policy specific queries
+    if (message.toLowerCase().includes('age') || 
+        message.toLowerCase().includes('old') ||
+        message.toLowerCase().includes('child') ||
+        message.toLowerCase().includes('children') ||
+        message.toLowerCase().includes('teenager') ||
+        message.toLowerCase().includes('teen') ||
+        message.toLowerCase().includes('kid') ||
+        message.toLowerCase().includes('young') ||
+        message.toLowerCase().includes('adult') ||
+        message.toLowerCase().includes('guardian') ||
+        message.toLowerCase().includes('parent') ||
+        message.toLowerCase().includes('supervise') ||
+        message.toLowerCase().includes('supervision') ||
+        message.toLowerCase().includes('minimum age') ||
+        message.toLowerCase().includes('age limit') ||
+        message.toLowerCase().includes('bring my child') ||
+        message.toLowerCase().includes('family') ||
+        message.toLowerCase().includes('under 12') ||
+        message.toLowerCase().includes('12 years') ||
+        message.toLowerCase().includes('14 years') ||
+        // Month-specific patterns
+        (message.toLowerCase().includes('august') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('january') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('february') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('march') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('april') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('may') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('june') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('july') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('september') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('october') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('november') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('december') && message.toLowerCase().includes('12')) ||
+        // Future birthday patterns
+        (message.toLowerCase().includes('until') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('turning') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('become') && message.toLowerCase().includes('12')) ||
+        (message.toLowerCase().includes('will be') && message.toLowerCase().includes('12'))) {
+        
+        console.log('\n👶 Age Policy Match Found');
+        relevantInfo.push({
+            type: 'age_policy',
+            content: knowledgeBase.age_policy
+        });
+    }
+
+    // Facility specific
+    if (message.includes('facility') || 
+        message.includes('towel') || 
+        message.includes('rental') ||
+        message.includes('wheelchair') ||
+        message.includes('accessible') ||
+        message.includes('disabled') ||
+        message.includes('disability') ||
+        message.includes('handicap') ||
+        message.includes('aunt') ||  // Family member mentions often relate to accessibility
+        message.includes('assist') ||
+        message.includes('help') ||
+        message.includes('bring') ||
+        message.includes('swimsuit') ||
+        message.includes('changing room') ||
+        message.includes('change room') ||    // Added common variation
+        message.includes('private') ||
+        message.includes('storage') ||
+        message.includes('locker') ||
+        message.includes('shower') ||
+        message.includes('depth') ||
+        message.includes('deep') ||
+        message.includes('temperature') ||
+        message.includes('hot') ||
+        message.includes('warm') ||
+        message.includes('cold') ||
+        message.includes('water') ||
+        message.includes('swim') ||
+        message.includes('photo') ||
+        message.includes('camera') ||
+        message.includes('picture') ||
+        message.includes('infinity') ||
+        message.includes('view') ||
+        message.includes('ocean') ||
+        message.includes('sea') ||
+        // Add these new footwear-related terms
+        message.includes('flip flop') ||
+        message.includes('flipflop') ||
+        message.includes('flip-flop') ||
+        message.includes('slipper') ||
+        message.includes('footwear') ||
+        message.includes('foot wear') ||
+        message.includes('shoes') ||
+        message.includes('sandal') ||
+        message.includes('barefoot') ||
+        message.includes('need to wear') ||
+        message.includes('need to bring') ||
+        message.includes('take our own') ||
+        message.includes('floor') ||
+        message.includes('walking') ||
+        // Continue with existing terms        
+        message.includes('gender') ||
+        message.includes('men') ||
+        message.includes('women') ||
+        message.includes('male') ||
+        message.includes('female') ||
+        message.includes('non binary') ||
+        message.includes('nonbinary') ||
+        message.includes('non-binary') ||
+        message.includes('gender neutral') ||
+        message.includes('transgender') ||
+        message.includes('trans') ||
+        message.includes('gender identity') ||
+        // Amenities and rentals
+        message.includes('amenity') ||
+        message.includes('amenities') ||
+        message.includes('rent') ||
+        message.includes('hair dryer') ||
+        message.includes('hairdryer') ||
+        message.includes('robe') ||
+        message.includes('slipper') ||
+        message.includes('luggage') ||
+        message.includes('bag') ||
+        message.includes('baggage') ||
+        // Accessibility terms
+        message.includes('mobility') ||
+        message.includes('chairlift') ||
+        message.includes('lift') ||
+        message.includes('support equipment') ||
+        message.includes('special needs') ||
+        // Photography and rules
+        message.includes('photography') ||
+        message.includes('phone') ||
+        message.includes('device') ||
+        message.includes('waterproof') ||
+        message.includes('case') ||
+        message.includes('pictures allowed') ||
+        message.includes('taking pictures') ||
+        // Facility features
+        message.includes('infinity edge') ||
+        message.includes('cave') ||
+        message.includes('cave-side') ||
+        message.includes('canopy') ||
+        message.includes('horizon') ||
+        message.includes('bench') ||
+        message.includes('viewing platform') ||
+        // Etiquette and rules
+        message.includes('etiquette') ||
+        message.includes('rule') ||
+        message.includes('shoes') ||
+        message.includes('shower before') ||
+        message.includes('hygiene') ||
+        message.includes('clean') ||
+        // Hydration and safety
+        message.includes('hydration') ||
+        message.includes('drinking water') ||
+        message.includes('fountain') ||
+        message.includes('drink water') ||
+        message.includes('stay hydrated') ||
+        message.includes('medical') ||
+        message.includes('first aid') ||
+        message.includes('safety') ||
+        // Common question phrasings
+        message.includes('where is') ||
+        message.includes('how deep') ||
+        message.includes('how warm') ||
+        message.includes('what facilities') ||
+        message.includes('can i bring') ||
+        message.includes('is there') ||
+        message.includes('do you have') ||
+        // Stay duration patterns
+        message.includes('how long') || 
+        message.includes('stay as long') ||
+        message.includes('time limit') ||
+        message.includes('duration') ||
+        message.includes('unlimited time') ||
+        message.includes('as long as') ||
+        message.includes('leave') ||
+        message.includes('entire day') ||
+        message.includes('reservation last') ||
+        (message.includes('how') && message.includes('long')) ||
+        (message.includes('can') && message.includes('stay')) ||
+        (message.includes('limit') && message.includes('time')) ||
+        (message.includes('whole') && message.includes('day')) ||
+        (message.includes('reservation') && message.includes('last'))) {
+        
+        relevantInfo.push({
+            type: 'facilities',
+            content: knowledgeBase.facilities
+        });
+        
+        // Specific check for stay duration queries
+        if (message.includes('how long') || 
+            message.includes('stay as long') ||
+            message.includes('time limit') ||
+            message.includes('duration') ||
+            message.includes('unlimited time') ||
+            message.includes('as long as') ||
+            message.includes('leave') ||
+            message.includes('entire day') ||
+            message.includes('reservation last') ||
+            (message.includes('how') && message.includes('long')) ||
+            (message.includes('can') && message.includes('stay')) ||
+            (message.includes('limit') && message.includes('time')) ||
+            (message.includes('whole') && message.includes('day')) ||
+            (message.includes('reservation') && message.includes('last'))) {
+            
+            console.log('\n⏱️ Stay Duration Query Match Found');
+            relevantInfo.push({
+                type: 'facilities',
+                subtype: 'stay_duration',
+                content: knowledgeBase.facilities.lagoon.stay_duration
+            });
+        }
+    }
+
+    // View and landmark related queries (add this section near other facility queries)
+    if (message.includes('view') ||
+        message.includes('see') ||
+        message.includes('vista') ||
+        message.includes('outlook') ||
+        message.includes('look out') ||
+        message.includes('scenery') ||
+        message.includes('scenic') ||
+        message.includes('landscape') ||
+        message.includes('panorama') ||
+        message.includes('panoramic') ||
+        // Landmark specific
+        message.includes('keilir') ||
+        message.includes('fagradalsfjall') ||
+        message.includes('volcano') ||
+        message.includes('bessastadir') ||
+        message.includes('bessastaðir') ||
+        message.includes('president') ||
+        message.includes('snaefellsjokull') ||
+        message.includes('snæfellsjökull') ||
+        message.includes('glacier') ||
+        message.includes('mountain') ||
+        // Wildlife
+        message.includes('bird') ||
+        message.includes('seal') ||
+        message.includes('wildlife') ||
+        message.includes('animal') ||
+        message.includes('whale') ||
+        message.includes('watching') ||
+        // Location viewing terms
+        message.includes('infinity') ||
+        message.includes('edge') ||
+        message.includes('horizon') ||
+        message.includes('infinite') ||
+        message.includes('endless') ||
+        message.includes('stretch') ||
+        message.includes('landmark') ||
+        message.includes('surroundings')) {
+        
+        relevantInfo.push({
+            type: 'facilities',
+            content: knowledgeBase.facilities
+        });
+
+        // If asking about seasonal views, also include seasonal info
+        if (message.includes('winter') ||
+            message.includes('summer') ||
+            message.includes('northern light') ||
+            message.includes('midnight sun') ||
+            message.includes('sunset') ||
+            message.includes('twilight') ||
+            message.includes('star') ||
+            message.includes('night sky')) {
+            relevantInfo.push({
+                type: 'seasonal_information',
+                content: knowledgeBase.seasonal_information
+            });
+        }
+    }
+
+    // Dining and bar queries
+    if (message.includes('bar') || 
+        message.includes('drink') ||
+        message.includes('beverage') ||
+        message.includes('alcohol') ||
+        message.includes('gelmir') ||
+        message.includes('food') ||
+        message.includes('dining') ||
+        message.includes('cafe') ||
+        message.includes('restaurant') ||
+        message.includes('premises') ||
+        message.includes('inside') ||
+        message.includes('where is') ||
+        // Adding specific venue names
+        message.includes('smakk') ||
+        message.includes('keimur') ||
+        // Food-specific terms
+        message.includes('platter') ||
+        message.includes('menu') ||
+        message.includes('eat') ||
+        message.includes('soup') ||
+        message.includes('bagel') ||
+        message.includes('toastie') ||
+        message.includes('skyr') ||
+        message.includes('coffee') ||
+        message.includes('snack') ||
+        message.includes('lunch') ||
+        // Specific menu items
+        message.includes('cheese') ||
+        message.includes('gravlax') ||
+        message.includes('herring') ||
+        message.includes('vegan') ||
+        message.includes('hummus') ||
+        message.includes('gluten') ||
+        // Drink specifics
+        message.includes('wine') ||
+        message.includes('beer') ||
+        message.includes('gull') ||
+        message.includes('somersby') ||
+        message.includes('cocktail') ||
+        message.includes('soft drink') ||
+        message.includes('coffee') ||
+        message.includes('latte') ||
+        message.includes('cappuccino') ||
+        message.includes('tea') ||
+        // Price related
+        message.includes('how much') ||
+        message.includes('cost of food') ||
+        message.includes('price of drink') ||
+        // Timing related
+        message.includes('kitchen') ||
+        message.includes('serving') ||
+        message.includes('last order') ||
+        message.includes('after swim') ||
+        message.includes('before swim') ||
+        // Local focus terms
+        message.includes('icelandic food') ||
+        message.includes('local food') ||
+        message.includes('traditional') ||
+        message.includes('tasting') ||
+        message.includes('culinary')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: {
+                    ...knowledgeBase.dining,
+                    description: `Explore our dining options at Sky Lagoon. [View Dining Options] (https://www.skylagoon.com/food-drink)`
+                }
+            });
+        // Also include facilities info for location context
+        relevantInfo.push({
+            type: 'facilities',
+            content: knowledgeBase.facilities
+        });
+    } // End of Dining and bar queries
+
+    // Transportation, location, and directions
+    if (message.includes('shuttle') || 
+        message.includes('transport') ||
+        message.includes('bus') ||
+        message.includes('how to get') ||
+        message.includes('get to') ||
+        message.includes('from bsi') ||
+        message.includes('bus to') ||
+        message.includes('from bsí') ||
+        message.includes('bsí to') ||
+        message.includes('transfer') ||
+        message.includes('travel to') ||
+        message.includes('direction') ||
+        message.includes('parking') ||
+        message.includes('address') ||
+        message.includes('location') ||
+        message.includes('drive') ||
+        message.includes('airport') ||
+        message.includes('car') ||
+        message.includes('taxi') ||
+        message.includes('walking') ||
+        message.includes('from reykjavik') ||
+        message.includes('from city') ||
+        message.includes('far') || 
+        message.includes('distance') ||
+        message.includes('city') ||
+        message.includes('downtown') ||
+        message.includes('center') ||
+        message.includes('central') ||
+        message.includes('where') ||
+        message.includes('area') ||
+        message.includes('neighbourhood') ||
+        message.includes('near') ||
+        // Website specific terms
+        message.includes('kópavogur') ||
+        message.includes('kopavogur') ||
+        message.includes('vesturvör') ||
+        message.includes('vesturvor') ||
+        message.includes('kársnes') ||
+        message.includes('karsnes') ||
+        // Public transport specifics
+        message.includes('public transport') ||
+        message.includes('strætó') ||
+        message.includes('straeto') ||
+        message.includes('bus number') ||
+        message.includes('bus #') ||
+        message.includes('bus 4') ||
+        message.includes('bus 35') ||
+        message.includes('bus route') ||
+        message.includes('hlemmur') ||
+        message.includes('hamraborg') ||
+        message.includes('hafnarbraut') ||
+        // Airport transfer specifics
+        message.includes('keflavik') ||
+        message.includes('kef') ||
+        message.includes('flybus') ||
+        message.includes('fly bus') ||
+        message.includes('from airport') ||
+        message.includes('to airport') ||
+        // BSÍ transfer specifics
+        message.includes('reykjavik excursions') ||
+        message.includes('pickup') ||
+        message.includes('pick up') ||
+        message.includes('pick-up') ||
+        message.includes('hotel pickup') ||
+        message.includes('shuttle time') ||
+        message.includes('shuttle schedule') ||
+        message.includes('return shuttle') ||
+        message.includes('bus terminal') ||
+        // Hotel and Bus Stop specifics
+        message.includes('hotel') ||
+        message.includes('guesthouse') ||
+        message.includes('hostel') ||
+        message.includes('apartment') ||
+        message.includes('accommodation') ||
+        message.includes('staying at') ||
+        message.includes('bus stop') ||
+        message.includes('bus stops') ||
+        message.includes('pickup point') ||
+        message.includes('pick up point') ||
+        message.includes('pick-up point') ||
+        message.includes('nearest stop') ||
+        message.includes('closest stop') ||
+        message.includes('which stop') ||
+        message.includes('go to stop') ||
+        message.includes('find bus stop') ||
+        message.includes('drop off') ||
+        message.includes('drop-off') ||
+        message.includes('dropoff') ||
+        // Bus stop numbers
+        message.includes('stop 1') ||
+        message.includes('stop 2') ||
+        message.includes('stop 3') ||
+        message.includes('stop 4') ||
+        message.includes('stop 5') ||
+        message.includes('stop 6') ||
+        message.includes('stop 8') ||
+        message.includes('stop 9') ||
+        message.includes('stop 11') ||
+        message.includes('stop 12') ||
+        message.includes('stop 13') ||
+        message.includes('stop 14') ||
+        message.includes('stop 15') ||
+        // Common bus stop names
+        message.includes('ráðhúsið') ||
+        message.includes('radhusid') ||
+        message.includes('city hall') ||
+        message.includes('tjörnin') ||
+        message.includes('tjornin') ||
+        message.includes('the pond') ||
+        message.includes('lækjargata') ||
+        message.includes('laekjargata') ||
+        message.includes('miðbakki') ||
+        message.includes('midbakki') ||
+        message.includes('harpa') ||
+        message.includes('safnahusid') ||
+        message.includes('culture house') ||
+        message.includes('hallgrímskirkja') ||
+        message.includes('hallgrimskirkja') ||
+        message.includes('snorrabraut') ||
+        message.includes('austurbær') ||
+        message.includes('austurbaer') ||
+        message.includes('höfðatorg') ||
+        message.includes('hofdatorg') ||
+        message.includes('rauðarárstígur') ||
+        message.includes('raudararstigur') ||
+        message.includes('skúlagata') ||
+        message.includes('skulagata') ||
+        message.includes('vesturbugt') ||
+        // Eco transport options
+        message.includes('walking path') ||
+        message.includes('cycle') ||
+        message.includes('cycling') ||
+        message.includes('bike') ||
+        message.includes('biking') ||
+        message.includes('electric car') ||
+        message.includes('charging') ||
+        // Parking specifics
+        message.includes('park') ||
+        message.includes('parking lot') ||
+        message.includes('car park') ||
+        message.includes('free parking') ||
+        message.includes('disabled parking') ||
+        message.includes('accessible parking') ||
+        // Common question formats
+        message.includes('how do i get') ||
+        message.includes('best way to') ||
+        message.includes('easiest way to') ||
+        message.includes('what is the way to') ||
+        message.includes('how to reach') ||
+        message.includes('how can i get') ||
+        message.includes('minutes from') ||
+        message.includes('hours from') ||
+        message.includes('directions to') ||
+        message.includes('directions from') ||
+        // Time and duration queries
+        message.includes('how long') ||
+        message.includes('travel time') ||
+        message.includes('journey time') ||
+        message.includes('duration') ||
+        message.includes('minutes away') ||
+        message.includes('hours away') ||
+        // Location queries
+        message.includes('where are you') ||
+        message.includes('where is sky') ||
+        message.includes('located in') ||
+        message.includes('situated in') ||
+        message.includes('whereabouts') ||
+        // Luggage related
+        message.includes('luggage') ||
+        message.includes('suitcase') ||
+        message.includes('bags') ||
+        message.includes('baggage storage') ||
+        message.includes('store luggage') ||
+        message.includes('store bags')) {
+
+        // First push basic location info
+        relevantInfo.push({
+            type: 'location',
+            content: {
+                ...knowledgeBase.transportation.location,
+                description: `You can find Sky Lagoon at Vesturvör 44, 200 Kópavogur. [View on Google Maps 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)`
+            }
+        });
+
+        // Enhanced shuttle/bus stop detection with more specific info types
+        if (message.includes('shuttle') || 
+            message.includes('bus') || 
+            message.includes('pickup') || 
+            message.includes('pick up') ||
+            message.includes('pick-up') ||
+            message.includes('transfer')) {
+
+            // If asking specifically about bus identification
+            if (message.includes('which bus') || 
+                message.includes('how will i know') || 
+                message.includes('how to identify') || 
+                message.includes('find the bus')) {
+                relevantInfo.push({
+                    type: 'bus_identification',
+                    content: knowledgeBase.transportation.hotel_bus_stops.transfer_details.identification
+                });
+            }
+
+            // If asking about round-trip/return journey
+            if (message.includes('return') || 
+                message.includes('back') || 
+                message.includes('two way') || 
+                message.includes('both way') ||
+                message.includes('drop off') ||
+                message.includes('drop-off') ||
+                message.includes('getting back')) {
+                relevantInfo.push({
+                    type: 'return_journey',
+                    content: knowledgeBase.transportation.hotel_bus_stops.transfer_details.round_trip
+                });
+            }
+
+            // Enhanced general shuttle service info
+            if (message.includes('tell me about') || 
+                message.includes('how does') || 
+                message.includes('explain') || 
+                message.includes('shuttle service')) {
+                relevantInfo.push({
+                    type: 'shuttle_service_detailed',
+                    content: {
+                        provider_info: {
+                            name: "Reykjavík Excursions",
+                            contact: {
+                                email: "info@icelandia.is",
+                                phone: "+354 580 5400",
+                                website: "www.re.is"
+                            },
+                            note: "All shuttle services are operated by our partners at Reykjavík Excursions"
+                        },
+                        basic_info: knowledgeBase.transportation.shuttle_service,
+                        identification: knowledgeBase.transportation.hotel_bus_stops.transfer_details.identification,
+                        timing: knowledgeBase.transportation.hotel_bus_stops.transfer_details.timing,
+                        important_notes: knowledgeBase.transportation.hotel_bus_stops.transfer_details.important_notes,
+                        contact: knowledgeBase.transportation.hotel_bus_stops.customer_support
+                    }
+                });
+            }
+            
+            // Add specific missed pickup handling
+            if (message.includes('miss') || 
+                message.includes('late') || 
+                message.includes('missed')) {
+                relevantInfo.push({
+                    type: 'missed_pickup',
+                    content: {
+                        instructions: [
+                            "If pickup hasn't arrived within 20 minutes, contact Reykjavík Excursions at +354 599 0000",
+                            "If you miss your pickup, you must reach BSÍ at own cost",
+                            "Contact Reykjavík Excursions at info@icelandia.is for assistance with rescheduling"
+                        ],
+                        contact: {
+                            phone: "+354 599 0000",
+                            email: "info@icelandia.is",
+                            provider: "Reykjavík Excursions",
+                            note: "All shuttle services are operated by Reykjavík Excursions"
+                        },
+                        bsi_info: {
+                            location: "BSÍ Bus Terminal - City center",
+                            schedule: "Buses depart on the hour of your booking",
+                            provider: "Operated by Reykjavík Excursions"
+                        }
+                    }
+                });
+            }            
+
+            // If asking about specific hotel or bus stop
+            if (message.includes('hotel') || 
+                message.includes('hostel') || 
+                message.includes('guesthouse') || 
+                message.includes('bus stop') || 
+                message.includes('pickup point')) {
+
+                // Check if asking specifically about bus stop location
+                if (message.includes('where is') || 
+                    message.includes('where can i find') || 
+                    message.includes('location of') || 
+                    message.includes('how to get to bus stop')) {
+                    for (let [stopName, location] of Object.entries(knowledgeBase.transportation.hotel_bus_stops.bus_stop_locations)) {
+                        if (message.toLowerCase().includes(stopName.toLowerCase())) {
+                            relevantInfo.push({
+                                type: 'bus_stop_location',
+                                content: {
+                                    stop_name: stopName,
+                                    location_details: location,
+                                    area: location.area,
+                                    landmarks: location.landmarks,
+                                    address: location.address
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                // Check for specific hotel mentions first
+                let foundDirectPickup = false;
+                for (let location of knowledgeBase.transportation.hotel_bus_stops.direct_pickup_locations) {
+                    if (message.toLowerCase().includes(location.toLowerCase())) {
+                        relevantInfo.push({
+                            type: 'direct_pickup',
+                            content: {
+                                location: location,
+                                details: knowledgeBase.transportation.hotel_bus_stops.transfer_details
+                            }
+                        });
+                        foundDirectPickup = true;
+                        break;
+                    }
+                }
+
+                // If not a direct pickup location, check bus stops
+                if (!foundDirectPickup) {
+                    for (let [stopName, hotels] of Object.entries(knowledgeBase.transportation.hotel_bus_stops.bus_stops)) {
+                        // Check if message includes bus stop name or any of its hotels
+                        if (message.toLowerCase().includes(stopName.toLowerCase()) ||
+                            hotels.some(hotel => message.toLowerCase().includes(hotel.toLowerCase()))) {
+                            relevantInfo.push({
+                                type: 'bus_stop_info',
+                                content: {
+                                    stop_name: stopName,
+                                    location_details: knowledgeBase.transportation.hotel_bus_stops.bus_stop_locations[stopName],
+                                    hotels: hotels,
+                                    transfer_details: knowledgeBase.transportation.hotel_bus_stops.transfer_details
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                // If no specific hotel or bus stop found, provide general shuttle service info
+                if (!foundDirectPickup && relevantInfo.length <= 1) {
+                    relevantInfo.push({
+                        type: 'shuttle_service',
+                        content: {
+                            ...knowledgeBase.transportation.shuttle_service,
+                            provider_note: "Our shuttle service is operated by Reykjavík Excursions. For assistance finding your nearest bus stop, please contact them directly at info@icelandia.is or +354 599 0000"
+                        }
+                    });
+                    relevantInfo.push({
+                        type: 'hotel_bus_stops',
+                        content: knowledgeBase.transportation.hotel_bus_stops
+                    });
+                }
+            }
+
+            // If asking about timing
+            if (message.includes('when') || 
+                message.includes('time') || 
+                message.includes('early') || 
+                message.includes('how long before')) {
+                relevantInfo.push({
+                    type: 'pickup_timing',
+                    content: {
+                        timing: knowledgeBase.transportation.hotel_bus_stops.timing,
+                        details: knowledgeBase.transportation.hotel_bus_stops.transfer_details.timing
+                    }
+                });
+            }
+        }
+
+        // Enhanced public transport detection
+        if (message.includes('public transport') || 
+            message.includes('strætó') ||
+            message.includes('straeto') ||
+            message.includes('bus number') ||
+            message.includes('bus #') ||
+            message.includes('bus 4') ||
+            message.includes('bus 35')) {
+            
+            // If asking about airport route specifically
+            if (message.includes('airport') || 
+                message.includes('keflavik') || 
+                message.includes('kef')) {
+                relevantInfo.push({
+                    type: 'airport_public_transport',
+                    content: knowledgeBase.transportation.airport_transfer.bus_option
+                });
+            } else {
+                // Standard public transport route
+                relevantInfo.push({
+                    type: 'public_transport',
+                    content: {
+                        route: knowledgeBase.transportation.public_transport,
+                        schedule_info: "Visit straeto.is for current timings"
+                    }
+                });
+            }
+        }
+
+        // If asking about parking
+        if (message.includes('park') || 
+            message.includes('parking') || 
+            message.includes('car') ||
+            message.includes('electric')) {
+            relevantInfo.push({
+                type: 'parking',
+                content: knowledgeBase.transportation.parking
+            });
+        }
+
+        // If asking about airport transfer
+        if (message.includes('airport') || 
+            message.includes('keflavik') || 
+            message.includes('kef') ||
+            message.includes('flybus')) {
+            
+            // Enhance the detection for return to airport queries
+            if (message.includes('drop') ||
+                message.includes('back to') ||
+                message.includes('return to') ||
+                message.includes('get to') ||
+                message.includes('take me to') ||
+                message.includes('leaving to') ||
+                message.includes('leaving for') ||
+                message.includes('shuttle to') ||
+                message.includes('bus to') ||
+                message.includes('transfer to') ||
+                message.includes('how to get to') ||
+                message.includes('go to')) {
+                
+                console.log('\n✈️ Airport Return Query Detected');
+                relevantInfo.push({
+                    type: 'airport_return',
+                    content: {
+                        return_info: knowledgeBase.transportation.airport_transfer.return_to_airport,
+                        shuttle_times: knowledgeBase.transportation.shuttle_service.return_service,
+                        shuttle_provider: knowledgeBase.transportation.shuttle_service.provider_info
+                    }
+                });
+            } else {
+                // Regular airport transfer info
+                relevantInfo.push({
+                    type: 'airport_transfer',
+                    content: knowledgeBase.transportation.airport_transfer
+                });
+            }
+        }
+
+        // If asking about luggage
+        if (message.includes('luggage') || 
+            message.includes('suitcase') || 
+            message.includes('bags') ||
+            message.includes('baggage')) {
+            relevantInfo.push({
+                type: 'luggage',
+                content: knowledgeBase.transportation.airport_transfer.luggage
+            });
+        }
+
+        // If asking about eco-friendly options
+        if (message.includes('walk') || 
+            message.includes('cycle') || 
+            message.includes('bike') ||
+            message.includes('cycling') ||
+            message.includes('biking') ||
+            message.includes('electric')) {
+            relevantInfo.push({
+                type: 'eco_friendly',
+                content: knowledgeBase.transportation.eco_friendly_options
+            });
+        }
+    } // End of full Transportation section
+
+    // Group booking related queries
+    if (message.includes('group') || 
+        message.includes('corporate') ||
+        message.includes('team') ||
+        message.includes('party') ||
+        message.includes('multiple people') ||
+        message.includes('many people') ||
+        message.includes('several people') ||
+        message.includes('together') ||
+        // Specific group types
+        message.includes('company') ||
+        message.includes('conference') ||
+        message.includes('retreat') ||
+        message.includes('celebration') ||
+        message.includes('tour group') ||
+        message.includes('office') ||
+        message.includes('team building') ||
+        message.includes('business') ||
+        message.includes('work') ||
+        message.includes('colleagues') ||
+        message.includes('staff') ||
+        message.includes('employees') ||
+        // Size related
+        message.includes('10 people') ||
+        message.includes('large group') ||
+        message.includes('small group') ||
+        message.includes('big group') ||
+        message.includes('group size') ||
+        message.includes('group rate') ||
+        message.includes('group discount') ||
+        // Booking process
+        message.includes('group booking') ||
+        message.includes('book for group') ||
+        message.includes('group reservation') ||
+        message.includes('organize') ||
+        message.includes('arrange') ||
+        message.includes('plan') ||
+        // Group amenities
+        message.includes('group package') ||
+        message.includes('group deal') ||
+        message.includes('group offer') ||
+        message.includes('private area') ||
+        message.includes('group dining') ||
+        message.includes('group food') ||
+        message.includes('group transport')) {
+
+        // Always include group booking info
+        relevantInfo.push({
+            type: 'group_bookings',
+            content: knowledgeBase.group_bookings
+        });
+
+        // Add dining info for food/dining related queries
+        if (message.includes('food') || 
+            message.includes('dining') || 
+            message.includes('eat') ||
+            message.includes('restaurant') ||
+            message.includes('menu') ||
+            message.includes('platter')) {
+            relevantInfo.push({
+                type: 'dining',
+                content: knowledgeBase.dining
+            });
+        }
+
+        // Add transportation info for transfer related queries
+        if (message.includes('transport') || 
+            message.includes('transfer') || 
+            message.includes('bus') ||
+            message.includes('shuttle') ||
+            message.includes('getting there')) {
+            relevantInfo.push({
+                type: 'transportation',
+                content: knowledgeBase.transportation
+            });
+        }
+
+        // Add package info when asking about group packages
+        if (message.includes('package') || 
+            message.includes('deal') || 
+            message.includes('offer') ||
+            message.includes('price') ||
+            message.includes('cost') ||
+            message.includes('rate')) {
+            relevantInfo.push({
+                type: 'packages',
+                content: knowledgeBase.packages
+            });
+        }
+
+        // Add policies info for relevant queries
+        if (message.includes('cancel') || 
+            message.includes('policy') || 
+            message.includes('rule') ||
+            message.includes('requirement') ||
+            message.includes('minimum') ||
+            message.includes('notice')) {
+            relevantInfo.push({
+                type: 'policies',
+                content: knowledgeBase.policies
+            });
+        }
+    }
+
+    // Multi-Pass related queries
+    if (message.includes('multi-pass') || 
+        message.includes('multi pass') ||
+        message.includes('multipass') ||
+        message.includes('hefð') ||
+        message.includes('hefd') ||
+        message.includes('venja') ||
+        message.includes('six visits') ||
+        message.includes('6 visits') ||
+        message.includes('multiple visits') ||
+        message.includes('loyalty') ||
+        message.includes('regular visits') ||
+        message.includes('frequent visits') ||
+        message.includes('regular wellness') ||
+        message.includes('wellness routine') ||
+        message.includes('half price visits') ||
+        message.includes('discount pass') ||
+        message.includes('multiple entries') ||
+        message.includes('several visits') ||
+        message.includes('repeat visits') ||
+        message.includes('reduced price') ||
+        message.includes('regular guest') ||
+        message.includes('frequent guest') ||
+        message.includes('visit often') ||
+        message.includes('come back') ||
+        message.includes('return visits') ||
+        message.includes('regular basis')) {
+        relevantInfo.push({
+            type: 'multi_pass',
+            content: {
+                ...knowledgeBase.multi_pass,
+                description: `Learn more about our Multi-Pass option for regular visits. [View Multi-Pass Details] (https://www.skylagoon.com/multi-pass)`
+            }
+        });
+    }
+
+    // Products and retail related queries
+    if (message.includes('product') || 
+        message.includes('buy') ||
+        message.includes('purchase') ||
+        message.includes('shop') ||
+        message.includes('retail') ||
+        message.includes('scrub') ||
+        message.includes('lotion') ||
+        message.includes('oil') ||
+        message.includes('mist') ||
+        message.includes('candle') ||
+        message.includes('spray') ||
+        message.includes('diffuser') ||
+        message.includes('soap') ||
+        message.includes('miniature') ||
+        message.includes('travel size') ||
+        message.includes('gift set') ||
+        message.includes('body products') ||
+        message.includes('skin care') ||
+        message.includes('fragrance') ||
+        message.includes('home products') ||
+        message.includes('ingredients') ||
+        message.includes('where can i buy') ||
+        message.includes('what products') ||
+        message.includes('take home') ||
+    
+        // Add these new shipping-specific terms
+        message.includes('ship') ||
+        message.includes('shipping') ||
+        message.includes('delivery') ||
+        message.includes('mail') ||
+        message.includes('send') ||
+        message.includes('post') ||
+        message.includes('order online') ||
+        message.includes('buy online') ||
+        message.includes('purchase online') ||
+        message.includes('international') ||
+        message.includes('overseas') ||
+        message.includes('abroad') ||
+        message.includes('outside iceland') ||
+        message.includes('to my country') ||
+        message.includes('to my home') ||
+        message.includes('to the us') ||
+        message.includes('to usa') ||
+        message.includes('to europe') ||
+        message.includes('to my address') ||
+        message.includes('shipping cost') ||
+        message.includes('shipping fee') ||
+        message.includes('how much to ship') ||
+        message.includes('ship products') ||
+        message.includes('ship items') ||
+        message.includes('customs') ||
+        message.includes('import') ||
+        message.includes('duties') ||
+        message.includes('taxes') ||
+        message.includes('minimum order') ||
+        message.includes('price list') ||
+        message.includes('product prices') ||
+        message.includes('how to order') ||
+        message.includes('shampoo') ||
+        message.includes('conditioner') ||
+        message.includes('bath products')) {
+        
+        relevantInfo.push({
+            type: 'products',
+            content: knowledgeBase.products
+        });
+
+        // New specific check for shipping queries
+        if (message.includes('ship') ||
+            message.includes('shipping') ||
+            message.includes('delivery') ||
+            message.includes('mail') ||
+            message.includes('send') ||
+            message.includes('post') ||
+            message.includes('order online') ||
+            message.includes('buy online') ||
+            message.includes('international') ||
+            message.includes('overseas') ||
+            message.includes('abroad') ||
+            message.includes('outside iceland') ||
+            message.includes('to my country') ||
+            message.includes('to my home') ||
+            message.includes('to the us') ||
+            message.includes('to usa') ||
+            message.includes('to europe') ||
+            message.includes('customs') ||
+            message.includes('minimum order') ||
+            message.includes('price list')) {
+            
+            console.log('\n📦 Product Shipping Query Detected');
+            relevantInfo.push({
+                type: 'product_shipping',
+                content: {
+                    shipping_info: knowledgeBase.products.shipping,
+                    locations: knowledgeBase.products.locations,
+                    contact: knowledgeBase.products.shipping.contact
+                }
+            });
+        }
+        
+        // If asking about scrub ingredients specifically
+        if (message.includes('ingredient') || message.includes('allerg')) {
+            relevantInfo.push({
+                type: 'health_safety',
+                content: knowledgeBase.policies.health_safety
+            });
+        }
+    }
+
+    // Lost and Found related queries
+    if (message.includes('lost') ||
+        message.includes('found') ||
+        message.includes('missing') ||
+        message.includes('left behind') ||
+        message.includes('forgot') ||
+        message.includes('forgotten') ||
+        message.includes('leave') ||
+        message.includes('left') ||
+        message.includes('find my') ||
+        message.includes('lost and found') ||
+        message.includes('lost property') ||
+        message.includes('retrieve') ||
+        message.includes('get back') ||
+        message.includes('ship') ||
+        message.includes('send') ||
+        message.includes('shipping fee') ||
+        message.includes('return item') ||
+        message.includes('claim') ||
+        message.includes('belongings') ||
+        // Specific item mentions
+        message.includes('wallet') ||
+        message.includes('phone') ||
+        message.includes('camera') ||
+        message.includes('jewelry') ||
+        message.includes('swimsuit') ||
+        message.includes('towel') ||
+        message.includes('clothes') ||
+        message.includes('clothing') ||
+        message.includes('items') ||
+        // Question formats
+        message.includes('what happens if') ||
+        message.includes('how do i get') ||
+        message.includes('where can i find') ||
+        message.includes('how can i get') ||
+        message.includes('is there')) {
+        
+        relevantInfo.push({
+            type: 'lost_found',
+            content: knowledgeBase.lost_found
+        });
+
+        // Also include facilities info for locker-related queries
+        if (message.includes('locker') || 
+            message.includes('storage') || 
+            message.includes('keep') ||
+            message.includes('secure')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+    }
+
+    // Pride and Accessibility related queries
+    if (message.includes('pride') ||
+        message.includes('lgbtq') ||
+        message.includes('lgbt') ||
+        message.includes('gay') ||
+        message.includes('lesbian') ||
+        message.includes('queer') ||
+        message.includes('trans') ||
+        message.includes('transgender') ||
+        message.includes('gender') ||
+        message.includes('identity') ||
+        message.includes('non binary') ||
+        message.includes('nonbinary') ||
+        message.includes('non-binary') ||
+        message.includes('inclusive') ||
+        message.includes('diversity') ||
+        // Accessibility terms
+        message.includes('wheelchair') ||
+        message.includes('accessible') ||
+        message.includes('accessibility') ||
+        message.includes('disabled') ||
+        message.includes('disability') ||
+        message.includes('mobility') ||
+        message.includes('handicap') ||
+        message.includes('special needs') ||
+        message.includes('lift') ||
+        message.includes('chairlift') ||
+        message.includes('assistance') ||
+        message.includes('help') ||
+        message.includes('support') ||
+        // Changing room related
+        message.includes('gender neutral') ||
+        message.includes('private room') ||
+        message.includes('changing room') ||
+        message.includes('upgrade room') ||
+        message.includes('privacy') ||
+        // Question formats
+        message.includes('can you accommodate') ||
+        message.includes('is it accessible') ||
+        message.includes('do you have facilities') ||
+        message.includes('how accessible')) {
+
+        relevantInfo.push({
+            type: 'pride_accessibility',
+            content: knowledgeBase.pride_accessibility
+        });
+
+        // Add facilities info for specific queries
+        if (message.includes('changing') || 
+            message.includes('room') || 
+            message.includes('facility') ||
+            message.includes('shower')) {
+            relevantInfo.push({
+                type: 'facilities',
+                content: knowledgeBase.facilities
+            });
+        }
+    } // End of Pride and Accessibility related queries section
+
+    // Job/career related queries
+    if (message.includes('job') || 
+        message.includes('apply') ||
+        message.includes('application') ||
+        message.includes('career') ||
+        message.includes('employment') ||
+        message.includes('work for') ||
+        message.includes('work at') ||
+        message.includes('hiring') ||
+        message.includes('position') ||
+        message.includes('opening') ||
+        message.includes('vacancy') ||
+        message.includes('resume') ||
+        message.includes('cv') ||
+        message.includes('summer job') ||
+        message.includes('seasonal') ||
+        message.includes('lifeguard') ||
+        message.includes('security guard') ||
+        (message.includes('job') && message.includes('available')) ||
+        (message.includes('looking for') && message.includes('job')) ||
+        (message.includes('apply') && message.includes('position')) ||
+        (message.includes('opportunity') && message.includes('work')) ||
+        (message.includes('send') && message.includes('resume'))) {
+        
+        console.log('\n💼 Career Inquiry Match Found');
+        relevantInfo.push({
+            type: 'careers',
+            content: knowledgeBase.careers
+        });
+    } // End of Job/career related queries section
+
+  return relevantInfo;
+} // End of keywordSearch function

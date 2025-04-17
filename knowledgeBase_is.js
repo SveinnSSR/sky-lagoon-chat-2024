@@ -2208,25 +2208,2478 @@ export const knowledgeBase_is = {
 // Replace or modify your existing getRelevantKnowledge_is function
 export async function getRelevantKnowledge_is(query) {
   try {
-    // Use vector search approach with lower threshold
+    // STEP 1: First try vector search approach with lower threshold
     const results = await searchSimilarContent(query, 5, 0.5, 'is');
     
-    if (!results || results.length === 0) {
-      console.log('No vector search results found for Icelandic query:', query);
-      return [];
+    if (results && results.length > 0) {
+      console.log('✅ Vector search returned results for Icelandic query:', query);
+      
+      // Transform the results into the format expected by the rest of the code
+      return results.map(result => ({
+        type: result.metadata?.type || 'unknown',
+        content: result.content,
+        metadata: result.metadata || {},
+        similarity: result.similarity
+      }));
     }
     
-    // Transform the results into the format expected by the rest of the code
-    return results.map(result => ({
-      type: result.metadata?.type || 'unknown',
-      content: result.content,
-      metadata: result.metadata || {},
-      similarity: result.similarity
-    }));
+    // STEP 2: If no vector results, fall back to keyword search
+    console.log('No vector search results found for Icelandic query:', query);
+    console.log('🔍 Falling back to keyword-based search for Icelandic query...');
+    
+    return keywordSearch_is(query);
     
   } catch (error) {
     console.error('Error in vector search for getRelevantKnowledge_is:', error);
-    // Return empty array in case of error
-    return [];
+    
+    // Even if vector search fails, try keyword search as fallback
+    console.log('⚠️ Falling back to keyword-based search due to error for Icelandic query...');
+    return keywordSearch_is(query);
   }
 }
+
+// Helper function containing the keyword search logic for Icelandic
+function keywordSearch_is(userMessage) {
+  const message = userMessage.toLowerCase();
+  let relevantInfo = [];
+  
+  // Put your full Icelandic keyword search logic here
+  // This should be all your if/else logic for Icelandic keywords
+  // Similar to what you have for English in keywordSearch
+  
+    // ULTRA-HIGH PRIORITY capacity patterns that should match before any availability check
+    // Add this at the VERY TOP
+    if ((message.includes('eitt laust pláss') && message.includes('kl') && 
+         (message.includes('barn') || message.includes('fullorðinn'))) ||
+        (message.includes('bóka') && message.includes('tvo') && message.includes('eitt') && message.includes('laust'))) {
+        
+        console.log('\n🚨 ULTRA HIGH PRIORITY CAPACITY QUERY DETECTED');
+        
+        // One spot with specific time and child
+        if (message.includes('kl') && 
+            (message.includes('barn') || message.includes('fullorðinn') || message.includes('son'))) {
+            
+            console.log('\n👶 Time-specific One Spot + Child Query');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_child',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir fleiri en einn einstakling þegar aðeins er eitt pláss laust.\n\nÞar sem þú ert að bóka fyrir fullorðinn og barn, þá dugar plássið því miður ekki fyrir báða. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu.\n\nVið mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus, eða hafa samband við okkur í síma 527 6800 til að fá aðstoð við að finna tíma sem hentar."
+            });
+            
+            return relevantInfo; // Early return to prevent other handlers
+        }
+        
+        // Book for two with one spot
+        if ((message.includes('bóka') || message.includes('pláss')) && 
+            (message.includes('tvo') || message.includes('tvö')) && 
+            (message.includes('eitt') || message.includes('1')) && message.includes('laust')) {
+            
+            console.log('\n👥 Book for Two with One Spot Query - TOP PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_two_people',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir tvo einstaklinga þegar aðeins er eitt pláss laust. Hver einstaklingur þarf sitt eigið pláss í bókunarkerfinu. Við mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo; // Early return to prevent other handlers
+        }
+    }
+
+    // Basic booking requirement questions - ADD THIS SECOND
+    if ((message.includes('þarf') && message.includes('bóka')) ||
+        (message.includes('þarf') && message.includes('panta')) ||
+        (message.includes('nauðsynlegt') && message.includes('bóka')) ||
+        (message.includes('verð') && message.includes('bóka')) ||
+        (message.includes('get') && message.includes('mætt') && message.includes('bóka')) ||
+        // Specific time-related booking questions 
+        (message.includes('komum') && message.includes('eftir') && message.includes('min')) ||
+        (message.includes('komum') && message.includes('eftir') && message.includes('klst')) ||
+        // Common booking questions
+        (message.includes('hægt') && message.includes('mæta') && message.includes('án')) ||
+        (message.includes('mæta') && message.includes('fyrirfram')) ||
+        (message.includes('bóka') && message.includes('fyrirfram')) ||
+        (message.includes('bóka') && message.includes('tíma'))) {
+        
+        console.log('\n🔐 Basic Booking Requirement Query Found');
+        
+        // Check if asking about coming shortly/in 30 minutes
+        if ((message.includes('komum') && message.includes('eftir') && 
+            (message.includes('30') || message.includes('min') || message.includes('mín'))) ||
+            (message.includes('30') && message.includes('mínút'))) {
+            
+            console.log('\n⏱️ Coming Soon Query Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'coming_soon',
+                content: "Já, við mælum alltaf með að bóka fyrirfram á vefsíðunni okkar til að tryggja að þú fáir pláss, sérstaklega á annatímum. Ef þú ætlar að koma innan klukkustundar og sérð að það er pláss á vefsíðunni okkar, þá er í lagi að bóka með stuttum fyrirvara. Vefsíðan okkar sýnir framboð í rauntíma."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // General booking requirement question
+        relevantInfo.push({
+            type: 'booking',
+            subtype: 'booking_required',
+            content: "Já, við mælum eindregið með því að bóka fyrirfram á vefsíðunni okkar: [Bóka heimsókn](https://www.skylagoon.com/is/boka). Þetta tryggir þér pláss á þeim tíma sem þú vilt heimsækja okkur. Bókunarkerfið okkar sýnir nákvæmt framboð í rauntíma og oft er fullbókað, sérstaklega á annatímum. Þú getur þó komið án bókunar ef vefsíðan sýnir að það séu laus pláss á þeim tíma sem þú vilt koma."
+        });
+        
+        return relevantInfo;
+    }
+
+    // Booking capacity section
+    if (message.includes('laust pláss') || 
+        message.includes('fullt') || 
+        message.includes('uppselt') || 
+        message.includes('biðlista') || 
+        message.includes('bíðlista') ||
+        message.includes('losnar') ||
+        message.includes('eitt laust') ||
+        message.includes('1 laust') ||
+        message.includes('eitt pláss') ||
+        message.includes('tvö pláss') ||
+        message.includes('fyrir tvo') ||
+        message.includes('fyrir tvö') ||
+        // Specific patterns to catch remaining problematic queries
+        (message.includes('hægt') && message.includes('mæta') && (message.includes('uppselt') || message.includes('fullt'))) ||
+        (message.includes('bóka') && message.includes('tvo') && message.includes('eitt') && message.includes('laust')) ||
+        // Handle time-specific one spot queries
+        (message.includes('laust pláss') && message.includes('kl')) ||
+        (message.includes('eitt laust') && message.includes('kl')) ||
+        (message.includes('eitt pláss') && message.includes('kl')) ||
+        // Add more patterns
+        message.includes('ekki laust') ||
+        (message.includes('ef') && message.includes('ekki') && message.includes('laust')) ||
+        (message.includes('ef') && message.includes('fullt')) ||
+        (message.includes('er') && message.includes('líklegt') && message.includes('koma')) ||
+        (message.includes('hægt') && message.includes('koma') && message.includes('fullt')) ||
+        (message.includes('hægt') && message.includes('koma') && message.includes('uppselt')) ||
+        (message.includes('er') && message.includes('biðlisti')) ||
+        (message.includes('get') && message.includes('skrá') && message.includes('biðlista')) ||
+        (message.includes('hvað') && message.includes('mörg') && message.includes('pláss')) ||
+        (message.includes('hversu') && message.includes('mörg') && message.includes('pláss')) ||
+        (message.includes('eru') && message.includes('líkur') && (message.includes('komumst') || message.includes('komast'))) ||
+        (message.includes('barna') && message.includes('pláss')) ||
+        (message.includes('vantar') && message.includes('pláss')) ||
+        (message.includes('hvað') && message.includes('þýðir') && message.includes('eitt') && message.includes('laust'))) {
+        
+        console.log('\n📊 Booking Capacity Match Found PRIORITY');
+        
+        // First check specifically for "what does one spot available mean?"
+        if (message.includes('hvað') && message.includes('þýðir') && 
+            (message.includes('eitt') || message.includes('1')) && 
+            message.includes('laust')) {
+            
+            console.log('\n❓ One Spot Meaning Query Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_meaning',
+                content: "Þegar það stendur að eitt pláss sé laust þýðir það að pláss fyrir aðeins einn einstakling er laust á þeim tíma. Hver einstaklingur, óháð aldri, þarf sitt eigið pláss í bókunarkerfinu okkar. Ef þú þarft að bóka fyrir fleiri en einn, mælum við með að þú athugir aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // Check for one spot + child question with high priority match
+        if (((message.includes('eitt') || message.includes('1') || message.includes('aðeins eitt')) && 
+             (message.includes('laust') || message.includes('pláss'))) &&
+            ((message.includes('barn') || message.includes('börn') || message.includes('son') || message.includes('dóttir')) ||
+             ((message.includes('mig') || message.includes('fullorðinn') || message.includes('fullorðin')) && 
+              (message.includes('og') || message.includes('með'))))) {
+            
+            console.log('\n👶 One Spot + Child Query Match Found - HIGH PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_child',
+                content: knowledgeBase_is.booking.booking_capacity.response.one_spot_available
+            });
+            
+            return relevantInfo;
+        }
+        
+        // Check for "can we book for two when one spot available"
+        if ((message.includes('bóka') || message.includes('pláss')) && 
+            (message.includes('tvo') || message.includes('tvö') || message.includes('fyrir tvo')) && 
+            ((message.includes('eitt') || message.includes('1')) && message.includes('laust'))) {
+            
+            console.log('\n👥 Book for Two with One Spot Query');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'one_spot_two_people',
+                content: "Þegar bókunarsíðan sýnir \"1 laust pláss\" þýðir það nákvæmlega það - aðeins einn einstaklingur getur bókað þann tíma. Því miður er ekki hægt að bóka fyrir tvo einstaklinga þegar aðeins er eitt pláss laust. Hver einstaklingur þarf sitt eigið pláss í bókunarkerfinu. Við mælum með að skoða aðra tíma þar sem eru tvö eða fleiri pláss laus."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // For "can you come when sold out" query
+        if ((message.includes('hægt') && message.includes('mæta') && 
+             (message.includes('uppselt') || message.includes('fullt') || message.includes('ekki laust')))) {
+            
+            console.log('\n🚪 Come When Sold Out Query - HIGH PRIORITY');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'capacity_sold_out',
+                content: "Því miður getum við ekki tekið á móti gestum þegar vefsíðan sýnir að það sé uppselt. Bókunarkerfið okkar sýnir nákvæma stöðu í rauntíma og við verðum að virða þessi takmörk til að tryggja bestu mögulegu upplifun fyrir alla gesti. Við mælum með að athuga vefsíðuna okkar reglulega þar sem afbókanir geta skapað ný pláss, sérstaklega 24-48 klukkustundum fyrir vinsæla tíma."
+            });
+            
+            return relevantInfo;
+        }
+        
+        // General capacity questions
+        relevantInfo.push({
+            type: 'booking',
+            subtype: 'capacity',
+            content: knowledgeBase_is.booking.booking_capacity.response.fully_booked
+        });
+        
+        return relevantInfo;
+    }
+    // Booking and late arrival related queries
+    if (message.includes('mæta') || 
+        // General booking query patterns
+        message.includes('hvernig bóka') ||
+        message.includes('hvar bóka') ||
+        message.includes('langar að bóka') ||
+        message.includes('vil bóka') ||
+        message.includes('get ég bókað') ||
+        message.includes('er hægt að bóka') ||
+        message.includes('má bóka') ||
+        (message.includes('hvernig') && message.includes('panta')) ||
+        // Existing patterns
+        message.includes('seinn') || 
+        message.includes('sein') ||
+        message.includes('endurbóka') ||
+        message.includes('fresta') ||
+        message.includes('breyta') ||
+        message.includes('færa') ||
+        message.includes('fært') ||  // Added
+        message.includes('færa tímann') ||  // Added
+        message.includes('afbóka') ||
+        message.includes('hætta við') ||
+        // Add English loan word and alternative phrasings
+        message.includes('cancella') ||
+        message.includes('cancel') ||
+        message.includes('hætt við') ||
+        (message.includes('get') && message.includes('hætt')) ||
+        (message.includes('getum') && message.includes('hætt')) ||
+        (message.includes('má') && message.includes('hætta')) ||        
+        message.includes('veður') ||
+        message.includes('veðrið') ||
+        message.includes('greiðsla') ||
+        message.includes('greiða') ||
+        message.includes('borga') ||
+        message.includes('fyrirfram') ||
+        message.includes('staðfesta') ||
+        message.includes('staðfesting') ||
+        message.includes('bóka fyrir einn') ||
+        (message.includes('bóka') && message.includes('einn')) ||
+        (message.includes('bóka') && message.includes('fyrir tvo')) ||
+        (message.includes('bóka') && message.includes('tvo')) ||
+        (message.includes('er') && message.includes('svigrúm')) ||
+        (message.includes('get') && message.includes('seinna')) ||
+        (message.includes('ná') && message.includes('tíma')) ||
+        message.includes('breytt') ||
+        message.includes('bókuninni') ||
+        message.includes('tímanum') ||
+        // Add new patterns for refund and missed booking queries
+        message.includes('endurgreiðsla') ||
+        message.includes('endurgreitt') ||
+        message.includes('endurgreiða') ||
+        message.includes('fá endurgreitt') ||
+        message.includes('fengið endurgreitt') ||
+        message.includes('komst ekki') ||
+        message.includes('komumst ekki') ||
+        message.includes('gat ekki mætt') ||
+        message.includes('gátum ekki mætt') ||
+        message.includes('náði ekki') ||
+        message.includes('náðum ekki') ||
+        message.includes('mætti ekki') ||
+        message.includes('mættum ekki') ||
+        (message.includes('bókun') && message.includes('í gær')) ||
+        (message.includes('bókun') && message.includes('í fyrradag')) ||
+        (message.includes('bókun') && message.includes('átti')) ||
+        message.includes('peningana') ||
+        message.includes('til baka')) {
+        
+        console.log('\n📅 Booking Related Query Match Found');
+
+        // Check for missed booking and refund queries first
+        if (message.includes('endurgreiðsla') ||
+            message.includes('endurgreitt') ||
+            message.includes('endurgreiða') ||
+            message.includes('fá endurgreitt') ||
+            message.includes('fengið endurgreitt') ||
+            message.includes('komst ekki') ||
+            message.includes('komumst ekki') ||
+            message.includes('gat ekki mætt') ||
+            message.includes('gátum ekki mætt') ||
+            message.includes('náði ekki') ||
+            message.includes('náðum ekki') ||
+            message.includes('mætti ekki') ||
+            message.includes('mættum ekki') ||
+            (message.includes('bókun') && message.includes('í gær')) ||
+            (message.includes('bókun') && message.includes('í fyrradag')) ||
+            message.includes('peningana') ||
+            message.includes('til baka')) {
+            
+            console.log('\n💰 Missed Booking Refund Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'refund_policy',
+                content: knowledgeBase_is.booking.refund_policy.missed_booking
+            });
+            return relevantInfo;  // Return immediately for refund queries
+        }
+
+        // Check for basic "how to book" queries first
+        if (message.includes('hvernig bóka') || 
+            message.includes('hvar bóka') ||
+            message.includes('langar að bóka') ||
+            message.includes('vil bóka') ||
+            message.includes('get ég bókað') ||
+            message.includes('er hægt að bóka') ||
+            message.includes('má bóka') ||
+            (message.includes('hvernig') && message.includes('panta'))) {
+            
+            console.log('\n📝 General Booking Instructions Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'how_to_book',
+                content: knowledgeBase_is.booking.general_info
+            });
+            return relevantInfo;  // Return immediately for basic booking queries
+        }
+
+        // Check for booking changes first
+        if (message.includes('breyta') || 
+            message.includes('breytt') ||
+            message.includes('bókuninni') || 
+            message.includes('tímanum') ||
+            message.includes('endurbóka') ||
+            message.includes('fresta') ||
+            message.includes('færa') ||
+            message.includes('fært') ||  // Added this pattern
+            message.includes('færa tímann') ||
+            message.includes('afbóka') ||
+            message.includes('hætta við') ||
+            message.includes('cancella') ||  // Add English loan word
+            message.includes('cancel') ||    // Add English term
+            (message.includes('get') && message.includes('hætt')) ||
+            (message.includes('getum') && message.includes('hætt'))) {
+            
+            console.log('\n🔄 Booking Change Query Match Found');
+            const bookingChangeInfo = knowledgeBase_is.booking.booking_changes.info;
+            let verb = message.includes('afbóka') ||
+                       message.includes('hætta við') || 
+                       message.includes('cancella') || 
+                       message.includes('cancel') || 
+                       (message.includes('get') && message.includes('hætt')) ||
+                       (message.includes('getum') && message.includes('hætt'))
+                       ? bookingChangeInfo.cancel_wording : "breyta"; // Use "afbóka" for cancellation
+
+            const response = `Til að ${verb} eða breyta bókun, þá eru hér skrefin sem þú þarft að fylgja:\n` +
+                          `1. ${bookingChangeInfo.methods.email.text}\n` +
+                          `2. Taktu fram ${bookingChangeInfo.details[0]}\n` +
+                          `3. ${bookingChangeInfo.details[1]}\n\n` +
+                          `${bookingChangeInfo.policy}`;
+            
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_changes',
+                    content: response
+                });
+                return relevantInfo;  // Return immediately for booking changes
+            }
+
+        // Check for single person booking queries
+        if (message.includes('bóka fyrir einn') || 
+            (message.includes('bóka') && message.includes('einn'))) {
+            
+            console.log('\n👤 Single Booking Query Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'booking_single',
+                content: 'Já, þú getur bókað fyrir einn. Við bjóðum bæði upp á Saman og Sér aðgang sem hentar vel fyrir einstaklinga sem vilja njóta slökunar í lóninu. Þú getur bókað á vefsíðu okkar eða í móttökunni ef laust er.'
+            });
+        }
+
+        // Check for two person booking queries
+        if ((message.includes('bóka') && message.includes('fyrir tvo')) || 
+            (message.includes('bóka') && message.includes('tvo'))) {
+            
+            // Check if specifically asking about Date Night/Stefnumót
+            if (message.includes('stefnumót') || message.includes('date night')) {
+                console.log('\n💑 Date Night Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_date_night',
+                    content: knowledgeBase_is.packages.date_night
+                });
+            } else {
+                console.log('\n👥 Regular Two Person Booking Query Match Found');
+                relevantInfo.push({
+                    type: 'booking',
+                    subtype: 'booking_two',
+                    content: 'Til að bóka fyrir tvo getur þú valið á milli tveggja aðgangsleiða:\n\n' +
+                            '**Sér aðgangur**\n' +
+                            '• Verð frá ISK 13,490 á mann\n' +
+                            '• Einkaklefi með sturtu\n' +
+                            '• Sky Lagoon hár- og húðvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            '**Saman aðgangur**\n' +
+                            '• Verð frá ISK 10,490 á mann\n' +
+                            '• Almenn búningsaðstaða\n' +
+                            '• Sky Lagoon hárvörur\n' +
+                            '• Handklæði\n' +
+                            '• Aðgangur að Sky Lagoon og Skjól Ritúalinu\n\n' +
+                            'Þú getur bókað á vefsíðu okkar skylagoon.is eða í móttökunni ef laust er. Við mælum eindregið með að bóka fyrirfram til að tryggja pláss.'
+                });
+            }
+        }
+
+        // Determine specific booking query type for other cases
+        if (message.includes('seinn') || 
+            message.includes('sein') || 
+            message.includes('mæta') || 
+            message.includes('svigrúm') ||
+            message.includes('korter') ||  // Add "korter" (quarter hour)
+            message.includes('mínútur') ||
+            message.includes('seinna') ||
+            (message.includes('of') && message.includes('sein')) ||
+            (message.includes('verð') && message.includes('sein')) ||
+            (message.includes('verðum') && message.includes('sein')) ||
+            (message.includes('er') && message.includes('lagi') && message.includes('seint')) ||
+            (message.includes('getum') && message.includes('seint')) ||
+            (message.includes('gert') && message.includes('sein'))) {
+            
+            console.log('\n⏰ Late Arrival Query Match Found IN ICELANDIC');
+            
+            // Create a clear Icelandic response with beyond grace period information
+            const lateArrivalInfo = knowledgeBase_is.booking.late_arrival;
+            const response = `Ekki hafa áhyggjur - við höfum 30 mínútna svigrúm fyrir allar bókanir. ${lateArrivalInfo.grace_period.main} Þú getur farið beint í móttökuna þegar þú mætir.\n\n` +
+                             `Ef þú verður meira en 30 mínútum seinn: ${lateArrivalInfo.beyond_grace.instructions}\n\n` + 
+                             `${lateArrivalInfo.beyond_grace.sold_out}\n\n` +
+                             `Þú getur hringt í okkur í síma ${lateArrivalInfo.contact.phone} (opið ${lateArrivalInfo.contact.hours}) eða sent tölvupóst á ${lateArrivalInfo.contact.email}.`;
+            
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'late_arrival',
+                content: response
+            });
+            
+            return relevantInfo;  // Important: Return immediately to prevent English detection
+        }
+
+        if (message.includes('veður') || 
+            message.includes('veðrið')) {
+            
+            console.log('\n🌤️ Weather Policy Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'weather_policy',
+                content: knowledgeBase_is.booking.weather_policy
+            });
+        }
+
+        if (message.includes('greiðsla') || 
+            message.includes('greiða') || 
+            message.includes('borga') || 
+            message.includes('fyrirfram') || 
+            message.includes('staðfesta')) {
+            
+            console.log('\n💳 Advance Payment Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                subtype: 'advance_payment',
+                content: knowledgeBase_is.booking.advance_payment
+            });
+        }
+
+        // If no specific subtype was matched, return general booking info
+        if (!relevantInfo.length) {
+            console.log('\n📝 General Booking Information Match Found');
+            relevantInfo.push({
+                type: 'booking',
+                content: knowledgeBase_is.booking
+            });
+        }
+    }
+
+    // Group bookings related queries
+    if (message.includes('hóp') ||
+        message.includes('hópa') ||
+        message.includes('hópabókun') ||
+        message.includes('hópnum') ||
+        message.includes('saman') ||
+        message.includes('margir') ||
+        (message.includes('fleiri') && message.includes('manns')) ||
+        (message.includes('verð') && message.includes('hóp')) ||
+        (message.includes('bóka') && message.includes('marga')) ||
+        (message.includes('koma') && message.includes('saman'))) {
+        
+        console.log('\n👥 Group Booking Match Found');
+        relevantInfo.push({
+            type: 'group_bookings',
+            content: knowledgeBase_is.group_bookings
+        });
+    } // End of full Booking section
+
+    // Opening hours and timing
+    if (message.includes('opið') || 
+        message.includes('opnun') ||
+        message.includes('lokunartím') ||
+        message.includes('lokað') ||
+        message.includes('lokar') ||
+        message.includes('tímasetning') ||
+        message.includes('tími') ||
+        message.includes('klukkan') ||
+        message.includes('hvenær') ||
+        message.includes('afgreiðslutím') ||
+        message.includes('í dag') ||
+        message.includes('á morgun') ||
+        message.includes('opin') ||
+        message.includes('opið') ||
+        message.includes('lokun') ||
+        // Add these new patterns for last entry
+        message.includes('síðasta innritun') ||
+        message.includes('síðasti innritunartími') ||
+        message.includes('síðasti tími') ||
+        message.includes('síðasti möguleiki') ||
+        message.includes('síðasti tíminn') ||
+        message.includes('seinasta bókun') ||
+        message.includes('seinasti tími') ||
+        message.includes('síðast hægt að') ||
+        message.includes('of seint') ||
+        message.includes('seinasta innritun') ||
+        message.includes('hversu seint') ||
+        message.includes('síðasta komutími') ||
+        message.includes('seinast komutími') ||
+
+        // Holiday specific
+        message.includes('jól') ||
+        message.includes('áramót') ||
+        message.includes('hátíð') ||
+        message.includes('desember') ||
+        message.includes('24.') ||
+        message.includes('25.') ||
+        message.includes('31.') ||
+
+        // Season specific
+        message.includes('sumar') ||
+        message.includes('vetur') ||
+        message.includes('haust') ||
+
+        // Experience specific
+        message.includes('norðurljós') ||
+        message.includes('miðnætursól') ||
+        message.includes('sólarupprás') ||
+        message.includes('kvöld') ||
+        message.includes('morgn') ||
+
+        // Venue specific
+        message.includes('smakk bar') ||
+        message.includes('keimur') ||
+        message.includes('kaffihús') ||
+        message.includes('veitingastaður') ||
+        message.includes('bar')) {
+
+        console.log('\n⏰ Opening Hours Match Found');
+
+        // Return specific content based on query type
+        if (message.includes('smakk bar') || message.includes('veitingastaður')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'smakk_bar',
+                content: knowledgeBase_is.opening_hours.venue_specific.smakk_bar.description
+            });
+        } else if (message.includes('kaffihús') || message.includes('keimur')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'keimur_cafe',
+                content: knowledgeBase_is.opening_hours.venue_specific.keimur_cafe
+            });
+        } else if (message.includes('jól') || message.includes('áramót') || message.includes('hátíð')) {
+            relevantInfo.push({
+                type: 'opening_hours',
+                subtype: 'holidays',
+                content: knowledgeBase_is.opening_hours.holidays
+            });
+        } else {
+            // Return complete opening hours information
+            relevantInfo.push({
+                type: 'opening_hours',
+                content: knowledgeBase_is.opening_hours
+            });
+        }
+    }
+
+    // Full getRelevantKnowledge section for Facilities below
+    // Búningsklefar (Changing Rooms) - expanded patterns
+    // First check specifically for comparisons
+    if ((message.includes('munur') || 
+        message.includes('muninn') ||
+        message.includes('samanburð') ||
+        (message.includes('hver') && message.includes('mismun'))) &&
+        (message.includes('klefi') ||
+        message.includes('klefa') ||
+        message.includes('aðstöð') ||
+        message.includes('saman') ||
+        message.includes('sér'))) {
+            
+        console.log('\n🔄 Facility Comparison Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'comparison',
+            content: knowledgeBase_is.facilities.changing_rooms
+        });
+        return relevantInfo;  // Return immediately to prevent other matches
+    }
+
+    // Then check for all other facilities queries
+    if (message.includes('búningsklefi') || 
+        message.includes('búningsklefa') ||
+        message.includes('búningsklefann') ||
+        message.includes('búningsklefanum') ||
+        message.includes('búningsklefar') ||
+        message.includes('búningsklefarnir') ||
+        // Aðstaða variations
+        message.includes('aðstaða') ||
+        message.includes('aðstöðu') ||
+        message.includes('aðstöðuna') ||
+        message.includes('aðstöðunni') ||
+        // Package variations
+        message.includes('saman') ||
+        message.includes('sér') ||
+        message.includes('þægindi') || // 'þægindi' triggers a response from the dining section FYI
+        // Sturtu variations
+        message.includes('sturtu') ||
+        message.includes('sturta') ||
+        message.includes('sturtuna') ||
+        message.includes('sturtunni') ||
+        message.includes('sturtur') ||
+        // Skáp variations
+        message.includes('skáp') ||
+        message.includes('skápa') ||
+        message.includes('skápana') ||
+        message.includes('skápnum') ||
+        message.includes('skáparnir') ||
+        message.includes('læstur') ||
+        message.includes('læstir') ||
+        message.includes('læstar') ||
+        message.includes('læst') ||
+        // Klefi variations
+        message.includes('einkaklefi') ||
+        message.includes('einkaklefa') ||
+        message.includes('einkaklefi') ||
+        message.includes('einkaklefann') ||
+        message.includes('einkaklefanum') ||
+        message.includes('einkaklefar') ||
+        message.includes('einkaklefarnir') ||
+        message.includes('almenningsklefi') ||
+        message.includes('almenningsklefa') ||
+        message.includes('almenningsklefann') ||
+        message.includes('almenningsklefanum') ||
+        message.includes('almenningsklefar') ||
+        message.includes('almenningsklefarnir') ||
+        message.includes('almennur klefi') ||
+        message.includes('almennan klefa') ||
+        message.includes('almenna klefann') ||
+        message.includes('almenna klefanum') ||
+        message.includes('almennir klefar') ||
+        message.includes('almennu klefarnir') ||
+        // Gender neutral variations
+        message.includes('kynhlutlaus') ||
+        message.includes('kynhlutlausan') ||
+        message.includes('kynhlutlausir') ||
+        message.includes('kynhlutlausa') ||
+        message.includes('kynsegin') ||
+        message.includes('kynlaus') ||
+        message.includes('kynlausa') ||
+        message.includes('kynlausir') ||
+        // Two person related
+        message.includes('saman í') ||
+        message.includes('með mér') ||
+        message.includes('vin') ||
+        message.includes('vina') ||
+        message.includes('vinur') ||
+        message.includes('vinkona') ||
+        message.includes('vinkonu') ||
+        message.includes('gestir') ||
+        message.includes('tveir') ||
+        message.includes('tvö') ||
+        message.includes('báðir') ||
+        message.includes('báðar') ||
+        message.includes('bæði') ||
+        // Amenities variations
+        message.includes('snyrtivör') ||
+        message.includes('snyrting') ||
+        message.includes('snyrtiaðstaða') ||
+        message.includes('snyrtiaðstöðu') ||
+        message.includes('sápa') ||
+        message.includes('sápu') ||
+        message.includes('hárvör') ||
+        message.includes('húðvör') ||
+        message.includes('fylgir') ||
+        message.includes('innifalið') ||
+        message.includes('munu') ||
+        // Question patterns
+        (message.includes('hvað') && message.includes('með')) ||
+        (message.includes('hvernig') && message.includes('aðstaða')) ||
+        (message.includes('get') && message.includes('með')) ||
+        (message.includes('má') && message.includes('með')) ||
+        (message.includes('er') && message.includes('leyfilegt'))) {
+        
+        console.log('\n🚪 Changing Rooms Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'changing_rooms',
+            content: knowledgeBase_is.facilities.changing_rooms
+        });
+    }
+
+    // Temperature and lagoon info
+    if (message.includes('heit') || 
+        message.includes('hita') ||
+        message.includes('hit') ||
+        message.includes('gráð') ||
+        message.includes('°') ||
+        message.includes('grad') ||
+        message.includes('kalt') ||
+        message.includes('heitur') ||
+        message.includes('heitt') ||
+        // Temperature with water/lagoon combinations
+        (message.includes('vatn') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit') || 
+          message.includes('gráð') || 
+          message.includes('kalt'))) ||
+        // General temperature questions
+        (message.includes('hvað') && message.includes('heit')) ||
+        (message.includes('hversu') && message.includes('heit')) ||
+        (message.includes('hver') && message.includes('hit')) ||
+        (message.includes('hvernig') && message.includes('hit')) ||
+        // Additional common temperature phrases
+        (message.includes('hversu') && message.includes('gráður')) ||
+        (message.includes('hvað') && message.includes('margar') && message.includes('gráður')) ||
+        (message.includes('er') && message.includes('nógu') && message.includes('heit')) ||
+        // Temperature with pool/lagoon combinations
+        (message.includes('lón') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit'))) ||
+        (message.includes('pottur') && 
+         (message.includes('heit') || 
+          message.includes('hita') || 
+          message.includes('hit')))) {
+        
+        console.log('\n🌡️ Temperature Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'temperature',
+            content: knowledgeBase_is.facilities.lagoon_info.temperature.answer
+        });
+    }
+
+    // Handklæði (Towels)
+    if (message.includes('handklæði') || 
+        message.includes('handklæðum') ||
+        message.includes('handklæð')) {
+        
+        console.log('\n🧺 Towels Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'amenities_handklaedi',
+            content: knowledgeBase_is.facilities.amenities.handklaedi
+        });
+    }
+
+    // Greiðslukerfi (Payment System)
+    if (message.includes('greiðslu') || 
+        message.includes('borga') ||
+        message.includes('armband') ||
+        message.includes('veski') ||
+        message.includes('pening') ||
+        message.includes('greiða') ||
+        message.includes('kaupa') ||
+        message.includes('krónu') ||
+        message.includes('krónur')) {
+        
+        console.log('\n💳 Payment System Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'amenities_greidslukerfi',
+            content: knowledgeBase_is.facilities.amenities.greidslukerfi
+        });
+    }
+
+    // Sundföt (Swimwear)
+    if (message.includes('sundföt') || 
+        message.includes('sundfata') ||
+        message.includes('sundbol') ||
+        message.includes('sundskýl') ||
+        message.includes('sundföt') ||
+        message.includes('leiga') ||
+        // Add these new patterns
+        message.includes('gleym') ||
+        message.includes('gleymt') ||
+        message.includes('vantar') ||
+        message.includes('fá lánaða') ||
+        message.includes('sundfötin') ||
+        message.includes('sundskýlan') ||
+        message.includes('sundbolinn') ||
+        // Also catch common question patterns
+        (message.includes('get') && message.includes('sund')) ||
+        (message.includes('má') && message.includes('sund'))) {
+        
+        console.log('\n🩱 Swimwear Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'rentals_sundfot',
+            content: knowledgeBase_is.facilities.amenities.rentals.sundfot
+        });
+    }
+
+    // Farangursgeymsla (Luggage Storage)
+    if (message.includes('tösku') || 
+        message.includes('farangur') ||
+        message.includes('geymsla') ||
+        message.includes('geyma') ||
+        message.includes('ferðatösk')) {
+        
+        console.log('\n🧳 Luggage Storage Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'rentals_farangursgeymsla',
+            content: knowledgeBase_is.facilities.amenities.rentals.farangursgeymsla
+        });
+    }
+
+    // Sloppar og Inniskór (Robes and Slippers)
+    if (message.includes('slopp') || 
+        message.includes('inniskó')) {
+        
+        console.log('\n🧥 Robes/Slippers Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'rentals_sloppar',
+            content: knowledgeBase_is.facilities.amenities.rentals.sloppar_og_inniskor
+        });
+    }
+    // Retail products
+    if (message.includes('vörur') || 
+        message.includes('kaupa') || 
+        message.includes('sky vör') ||
+        message.includes('skrúbb') ||
+        message.includes('krem') ||
+        message.includes('olía') ||
+        message.includes('ilm') ||
+        message.includes('sápa') ||
+        message.includes('kerti') ||
+        // Add queries about buying/selling
+        message.includes('selja') ||
+        message.includes('selji') ||
+        message.includes('versla') ||
+        (message.includes('hvar') && message.includes('kaup')) ||
+        // Check for specific product queries
+        (message.includes('líkams') && 
+         (message.includes('krem') || message.includes('olíu'))) ||
+        // Online shopping related
+        message.includes('netinu') ||
+        message.includes('póstsendin') ||
+        message.includes('síðu') ||
+        message.includes('vefsíðu') ||
+        message.includes('versla á netinu')) {
+        
+        console.log('\n🛍️ Retail Products Match Found');
+
+        // Check if asking about online/shipping
+        if (message.includes('netinu') || 
+            message.includes('póstsendin') ||
+            message.includes('síðu') ||
+            message.includes('vefsíðu') ||
+            message.includes('versla á netinu')) {
+            relevantInfo.push({
+                type: 'facilities',
+                subtype: 'retail_products_online',
+                content: {
+                    location: knowledgeBase_is.facilities.amenities.retail_products.location,
+                    online_info: knowledgeBase_is.facilities.amenities.retail_products.online_info
+                }
+            });
+        }
+        // Check for specific product queries
+        else if (message.includes('líkamskrem') || 
+                 message.includes('líkamsolía') || 
+                 message.includes('skrúbb') ||
+                 message.includes('ilmur') ||
+                 message.includes('sápa') ||
+                 message.includes('kerti')) {
+            relevantInfo.push({
+                type: 'facilities',
+                subtype: 'retail_products_specific',
+                content: {
+                    answer: knowledgeBase_is.facilities.amenities.retail_products.answer.specific_product,
+                    products: knowledgeBase_is.facilities.amenities.retail_products.products
+                }
+            });
+        }
+        // General retail queries
+        else {
+            relevantInfo.push({
+                type: 'facilities',
+                subtype: 'retail_products',
+                content: knowledgeBase_is.facilities.amenities.retail_products
+            });
+        }
+    }
+    // Accessibility specific check
+    if (message.includes('aðgengi') ||
+        message.includes('hjólastól') ||
+        message.includes('stólalyfta') ||
+        message.includes('stólalyftu') ||
+        message.includes('fatlaða') ||
+        message.includes('fatlaðra') ||
+        message.includes('fatlaðir') ||
+        message.includes('hreyfihamlaða') ||
+        message.includes('hreyfihamlaðra') ||
+        message.includes('komast') ||
+        message.includes('komist') ||
+        message.includes('aðstoð') ||
+        message.includes('auðvelt að') ||
+        message.includes('hægt að') ||
+        message.includes('fylgdarmað') ||
+        message.includes('fylgdarmann') ||
+        message.includes('fylgdarmen') ||
+        message.includes('lyfta') ||
+        message.includes('lyftu') ||
+        // Add disability terms
+        message.includes('öryrki') ||
+        message.includes('öryrkja') ||
+        message.includes('öryrkjar') ||
+        message.includes('öryrkjum') ||
+        // Enhanced accessibility patterns
+        message.includes('aðgangssvít') ||
+        message.includes('aðgengissvít') ||
+        message.includes('svíta') ||
+        message.includes('svítu') ||
+        message.includes('sérbúin') ||
+        message.includes('sérhönnuð') ||
+        message.includes('sérútbúin') ||
+        message.includes('sturtustól') ||
+        message.includes('stuðningsslá') ||
+        message.includes('hindrunarlaus') ||
+        message.includes('kynsegin') ||
+        message.includes('kynhlutlaus') ||
+        message.includes('talstöð') ||
+        message.includes('hjálparbjall') ||
+        (message.includes('fá') && message.includes('aðstoð')) ||
+        (message.includes('meiri') && message.includes('aðstoð')) ||
+        (message.includes('sérstök') && message.includes('aðstaða'))) {
+            
+        console.log('\n♿ Accessibility Match Found');
+
+        // Base accessibility info
+        let accessibilityInfo = {
+            type: 'facilities',
+            subtype: 'accessibility'
+        };
+
+        // NEW: Check specifically for öryrkjar discount queries 
+        if ((message.includes('öryrki') || 
+             message.includes('öryrkja') || 
+             message.includes('öryrkjar') || 
+             message.includes('öryrkjum')) &&
+            (message.includes('frítt') || 
+             message.includes('ókeypis') || 
+             message.includes('afsláttur') ||
+             message.includes('afslátt') ||
+             message.includes('verð') ||
+             message.includes('gjald') ||
+             message.includes('borga'))) {
+            
+            console.log('\n♿💰 Disability Discount Match Found');
+            accessibilityInfo.content = {
+                disability_discount: "Við bjóðum ekki sérstaklega afslátt fyrir öryrkja, en við bjóðum frían aðgang fyrir fylgdarmenn fatlaðra einstaklinga. Einnig eru ýmis félagasamtök sem bjóða sínum félagsmönnum afslátt hjá okkur og mæli ég með að athuga hjá þínu félagi hvort slíkir samningar séu í boði.",
+                additional_info: knowledgeBase_is.facilities.accessibility.additional_info
+            };
+        }        
+
+        // Check for accessibility suite specific queries
+        if (message.includes('aðgangssvít') ||
+            message.includes('aðgengissvít') ||
+            message.includes('svíta') ||
+            message.includes('svítu') ||
+            message.includes('sérbúin') ||
+            message.includes('sérhönnuð') ||
+            message.includes('sérútbúin') ||
+            message.includes('sturtustól') ||
+            message.includes('stuðningsslá') ||
+            message.includes('hjálparbjall') ||
+            message.includes('einkaklefi') ||
+            (message.includes('sérstök') && message.includes('aðstaða'))) {
+            
+            console.log('\n🚿 Accessibility Suite Match Found');
+            accessibilityInfo.content = {
+                mission_statement: knowledgeBase_is.facilities.accessibility.mission_statement,
+                accessibility_suite: knowledgeBase_is.facilities.accessibility.accessibility_suite
+            };
+        }
+
+        // Check for staff assistance queries
+        if (message.includes('starfsfólk') || 
+            message.includes('aðstoð') ||
+            message.includes('talstöð') ||
+            message.includes('teymi') ||
+            (message.includes('get') && message.includes('hjálp'))) {
+            
+            console.log('\n👥 Staff Assistance Match Found');
+            accessibilityInfo.content = {
+                staff_assistance: knowledgeBase_is.facilities.accessibility.staff_assistance,
+                main_info: knowledgeBase_is.facilities.accessibility.main_info
+            };
+        }
+
+        // Check for LGBTQIA+ related queries
+        if (message.includes('kynsegin') ||
+            message.includes('kynhlutlaus') ||
+            message.includes('hinsegin') ||
+            message.includes('trans') ||
+            message.includes('lgbt') ||
+            message.includes('queer') ||
+            message.includes('fjölbreytileik') ||
+            message.includes('sýnileik') ||
+            message.includes('heit') ||
+            (message.includes('kyn') && message.includes('hlutlaus')) ||
+            message.includes('salerni') ||
+            message.includes('merking')) {
+
+            console.log('\n🌈 LGBTQIA+ Support Match Found');
+            accessibilityInfo.content = {
+                lgbtqia_support: knowledgeBase_is.facilities.accessibility.lgbtqia_support
+            };
+        }
+
+        // Check for specific queries about pool/lón access
+        if (message.includes('lón') || 
+            message.includes('lónið') || 
+            message.includes('lyfta') || 
+            message.includes('lyftu') ||
+            message.includes('komast í') ||
+            message.includes('komast upp') ||
+            (message.includes('hjálp') && message.includes('í'))) {
+            
+            accessibilityInfo.content = {
+                main_info: knowledgeBase_is.facilities.accessibility.main_info,
+                pool_access: knowledgeBase_is.facilities.accessibility.detailed_info.pool_access
+            };
+        }
+        // Check for ritual-specific queries
+        else if (message.includes('ritúal') || 
+                 message.includes('ritual') ||
+                 message.includes('meðferð')) {
+            
+            accessibilityInfo.content = {
+                main_info: knowledgeBase_is.facilities.accessibility.main_info,
+                ritual_access: knowledgeBase_is.facilities.accessibility.detailed_info.ritual_access
+            };
+        }
+        // Check for companion/fylgdarmann queries
+        else if (message.includes('fylgdarmað') || 
+                 message.includes('fylgdarmann') ||
+                 message.includes('fylgdarmen') ||
+                 message.includes('borga') ||
+                 message.includes('ókeypis')) {
+            
+            accessibilityInfo.content = {
+                companion_info: knowledgeBase_is.facilities.accessibility.companion_info,
+                additional_info: knowledgeBase_is.facilities.accessibility.additional_info
+            };
+        }
+        // For general accessibility queries, include all info
+        else {
+            accessibilityInfo.content = knowledgeBase_is.facilities.accessibility;
+        }
+
+        relevantInfo.push(accessibilityInfo);
+    } // End of full Accessibility section
+
+    // Massage and spa services specific check
+    if (message.includes('nudd') || 
+        message.includes('nudda') ||
+        message.includes('nuddari') || 
+        message.includes('nuddarar') ||
+        message.includes('nuddþjónusta') ||
+        message.includes('nuddmeðferð') ||
+        message.includes('nuddmeðferðir') ||
+        message.includes('spa') ||
+        message.includes('heilnudd') ||
+        message.includes('slökunarnudd') ||
+        message.includes('slökunar-nudd') ||
+        (message.includes('panta') && message.includes('nudd')) ||
+        (message.includes('bóka') && message.includes('nudd')) ||
+        (message.includes('hægt') && message.includes('fá') && message.includes('nudd')) ||
+        (message.includes('bjóða') && message.includes('nudd')) ||
+        (message.includes('boðið') && message.includes('nudd'))) {
+        
+        console.log('\n💆 Massage Services Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'massage_services',
+            content: knowledgeBase_is.facilities.spa_services.massage_info
+        });
+    } // End of Massage services section
+
+    // Stay Duration specific check
+    if (message.includes('lengi') || 
+        message.includes('tímatakmörkun') ||
+        message.includes('allan dag') ||
+        message.includes('allan daginn') ||
+        message.includes('þarf ég að fara') ||
+        message.includes('hversu lengi') ||
+        message.includes('hvað má vera lengi') ||
+        (message.includes('vera') && message.includes('eins lengi')) ||
+        (message.includes('get') && message.includes('verið')) ||
+        (message.includes('má') && message.includes('vera')) ||
+        (message.includes('hvenær') && message.includes('fara'))) {
+        
+        console.log('\n⏱️ Stay Duration Query Match Found');
+        relevantInfo.push({
+            type: 'facilities',
+            subtype: 'stay_duration',
+            content: knowledgeBase_is.facilities.lagoon_info.stay_duration
+        });
+    } // End of full Facilities section
+
+    // Ritual related queries
+    if (message.includes('ritúal') || 
+        message.includes('ritual') || 
+        message.includes('skjól') || 
+        message.includes('skjol') || 
+        message.includes('meðferð') || 
+        message.includes('skrúbb') || 
+        message.includes('gufa') || 
+        message.includes('sauna') || 
+        message.includes('kuldi') || 
+        message.includes('saft') || 
+        message.includes('þrep') || 
+        message.includes('sjö') || 
+        message.includes('7') || 
+        message.includes('ofnæmi') || 
+        message.includes('skref') ||
+        // Skip ritual patterns
+        (message.includes('bara') && message.includes('ofaní')) ||
+        (message.includes('bara') && message.includes('lón')) ||
+        (message.includes('án') && message.includes('ritúal')) ||
+        (message.includes('sleppa') && message.includes('ritúal')) ||
+        (message.includes('kaupa') && message.includes('bara')) ||
+        (message.includes('bara') && message.includes('aðgang')) ||
+        // General ritual query patterns
+        (message.includes('hvernig') && message.includes('ritúal')) ||
+        (message.includes('hvernig') && message.includes('skjól')) ||
+        (message.includes('hvað') && message.includes('ritúal')) ||
+        (message.includes('hvað') && message.includes('skjól')) ||
+        (message.includes('segðu') && message.includes('ritúal')) ||
+        (message.includes('má') && message.includes('oft')) ||
+        (message.includes('hver') && message.includes('skref'))) {
+
+        console.log('\n🧖‍♀️ Ritual Match Found');
+
+        // If asking about skipping ritual
+        if ((message.includes('bara') && message.includes('ofaní')) ||
+            (message.includes('bara') && (message.includes('lón') || message.includes('laug'))) ||
+            (message.includes('án') && message.includes('ritúal')) ||
+            (message.includes('sleppa') && message.includes('ritúal')) ||
+            (message.includes('kaupa') && message.includes('bara')) ||
+            (message.includes('bara') && message.includes('aðgang')) ||
+            (message.includes('hægt') && message.includes('bara') && message.includes('laug')) ||
+            (message.includes('bóka') && message.includes('bara') && message.includes('laug'))) {
+            
+            console.log('\n❌ Skip Ritual Query Found');
+            relevantInfo.push({
+                type: 'ritual_mandatory',
+                content: {
+                    answer: "Skjól ritúal meðferðin er innifalin í öllum pökkum okkar og er órjúfanlegur hluti af Sky Lagoon upplifuninni. Þú getur valið á milli tveggja pakka - Saman eða Sér - sem báðir innihalda aðgang að lóninu og Skjól ritúal meðferðina.",
+                    details: knowledgeBase_is.ritual.answer,
+                    link: `[Skoða Ritúal] (${knowledgeBase_is.website_links.ritual})`
+                }
+            });
+        }
+        // If asking about allergies
+        else if (message.includes('ofnæmi')) {
+            console.log('\n🧪 Ritual Allergies Match Found');
+            relevantInfo.push({
+                type: 'ritual_allergies',
+                content: {
+                    ...knowledgeBase_is.ritual.allergies,
+                    link: `[Skoða Ritúal] (${knowledgeBase_is.website_links.ritual})`
+                }
+            });
+        }
+        // For all other ritual queries (including steps), give full ritual information
+        else {
+            console.log('\n✨ Full Ritual Information Match Found');
+            relevantInfo.push({
+                type: 'ritual',
+                content: {
+                    introduction: {
+                        name: knowledgeBase_is.ritual.name,
+                        tagline: knowledgeBase_is.ritual.tagline,
+                        description: knowledgeBase_is.ritual.description,
+                        answer: knowledgeBase_is.ritual.answer
+                    },
+                    steps: knowledgeBase_is.ritual.steps,
+                    closing: "Láttu mig vita ef þú hefur fleiri spurningar!",
+                    link: `[Skoða Skjól Ritúal] (${knowledgeBase_is.website_links.ritual})`
+                }
+            });
+        }
+    }
+    
+    // Pakkar - Saman, Sér, Stefnumót (Packages)
+    if (message.includes('pakki') || 
+        message.includes('pakkanum') ||
+        message.includes('pökkunum') ||
+        message.includes('pakka') ||
+        message.includes('verð') || 
+        message.includes('kost') ||
+        message.includes('saman') ||
+        message.includes('sér') ||
+        message.includes('mun') ||
+        // Youth pricing patterns
+        message.includes('ungling') ||
+        message.includes('unglingaverð') ||
+        message.includes('barna') ||
+        message.includes('barnaverð') ||
+        message.includes('barnagjald') ||
+        (message.includes('12') && message.includes('14')) ||
+        (message.includes('börn') && message.includes('verð')) ||
+        // Stefnumót related
+        message.includes('stefnumót') ||
+        message.includes('fyrir tvo') ||
+        message.includes('tveir') ||
+        message.includes('sælkeraplatt') ||
+        message.includes('drykk') ||
+        // Price related
+        message.includes('króna') ||
+        message.includes('kr') ||
+        message.includes('ISK') ||
+        // Question words with package context
+        (message.includes('hvað') && (
+        message.includes('innifalið') ||
+        message.includes('fylgir') ||
+        message.includes('kostar')
+    ))) {
+    
+        console.log('\n📦 Package Match Found');
+        
+        // Check for youth pricing queries first
+        if (message.includes('ungling') ||
+            message.includes('unglingaverð') ||
+            message.includes('barna') ||
+            message.includes('barnaverð') ||
+            message.includes('barnagjald') ||
+            (message.includes('12') && message.includes('14')) ||
+            (message.includes('börn') && message.includes('verð'))) {
+            
+            // Check if asking about specific package type
+            if (message.includes('sér')) {
+                console.log('\n👶 Youth Sér Package Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_ser',
+                    content: {
+                        youth_pricing: knowledgeBase_is.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða Sér aðgang] (${knowledgeBase_is.website_links.packages})`
+                    }
+                });
+            } else if (message.includes('saman')) {
+                console.log('\n👶 Youth Saman Package Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_saman',
+                    content: {
+                        youth_pricing: knowledgeBase_is.packages.saman.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða Saman aðgang] (${knowledgeBase_is.website_links.packages})`
+                    }
+                });
+            } else {
+                // General youth pricing query
+                console.log('\n👶 General Youth Pricing Match Found');
+                relevantInfo.push({
+                    type: 'packages',
+                    subtype: 'youth_all',
+                    content: {
+                        saman: knowledgeBase_is.packages.saman.youth_pricing,
+                        ser: knowledgeBase_is.packages.ser.youth_pricing,
+                        age_policy: knowledgeBase_is.age_policy.general_rules,
+                        link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
+                    }
+                });
+            }
+        }
+        // Keep existing package logic for non-youth queries
+        else if (message.includes('stefnumót') || 
+            message.includes('fyrir tvo') ||
+            message.includes('tveir')) {
+            
+            console.log('\n💑 Date Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'stefnumot',
+                content: {
+                    ...knowledgeBase_is.packages.stefnumot,
+                    link: `[Skoða stefnumótspakka] (${knowledgeBase_is.website_links.stefnumot})`
+                }
+            });
+        } else if (message.includes('sér')) {
+            console.log('\n🌟 Sér Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'ser',
+                content: {
+                    ...knowledgeBase_is.packages.ser,
+                    link: `[Skoða Sér aðgang] (${knowledgeBase_is.website_links.packages})`
+                }
+            });
+        } else if (message.includes('saman')) {
+            console.log('\n👥 Saman Package Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'saman',
+                content: {
+                    ...knowledgeBase_is.packages.saman,
+                    link: `[Skoða Saman aðgang] (${knowledgeBase_is.website_links.packages})`
+                }
+            });
+        } else {
+            // Return all package info
+            relevantInfo.push({
+                type: 'packages',
+                content: {
+                    ...knowledgeBase_is.packages,
+                    link: `[Skoða leiðir til að njóta] (${knowledgeBase_is.website_links.packages})`
+                }
+            });
+        }
+    }
+    // Package upgrades section - ADD THIS NEW SECTION HERE
+    if ((message.includes('uppfær') || 
+         message.includes('uppgrad') || 
+         message.includes('breyt') || 
+         message.includes('skipt') ||
+         // Add these patterns for better detection
+         (message.includes('má') && message.includes('skipta')) ||
+         (message.includes('hægt') && message.includes('borga') && message.includes('mismun')) ||
+         (message.includes('fá') && message.includes('einkaklefa')) ||
+         (message.includes('skipta') && message.includes('yfir'))) && 
+        ((message.includes('saman') && message.includes('sér')) ||
+         message.includes('pakk') ||
+         message.includes('leið') ||
+         (message.includes('almenn') && message.includes('einka')) ||
+         (message.includes('borgað') && message.includes('mismun')))) {
+        
+        console.log('\n⬆️ Package Upgrade Match Found');
+        
+        // Check if specifically asking about gift card upgrades
+        if (message.includes('gjafa') || 
+            message.includes('gjafabréf') ||
+            message.includes('kort')) {
+            
+            console.log('\n🎁 Gift Card Upgrade Match Found');
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'upgrade_gift_card',
+                content: knowledgeBase_is.packages.upgrades.response.with_gift_card
+            });
+            
+            // Return immediately to prevent other handlers from processing
+            return relevantInfo;
+        }
+        // General upgrade questions
+        else {
+            relevantInfo.push({
+                type: 'packages',
+                subtype: 'upgrade_general',
+                content: knowledgeBase_is.packages.upgrades.response.general
+            });
+            
+            // Return immediately to prevent other handlers from processing
+            return relevantInfo;
+        }
+    }
+
+    // Pricing comparison specific queries
+    if (message.includes('ódýrast') || 
+        message.includes('ódýrasti') ||
+        message.includes('hagstæðast') ||
+        message.includes('hagstæðasti') ||
+        message.includes('hagstæðari') ||
+        message.includes('lægsta verð') ||
+        message.includes('minnst') ||
+        message.includes('kostar minnst') ||
+        message.includes('ódýrastur') ||
+        message.includes('ódýrasta') ||
+        message.includes('sparað') ||
+        message.includes('spara') ||
+        message.includes('lægsta') ||
+        // Common question patterns
+        (message.includes('hver') && message.includes('ódýr')) ||
+        (message.includes('hvað') && message.includes('ódýr')) ||
+        (message.includes('hver') && message.includes('hagstæð')) ||
+        (message.includes('hvað') && message.includes('hagstæð')) ||
+        (message.includes('hver') && message.includes('lægst')) ||
+        (message.includes('hvað') && message.includes('lægst'))) {
+
+        console.log('\n💰 Cheapest Option Query Match Found');
+        
+        // Check if asking specifically about youth options
+        if (message.includes('barn') || 
+            message.includes('börn') ||
+            message.includes('ungling') ||
+            message.includes('ungmenn') ||
+            message.includes('12') ||
+            message.includes('13') ||
+            message.includes('14')) {
+            
+            console.log('\n👶 Youth Cheapest Option Match Found');
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                subtype: 'youth',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer.youth,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options.youth,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
+                }
+            });
+        }
+        // Check if asking about frequent visits or multi-pass
+        else if (message.includes('multi') ||
+                message.includes('fjölnotakort') ||
+                message.includes('oft') ||
+                message.includes('margir') ||
+                message.includes('fleiri') ||
+                message.includes('margar')) {
+            
+            console.log('\n🎫 Multi-Pass Cheapest Option Match Found');
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                subtype: 'multi_pass',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer.multi_pass,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options.multi_pass,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
+                }
+            });
+        }
+        // For all other cheapest queries, provide complete comparative information
+        else {
+            relevantInfo.push({
+                type: 'pricing_comparison',
+                content: {
+                    answer: knowledgeBase_is.pricing_comparison.answer,
+                    options: knowledgeBase_is.pricing_comparison.cheapest_options,
+                    links: knowledgeBase_is.pricing_comparison.answer.links
+                }
+            });
+        }
+    }
+
+    // Multi-Pass function
+    if (message.includes('multi') ||
+        message.includes('multipass') ||
+        message.includes('multi-pass') ||
+        message.includes('fjölnotakort') ||
+        message.includes('hefð') ||
+        message.includes('hefd') ||
+        message.includes('venja') ||
+        message.includes('sex skipti') ||
+        message.includes('6 skipti') ||
+        message.includes('margir tímar') ||
+        message.includes('mörg skipti') ||
+        message.includes('fleiri skipti') ||
+        (message.includes('gildir') && (
+            message.includes('lengi') ||
+            message.includes('hversu') ||
+            message.includes('tími')
+        )) ||
+        (message.includes('deila') && (
+            message.includes('pass') ||
+            message.includes('kort')
+        ))) {
+
+        console.log('\n🎫 Multi-Pass Match Found');
+
+        // Determine which specific multi-pass info to return
+        if (message.includes('hefð') || 
+            message.includes('hefd')) {
+            
+            console.log('\n✨ Hefð Multi-Pass Match Found');
+            relevantInfo.push({
+                type: 'multipass',
+                subtype: 'hefd',
+                content: {
+                    ...knowledgeBase_is.multipass.types.hefd,
+                    link: `[Kaupa Hefð Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
+            });
+        } else if (message.includes('venja')) {
+            console.log('\n👥 Venja Multi-Pass Match Found');
+            relevantInfo.push({
+                type: 'multipass',
+                subtype: 'venja',
+                content: {
+                    ...knowledgeBase_is.multipass.types.venja,
+                    link: `[Kaupa Venju Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
+            });
+        } else if (message.includes('bóka') || 
+                   message.includes('panta') || 
+                   message.includes('nota')) {
+            
+            console.log('\n📅 Multi-Pass Booking Match Found');
+            relevantInfo.push({
+                type: 'multipass',
+                subtype: 'booking',
+                content: {
+                    ...knowledgeBase_is.multipass.booking_process,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        multi_pass: `[Skoða Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                    }
+                }
+            });
+        } else {
+            // Return all multi-pass info
+            relevantInfo.push({
+                type: 'multipass',
+                content: {
+                    ...knowledgeBase_is.multipass,
+                    link: `[Skoða Multi-Pass] (${knowledgeBase_is.website_links.multi_pass})`
+                }
+            });
+        }
+    }  // End of Multi-Pass section
+    
+    // Discount queries
+    if (message.includes('afsláttur') || 
+        message.includes('afslætti') ||
+        message.includes('afsláttarkjör') ||
+        message.includes('verðlækkun') ||
+        message.includes('tilboð') ||
+        message.includes('sérkjör') ||
+        message.includes('betra verð') ||
+        message.includes('spara') ||
+        message.includes('sparnaður') ||
+        message.includes('ódýrara') ||
+        message.includes('lækkað verð') ||
+        message.includes('hagstætt') ||
+        message.includes('hagstæðara') ||
+        message.includes('lægra verð') ||
+        message.includes('afsláttarkóði') ||
+        message.includes('afsláttarkóða') ||
+        // Question patterns
+        (message.includes('er') && message.includes('afsláttur')) ||
+        (message.includes('eruð') && message.includes('tilboð')) ||
+        (message.includes('hægt') && message.includes('spara')) ||
+        (message.includes('hægt') && message.includes('ódýrara')) ||
+        (message.includes('hægt') && message.includes('ódýrari')) ||
+        (message.includes('eru') && message.includes('afslættir')) ||
+        (message.includes('ertu') && message.includes('afsláttarkóða')) ||
+        (message.includes('eru') && message.includes('sérkjör')) ||
+        // Complex discount phrases
+        (message.includes('versla') && message.includes('ódýrara')) ||
+        (message.includes('fá') && message.includes('ódýrari')) ||
+        // Add these specific patterns
+        (message.includes('bjóðið') && message.includes('afslát')) ||
+        (message.includes('bjóða') && message.includes('afslát')) ||
+        (message.includes('upp á') && message.includes('afslát'))) {
+        
+        console.log('\n💰 Discount Query Match Found');
+        relevantInfo.push({
+            type: 'discounts',
+            content: knowledgeBase_is.discounts.answer
+        });
+    }  // End of Discount section
+    
+    // Gift Card Pattern Detection
+    if (message.includes('gjafakort') ||
+        message.includes('gjafabréf') ||
+        message.includes('gefa') ||
+        message.includes('gefandi') ||
+        message.includes('gjöf') ||
+        message.includes('kóði') ||
+        message.includes('kóða') ||
+        message.toLowerCase().includes('pure') ||
+        message.toLowerCase().includes('sky') ||
+        // Add new upgrade-related patterns for Icelandic
+        message.includes('uppfæra') ||
+        message.includes('uppfærsla') ||
+        (message.includes('nota') && message.includes('saman') && message.includes('sér')) ||
+        (message.includes('breyta') && message.includes('pakka')) ||
+        (message.includes('greiða') && message.includes('mismun')) ||
+        (message.includes('dýrari')) ||
+        (message.includes('upp í'))) {
+
+        console.log('\n🎁 Gift Card Match Found');
+
+        // First check for legacy gift card queries
+        if (message.toLowerCase().includes('pure') || 
+            message.toLowerCase().includes('sky') ||
+            (message.toLowerCase().includes('gamla') && message.includes('gjafabréf')) ||
+            (message.toLowerCase().includes('eldra') && message.includes('gjafabréf'))) {
+            
+            console.log('\n🔄 Legacy Gift Card Query Found');
+            
+            let response = '';
+            
+            if (message.toLowerCase().includes('pure')) {
+                response = "Pure leiðin (eða Pure Pass) heitir núna Saman leiðin. Þú átt að velja 'Saman Pass' þegar þú bókar á netinu. Gjafakortið þitt er ennþá í fullu gildi.\n\n";
+            } else if (message.toLowerCase().includes('sky')) {
+                response = "Sky leiðin (eða Sky Pass) heitir núna Sér leiðin. Þú átt að velja 'Sér Pass' þegar þú bókar á netinu. Gjafakortið þitt er ennþá í fullu gildi.\n\n";
+            }
+
+            response += "Svona bókar þú:\n";
+            knowledgeBase_is.gift_cards.legacy_names.booking_process.steps.forEach((step, index) => {
+                response += `${index + 1}. ${step}\n`;
+            });
+            response += "\nEf þú þarft aðstoð með eldri gjafakort eða bókun, ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma 527 6800.";
+            response += `\n\n[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`;
+
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'legacy',
+                content: response
+            });
+        }
+        // New section: Check for upgrade-related queries
+        else if (message.includes('uppfæra') || 
+                 message.includes('uppfærsla') ||
+                 (message.includes('nota') && message.includes('saman') && message.includes('sér')) ||
+                 (message.includes('breyta') && message.includes('pakka')) ||
+                 (message.includes('greiða') && message.includes('mismun')) ||
+                 (message.includes('dýrari')) ||
+                 (message.includes('upp í'))) {
+            
+            console.log('\n🔄 Gift Card Upgrade Query Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'upgrade',
+                content: {
+                    upgrade_info: knowledgeBase_is.gift_cards.booking.upgrade_info.ser_from_saman,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        gift_cards: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                    }
+                }
+            });
+        }
+        // Then check for purchase-related queries
+        else if (message.includes('kaupa') || 
+            message.includes('kaupi') || 
+            message.includes('verð') || 
+            message.includes('kostar') ||
+            message.includes('langar að') ||
+            (message.includes('hvar') && message.includes('get'))) {
+            
+            console.log('\n💳 Gift Card Purchase Query Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'purchase',
+                content: {
+                    marketing: knowledgeBase_is.gift_cards.marketing,  // Always include marketing
+                    ...knowledgeBase_is.gift_cards,
+                    purchase_info: knowledgeBase_is.gift_cards.purchase_info,
+                    link: `[Kaupa gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
+            });
+        }
+        // Then check for usage-related queries
+        else if (message.includes('nota') || 
+                 message.includes('bóka') || 
+                 message.includes('innleysa') ||
+                 (message.includes('hvernig') && !message.includes('kaupa'))) {
+            
+            console.log('\n📝 Gift Card Usage Query Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'booking',
+                content: {
+                    ...knowledgeBase_is.gift_cards.booking,
+                    links: {
+                        booking: `[Bóka heimsókn] (${knowledgeBase_is.website_links.booking})`,
+                        gift_cards: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                    }
+                }
+            });
+        }
+        // Check for specific package types
+        else if (message.includes('stefnumót') || 
+                 message.includes('fyrir tvo')) {
+            
+            console.log('\n💑 Date Gift Card Match Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'stefnumot',
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.stefnumot,
+                    link: `[Skoða stefnumótspakka] (${knowledgeBase_is.website_links.stefnumot})`
+                }
+            });
+        }
+        else if (message.includes('sér')) {
+            console.log('\n✨ Sér Gift Card Match Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'ser',
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.ser,
+                    link: `[Kaupa Sér gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
+            });
+        }
+        else if (message.includes('saman')) {
+            console.log('\n👥 Saman Gift Card Match Found');
+            relevantInfo.push({
+                type: 'gift_cards',
+                subtype: 'saman',
+                content: {
+                    ...knowledgeBase_is.gift_cards.types.saman,
+                    link: `[Kaupa Saman gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
+            });
+        }
+        else {
+            // Return all gift card info for general queries
+            relevantInfo.push({
+                type: 'gift_cards',
+                content: {
+                    ...knowledgeBase_is.gift_cards,
+                    link: `[Skoða gjafakort] (${knowledgeBase_is.website_links.gift_tickets})`
+                }
+            });
+        }
+    }  // End of Gift Cards section
+
+    // Dining specific - Smakk Bar, Keimur Café and Lagoon Bar
+    if (message.includes('matur') || 
+        message.includes('mat') ||
+        message.includes('borða') ||
+        message.includes('plött') ||      // Catches plöttur, plöttunum
+        message.includes('platt') ||      // Catches plattar, plattana
+        message.includes('sælkera') ||    // Base form
+        message.includes('matseðil') ||   // Catches matseðill, matseðilinn
+        message.includes('veitingar') ||
+        message.includes('veitingastað') ||     // Accusative
+        message.includes('veitingastaður') ||   // Nominative
+        message.includes('veitingastaðinn') ||  // Accusative with article
+        message.includes('veitingastaðnum') ||  // Dative with article
+        message.includes('veitingastaði') ||    // Multiple accusative
+        message.includes('matsölustaður') ||
+        message.includes('café') || 
+        message.includes('kaffihús') ||
+        message.includes('kaffi') ||
+        message.includes('bar') ||
+        message.includes('drykkir') ||
+        message.includes('drekka') ||
+        message.includes('veitingastaðir') ||
+        message.includes('platta') || 
+        message.includes('plattar') ||
+        message.includes('súpa') ||
+        message.includes('samloka') ||
+        message.includes('beygla') ||
+        message.includes('skyr') ||
+        message.includes('bakkelsi') ||
+        // Smakk Bar specific
+        message.includes('smakk') ||
+        message.includes('sælkera') ||
+        message.includes('ostar') ||
+        message.includes('graflax') ||
+        message.includes('síld') ||
+        message.includes('vegan') ||
+        message.includes('glútein') ||
+        message.includes('glúteinfrítt') ||
+        message.includes('glúteinlausa') ||
+        message.includes('glúten') ||
+        message.includes('gluten') ||
+        message.includes('glutenfrítt') ||
+        message.includes('glútenfrítt') ||
+        message.includes('glútenlaus') ||
+        message.includes('glutenlaus') ||
+        message.includes('grænmetis') ||
+        // Keimur specific
+        message.includes('keimur') ||
+        message.includes('Te & Kaffi') ||
+        message.includes('espresso') ||
+        message.includes('latte') ||
+        message.includes('cappuccino') ||
+        message.includes('súrdeigssamloka') ||
+        // Gelmir specific
+        message.includes('gelmir') ||
+        message.includes('áfengi') ||
+        message.includes('bjór') ||
+        message.includes('vín') ||
+        message.includes('freyðivín') ||
+        message.includes('drykkjur') ||
+        message.includes('gos') ||
+        message.includes('safi') ||
+        // Questions and price related
+        message.includes('verð') ||
+        message.includes('kostar') ||
+        message.includes('krónu') ||
+        message.includes('ISK') ||
+        // Opening hours related for venues
+        message.includes('opið') ||
+        message.includes('lokað') ||
+        message.includes('tími') ||
+        message.includes('opnunartími') ||
+        // New patterns from website content
+        message.includes('matarhefð') ||
+        message.includes('hefðir') ||
+        message.includes('menning') ||
+        message.includes('matreiðslu') ||
+        message.includes('hefðbundin') ||
+        message.includes('réttur') ||
+        message.includes('réttir') ||
+        message.includes('ljúffeng') ||
+        message.includes('gómsæt') ||
+        message.includes('fersk')) {
+
+        console.log('\n🍽️ Food & Beverage Match Found');
+
+        // Check for menu queries FIRST
+        if (message.includes('matseðil') || 
+            message.includes('matseðill') ||
+            message.includes('matseðilinn') ||
+            message.includes('sýna matseðil') ||
+            message.includes('sýnt matseðil') ||
+            message.match(/má sjá|getið þið sýnt|hvaða plattar|hvað er á/i)) {
+            
+            console.log('\n📋 Menu Request Detected');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'menu_details',
+                content: {
+                    small_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.small_platters,
+                    large_platters: knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
+                }
+            });
+        }
+        // Then check for specific menu items
+        else if (message.match(/hvað er á|hvað er í|hvað inniheldur|hver er/i)) {
+            console.log('\n📋 Menu Item Query Detected');
+            
+            // Check all menu items
+            const allItems = [
+                ...knowledgeBase_is.dining.venues.smakk_bar.menu.small_platters.items,
+                ...knowledgeBase_is.dining.venues.smakk_bar.menu.large_platters.items
+            ];
+
+            // Try to find the requested item
+            const requestedItem = allItems.find(item => 
+                message.toLowerCase().includes(item.name.toLowerCase())
+            );
+
+            if (requestedItem) {
+                console.log('\n🍽️ Specific Menu Item Found:', requestedItem.name);
+                // Return the EXACT content from knowledge base
+                relevantInfo.push({
+                    type: 'dining',
+                    subtype: 'menu_item',
+                    content: {
+                        name: requestedItem.name,
+                        description: requestedItem.description,
+                        price: requestedItem.price,
+                        categoryType: requestedItem.subtitle || null,
+                        link: `[Skoða matseðil] (${knowledgeBase_is.website_links.dining.smakk_bar})`
+                    }
+                });
+            }
+        }
+        // Check for general restaurant queries
+        else if (message.includes('eruð þið með') || 
+                message.includes('hafið þið') ||
+                message.includes('er hægt að fá') ||
+                message.match(/hvar er hægt að|hvar get ég|get ég fengið/i)) {
+            
+            console.log('\n🍽️ General Restaurant Query Detected');
+            relevantInfo.push({
+                type: 'dining',
+                content: {
+                    overview: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
+                    venues: knowledgeBase_is.dining.venues,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
+                }
+            });
+        }
+        // Check for dietary requirements 
+        else if (message.includes('glúten') ||
+                message.includes('glútein') ||
+                message.includes('gluten') || 
+                message.includes('vegan') ||
+                message.includes('grænmetis')) {
+            
+            console.log('\n🥗 Dietary Options Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'dietary_options',
+                content: {
+                    smakk_bar: knowledgeBase_is.dining.venues.smakk_bar.dietary_options,
+                    keimur_cafe: knowledgeBase_is.dining.venues.keimur_cafe.dietary_options,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
+                }
+            });
+        }
+        // Check for ingredient and production queries
+        else if (message.match(/hráefn|uppruna|framlei[ðþ]|hvaðan/i) ||
+                 message.match(/nota[ðr]?\s+þið/i) ||
+                 message.includes('hráefni') ||
+                 (message.includes('hvað') && 
+                  (message.includes('nota') || message.includes('hráefni'))) ||
+                 message.includes('hráefnum') ||
+                 message.includes('innihald') ||
+                 message.includes('inniheldur') ||
+                 (message.includes('hvaðan') && message.includes('kemur')) ||
+                 (message.includes('hvernig') && message.includes('framlei'))) {
+            
+            console.log('\n🥘 Ingredients and Production Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'production',
+                content: {
+                    about: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
+                    production: knowledgeBase_is.dining.venues.smakk_bar.menu.production,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
+                }
+            });
+        }
+        // Then check venue-specific info
+        else if (message.includes('smakk') || 
+                message.includes('sælkera') || 
+                message.includes('plattar') ||
+                message.includes('plött') ||
+                message.includes('ostar') ||
+                message.includes('graflax') ||
+                message.includes('síld')) {
+            
+            console.log('\n🍽️ Smakk Bar Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'smakk_bar',
+                content: {
+                    ...knowledgeBase_is.dining.venues.smakk_bar,
+                    link: `[Skoða Smakk Bar] (${knowledgeBase_is.website_links.dining.smakk_bar})`
+                }
+            });
+        } 
+        else if (message.includes('keimur') || 
+                message.includes('kaffi') ||
+                message.includes('espresso') ||
+                message.includes('latte') ||
+                message.includes('cappuccino') ||
+                message.includes('súrdeigssamloka') ||
+                message.includes('súpa') ||
+                message.includes('beygla') ||
+                message.includes('skyr') ||
+                message.includes('bakkelsi') ||
+                // New patterns from website content
+                message.includes('nýbakað') ||
+                message.includes('te & kaffi') ||
+                message.includes('sandholt') ||
+                message.includes('kruðerí') ||
+                message.includes('kaffibolla') ||
+                (message.includes('notaleg') && message.includes('stund'))) {
+            
+            console.log('\n☕ Keimur Café Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'keimur_cafe',
+                content: {
+                    ...knowledgeBase_is.dining.venues.keimur_cafe,
+                    link: `[Skoða Keimur Café] (${knowledgeBase_is.website_links.dining.keimur_cafe})`
+                }
+            });
+        } 
+        else if (message.includes('gelmir') || 
+                message.includes('áfengi') ||
+                message.includes('bjór') ||
+                message.includes('vín') ||
+                message.includes('drykkir') ||
+                message.includes('bar') ||
+                message.includes('lóninu') ||
+                // New patterns from website content
+                message.includes('drykkja') ||
+                message.includes('armband') ||
+                message.includes('skanna') ||
+                message.includes('búbblur') ||
+                message.includes('áfengislaus') ||
+                message.includes('heilsusafi') ||
+                (message.includes('þrír') && message.includes('drykkir')) ||
+                (message.includes('panta') && message.includes('drykk')) ||
+                message.includes('freyðivín')) {
+            
+            console.log('\n🍷 Gelmir Bar Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                subtype: 'gelmir_bar',
+                content: {
+                    ...knowledgeBase_is.dining.venues.gelmir_bar,
+                    link: `[Skoða Gelmir Bar] (${knowledgeBase_is.website_links.dining.gelmir_bar})`
+                }
+            });
+        }
+
+        // Only use general overview if no specific matches found AND it's a general query
+        if (!relevantInfo.length && (
+            message.includes('veitingastaðir') || 
+            message.includes('matsölustaðir') ||
+            message.includes('staðir') ||
+            message.includes('matur') ||
+            (message.includes('hvað') && message.includes('boði')) ||
+            // New patterns from website
+            message.includes('matarhefð') ||
+            message.includes('hefðir') ||
+            message.includes('menning'))) {
+            
+            console.log('\n🍽️ General Dining Information Match Found');
+            relevantInfo.push({
+                type: 'dining',
+                content: {
+                    overview: knowledgeBase_is.dining.venues.smakk_bar.menu.about,
+                    venues: knowledgeBase_is.dining.venues,
+                    link: `[Skoða veitingastaði] (${knowledgeBase_is.website_links.dining.overview})`
+                }
+            });
+        }
+    }  // End of Dining section
+    
+    // Transport and location related queries
+    if (message.includes('staðsetn') || 
+        message.includes('hvar er') ||
+        message.includes('hvað er') ||
+        message.includes('komast') ||
+        message.includes('kemst') ||
+        message.includes('leiðin') ||
+        message.includes('leið') ||
+        message.includes('keyra') ||
+        message.includes('akstur') ||
+        message.includes('kílómetr') ||
+        message.includes('mínút') ||
+        message.includes('strætó') ||
+        message.includes('almenningssamgöng') ||
+        message.includes('rútu') ||
+        message.includes('bíl') ||
+        message.includes('bílastæð') ||
+        message.includes('leggja') ||
+        message.includes('lagt') ||
+        message.includes('ganga') ||
+        message.includes('hjóla') ||
+        message.includes('hjól') ||
+        message.includes('BSÍ') ||
+        message.includes('bsi') ||
+        message.includes('hótel') ||
+        message.includes('sækja') ||
+        message.includes('tengiferð') ||
+        message.includes('reykjavík excursions') ||
+        message.includes('vesturvör') ||
+        message.includes('kópavog') ||
+        message.includes('rafhleðsl') ||
+        message.includes('gjaldfrjáls') ||
+        message.includes('frítt') ||
+        message.includes('borga') ||
+        message.includes('samgöng')) {
+        
+        console.log('\n🚗 Transport & Location Match Found');
+
+        // Parking specific queries
+        if (message.includes('bílastæð') || 
+            message.includes('leggja') ||
+            message.includes('lagt') ||
+            message.includes('gjaldfrjáls') ||
+            message.includes('frítt') ||
+            message.includes('rafhleðsl')) {
+
+            console.log('\n🅿️ Parking Information Match Found');
+            
+            relevantInfo.push({
+                type: 'transportation',
+                subtype: 'parking',
+                content: {
+                    ...knowledgeBase_is.transportation.parking,
+                    link: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
+                }
+            });
+        }
+
+        // Public transport specific queries
+        if (message.includes('strætó') || 
+            message.includes('almenningssamgöng') || 
+            message.includes('rútu') ||
+            message.includes('BSÍ') ||
+            message.includes('bsi') ||
+            message.includes('tengiferð')) {
+
+            console.log('\n🚌 Public Transport Match Found');
+            
+            relevantInfo.push({
+                type: 'transportation',
+                subtype: 'public_transport',
+                content: {
+                    public_transport: knowledgeBase_is.transportation.transport_options.public_transport,
+                    shuttle_service: knowledgeBase_is.transportation.transport_options.shuttle_service,
+                    links: {
+                        straeto: `[Skoða strætóleiðir] (${knowledgeBase_is.website_links.transportation.re_website})`,
+                        bus_stops: `[Finna næstu stoppistöð] (${knowledgeBase_is.website_links.transportation.re_bus_stops})`
+                    }
+                }
+            });
+        }
+
+        // Walking/cycling specific queries
+        if (message.includes('ganga') || 
+            message.includes('hjóla') ||
+            message.includes('hjól') ||
+            message.includes('umhverfis')) {
+
+            console.log('\n🚶 Walking/Cycling Information Match Found');
+            
+            relevantInfo.push({
+                type: 'transportation',
+                subtype: 'eco_friendly',
+                content: {
+                    walking_cycling: knowledgeBase_is.transportation.transport_options.walking_cycling,
+                    eco_friendly: knowledgeBase_is.transportation.eco_friendly,
+                    link: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
+                }
+            });
+        }
+
+        // Driving specific queries
+        if (message.includes('keyra') || 
+            message.includes('akstur') ||
+            message.includes('bíl') ||
+            message.includes('kílómetr') ||
+            message.includes('mínút')) {
+
+            console.log('\n🚗 Driving Information Match Found');
+            
+            relevantInfo.push({
+                type: 'transportation',
+                subtype: 'driving',
+                content: {
+                    car: knowledgeBase_is.transportation.transport_options.car,
+                    location: knowledgeBase_is.transportation.location,
+                    links: {
+                        map: `[Skoða á korti 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)`,
+                        directions: `[Skoða leiðarlýsingu] (${knowledgeBase_is.website_links.transportation.overview})`
+                    }
+                }
+            });
+        }
+
+        // If no specific transport type was matched or asking about general location
+        if (!relevantInfo.length ||
+            message.includes('staðsetn') ||
+            message.includes('hvar er') ||
+            message.includes('komast') ||
+            message.includes('samgöng')) {
+
+            console.log('\n📍 General Transport & Location Information Match Found');
+            
+            relevantInfo.push({
+                type: 'transportation',
+                content: {
+                    ...knowledgeBase_is.transportation,
+                    links: {
+                        map: `[Skoða á korti 📍] (https://www.google.com/maps/dir//Vesturv%C3%B6r+44,+200+K%C3%B3pavogur)`,
+                        overview: `[Skoða staðsetningu] (${knowledgeBase_is.website_links.transportation.overview})`
+                    }
+                }
+            });
+        }
+    }  // End of Transportation section
+
+    // Health and safety related queries
+    if (message.includes('ólétt') || 
+        message.includes('barnshafandi') || 
+        message.includes('þungað') ||
+        message.includes('líður ekki vel') ||
+        message.includes('sjúkdóm') ||
+        message.includes('flogaveiki') ||
+        message.includes('gleraugu') ||
+        message.includes('öryggi') ||
+        message.includes('heilsu') ||
+        message.includes('hættuleg') ||
+        message.includes('veikindi') ||
+        message.includes('veik') ||
+        message.includes('meiðsl') ||
+        message.includes('slys') ||
+        message.includes('gæsla') ||
+        message.includes('heilbrigði') ||
+        message.includes('þrif') ||
+        message.includes('hreinlæti') ||
+        message.includes('sótthreinsun')) {
+
+        console.log('\n🏥 Health & Safety Match Found');
+
+        // Pregnancy specific queries
+        if (message.includes('ólétt') || 
+            message.includes('barnshafandi') || 
+            message.includes('þungað')) {
+            
+            console.log('\n🤰 Pregnancy Information Match Found');
+            
+            relevantInfo.push({
+                type: 'health_safety',
+                subtype: 'pregnancy',
+                content: knowledgeBase_is.health_safety.pregnancy
+            });
+        }
+
+        // Medical conditions and illness
+        if (message.includes('líður ekki vel') || 
+            message.includes('sjúkdóm') || 
+            message.includes('flogaveiki') ||
+            message.includes('veikindi') ||
+            message.includes('veik')) {
+            
+            console.log('\n🏥 Medical Conditions Match Found');
+            
+            relevantInfo.push({
+                type: 'health_safety',
+                subtype: 'medical_conditions',
+                content: knowledgeBase_is.health_safety.medical_conditions
+            });
+        }
+
+        // Glasses and personal items
+        if (message.includes('gleraugu')) {
+            console.log('\n👓 Glasses Information Match Found');
+            
+            relevantInfo.push({
+                type: 'health_safety',
+                subtype: 'glasses',
+                content: knowledgeBase_is.health_safety.glasses
+            });
+        }
+
+        // General safety and cleanliness
+        if (message.includes('öryggi') || 
+            message.includes('þrif') || 
+            message.includes('hreinlæti') ||
+            message.includes('sótthreinsun')) {
+            
+            console.log('\n🧼 Safety & Cleanliness Match Found');
+            
+            relevantInfo.push({
+                type: 'health_safety',
+                subtype: 'general_safety',
+                content: {
+                    safety_emphasis: knowledgeBase_is.health_safety.safety_emphasis,
+                    cleanliness: knowledgeBase_is.health_safety.cleanliness,
+                    staff_training: knowledgeBase_is.health_safety.staff_training
+                }
+            });
+        }
+
+        // If no specific health topic was matched or asking about general safety
+        if (!relevantInfo.length || 
+            message.includes('heilsu') || 
+            message.includes('heilbrigði')) {
+            
+            console.log('\n🏥 General Health & Safety Information Match Found');
+            
+            relevantInfo.push({
+                type: 'health_safety',
+                content: knowledgeBase_is.health_safety
+            });
+        }
+    }  // End of Health & Safety section
+
+    // Age policy related queries
+    if (message.toLowerCase().includes('aldur') || 
+        message.toLowerCase().includes('aldurs') ||
+        message.toLowerCase().includes('barn') ||
+        message.toLowerCase().includes('börn') ||
+        message.toLowerCase().includes('ára') ||
+        message.toLowerCase().includes('gamall') ||
+        message.toLowerCase().includes('gömul') ||
+        message.toLowerCase().includes('fylgd') ||
+        message.toLowerCase().includes('foreldri') ||
+        message.toLowerCase().includes('foreldra') ||
+        message.toLowerCase().includes('forráðamanna') ||
+        message.toLowerCase().includes('fæðingarár') ||
+        message.toLowerCase().includes('ungling') ||
+        // Basic age limit patterns
+        message.toLowerCase().includes('aldurstakmark') ||
+        message.toLowerCase().includes('aldurstakmörk') ||
+        message.toLowerCase().includes('aldurstakmarki') ||
+        message.toLowerCase().includes('aldurstakmarkið') ||
+        // Add very basic patterns
+        message.toLowerCase() === 'er aldurstakmark' ||
+        message.toLowerCase() === 'er aldurstakmark?' ||
+        (message.toLowerCase().includes('er') && message.toLowerCase().includes('aldurstakmark'))) {
+
+        console.log('\n👶 Age Policy Match Found');
+        console.log('Matched message:', message);
+        relevantInfo.push({
+            type: 'age_policy',
+            content: knowledgeBase_is.age_policy
+        });
+    }
+    
+    // Photography rules related queries
+    if (message.includes('ljósmynd') || 
+        message.includes('mynd') ||
+        message.includes('mynda') ||
+        message.includes('myndavél') ||
+        message.includes('símavörn') ||
+        message.includes('símahlíf') ||
+        message.includes('vatnsheldar') ||
+        message.includes('bag protector') ||
+        message.includes('verja síma') ||
+        message.includes('símahulstur') ||
+        (message.includes('taka') && message.includes('myndir')) ||
+        (message.includes('nota') && message.includes('síma'))) {
+        
+        console.log('\n📸 Photography Rules Match Found');
+        relevantInfo.push({
+            type: 'photography_rules',
+            content: knowledgeBase_is.photography_rules
+        });
+    }
+
+    // Views and landmarks related queries
+    if (message.includes('sést') ||
+        message.includes('útsýni') ||
+        message.includes('norðurljós') ||
+        message.includes('bessastað') ||
+        message.includes('keili') ||
+        message.includes('snæfellsjökul') ||
+        message.includes('sólarlag') ||
+        message.includes('sólsetur') ||
+        message.includes('miðnætursól') ||
+        message.includes('stjörnu') ||
+        message.includes('kennileiti') ||
+        message.includes('fjöll') ||
+        message.includes('jökul') ||
+        message.includes('staði') ||
+        (message.includes('hvaða') && message.includes('sjá')) ||
+        (message.includes('hvað') && message.includes('sjá')) ||
+        (message.includes('hægt') && message.includes('sjá')) ||
+        (message.includes('hvernig') && message.includes('útsýni')) ||
+        (message.includes('hvernig') && message.includes('sést'))) {
+        
+        console.log('\n👀 Views and Landmarks Match Found');
+
+        // Check for specific natural phenomena queries
+        if (message.includes('norðurljós') || 
+            message.includes('sólarlag') ||
+            message.includes('sólsetur') ||
+            message.includes('miðnætursól') ||
+            message.includes('stjörnu')) {
+            
+            console.log('\n🌌 Natural Phenomena Match Found');
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'natural_phenomena',
+                content: knowledgeBase_is.views_and_landmarks.natural_phenomena
+            });
+        }
+
+        // Check for specific landmark queries
+        if (message.includes('bessastað')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.bessastadir
+            });
+        }
+        if (message.includes('keili')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.keilir
+            });
+        }
+        if (message.includes('snæfellsjökul') || message.includes('jökul')) {
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                subtype: 'landmark',
+                content: knowledgeBase_is.views_and_landmarks.landmarks.snaefellsjokull
+            });
+        }
+
+        // If no specific matches or general view query, return all views info
+        if (!relevantInfo.length || 
+            message.includes('útsýni') ||
+            message.includes('sést') ||
+            message.includes('kennileiti') ||
+            message.includes('staði') ||
+            (message.includes('hvaða') && message.includes('sjá')) ||
+            (message.includes('hvað') && message.includes('sjá'))) {
+            
+            console.log('\n🏔️ General Views Information Match Found');
+            relevantInfo.push({
+                type: 'views_and_landmarks',
+                content: knowledgeBase_is.views_and_landmarks
+            });
+        }
+    } // End of Views and landmarks related queries section
+
+    // Lost and found queries
+    if (message.includes('týnd') || 
+        message.includes('týnt') ||
+        message.includes('týndi') ||
+        message.includes('gleym') ||
+        message.includes('gleymd') ||
+        message.includes('gleymdi') ||
+        message.includes('óskilamun') ||
+        message.includes('fann') ||
+        message.includes('fundið') ||
+        message.includes('skildi eftir') ||
+        message.includes('finna') ||
+        (message.includes('hvar') && message.includes('leita'))) {
+
+        console.log('\n🔍 Lost & Found Match Found');
+        relevantInfo.push({
+            type: 'lost_found',
+            content: knowledgeBase_is.lost_found
+        });
+    }  // End of Lost and found queries section
+
+    // Job/career related queries
+    if (message.includes('sótt um') || 
+        message.includes('sækja um') ||
+        message.includes('sæki') && message.includes('starf') ||  // Add this line
+        message.includes('starfsumsókn') ||
+        message.includes('atvinnuumsókn') ||
+        message.includes('sumarstarf') ||
+        message.includes('vinna hjá') ||
+        message.includes('starfa hjá') ||
+        message.includes('gæsluvörður') ||
+        message.includes('ráðning') ||
+        message.includes('laus störf') ||   // Add this line
+        message.includes('laus starf') ||   // Add this line
+        message.includes('laus stöðu') ||   // Add this line
+        message.includes('atvinnumöguleik') ||
+        message.includes('starfsmöguleik') ||
+        message.includes('ferilskrá') ||
+        message.includes('umsókn') ||
+        (message.includes('starfs') && message.includes('laus')) ||
+        (message.includes('störf') && message.includes('laus'))) {  // Add this line
+        
+        console.log('\n💼 Career Inquiry Match Found');
+        relevantInfo.push({
+            type: 'careers',
+            content: knowledgeBase_is.careers
+        });
+    } // End of Job/career related queries
+  
+  return relevantInfo;
+} // End of keywordSearch_is function
