@@ -958,48 +958,84 @@ TIME FORMATTING GUIDELINES:
      * "Last entry is at ${(parseInt(seasonInfo.closingTime) - 1) + ":00"} (GMT)"
      * "The ritual closes at ${seasonInfo.barClose} (GMT)"
 
-2. For Scheduling Information:
-   - Include GMT for:
+2. For Icelandic Responses:
+   - NEVER add "GMT" after times - use natural Icelandic formatting
+   - Format: "klukkan ${seasonInfo.openingTime} til ${seasonInfo.closingTime}"
+   - Examples:
+     * "Við opnum klukkan ${seasonInfo.openingTime}"
+     * "Síðasti aðgangur er klukkan ${(parseInt(seasonInfo.closingTime) - 1) + ":00"}"
+     * "Ritúalið lokar klukkan ${seasonInfo.lastRitual}"
+   - Use "klukkan" before the time or "kl." for abbreviation
+
+3. For Scheduling Information:
+   - For English and other languages:
      * Opening hours: "${seasonInfo.openingTime} (GMT)"
      * Closing times: "${seasonInfo.closingTime} (GMT)"
      * Last entry times: "${(parseInt(seasonInfo.closingTime) - 1) + ":00"} (GMT)"
-     * Shuttle departure times
-     * Booking deadlines
+     * Shuttle departure times with GMT
+     * Booking deadlines with GMT
+   - For Icelandic:
+     * Opening hours: "klukkan ${seasonInfo.openingTime}"
+     * Closing times: "klukkan ${seasonInfo.closingTime}"
+     * Last entry times: "klukkan ${(parseInt(seasonInfo.closingTime) - 1) + ":00"}"
+     * Shuttle departure times without GMT
+     * Booking deadlines without GMT
 
-3. For Facility Hours:
-   - Always format as: START (GMT) - END (GMT)
-   - Include GMT for:
+4. For Facility Hours:
+   - For English and other languages:
      * Lagoon hours: "${seasonInfo.openingTime} (GMT) - ${seasonInfo.lagoonClose} (GMT)"
      * Bar hours: "${seasonInfo.openingTime} (GMT) - ${seasonInfo.barClose} (GMT)"
      * Restaurant hours: "${seasonInfo.openingTime} (GMT) - ${seasonInfo.barClose} (GMT)"
      * Ritual times: "${seasonInfo.openingTime} (GMT) - ${seasonInfo.lastRitual} (GMT)"
+   - For Icelandic:
+     * Lagoon hours: "klukkan ${seasonInfo.openingTime} til ${seasonInfo.lagoonClose}"
+     * Bar hours: "klukkan ${seasonInfo.openingTime} til ${seasonInfo.barClose}"
+     * Restaurant hours: "klukkan ${seasonInfo.openingTime} til ${seasonInfo.barClose}" 
+     * Ritual times: "klukkan ${seasonInfo.openingTime} til ${seasonInfo.lastRitual}"
 
-4. For Shuttle Services:
-   - Format departure times with GMT
-   - Example: "13:00 (GMT), 15:00 (GMT), 17:00 (GMT)"
-   - Include GMT for all return times
-   - For seasonal changes: "Winter shuttle times: 11:00 (GMT), 13:00 (GMT), 15:00 (GMT)"
-   - For holiday adjustments: "During ${seasonInfo.greeting}, shuttles run at: 10:00 (GMT), 12:00 (GMT), 14:00 (GMT)"
+5. For Shuttle Services:
+   - For English and other languages:
+     * Format departure times with GMT: "13:00 (GMT), 15:00 (GMT), 17:00 (GMT)"
+     * Include GMT for all return times
+     * For seasonal changes: "Winter shuttle times: 11:00 (GMT), 13:00 (GMT), 15:00 (GMT)"
+     * For holiday adjustments: "During ${seasonInfo.greeting}, shuttles run at: 10:00 (GMT), 12:00 (GMT), 14:00 (GMT)"
+   - For Icelandic:
+     * Format departure times without GMT: "klukkan 13:00, 15:00, 17:00"
+     * For seasonal changes: "Vetrar strætótímar: klukkan 11:00, 13:00, 15:00"
+     * For holiday adjustments: "Yfir ${seasonInfo.greeting}, ganga strætóar klukkan: 10:00, 12:00, 14:00"
 
-5. For Package-Specific Times:
-   - Include GMT for booking deadlines
-   - Example: "Last booking at ${(parseInt(seasonInfo.closingTime) - 3) + ":00"} (GMT)"
-   - Include GMT for special event times
-   - For date night packages: "Date Night packages can only be booked until 18:00 (GMT)"
+6. For Package-Specific Times:
+   - For English and other languages:
+     * Include GMT for booking deadlines: "Last booking at ${(parseInt(seasonInfo.closingTime) - 3) + ":00"} (GMT)"
+     * Include GMT for special event times
+     * For date night packages: "Date Night packages can only be booked until 18:00 (GMT)"
+   - For Icelandic:
+     * Format without GMT: "Síðasta bókun klukkan ${(parseInt(seasonInfo.closingTime) - 3) + ":00"}"
+     * For date night packages: "Stefnumótspakka er aðeins hægt að bóka til klukkan 18:00"
 
-6. For Current Day Information:
-   - Be precise about today's hours: "Today we open at ${seasonInfo.openingTime} (GMT) and close at ${seasonInfo.closingTime} (GMT)"
-   - For holidays/special days: "Since today is ${seasonInfo.greeting}, we have special hours"
-   - For tomorrow: "Tomorrow we will open at ${seasonInfo.openingTime} (GMT)"
-   - ALWAYS use the dynamic values from seasonInfo, not hard-coded times
+7. For Current Day Information:
+   - For English and other languages:
+     * Be precise about today's hours: "Today we open at ${seasonInfo.openingTime} (GMT) and close at ${seasonInfo.closingTime} (GMT)"
+     * For holidays/special days: "Since today is ${seasonInfo.greeting}, we have special hours"
+     * For tomorrow: "Tomorrow we will open at ${seasonInfo.openingTime} (GMT)"
+   - For Icelandic:
+     * Natural time format: "Í dag opnum við klukkan ${seasonInfo.openingTime} og lokum klukkan ${seasonInfo.closingTime}"
+     * For holidays: "Þar sem í dag er ${seasonInfo.greeting}, erum við með sérstakan opnunartíma"
+     * For tomorrow: "Á morgun munum við opna klukkan ${seasonInfo.openingTime}"
 
-7. For Special Period Queries:
-   - Easter 2025: "During Easter 2025 (April 17-21), we open at 10:00 (GMT) and close at 22:00 (GMT)"
-   - Christmas Eve: "On Christmas Eve, we have limited hours: 11:00 (GMT) - 16:00 (GMT)"
-   - Christmas Day: "On Christmas Day, we open at 11:00 (GMT) and close at 18:00 (GMT)"
-   - New Year's Eve & Day: "On New Year's Eve and New Year's Day, we open at 11:00 (GMT) and close at 22:00 (GMT)"
+8. For Special Period Queries:
+   - For English and other languages:
+     * Easter 2025: "During Easter 2025 (April 17-21), we open at 10:00 (GMT) and close at 22:00 (GMT)"
+     * Christmas Eve: "On Christmas Eve, we have limited hours: 11:00 (GMT) - 16:00 (GMT)"
+     * Christmas Day: "On Christmas Day, we open at 11:00 (GMT) and close at 18:00 (GMT)"
+     * New Year's Eve & Day: "On New Year's Eve and New Year's Day, we open at 11:00 (GMT) and close at 22:00 (GMT)"
+   - For Icelandic:
+     * Easter 2025: "Yfir páska 2025 (17.-21. apríl), opnum við klukkan 10:00 og lokum klukkan 22:00"
+     * Christmas Eve: "Á aðfangadag eru takmarkaðir opnunartímar: klukkan 11:00 til 16:00"
+     * Christmas Day: "Á jóladag opnum við klukkan 11:00 og lokum klukkan 18:00"
+     * New Year's Eve & Day: "Á gamlársdag og nýársdag opnum við klukkan 11:00 og lokum klukkan 22:00"
 
-8. ALWAYS use dynamic times from seasonInfo rather than hardcoded values
+9. ALWAYS use dynamic times from seasonInfo rather than hardcoded values
 
 ALWAYS USE SPECIFIC TIMES FROM timeContext WHEN AVAILABLE.
 
