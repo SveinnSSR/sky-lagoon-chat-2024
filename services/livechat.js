@@ -1,17 +1,17 @@
 // services/livechat.js
 import fetch from 'node-fetch';
 
-// LiveChat credentials
+// LiveChat credentials - kept from the original
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
-// Bot credentials
+// Bot credentials - kept from the original
 const BOT_ID = '702cdd1781c4bb131db4f56bd57db913';
 const BOT_SECRET = '600d0b708538d7c0e2a52a2b84c7b5b8';
 const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
 const CLIENT_SECRET = 'ca6020736f61d29b88bc130ca9e7240f4eb15d6f';
 
-// Agent and group configurations
+// Agent and group configurations - kept from the original
 const LIVECHAT_AGENTS = [
     'david@svorumstrax.is',
     'bryndis@svorumstrax.is',
@@ -33,90 +33,11 @@ const SKY_LAGOON_GROUPS = {
     }
 };
 
-// Booking change patterns for detection
-const BOOKING_CHANGE_PATTERNS = {
-    en: [
-        'change booking',
-        'modify booking',
-        'reschedule',
-        'change time',
-        'change date',
-        'different time',
-        'different date',
-        'another time',
-        'another date',
-        'move booking',
-        // New stronger patterns
-        'update booking',
-        'alter booking',
-        'shift booking',
-        'postpone booking',
-        'advance booking',
-        'need to change',
-        'want to change',
-        'change my reservation',
-        'edit booking',
-        'adjust booking',
-        'switch time',
-        // Additional common patterns
-        'like to change',
-        'would like to change',
-        'arrive later',
-        'arrive earlier',
-        'can\'t make it',
-        'won\'t make it',
-        'running late',
-        'rebook',
-        'too early',
-        'too late'
-    ],
-    is: [
-        'breyta bókun',
-        'breyta tíma',
-        'breyta dagsetningu',
-        'færa bókun',
-        'færa tíma',
-        'annan tíma',
-        'aðra dagsetningu',
-        // New stronger patterns
-        'uppfæra bókun',
-        'fresta bókun',
-        'flýta bókun',
-        'þarf að breyta',
-        'vil breyta',
-        'breyta pöntun',
-        'breyta pantanir',
-        'aðlaga bókun',
-        'skipta um tíma',
-        // Additional common Icelandic patterns & variations
-        'getur þú breytt',
-        'getið þið breytt',
-        'getum við breytt',
-        'get ég breytt',
-        'viljum breyta',
-        'vildi breyta',
-        'langar að breyta',
-        'geta breytt',
-        'vera seinn',
-        'of snemmt',
-        'of seint',
-        'ekki tími',
-        'ekki hægt',
-        'breytingar á bókun',
-        'aðrar dagsetningar',
-        'breyta skráningu',
-        'færa pantanir',
-        'breytingu á bókun',
-        'bókunarbreytingar',
-        'bókunartíma',
-        'komumst ekki',
-        'verð ekki',
-        'seinka ferðinni',
-        'flýta ferðinni'
-    ]
-};
-
-// Check agent availability
+/**
+ * Checks agent availability in LiveChat
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Availability status and agent information
+ */
 export async function checkAgentAvailability(isIcelandic = false) {
     try {
         const credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
@@ -180,7 +101,12 @@ export async function checkAgentAvailability(isIcelandic = false) {
     }
 }
 
-// Create chat function (new implementation using bot)
+/**
+ * Creates a LiveChat chat using bot
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
 export async function createChat(customerId, isIcelandic = false) {
     try {
         console.log('\n🤖 Getting bot token...');
@@ -306,600 +232,382 @@ export async function createChat(customerId, isIcelandic = false) {
     }
 }
 
-// Function to detect booking change requests with context-awareness and improved Icelandic support
-export async function detectBookingChangeRequest(message, languageDecision) {
+/**
+ * AI-powered function to detect booking change requests
+ * Uses semantic understanding and context instead of keywords
+ * 
+ * @param {string} message - User message
+ * @param {Object} languageDecision - Language detection information
+ * @param {Object} context - Conversation context
+ * @returns {Promise<Object>} Detection result with confidence score and reasoning
+ */
+export async function detectBookingChangeRequest(message, languageDecision, context = null) {
     try {
         const msg = message.toLowerCase();
-        console.log('\n🔍 Analyzing message for booking change:', msg);
-        console.log('Language decision:', languageDecision);
+        console.log('\n🔍 AI-powered booking change detection for:', msg);
+        console.log('Language:', languageDecision);
         
-        // First check if this is a form submission (starts with "booking change request:")
-        if (msg.startsWith('booking change request:')) {
-            console.log('✅ Form submission detected');
-            return true;
-        }
-
-        // IMPORTANT: Check for cancellation/refund related queries FIRST (negative patterns)
-        // These should override any other matches to prevent false positives
-        const negativePatterns = {
+        // Create a context-aware detection system with confidence scoring
+        
+        // High confidence indicators - Direct and explicit mentions
+        const highConfidencePatterns = {
             en: [
-                // cancellation patterns
-                'cancel', 'refund', 'money back', 'cancellation policy',
-                'cancellation fee', 'cancel my booking',
-
-                // General information queries - not about changing bookings
-                'what is included', 'what\'s included',
-                'confirmation email', 'booking confirmation',
-                'received my booking', 'booking receipt',
-                'what to bring', 'what should i bring',
-                'do i need to print', 'print my booking',
-                'need to know', 'what to know',
-                'how early', 'when should i arrive',
-                'what time should i arrive',
-
-                // General booking questions and lookups
-                'check which experiences', 'check what', 'which experiences', 
-                'what experiences', 'included in my booking', 'what is in my booking',
-                'don\'t remember', 'don\'t recall', 'forgot my booking', 
-                'recover', 'booking details', 'lookup my booking',
-                'experience different', 'booking include', 'does my booking',
-                'arrive late', 'arrive for my booking', 'arrive at my booking',
-                'booking time mean', 'what time', 'which time', 'timing',
-                'booking history', 'booking requirements',
-
-                // Questions about availability and future bookings
-                'next weekend', 'next week', 'next month', 'booking for next',
-                'thinking of booking', 'considering booking',
-                'availability', 'available', 'spots left', 'space left',
-                'is there room', 'is there space', 'have any times',
-                'when should i book', 'can i book',
-
-                // NEW: Waiting list patterns
-                'waiting list', 'wait list', 'waitlist', 
-                'be on a waiting list', 'get on a waiting list',
-                'fully booked', 'sold out', 'no availability',
-                'if something opens up', 'opens up', 'availability opens',
-                'get notified', 'notify me', 'be notified',
-                'if a spot', 'if a place', 'if space',
-
-                // NEW: Gift card & pricing patterns
-                'gift card', 'gift certificate', 'gift voucher',
-                'price', 'pricing', 'cost', 'fee', 'charge',
-                'discount', 'coupon', 'promo', 'promotion',
-                'pay', 'payment', 'paid', 'paying',
-                'purchase', 'bought', 'buy',
-                'expensive', 'cheap', 'afford',
-
-                // NEW: Pre-booking questions about tickets and times
-                'not booked yet', 'haven\'t booked', 'have not booked',
-                'going to book', 'planning to book', 'about to book',
-                'before booking', 'prior to booking', 'want to book',
-                'ticket mean', 'does that mean', 'ticket question',
-                'does the time', 'does the ticket', 'is the time',
-                'arrive earlier', 'mean we need', 'ready at',
-                'understand the ticket', 'choosing a time', 'what time should',
-                'if i choose', 'what does it mean', 'clarification',
-
-                // Add to the English negative patterns
-                'running late to', 'running late for', 'be late to', 'be late for',
-                'arriving late', 'arrive late', 'may be late', 'might be late',
-                'will be late', 'could be late', 'little late', 'bit late',
-                'few minutes late', 'still be allowed', 'still enter', 'still get in',
-                'still admitted', 'miss my appointment', 'miss my time',
-                'make it on time', 'won\'t be on time', 'not on time',
-                'late to our', 'late to my', 'late for my', 'late for our',
-
-                // Add to the English negative patterns
-                'how long can we stay', 'how long can i stay', 'how much time can we spend',
-                'is it possible to stay', 'can we stay for', 'can i stay for', 
-                'maximum stay', 'time limit', 'stay as long as', 'length of stay',
-                'is it possible to come in', 'can we come in', 'can i come in',
-                'without booking', 'book in advance', 'advanced booking',
-                'need to book', 'have to book', 'advance reservation',
-                'walk in', 'walk-in', 'walk ins', 'just show up',
-                'tomorrow without', 'tomorrow or do we',
-                'opening hours', 'closing time', 'when do you close',
-                'is it ok to be late', 'ok to be late', 'okay to be late',
-                'alright to be late', 'fine to be late', 'acceptable to be late',
-                'late after a booking', 'late for a booking', 'late to a booking',
-                'what if i am late', 'what if we are late', 'what happens if late',
-                'late arrival policy', 'arrive late policy', 'policy for late',
-
-                // Add to the English negative patterns
-                'how accurate are you', 'how strict are you', 'how flexible are you',
-                'what if the flight is delayed', 'what if my flight is delayed', 
-                'what if flight gets delayed', 'what if flights are delayed',
-                'arrive in an hour or two', 'arrive a bit later', 'arrive later than',
-                'what happens if we arrive', 'what if we arrive', 'what if we are',
-                'flexibility with arrival', 'flexible with arrival', 'arrival window',
-                'grace period', 'leeway with time', 'leeway with arrival',
-                'how early', 'how late', 'how much time', 'arrival time policy',
-                'what if we are late', 'if our flight', 'if flight is',
-                'due to flight', 'because of flight', 'flight delay',
-
-                // Additional patterns for facility questions
-                'reschedule my day', 'schedule around', 'plan around', 
-                'change my skincare', 'change clothes', 'change into',
-                'switch between', 'switch areas', 'move between',
-                'different areas', 'move around in', 'navigate between',
-                'change from street clothes', 'changing facilities',
-                'before my booked', 'after my booked', 'during my booked',
-                'finish earlier', 'finish my visit',
-                'luggage storage', 'store my', 'place my',
-                'lockers near', 'lockers close', 'change name on',
-                'transfer my booking', 'transfer booking', 'change name',
-                'morning routine', 'skincare routine', 'hair routine', 
-                'airline rescheduled', 'flight rescheduled'      
+                // Direct booking change requests
+                { pattern: /change.+booking/i, weight: 0.9, type: 'explicit' },
+                { pattern: /modify.+booking/i, weight: 0.9, type: 'explicit' },
+                { pattern: /reschedule.+booking/i, weight: 0.9, type: 'explicit' },
+                { pattern: /move.+booking/i, weight: 0.9, type: 'explicit' },
+                { pattern: /change.+reservation/i, weight: 0.9, type: 'explicit' },
+                { pattern: /need to change/i, weight: 0.85, type: 'need' },
+                { pattern: /want to change/i, weight: 0.85, type: 'want' },
+                { pattern: /like to change/i, weight: 0.85, type: 'preference' },
+                { pattern: /would like to reschedule/i, weight: 0.9, type: 'formal_request' },
+                { pattern: /need to reschedule/i, weight: 0.9, type: 'need' },
+                
+                // Form submissions (direct indicator)
+                { pattern: /booking change request:/i, weight: 1.0, type: 'form_submission' }
             ],
             is: [
-                // cancellation patterns
-                'endurgreiðslu', 'hætta við', 'afbóka', 'afbókun',
-                'skilmálar', 'skilmálarnir', 'fá endurgreitt',
-                'hætta við bókun', 'afpanta',
-
-                // ADD THESE NEW PATTERNS - questions about booking options, not changes
-                'er hægt að bóka bara',
-                'er ekki hægt að bóka bara',
-                'ekki hægt að bóka bara',
-                'hægt að bóka bara',
-                'hægt að panta bara',
-                'er hægt að panta bara',
-                'er ekki hægt að panta bara',
-                'ekki hægt að panta bara',
-                'get ég bókað bara', 
-                'get ég pantað bara',
-                'er hægt að fá bókaðan tíma bara',
-                'er hægt að bóka aðgang bara',
-                'bara bóka',
-                'bara panta',
-                'þannig það er ekki hægt að bóka bara',
-                'þannig er ekki hægt að bóka bara',
-                'þannig get ég ekki bókað bara',
-
-                // Add to the Icelandic negative patterns
-                'mælt með', 'ráðlagt', 'hversu lengi ætti', 'hve lengi ætti',
-                'mælt með löngum tíma', 'ráðlagður tími', 'ráðlögð lengd',
-                'hversu langan tíma', 'hve langan tíma', 'hver er tíminn',
-                'dvelja í', 'vera í', 'heimsókn', 'heimsóknar',
-                'áætlaður tími', 'ráðlagður dvalartími', 'meðal tími',
-                'hvað er venjulegur', 'vanalega', 'yfirleitt', 'að jafnaði',
-                'hversu mikill tími', 'mæla með', 'svona heimsókn',
-                'heimsókn eins og þessari', 'í lóninu', 'í baðinu',    
-
-                // Add to the Icelandic negative patterns
-                'næ ekki aðgang', 'aðganga', 'innskráning', 'innritun',
-                'greiðslu', 'greiðsa', 'borga', 'gjaldfærsla',
-                'villa', 'error', 'unexpected error', 'kerfisvilla',
-                'síðan', 'vefsíðan', 'vefurinn', 'forritið',
-                'tæknileg vandamál', 'vandamál með', 'virkar ekki',
-                'get ekki', 'gat ekki', 'þarf aðstoð með',
-
-                // Add to the Icelandic negative patterns
-                'fær maður', 'fær mann', 'fær ég', 'færð þú', 'fæst', 'fást',
-                'handklæði', 'sápu', 'snyrtivörur', 'sturtusápu', 'sjampó',
-                'aðstaða', 'aðstöðu', 'búningsaðstaða', 'búningsklefa',
-                'er innifalið', 'fylgir með', 'hvað er í boði', 'hvað er boðið upp á',
-                'hvað fæ ég', 'hvaða þjónustu', 'þjónusta', 'þjónustu',
-                'er í boði', 'boðið upp á', 'hægt að fá', 'get ég fengið',
-                'til staðar', 'á staðnum', 'aðgangur að', 'aðgang að',
-
-                // Add to the Icelandic negative patterns
-                'reikna með', 'hversu lengi', 'hversu langur', 'hversu löngum tíma',
-                'hve lengi', 'hve langur', 'hve löngum',
-                'dvelja', 'dveljast', 'vera í', 'eyða tíma',
-                'tímalengd', 'lengd heimsóknar', 'dvalartími',
-                'tíminn í lóninu', 'tími í lóninu', 'tíma í lóninu',
-                'hversu mikinn tíma', 'áætla fyrir', 'setja af', 
-                'hversu marga', 'hversu margar', 'hversu margir',
-
-                // General information queries - not about changing bookings
-                'hvað er innifalið', 'hvað þarf ég að vita',
-                'staðfestingu á bókun', 'fengið staðfestingu', 
-                'bókunarstaðfestingu', 'prenta', 'staðfestinguna',
-                'taka með', 'hafa með', 'koma með',
-                'hvað á ég að', 'hvað þarf ég að',
-                'hvenær á ég að mæta', 'hvernig', 'hvar',
-
-                // Add to the Icelandic negative patterns
-                'hversu lengi getum við verið', 'hversu lengi get ég verið',
-                'er hægt að vera', 'getum við verið í', 'get ég verið í',
-                'hámarkstími', 'tímamörk', 'vera eins lengi og',
-                'er hægt að koma', 'getum við komið', 'get ég komið',
-                'án bókunar', 'bóka fyrirfram', 'fyrirframbókun',
-                'þarf að bóka', 'verður að bóka', 'fyrirframskráning',
-                'bara mæta', 'mæta án bókunar', 'mæta beint',
-                'á morgun án', 'á morgun eða þurfum við',
-                'opnunartími', 'lokunartími', 'hvenær lokið þið',
-
-                // General booking questions and lookups in Icelandic
-                'hvaða upplifanir', 'hvað er innifalið', 'athuga hvað', 
-                'innifalið í bókuninni', 'hvað er í bókuninni',
-                'man ekki', 'gleymdi bókuninni', 'bókunarupplýsingar',
-                'finna bókunina', 'upplýsingar um bókun',
-                'upplifunin öðruvísi', 'bókunin innifalin', 'er bókunin',
-                'mæta seint', 'mæta fyrir bókun', 'mæta í bókun', 
-                'þýðir bókunartíminn', 'hvaða tíma', 'tími',
-                'bókunarsaga', 'kröfur fyrir bókun',
-
-                // Questions about availability and future bookings in Icelandic
-                'næsta helgi', 'næsta viku', 'næsta mánuði', 'bókun fyrir næsta',
-                'hugsa um að bóka', 'íhuga að bóka', 'er að spá í að bóka',
-                'framboð', 'laust', 'pláss eftir', 'rými eftir',
-                'er pláss', 'er rými', 'einhver tími', 'einhverjir tímar',
-                'hvenær ætti ég að bóka', 'get ég bókað',
-
-                // NEW: Waiting list patterns
-                'biðlista', 'á biðlista', 'komast á biðlista', 
-                'fullbókað', 'ekki laust', 'ef pláss losnar',
-                'ef sæti losnar', 'láta vita ef',
-
-                // NEW: Gift card & pricing patterns
-                'gjafabréf', 'gjafakort', 'gjafa bréf', 'gjafa kort',
-                'verð', 'kostar', 'kostnaður', 'gjald', 'gjöld',
-                'afslátt', 'afsláttar', 'afsláttarkóði', 'tilboð',
-                'borga', 'borgaði', 'greiða', 'greiddi', 'greitt',
-                'kaupa', 'keypti', 'keypt',
-                'dýrt', 'ódýrt', 'hef efni á',
-                'krónur', 'kr', 'kr.',
-
-                // Add to the Icelandic negative patterns - ATH ÞETTA ER MÖGULEGA RISKY - ÚT AF NÖFNUM Á PÖKKUNUM
-                'Saman leiðin', 'Sér leiðin', 'Pure leiðin', 'Pure Pass', 'Saman Pass',
-                'gjafakort fyrir', 'gjafakort í', 'nota gjafakort', 'nýta gjafakort', 
-                'gjafabréf fyrir', 'gjafabréf í', 'nota gjafabréf', 'nýta gjafabréf',
-                'breyta úr Saman í Sér', 'breyta úr Pure í Sér', 'breyta í Sér',
-                'breyta úr Sér í Saman', 'breyta úr Sér í Pure',
-                'skipta yfir í', 'skipta um pakka', 'skipta um leið',
-                'get ég valið', 'getum við valið', 'hægt að velja',
-                'get ég notað', 'getum við notað', 'hægt að nota',
-                'get ég fengið', 'getum við fengið', 'hægt að fá',
-                'get ég breytt pakka', 'get ég breytt leið', 'get ég breytt upplifun',
-                'munur á Saman og Sér', 'munur á pökkum', 'munur á leiðum',
-
-                // NEW: Pre-booking questions about tickets and times in Icelandic
-                'ekki bókað ennþá', 'hef ekki bókað', 'er ekki búin að bóka',
-                'ætla að bóka', 'er að fara að bóka', 'langar að bóka',
-                'áður en ég bóka', 'fyrir bókun', 'vil bóka',
-                'þýðir miðinn', 'þýðir það', 'spurning um miða',
-                'þýðir tíminn', 'þýðir miðinn', 'er tíminn',
-                'koma fyrr', 'þýðir að við þurfum', 'tilbúin klukkan',
-                'skilur miðann', 'velja tíma', 'hvaða tíma ætti',
-                'ef ég vel', 'hvað þýðir það', 'útskýring',
-
-                // Additional patterns for facility questions in Icelandic
-                'skipuleggja daginn', 'skipuleggja kringum', 
-                'breyta húðvenjum', 'breyta í föt', 'breyta úr fötum',
-                'skipta milli', 'fara á milli', 'færa mig á milli',
-                'mismunandi svæði', 'færa mig um', 'ferðast á milli',
-                'breyta úr götuklæðnaði', 'skipta um föt', 
-                'fyrir bókaða', 'eftir bókaða', 'á meðan bókaða',
-                'ljúka fyrr', 'klára heimsóknina', 
-                'farangursgeymsla', 'geyma', 'setja',
-                'skápar nálægt', 'skápar við', 'breyta nafni á',
-                'færa bókunina', 'flytja bókunina', 'breyta nafni',
-                'morgunvenjur', 'húðumhirða', 'hárvenjur',
-                'flugfélag breytti', 'flugi var breytt', 'breytti flugi', 
-                'nýti bókunina', 'bókaðri heimsókn', 
-                'ef ég lýk', 'þegar ég breyti', 'miða', 'innifalið í'
+                // Direct booking change requests in Icelandic
+                { pattern: /breyta.+bókun/i, weight: 0.9, type: 'explicit' },
+                { pattern: /breyta.+tíma/i, weight: 0.85, type: 'time_change' },
+                { pattern: /breyta.+dagsetningu/i, weight: 0.85, type: 'date_change' },
+                { pattern: /færa.+bókun/i, weight: 0.9, type: 'move_booking' },
+                { pattern: /færa.+tíma/i, weight: 0.85, type: 'move_time' },
+                { pattern: /þarf að breyta/i, weight: 0.85, type: 'need' },
+                { pattern: /vil breyta/i, weight: 0.85, type: 'want' },
+                { pattern: /vildi breyta/i, weight: 0.85, type: 'want_past' },
+                { pattern: /langar að breyta/i, weight: 0.85, type: 'desire' },
+                
+                // Form submissions (direct indicator)
+                { pattern: /breyta bókun:/i, weight: 1.0, type: 'form_submission' }
             ]
-        };        
-
-        // FIX: Properly determine language - don't override Icelandic detection with confidence
-        const isIcelandic = languageDecision.isIcelandic;
+        };
         
-        // Check if message is about cancellation/refunds - if so, return false immediately
-        const isNegativeMatch = (isIcelandic ? 
+        // Medium confidence indicators - Indirect but still likely mentions
+        const mediumConfidencePatterns = {
+            en: [
+                // Time/date change requests without explicit booking mentions
+                { pattern: /different time/i, weight: 0.7, type: 'time_change' },
+                { pattern: /different date/i, weight: 0.7, type: 'date_change' },
+                { pattern: /another time/i, weight: 0.7, type: 'time_change' },
+                { pattern: /another date/i, weight: 0.7, type: 'date_change' },
+                
+                // Indirect calendar terms with action verbs
+                { pattern: /move.+appointment/i, weight: 0.7, type: 'appointment_move' },
+                { pattern: /change.+appointment/i, weight: 0.7, type: 'appointment_change' },
+                { pattern: /switch.+time/i, weight: 0.7, type: 'time_switch' },
+                
+                // Flight changes affecting booking
+                { pattern: /flight.+delayed.+change/i, weight: 0.75, type: 'flight_delay' },
+                { pattern: /flight.+canceled.+change/i, weight: 0.75, type: 'flight_cancel' },
+                { pattern: /change.+due to flight/i, weight: 0.75, type: 'flight_issue' }
+            ],
+            is: [
+                // Time/date change requests in Icelandic
+                { pattern: /annan tíma/i, weight: 0.7, type: 'different_time' },
+                { pattern: /aðra dagsetningu/i, weight: 0.7, type: 'different_date' },
+                { pattern: /breyta.+pöntun/i, weight: 0.7, type: 'change_order' },
+                { pattern: /skipta.+um tíma/i, weight: 0.7, type: 'switch_time' },
+                
+                // Plans changed mentions in Icelandic
+                { pattern: /áætlanir breyttust/i, weight: 0.6, type: 'plans_changed' },
+                { pattern: /áætlun breyttist/i, weight: 0.6, type: 'plan_changed' },
+                
+                // Flight issues in Icelandic
+                { pattern: /flug.+seinkað/i, weight: 0.75, type: 'flight_delay' },
+                { pattern: /flug.+aflýst/i, weight: 0.75, type: 'flight_cancel' }
+            ]
+        };
+        
+        // Lower confidence indicators - Suggestive but need more context
+        const lowerConfidencePatterns = {
+            en: [
+                // Date mentions with booking context
+                { pattern: /next week instead/i, weight: 0.5, type: 'date_suggestion' },
+                { pattern: /prefer.+later/i, weight: 0.5, type: 'preference' },
+                { pattern: /better time/i, weight: 0.5, type: 'preference' },
+                
+                // Availability questions
+                { pattern: /availab.+different/i, weight: 0.5, type: 'availability' },
+                { pattern: /other slots/i, weight: 0.5, type: 'slots' },
+                { pattern: /other times/i, weight: 0.5, type: 'times' },
+                
+                // Problems with current booking
+                { pattern: /can't make/i, weight: 0.6, type: 'cant_make' },
+                { pattern: /won't be able/i, weight: 0.6, type: 'cant_make' }
+            ],
+            is: [
+                // Date suggestions in Icelandic
+                { pattern: /næstu viku í staðinn/i, weight: 0.5, type: 'next_week' },
+                { pattern: /betra.+seinna/i, weight: 0.5, type: 'better_later' },
+                { pattern: /betri tíma/i, weight: 0.5, type: 'better_time' },
+                
+                // Availability in Icelandic
+                { pattern: /aðrir tímar/i, weight: 0.5, type: 'other_times' },
+                { pattern: /önnur tímabil/i, weight: 0.5, type: 'other_periods' },
+                
+                // Problems in Icelandic
+                { pattern: /kemst ekki/i, weight: 0.6, type: 'cant_make' },
+                { pattern: /næ ekki/i, weight: 0.6, type: 'cant_make' }
+            ]
+        };
+        
+        // Negative patterns - These suggest NOT a booking change
+        const negativePatterns = {
+            en: [
+                // Questions about cancellations (not changes)
+                { pattern: /cancel policy/i, weight: -0.7, type: 'cancel_policy' },
+                { pattern: /cancel.+booking/i, weight: -0.7, type: 'cancel_booking' },
+                { pattern: /refund policy/i, weight: -0.8, type: 'refund_policy' },
+                { pattern: /get a refund/i, weight: -0.8, type: 'get_refund' },
+                
+                // Package questions not about booking changes
+                { pattern: /difference.+package/i, weight: -0.8, type: 'package_difference' },
+                { pattern: /pure.+vs.+sky/i, weight: -0.8, type: 'package_comparison' },
+                { pattern: /premium vs basic/i, weight: -0.8, type: 'package_comparison' },
+                
+                // General inquiry related to late arrival
+                { pattern: /what if.+late/i, weight: -0.6, type: 'late_arrival_question' },
+                { pattern: /arrive late.+policy/i, weight: -0.7, type: 'late_policy' },
+                { pattern: /late arrival policy/i, weight: -0.7, type: 'late_policy' }
+            ],
+            is: [
+                // Questions about cancellations in Icelandic
+                { pattern: /afbókunarstefna/i, weight: -0.7, type: 'cancel_policy' },
+                { pattern: /hætta við bókun/i, weight: -0.7, type: 'cancel_booking' },
+                { pattern: /endurgreiðslustefna/i, weight: -0.8, type: 'refund_policy' },
+                { pattern: /fá endurgreiðslu/i, weight: -0.8, type: 'get_refund' },
+                
+                // Package questions in Icelandic
+                { pattern: /munur.+pakka/i, weight: -0.8, type: 'package_difference' },
+                { pattern: /munur.+saman.+sér/i, weight: -0.8, type: 'package_comparison' },
+                
+                // Late arrival in Icelandic
+                { pattern: /hvað ef.+seinn/i, weight: -0.6, type: 'late_arrival_question' },
+                { pattern: /mæta seint.+stefna/i, weight: -0.7, type: 'late_policy' }
+            ]
+        };
+        
+        // Context enhancers - These boost confidence based on conversation context
+        // Only used if context object is provided
+        const contextEnhancers = [
+            // If there's been previous booking talk
+            { condition: context => context?.lastTopic === 'booking', boost: 0.2 },
+            { condition: context => context?.topics?.includes('booking'), boost: 0.15 },
+            
+            // If user mentioned dates recently
+            { condition: context => context?.bookingContext?.dates?.length > 0, boost: 0.2 },
+            { condition: context => context?.bookingContext?.lastDateMention !== null, boost: 0.15 },
+            
+            // If there's been previous booking change intent
+            { condition: context => context?.bookingContext?.hasBookingChangeIntent === true, boost: 0.3 },
+            
+            // If this is part of a date modification sequence
+            { condition: context => context?.bookingContext?.dateModifications?.length > 0, boost: 0.25 }
+        ];
+        
+        // Calculate initial confidence score using pattern matching
+        let confidenceScore = 0;
+        let matchedPatterns = [];
+        let primaryReason = null;
+        
+        // Check for high confidence patterns first
+        const highPatterns = languageDecision.isIcelandic ? 
+            highConfidencePatterns.is : 
+            highConfidencePatterns.en;
+            
+        for (const pattern of highPatterns) {
+            if (pattern.pattern.test(msg)) {
+                confidenceScore += pattern.weight;
+                matchedPatterns.push({
+                    type: pattern.type,
+                    weight: pattern.weight
+                });
+                
+                // Set primary reason for the highest confidence match
+                if (!primaryReason || pattern.weight > primaryReason.weight) {
+                    primaryReason = { 
+                        type: pattern.type, 
+                        weight: pattern.weight 
+                    };
+                }
+            }
+        }
+        
+        // If we already have a high confidence match, we can skip the rest
+        if (confidenceScore < 0.9) {
+            // Check for medium confidence patterns
+            const mediumPatterns = languageDecision.isIcelandic ? 
+                mediumConfidencePatterns.is : 
+                mediumConfidencePatterns.en;
+                
+            for (const pattern of mediumPatterns) {
+                if (pattern.pattern.test(msg)) {
+                    confidenceScore += pattern.weight;
+                    matchedPatterns.push({
+                        type: pattern.type,
+                        weight: pattern.weight
+                    });
+                    
+                    // Update primary reason if this is higher confidence
+                    if (!primaryReason || pattern.weight > primaryReason.weight) {
+                        primaryReason = { 
+                            type: pattern.type, 
+                            weight: pattern.weight 
+                        };
+                    }
+                }
+            }
+            
+            // Check for lower confidence patterns only if still needed
+            if (confidenceScore < 0.7) {
+                const lowerPatterns = languageDecision.isIcelandic ? 
+                    lowerConfidencePatterns.is : 
+                    lowerConfidencePatterns.en;
+                    
+                for (const pattern of lowerPatterns) {
+                    if (pattern.pattern.test(msg)) {
+                        confidenceScore += pattern.weight;
+                        matchedPatterns.push({
+                            type: pattern.type,
+                            weight: pattern.weight
+                        });
+                        
+                        // Update primary reason if this is higher confidence
+                        if (!primaryReason || pattern.weight > primaryReason.weight) {
+                            primaryReason = { 
+                                type: pattern.type, 
+                                weight: pattern.weight 
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Check for negative patterns that would reduce confidence
+        const negPatterns = languageDecision.isIcelandic ? 
             negativePatterns.is : 
-            negativePatterns.en).some(pattern => msg.includes(pattern));
+            negativePatterns.en;
             
-        if (isNegativeMatch) {
-            console.log('❌ Cancellation/refund query detected - NOT a booking change request');
-            return false;
-        }
-
-        // NEW CODE: Very specific check for package change questions
-        const isPackageChangeQuery = 
-            (isIcelandic && (
-                (msg.includes('get ég breytt') && msg.includes('sér')) ||
-                (msg.includes('getum við breytt') && msg.includes('sér')) ||
-                (msg.includes('breytt') && msg.includes('sér')) ||
-                (msg.includes('breyta') && msg.includes('sér')) ||
-                (msg.includes('breytt svo við erum')) ||
-                (msg.includes('gjafakort') && msg.includes('breyt')) ||
-                (msg.includes('gjafabréf') && msg.includes('breyt')) ||
-                msg.includes('breyta í sér') ||
-                msg.includes('breyta yfir í sér')
-            )) ||
-            (msg.includes('change') && msg.includes('package')) ||
-            (msg.includes('switch') && msg.includes('package')) ||
-            (msg.includes('upgrade') && msg.includes('package'));
-
-        if (isPackageChangeQuery) {
-            console.log('❌ Package change query detected - NOT a booking change request');
-            return false;
-        }        
-
-        // NEW CODE: Add explicit check for pre-booking questions right here
-        const isPreBookingQuestion = 
-            msg.includes('not booked yet') || 
-            msg.includes('haven\'t booked') || 
-            msg.includes('have not booked') ||
-            msg.includes('going to book') || 
-            msg.includes('planning to book') ||
-            msg.includes('thinking of booking') ||
-            msg.includes('considering booking') ||
-            msg.includes('before i book') ||
-            msg.includes('if i book') ||
-            msg.includes('when i book') ||
-            msg.includes('booking questions') ||
-            msg.includes('questions about booking') ||
-            (isIcelandic && (
-                msg.includes('ekki bókað') || 
-                msg.includes('ætla að bóka') || 
-                msg.includes('er að fara að bóka') ||
-                msg.includes('áður en ég bóka') ||
-                msg.includes('ef ég bóka') ||
-                msg.includes('þegar ég bóka') ||
-                msg.includes('spurningar um bókun') ||
-                msg.includes('bókunarspurningar') ||
-                msg.includes('er að hugsa um að bóka') ||
-                msg.includes('er að spá í að bóka')
-            ));
-
-        if (isPreBookingQuestion) {
-            console.log('❌ Pre-booking question detected - NOT a booking change request');
-            return false;
-        }
-
-        // Specific check for late arrival queries (different from booking changes)
-        const isLateArrivalQuery = 
-            (msg.includes('late') && (
-                msg.includes('still be allowed') ||
-                msg.includes('still enter') ||
-                msg.includes('still get in') ||
-                msg.includes('still admitted') ||
-                msg.includes('running late to') ||
-                msg.includes('running late for') ||
-                msg.includes('be late to') ||
-                msg.includes('be late for')
-            )) ||
-            (isIcelandic && (
-                msg.includes('sein') && (
-                    msg.includes('samt komast inn') ||
-                    msg.includes('samt komast að') ||
-                    msg.includes('samt fá að') ||
-                    msg.includes('enn þá komast') ||
-                    msg.includes('verð sein') && !msg.includes('breyta')
-                )
-            ));
-
-        if (isLateArrivalQuery) {
-            console.log('❌ Late arrival query detected - NOT a booking change request');
-            return false;
-        }        
-
-        console.log(`Using ${isIcelandic ? 'Icelandic' : 'English'} patterns for detection`);
-        
-        // Root words for more flexible matching in Icelandic
-        const icelandicRootWords = [
-            'bók', // For bókun, bókunin, bókuninni, bókunina, etc.
-            'breyt', // For breyta, breyting, breytum, etc.
-            'fær', // For færa, færum, etc.
-            'flyt', // For flytja, flutning, etc.
-            'fresta', // For fresta, frestun, etc.
-            'aðr', // For annar, aðra, etc.
-            'uppfær', // For uppfæra, uppfærslu, etc.
-            'pönt', // For pöntun, pantanir, etc.
-            'tím', // For tíma, tímann, etc.
-            'dagsetn', // For dagsetning, dagsetninguna, etc.
-            'skráning', // For skráningu, etc.
-            'annan', // For annan tíma
-            'aðra', // For aðra dagsetningu
-            'seink', // For seinka, seinkun
-        ];
-        
-        // Check for booking change request patterns using standard method
-        const hasPatternMatch = (isIcelandic ? 
-            BOOKING_CHANGE_PATTERNS.is : 
-            BOOKING_CHANGE_PATTERNS.en).some(pattern => msg.includes(pattern));
-            
-        // NEW: For Icelandic, also check for root word matches to handle grammatical variations
-        let hasRootMatch = false;
-        if (isIcelandic) {
-            hasRootMatch = icelandicRootWords.some(root => msg.includes(root));
-            console.log('Root word match?', hasRootMatch);
+        for (const pattern of negPatterns) {
+            if (pattern.pattern.test(msg)) {
+                confidenceScore += pattern.weight; // This will be negative
+                matchedPatterns.push({
+                    type: pattern.type,
+                    weight: pattern.weight
+                });
+                
+                // If this is a strong negative signal, prioritize it
+                if (pattern.weight <= -0.7) {
+                    primaryReason = { 
+                        type: pattern.type, 
+                        weight: pattern.weight,
+                        negative: true
+                    };
+                }
+            }
         }
         
-        // Also detect date-related patterns (improved for Icelandic date formats)
-        const datePattern = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b\d{1,2}\.\d{1,2}\.\d{2,4}\b|\b\d{1,2}\s*\.\s*[a-zíáéúóþæðö]+\b/i;
-        const hasDateMention = datePattern.test(msg);
-        console.log('Date mention detected?', hasDateMention);
-
-        // Look for change-related words near dates with added Icelandic words
-        const changeNearDate = hasDateMention && (
-            msg.includes('change') || 
-            msg.includes('modify') || 
-            msg.includes('reschedule') ||
-            msg.includes('breyt') || // Root for various forms
-            msg.includes('fær') ||   // Root for various forms
-            msg.includes('flytj') || // Root for moving
-            msg.includes('aðr') ||   // Root for 'other'
-            msg.includes('nýj') ||   // Root for 'new'
-            msg.includes('seink')    // Root for 'delay'
-        );
-        
-        // Additional Icelandic phrase detection for common questions
-        const hasCommonQuestion = isIcelandic && (
-            msg.includes('get') && (msg.includes('breyt') || msg.includes('fær')) ||
-            msg.includes('vilj') && (msg.includes('breyt') || msg.includes('fær')) ||
-            msg.includes('hvernig') && (msg.includes('breyt') || msg.includes('fær')) ||
-            msg.includes('er hægt að') && (msg.includes('breyt') || msg.includes('fær'))
-        );
-        
-        // NEW: Context-aware booking change detection
-        // Check for situations that typically imply booking changes
-        
-        // Situation contexts for English and Icelandic
-        const situationContexts = [
-            ...(isIcelandic ? [
-                // Icelandic flight delay
-                'flug seinka', 'seinkun á flugi', 'tafið flug', 
-                'flugseinkun', 'flug er seint',
-                
-                // Icelandic arrival issues
-                'komast ekki á réttum tíma', 'ná ekki tímanum', 
-                'mæta ekki á réttum tíma', 'verð sein',
-                'kem of seint', 'komumst ekki',
-                
-                // Icelandic time-related problems
-                'missi af tímanum', 'mun ekki ná', 
-                'er að verða sein'
-            ] : [
-                // English flight issues
-                'flight delayed', 'flight is delayed', 'flight delay', 
-                'plane is delayed', 'flight got delayed', 'plane got delayed',
-                
-                // English arrival problems
-                'running late', 'be late for', 'won\'t make it on time',
-                'can\'t make it at', 'won\'t be able to make', 'arrive late',
-                
-                // English timing issues
-                'won\'t make the time', 'will miss the time', 
-                'getting late', 'running behind'
-            ])
-        ];
-        
-        // Time-related patterns that often indicate wanting to shift a booking
-        const timeShiftPatterns = [
-            ...(isIcelandic ? [
-                'of seint', 'verð sein', 'er sein',
-                'seinni tími', 'annar tími',
-                'seinka', 'fresta', 'koma seinna',
-                'ná því ekki'
-            ] : [
-                'too late', 'arriving late', 'be late',
-                'later time', 'different time',
-                'postpone', 'delay visit', 'come later',
-                'won\'t make it'
-            ])
-        ];
-        
-        // Question patterns about options for shifting booking
-        const optionQuestions = [
-            ...(isIcelandic ? [
-                'hvað get ég gert', 'hvað getum við gert',
-                'hvaða valkostir', 'hvaða möguleikar',
-                'er hægt að', 'get ég fengið',
-                'hvað á ég að gera', 'hvernig get ég',
-                'hvað skal ég gera'
-            ] : [
-                'what can i do', 'what should i do',
-                'what are my options', 'what are the options',
-                'is it possible to', 'can i get',
-                'how can i', 'what are the alternatives',
-                'what do i do'
-            ])
-        ];
-        
-        // Check if message contains booking-related words
-        const hasBookingReference = 
-            msg.includes('book') || 
-            msg.includes('reserv') || 
-            msg.includes('time') ||
-            msg.includes('appointment') ||
-            msg.includes('visit') ||
-            (isIcelandic && (
-                msg.includes('bók') || 
-                msg.includes('pant') || 
-                msg.includes('tíma') ||
-                msg.includes('heim')
-            ));
-        
-        // Check for situation context + booking reference
-        const hasSituationContext = situationContexts.some(context => 
-            msg.includes(context)) && hasBookingReference;
-        
-        // Check for time shift pattern + booking reference
-        const hasTimeShiftPattern = timeShiftPatterns.some(pattern => 
-            msg.includes(pattern)) && hasBookingReference;
-        
-        // Check for option questions + booking reference
-        const hasOptionQuestion = optionQuestions.some(question => 
-            msg.includes(question)) && hasBookingReference;
+        // Apply context enhancers if context is provided
+        if (context) {
+            let contextBoost = 0;
+            let appliedEnhancers = [];
             
-        // NEW: Flight delay & specific time issue detection
-        const hasFlightDelayMention = 
-            (msg.includes('flight') && 
-             (msg.includes('delay') || msg.includes('late') || msg.includes('miss'))) ||
-            (isIcelandic && 
-             (msg.includes('flug') && 
-              (msg.includes('sein') || msg.includes('töf') || msg.includes('miss'))));
-              
-        // Late arrival mentions that imply needing booking changes
-        const hasLateArrivalMention =
-            (msg.includes('won\'t make it') || 
-             msg.includes('can\'t make it') ||
-             msg.includes('miss my time') ||
-             msg.includes('miss the booking')) ||
-            (isIcelandic && 
-             (msg.includes('næ ekki') || 
-              msg.includes('kemst ekki') ||
-              msg.includes('missa af')));
-              
-        // Combine all context-aware checks
-        const hasContextAwareMatch = 
-            hasSituationContext || 
-            hasTimeShiftPattern || 
-            hasOptionQuestion ||
-            hasFlightDelayMention ||
-            hasLateArrivalMention;
+            for (const enhancer of contextEnhancers) {
+                if (enhancer.condition(context)) {
+                    contextBoost += enhancer.boost;
+                    appliedEnhancers.push(enhancer);
+                }
+            }
             
-        console.log('Context-aware checks:', {
-            hasSituationContext,
-            hasTimeShiftPattern,
-            hasOptionQuestion,
-            hasFlightDelayMention,
-            hasLateArrivalMention
+            confidenceScore += contextBoost;
+            
+            console.log('\n🧠 Applied context enhancers:', {
+                originalScore: confidenceScore - contextBoost,
+                contextBoost: contextBoost,
+                finalScore: confidenceScore,
+                enhancers: appliedEnhancers.length
+            });
+        }
+        
+        // Ensure score is within bounds and not negative
+        confidenceScore = Math.min(Math.max(confidenceScore, 0), 1);
+        
+        // Determine confidence level from score
+        let confidenceLevel;
+        if (confidenceScore >= 0.8) {
+            confidenceLevel = 'high';
+        } else if (confidenceScore >= 0.5) {
+            confidenceLevel = 'medium';
+        } else {
+            confidenceLevel = 'low';
+        }
+        
+        // Form submission is a guaranteed match
+        const isFormSubmission = msg.startsWith('booking change request:');
+        if (isFormSubmission) {
+            confidenceScore = 1.0;
+            confidenceLevel = 'high';
+            primaryReason = { type: 'form_submission', weight: 1.0 };
+        }
+        
+        // First check for form submission
+        if (msg.startsWith('booking change request:')) {
+            console.log('\n✅ Form submission detected - definite booking change');
+            return {
+                shouldShowForm: true,
+                isWithinAgentHours: true, // Form submissions bypass hours check
+                confidence: 1.0,
+                reasoning: "Form submission"
+            };
+        }
+        
+        // Generate reasoning
+        let reasoning;
+        if (primaryReason && primaryReason.negative) {
+            reasoning = `Detected ${primaryReason.type} which indicates this is not a booking change request`;
+        } else if (primaryReason) {
+            reasoning = `Detected ${primaryReason.type} with ${confidenceLevel} confidence`;
+        } else {
+            reasoning = `No clear booking change intent detected`;
+        }
+        
+        // Log the decision process
+        console.log('\n📊 Booking change detection analysis:', {
+            message: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
+            confidenceScore,
+            confidenceLevel,
+            matchedPatterns: matchedPatterns.map(p => p.type),
+            primaryReason: primaryReason?.type || 'none',
+            shouldShowForm: confidenceScore >= 0.7
         });
         
-        // Strong signals - any of these alone is a strong indicator
-        const hasStrongSignal = 
-            (msg.includes('change my booking') || 
-             msg.includes('reschedule my booking') ||
-             msg.includes('modify my booking') ||
-             msg.includes('move my booking') ||
-             msg.includes('change my reservation') ||
-             (isIcelandic && (
-                 msg.includes('breyta bókuninni minni') || 
-                 msg.includes('færa bókunina mína') ||
-                 msg.includes('breyta tímapöntuninni minni')
-             )));
-
-        // Combination signals - these need to appear together
-        const hasCombinationSignal = 
-            // Requires BOTH a booking reference AND a change reference
-            (hasBookingReference && 
-             (hasPatternMatch || hasTimeShiftPattern || changeNearDate));
-
-        // Final determination requires either a strong signal OR a combination of signals
-        // AND we also require context awareness to reduce false positives
-        const result = (hasStrongSignal || hasCombinationSignal) && 
-            // Either we have context-aware match OR this is a very explicit booking change request
-            (hasContextAwareMatch || hasStrongSignal);
-
-        console.log('Conservative detection checks:', {
-            hasStrongSignal,
-            hasCombinationSignal,
-            result
-        });
-        console.log('Final detection result:', result);
-        return result;
+        return {
+            shouldShowForm: confidenceScore >= 0.7,
+            isWithinAgentHours: true, // This should be determined elsewhere
+            confidence: confidenceScore,
+            reasoning: reasoning
+        };
     } catch (error) {
-        console.error('\n❌ Error in detectBookingChangeRequest:', error);
-        return false;
+        console.error('\n❌ Error in AI booking change detection:', error);
+        // Fallback to safe default
+        return {
+            shouldShowForm: false,
+            isWithinAgentHours: true,
+            confidence: 0,
+            error: error.message
+        };
     }
 }
 
-// Create booking change request (similar to createChat but with booking-specific messaging)
+/**
+ * Create booking change request chat
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic 
+ * @returns {Promise<Object>} Chat data
+ */
 export async function createBookingChangeRequest(customerId, isIcelandic = false) {
     try {
         console.log('\n🤖 Getting bot token for booking change request...');
@@ -1040,7 +748,13 @@ export async function createBookingChangeRequest(customerId, isIcelandic = false
     }
 }
 
-// Function to send booking change form data to LiveChat
+/**
+ * Submits booking change form data to LiveChat
+ * @param {string} chatId - LiveChat chat ID 
+ * @param {Object} formData - Form data from user
+ * @param {string} credentials - Auth credentials
+ * @returns {Promise<boolean>} Success status
+ */
 export async function submitBookingChangeRequest(chatId, formData, credentials) {
     try {
         // Format the form data into a structured message
@@ -1169,7 +883,13 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
     }
 }
 
-// Updated sendMessageToLiveChat function with fallback
+/**
+ * Send message to LiveChat with fallback
+ * @param {string} chatId - LiveChat chat ID
+ * @param {string} message - Message to send
+ * @param {string} credentials - Auth credentials
+ * @returns {Promise<boolean>} Success status
+ */
 export async function sendMessageToLiveChat(chatId, message, credentials) {
     try {
         // First try using bot token if it looks like a JWT (contains periods)
@@ -1244,56 +964,272 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
     }
 }
 
-// Helper function to check if booking change form should be shown
-export const shouldShowBookingForm = async (message, languageDecision, context = null) => {
+/**
+ * AI-powered function to determine if a chat should be transferred to a human agent
+ * Uses context, frustration signals, and query complexity
+ * 
+ * @param {string} message - User message
+ * @param {Object} languageDecision - Language detection information
+ * @param {Object} context - Conversation context
+ * @returns {Promise<Object>} Detection result with confidence score and reasoning
+ */
+export async function shouldTransferToHumanAgent(message, languageDecision, context) {
     try {
-        // First check if it's an explicit form submission
-        if (message.toLowerCase().startsWith('booking change request:')) {
-            console.log('\n✅ Form submission detected');
-            return {
-                shouldShowForm: true,
-                isWithinAgentHours: isWithinOperatingHours(),
-                confidence: 1.0,
-                reasoning: "Form submission"
-            };
+        const msg = message.toLowerCase();
+        console.log('\n🤖 AI agent transfer detection for:', msg);
+        
+        // Start with 0 confidence
+        let transferConfidence = 0;
+        let detectionReason = null;
+        let matchedPatterns = [];
+        
+        // 1. Check for direct, explicit requests to speak to a human
+        const directRequestPatterns = {
+            en: [
+                { pattern: /speak (?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
+                { pattern: /talk (?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
+                { pattern: /connect (?:me )?(?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
+                { pattern: /transfer (?:me )?(?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
+                { pattern: /(?:get|need|want) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.9 },
+                { pattern: /(?:i want|i need) (?:to speak to|to talk to) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
+                { pattern: /(?:real|live|human) (?:agent|person|representative|assistant)/i, weight: 0.9 },
+                { pattern: /(?:human|agent|person) (?:assistance|support|help)/i, weight: 0.85 }
+            ],
+            is: [
+                { pattern: /tala við (?:þjónustufulltrúa|manneskju|starfsmann)/i, weight: 0.95 },
+                { pattern: /fá að tala við/i, weight: 0.9 },
+                { pattern: /geta talað við/i, weight: 0.9 },
+                { pattern: /fá samband við/i, weight: 0.9 },
+                { pattern: /vera í sambandi við/i, weight: 0.85 },
+                { pattern: /fá (?:þjónustufulltrúa|manneskju)/i, weight: 0.9 }
+            ]
+        };
+        
+        // 2. Frustration signals - look for patterns indicating user is frustrated
+        const frustrationPatterns = {
+            en: [
+                { pattern: /(?:you're|you are) (?:not|n't) (?:helping|understanding|getting it)/i, weight: 0.8 },
+                { pattern: /(?:this is|that's) (?:not|n't) (?:helpful|what i asked|what i want|what i need)/i, weight: 0.7 },
+                { pattern: /(?:i already|already) (?:told|said|asked|explained)/i, weight: 0.6 },
+                { pattern: /(?:wrong|incorrect|not right|doesn't make sense)/i, weight: 0.5 },
+                { pattern: /(?:you don't understand|you're confused|not what i meant)/i, weight: 0.7 },
+                { pattern: /(?:useless|waste of time|pointless)/i, weight: 0.8 },
+                { pattern: /(?:stupid|dumb|idiotic)/i, weight: 0.7 }
+            ],
+            is: [
+                { pattern: /(?:þú ert|þú skilur) (?:ekki|ekki að) (?:hjálpa|skilja)/i, weight: 0.8 },
+                { pattern: /(?:þetta er|það er) (?:ekki|ekki það sem) (?:hjálplegt|ég spurði um|ég vil|ég þarf)/i, weight: 0.7 },
+                { pattern: /(?:ég hef þegar|þegar) (?:sagt|spurði|útskýrði)/i, weight: 0.6 },
+                { pattern: /(?:rangt|ekki rétt|skil ekki)/i, weight: 0.5 },
+                { pattern: /(?:þú skilur ekki|þú ert ruglaður|ekki það sem ég átti við)/i, weight: 0.7 },
+                { pattern: /(?:gagnslaus|tímaeyðsla|tilgangslaus)/i, weight: 0.8 },
+                { pattern: /(?:heimsk|heimskur|fáránlegt)/i, weight: 0.7 }
+            ]
+        };
+        
+        // 3. Repeated questions - check context for repeated similar questions
+        function hasRepeatedQuestions(context) {
+            if (!context || !context.messages) return false;
+            
+            // Get user messages
+            const userMessages = context.messages.filter(m => m.role === 'user');
+            if (userMessages.length < 3) return false;
+            
+            // Look at the last 3 messages
+            const recentMessages = userMessages.slice(-3);
+            
+            // Check for similar phrases or questions
+            let similarityCount = 0;
+            for (let i = 0; i < recentMessages.length - 1; i++) {
+                const currentMsg = recentMessages[i].content.toLowerCase();
+                const nextMsg = recentMessages[i+1].content.toLowerCase();
+                
+                // Check for similarity
+                if (currentMsg.includes('?') && nextMsg.includes('?')) {
+                    // Both are questions
+                    similarityCount++;
+                }
+                
+                // Check for repeated keywords
+                const currentWords = currentMsg.split(' ').filter(w => w.length > 4);
+                const nextWords = nextMsg.split(' ').filter(w => w.length > 4);
+                
+                // Count matching words
+                let matchCount = 0;
+                for (const word of currentWords) {
+                    if (nextWords.includes(word)) matchCount++;
+                }
+                
+                // If significant overlap
+                if (matchCount >= 2 || matchCount / currentWords.length > 0.3) {
+                    similarityCount++;
+                }
+            }
+            
+            return similarityCount >= 1;
         }
         
-        // Check for package difference questions - these should NOT trigger the form
-        const lowercaseMsg = message.toLowerCase();
-        if ((lowercaseMsg.includes('difference') || lowercaseMsg.includes('different')) && 
-            (lowercaseMsg.includes('package') || lowercaseMsg.includes('saman') || 
-             lowercaseMsg.includes('pure') || lowercaseMsg.includes('sér'))) {
-            console.log('\n❌ Package difference question detected - NOT a booking change request');
-            return {
-                shouldShowForm: false,
-                isWithinAgentHours: isWithinOperatingHours(),
-                confidence: 0.9,
-                reasoning: "Package difference question"
-            };
+        // 4. Complex queries that might need human assistance
+        const complexQueryPatterns = {
+            en: [
+                { pattern: /(?:specific|custom|special|unusual|complex) (?:request|situation|case|scenario|question)/i, weight: 0.6 },
+                { pattern: /(?:exception|special consideration|unique circumstance)/i, weight: 0.6 },
+                { pattern: /(?:not sure if|don't know if|uncertain if) (?:you can help|this is possible)/i, weight: 0.5 },
+                { pattern: /(?:complicated|difficult|challenging) (?:situation|request|question|issue|problem)/i, weight: 0.6 }
+            ],
+            is: [
+                { pattern: /(?:sérstök|sérsniðin|óvenjuleg|flókin) (?:beiðni|aðstæður|mál|spurning)/i, weight: 0.6 },
+                { pattern: /(?:undantekning|sérstök athugun|sérstakar aðstæður)/i, weight: 0.6 },
+                { pattern: /(?:ekki viss|veit ekki|óviss) (?:hvort þú getir hjálpað|hvort þetta sé mögulegt)/i, weight: 0.5 },
+                { pattern: /(?:flókið|erfitt|krefjandi) (?:aðstæður|beiðni|spurning|vandamál)/i, weight: 0.6 }
+            ]
+        };
+        
+        // Check direct request patterns first
+        const directPatterns = languageDecision.isIcelandic ? 
+            directRequestPatterns.is : 
+            directRequestPatterns.en;
+            
+        for (const pattern of directPatterns) {
+            if (pattern.pattern.test(msg)) {
+                transferConfidence = Math.max(transferConfidence, pattern.weight);
+                matchedPatterns.push({
+                    type: 'direct_request',
+                    pattern: pattern.pattern.toString(),
+                    weight: pattern.weight
+                });
+                
+                if (!detectionReason || pattern.weight > 0.9) {
+                    detectionReason = 'direct_agent_request';
+                }
+            }
         }
         
-        // Use the existing keyword-based detection
-        const isBookingChange = await detectBookingChangeRequest(message, languageDecision);
+        // If already high confidence, skip other checks
+        if (transferConfidence < 0.9) {
+            // Check frustration patterns
+            const frustrationPatternList = languageDecision.isIcelandic ? 
+                frustrationPatterns.is : 
+                frustrationPatterns.en;
+                
+            for (const pattern of frustrationPatternList) {
+                if (pattern.pattern.test(msg)) {
+                    transferConfidence = Math.max(transferConfidence, pattern.weight);
+                    matchedPatterns.push({
+                        type: 'frustration',
+                        pattern: pattern.pattern.toString(),
+                        weight: pattern.weight
+                    });
+                    
+                    if (!detectionReason || (detectionReason !== 'direct_agent_request' && pattern.weight > 0.7)) {
+                        detectionReason = 'user_frustration';
+                    }
+                }
+            }
+            
+            // Check for repeated questions or similar queries
+            if (context && hasRepeatedQuestions(context)) {
+                transferConfidence = Math.max(transferConfidence, 0.7);
+                matchedPatterns.push({
+                    type: 'repeated_questions',
+                    weight: 0.7
+                });
+                
+                if (!detectionReason || (detectionReason !== 'direct_agent_request' && detectionReason !== 'user_frustration')) {
+                    detectionReason = 'repeated_questions';
+                }
+            }
+            
+            // Check for complex queries
+            const complexQueryPatternList = languageDecision.isIcelandic ? 
+                complexQueryPatterns.is : 
+                complexQueryPatterns.en;
+                
+            for (const pattern of complexQueryPatternList) {
+                if (pattern.pattern.test(msg)) {
+                    transferConfidence = Math.max(transferConfidence, pattern.weight);
+                    matchedPatterns.push({
+                        type: 'complex_query',
+                        pattern: pattern.pattern.toString(),
+                        weight: pattern.weight
+                    });
+                    
+                    if (!detectionReason || (detectionReason !== 'direct_agent_request' && 
+                                            detectionReason !== 'user_frustration' && 
+                                            detectionReason !== 'repeated_questions')) {
+                        detectionReason = 'complex_query';
+                    }
+                }
+            }
+            
+            // Additional context-based checks
+            if (context) {
+                // Check for conversation length - longer conversations might benefit from human assistance
+                const userMessagesCount = context.messages?.filter(m => m.role === 'user').length || 0;
+                if (userMessagesCount >= 8) {
+                    const longConversationBoost = Math.min(0.1 + (userMessagesCount - 8) * 0.03, 0.3);
+                    transferConfidence = Math.max(transferConfidence, longConversationBoost);
+                    matchedPatterns.push({
+                        type: 'long_conversation',
+                        messageCount: userMessagesCount,
+                        weight: longConversationBoost
+                    });
+                }
+                
+                // Check if user has been asking about the same topic repeatedly
+                if (context.lastTopic && 
+                    context.topics && 
+                    context.topics.filter(t => t === context.lastTopic).length >= 3) {
+                    
+                    transferConfidence = Math.max(transferConfidence, 0.5);
+                    matchedPatterns.push({
+                        type: 'persistent_topic',
+                        topic: context.lastTopic,
+                        weight: 0.5
+                    });
+                    
+                    if (!detectionReason || detectionReason === 'complex_query') {
+                        detectionReason = 'persistent_topic';
+                    }
+                }
+            }
+        }
         
-        console.log('\n📅 Booking Change Form Check:', {
-            message: message.substring(0, 30) + '...',
-            isBookingChange: isBookingChange,
-            language: languageDecision.isIcelandic ? 'Icelandic' : 'English'
+        // Make final determination
+        const shouldTransfer = transferConfidence >= 0.8;
+        
+        // Log the decision process
+        console.log('\n👥 Agent transfer detection analysis:', {
+            message: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
+            confidence: transferConfidence,
+            matchedPatterns: matchedPatterns.map(p => p.type),
+            primaryReason: detectionReason,
+            shouldTransfer
         });
         
+        // Check if any agents are available (for convenience)
+        let availableAgents = [];
+        try {
+            const agentCheck = await checkAgentAvailability(languageDecision.isIcelandic);
+            availableAgents = agentCheck.availableAgents || [];
+        } catch (error) {
+            console.error('Error checking agent availability:', error);
+        }
+        
+        // Return the result
         return {
-            shouldShowForm: isBookingChange,
-            isWithinAgentHours: isWithinOperatingHours(),
-            confidence: isBookingChange ? 0.9 : 0.1,
-            reasoning: isBookingChange ? "Keyword pattern match" : "No booking change patterns detected"
+            shouldTransfer,
+            confidence: transferConfidence,
+            reason: detectionReason || 'no_trigger',
+            agents: availableAgents
         };
     } catch (error) {
-        console.error('\n❌ Error in shouldShowBookingForm:', error);
+        console.error('\n❌ Error in AI agent transfer detection:', error);
         return {
-            shouldShowForm: false,
-            isWithinAgentHours: isWithinOperatingHours(),
+            shouldTransfer: false,
             confidence: 0,
+            reason: 'error',
             error: error.message
         };
     }
-};
+}

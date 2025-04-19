@@ -42,14 +42,15 @@ import {
     matchMonthInQuery,
     icelandicMonths 
 } from './sunsetTimes.js';
-// LiveChat Integration
+// AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
     checkAgentAvailability, 
     createChat, 
     sendMessageToLiveChat,
     detectBookingChangeRequest,
     createBookingChangeRequest,
-    submitBookingChangeRequest 
+    submitBookingChangeRequest,
+    shouldTransferToHumanAgent  // Add this missing import 
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -765,121 +766,113 @@ const CONFIDENCE_THRESHOLDS = {
 };
 
 // LiveChat Constants
-// And for testing, let's extend the hours:
+// Hours during which agents may be available
+// Normally this would be from 9-16
+// For testing, let's extend the hours:
 const LIVECHAT_HOURS = {
     START: 0,    // Midnight
     END: 23.99,     // 11 PM
 };
 
-// Transfer trigger patterns
-const AGENT_REQUEST_PATTERNS = {
-    en: [
-        'speak to agent',
-        'talk to agent',
-        'chat to agent',
-        'speak to human',
-        'talk to human',
-        'speak with someone',
-        'talk with someone',
-        'speak to representative',
-        'talk to representative',
-        'connect me with',
-        'transfer me to',
-        'live agent',
-        'live person',
-        'real person',
-        'human agent',
-        'human assistance',
-        'agent assistance'
-    ],
-    is: [
-        'tala við þjónustufulltrúa',
-        'tala við manneskju',
-        'fá að tala við',
-        'geta talað við',
-        'fá samband við',
-        'tala við starfsmann',
-        'fá þjónustufulltrúa',
-        'fá manneskju',
-        'vera í sambandi við'
-    ]
-};
-// Removed unused constant - patterns are defined in livechat.js
-//const BOOKING_CHANGE_PATTERNS = {
-//    en: [
-//        'change booking',
-//        'modify booking',
-//        'reschedule',
-//        'change time',
-//        'change date',
-//        'different time',
-//        'different date',
-//        'another time',
-//        'another date',
-//        'move booking',
-//        'cancel booking'
-//    ],
-//    is: [
-//        'breyta bókun',
-//       'breyta tíma',
-//        'breyta dagsetningu',
-//        'færa bókun',
-//        'færa tíma',
-//        'annan tíma',
-//        'aðra dagsetningu',
-//        'hætta við bókun',
-//        'afbóka'
-//    ]
-//};
-
-// Helper function to check if within operating hours
+/**
+ * Helper function to check if current time is within operating hours
+ * @returns {boolean} Whether current time is within operating hours
+ */
 const isWithinOperatingHours = () => {
     const now = new Date();
     const hours = now.getHours(); // Use local time instead of UTC
+    const dayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
+    
+    // Check if it's a weekend (no agents on weekends)
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
     console.log('\n⏰ Hours Check:', {
         currentHour: hours,
         start: LIVECHAT_HOURS.START,
         end: LIVECHAT_HOURS.END,
-        isWithin: hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END
+        day: dayOfWeek,
+        isWeekend,
+        isWithin: !isWeekend && hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END
     });
-    return hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
+    
+    // Only within hours on weekdays
+    return !isWeekend && hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
 };
 
-// Helper function to check if booking change form should be shown
-const shouldShowBookingForm = async (message, languageDecision) => {
+/**
+ * AI-powered function to check if booking change form should be shown
+ * @param {string} message - User message
+ * @param {Object} languageDecision - Language detection information
+ * @param {Object} context - Conversation context (optional)
+ * @returns {Promise<Object>} Result with confidence score and reasoning
+ */
+const shouldShowBookingForm = async (message, languageDecision, context = null) => {
     try {
-        // Use the detectBookingChangeRequest function from livechat.js
-        const isBookingChange = await detectBookingChangeRequest(message, languageDecision);
+        // Form submission check (direct indicator - skip other checks)
+        if (message.toLowerCase().startsWith('booking change request:')) {
+            console.log('\n✅ Form submission detected');
+            return {
+                shouldShowForm: true,
+                isWithinAgentHours: isWithinOperatingHours(),
+                confidence: 1.0,
+                reasoning: "Form submission"
+            };
+        }
+        
+        // Check for package difference questions - these should NOT trigger the form
+        const lowercaseMsg = message.toLowerCase();
+        if ((lowercaseMsg.includes('difference') || lowercaseMsg.includes('different')) && 
+            (lowercaseMsg.includes('package') || lowercaseMsg.includes('saman') || 
+             lowercaseMsg.includes('pure') || lowercaseMsg.includes('sér'))) {
+            console.log('\n❌ Package difference question detected - NOT a booking change request');
+            return {
+                shouldShowForm: false,
+                isWithinAgentHours: isWithinOperatingHours(),
+                confidence: 0.9,
+                reasoning: "Package difference question"
+            };
+        }
+        
+        // Use the AI-powered detection function from livechat.js
+        const isBookingChange = await detectBookingChangeRequest(message, languageDecision, context);
         
         console.log('\n📅 Booking Change Form Check:', {
             message: message.substring(0, 30) + '...',
-            isBookingChange: isBookingChange,
+            shouldShowForm: isBookingChange.shouldShowForm,
+            confidence: isBookingChange.confidence,
+            reasoning: isBookingChange.reasoning,
             language: languageDecision.isIcelandic ? 'Icelandic' : 'English'
         });
         
         return {
-            shouldShowForm: isBookingChange,
-            isWithinAgentHours: isWithinOperatingHours()
+            shouldShowForm: isBookingChange.shouldShowForm,
+            isWithinAgentHours: isWithinOperatingHours(),
+            confidence: isBookingChange.confidence,
+            reasoning: isBookingChange.reasoning
         };
     } catch (error) {
         console.error('\n❌ Error in shouldShowBookingForm:', error);
         return {
             shouldShowForm: false,
             isWithinAgentHours: isWithinOperatingHours(),
+            confidence: 0,
             error: error.message
         };
     }
 };
 
-// Helper function to check if agent transfer is needed
+/**
+ * AI-powered function to check if user should be transferred to a human agent
+ * @param {string} message - User message
+ * @param {Object} languageDecision - Language detection information
+ * @param {Object} context - Conversation context
+ * @returns {Promise<Object>} Result with transfer decision and reasoning
+ */
 const shouldTransferToAgent = async (message, languageDecision, context) => {
     try {
-        const msg = message.toLowerCase();
-        const useEnglish = !languageDecision.isIcelandic || languageDecision.confidence === 'high';
-
         // Log transfer check
         console.log('\n👥 Agent Transfer Check:', {
-            message: msg,
+            message: message.substring(0, 30) + '...',
             withinHours: isWithinOperatingHours(),
             language: {
                 isIcelandic: languageDecision.isIcelandic,
@@ -887,17 +880,29 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // First check if it's an explicit agent request (not a booking change)
-        const hasAgentRequest = (useEnglish ? 
-            AGENT_REQUEST_PATTERNS.en : 
-            AGENT_REQUEST_PATTERNS.is).some(pattern => msg.includes(pattern));
+        // Use the AI-powered detection from livechat.js
+        const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
+
+        // First check if agents are available (outside operating hours)
+        if (transferCheck.shouldTransfer && !isWithinOperatingHours()) {
+            // Return a helpful message for outside hours
+            const redirectMessage = languageDecision.isIcelandic ? 
+                "Því miður er þjónustuverið okkar lokað núna. Opnunartími þjónustuvers er virka daga frá kl. 9-16 (GMT). Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800." :
+                "Our customer service is currently closed. Our service hours are weekdays from 9 AM to 4 PM (GMT). For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800.";
+            
+            return {
+                shouldTransfer: false,
+                reason: 'outside_hours',
+                response: redirectMessage
+            };
+        }
 
         // Temporarily disable all live agent transfers
-        if (hasAgentRequest) {
+        if (transferCheck.shouldTransfer) {
             // Return a helpful message redirecting to booking form
-            const redirectMessage = useEnglish ? 
-                "Our live agent chat system is currently unavailable. For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800." :
-                "Því miður er ekki hægt að tengja þig við þjónustufulltrúa í augnablikinu. Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800.";
+            const redirectMessage = languageDecision.isIcelandic ? 
+                "Því miður er ekki hægt að tengja þig við þjónustufulltrúa í augnablikinu. Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800." :
+                "Our live agent chat system is currently unavailable. For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800.";
             
             return {
                 shouldTransfer: false,
@@ -907,10 +912,11 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
         }
 
         return {
-            shouldTransfer: false,
-            reason: 'no_trigger'
+            shouldTransfer: transferCheck.shouldTransfer,
+            confidence: transferCheck.confidence,
+            reason: transferCheck.reason,
+            agents: transferCheck.agents
         };
-
     } catch (error) {
         console.error('\n❌ Error in shouldTransferToAgent:', error);
         return {
@@ -2355,7 +2361,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // MIGRATION: Check if we should show booking change form with enhanced detection
+        // MIGRATION: Check if we should show booking change form with enhanced AI-powered detection
         const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision, context);
 
         // Update the booking context with detection results
@@ -2427,12 +2433,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
 
-        // MIGRATION: Check if we should transfer to human agent - using new context system's lastTopic
+        // MIGRATION: Check if we should transfer to human agent with AI-powered detection
         const transferCheck = await shouldTransferToAgent(userMessage, languageDecision, context);
-        
+
         console.log('\n🔄 Transfer Check Result:', {
             shouldTransfer: transferCheck.shouldTransfer,
             reason: transferCheck.reason,
+            confidence: transferCheck.confidence,
             withinHours: isWithinOperatingHours(),
             availableAgents: transferCheck.agents?.length || 0
         });
@@ -2520,7 +2527,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
             return res.status(responseData.status || 200).json(responseData);
         }
-        
+
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
