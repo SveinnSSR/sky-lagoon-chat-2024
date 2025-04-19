@@ -1,5 +1,14 @@
-// services/livechat.js
+// services/livechat.js - Truly AI-powered LiveChat integration
 import fetch from 'node-fetch';
+import OpenAI from 'openai';
+
+// Initialize OpenAI for AI-powered detection
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
+
+// Optional debugging line to verify API key is available
+console.log('OpenAI API Key available in livechat.js:', !!process.env.OPENAI_API_KEY);
 
 // LiveChat credentials - kept from the original
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
@@ -148,8 +157,8 @@ export async function createChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                active: true,
-                continuous: true,
+                active: true, // Explicitly make this active
+                continuous: true, // Critical to prevent auto-closing
                 group_id: groupId,
                 customers: [{
                     id: customerId,
@@ -233,8 +242,8 @@ export async function createChat(customerId, isIcelandic = false) {
 }
 
 /**
- * AI-powered function to detect booking change requests
- * Uses semantic understanding and context instead of keywords
+ * True AI-powered function to detect booking change requests
+ * Uses language model classification instead of pattern matching
  * 
  * @param {string} message - User message
  * @param {Object} languageDecision - Language detection information
@@ -243,360 +252,169 @@ export async function createChat(customerId, isIcelandic = false) {
  */
 export async function detectBookingChangeRequest(message, languageDecision, context = null) {
     try {
-        const msg = message.toLowerCase();
-        console.log('\n🔍 AI-powered booking change detection for:', msg);
-        console.log('Language:', languageDecision);
+        console.log('\n🧠 AI-powered booking change detection for:', message);
         
-        // Create a context-aware detection system with confidence scoring
+        // Build content prompt for the language model
+        let contentPrompt = "Analyze this customer message and determine if it's a booking change request:";
         
-        // High confidence indicators - Direct and explicit mentions
-        const highConfidencePatterns = {
-            en: [
-                // Direct booking change requests
-                { pattern: /change.+booking/i, weight: 0.9, type: 'explicit' },
-                { pattern: /modify.+booking/i, weight: 0.9, type: 'explicit' },
-                { pattern: /reschedule.+booking/i, weight: 0.9, type: 'explicit' },
-                { pattern: /move.+booking/i, weight: 0.9, type: 'explicit' },
-                { pattern: /change.+reservation/i, weight: 0.9, type: 'explicit' },
-                { pattern: /need to change/i, weight: 0.85, type: 'need' },
-                { pattern: /want to change/i, weight: 0.85, type: 'want' },
-                { pattern: /like to change/i, weight: 0.85, type: 'preference' },
-                { pattern: /would like to reschedule/i, weight: 0.9, type: 'formal_request' },
-                { pattern: /need to reschedule/i, weight: 0.9, type: 'need' },
-                
-                // Form submissions (direct indicator)
-                { pattern: /booking change request:/i, weight: 1.0, type: 'form_submission' }
-            ],
-            is: [
-                // Direct booking change requests in Icelandic
-                { pattern: /breyta.+bókun/i, weight: 0.9, type: 'explicit' },
-                { pattern: /breyta.+tíma/i, weight: 0.85, type: 'time_change' },
-                { pattern: /breyta.+dagsetningu/i, weight: 0.85, type: 'date_change' },
-                { pattern: /færa.+bókun/i, weight: 0.9, type: 'move_booking' },
-                { pattern: /færa.+tíma/i, weight: 0.85, type: 'move_time' },
-                { pattern: /þarf að breyta/i, weight: 0.85, type: 'need' },
-                { pattern: /vil breyta/i, weight: 0.85, type: 'want' },
-                { pattern: /vildi breyta/i, weight: 0.85, type: 'want_past' },
-                { pattern: /langar að breyta/i, weight: 0.85, type: 'desire' },
-                
-                // Form submissions (direct indicator)
-                { pattern: /breyta bókun:/i, weight: 1.0, type: 'form_submission' }
-            ]
-        };
-        
-        // Medium confidence indicators - Indirect but still likely mentions
-        const mediumConfidencePatterns = {
-            en: [
-                // Time/date change requests without explicit booking mentions
-                { pattern: /different time/i, weight: 0.7, type: 'time_change' },
-                { pattern: /different date/i, weight: 0.7, type: 'date_change' },
-                { pattern: /another time/i, weight: 0.7, type: 'time_change' },
-                { pattern: /another date/i, weight: 0.7, type: 'date_change' },
-                
-                // Indirect calendar terms with action verbs
-                { pattern: /move.+appointment/i, weight: 0.7, type: 'appointment_move' },
-                { pattern: /change.+appointment/i, weight: 0.7, type: 'appointment_change' },
-                { pattern: /switch.+time/i, weight: 0.7, type: 'time_switch' },
-                
-                // Flight changes affecting booking
-                { pattern: /flight.+delayed.+change/i, weight: 0.75, type: 'flight_delay' },
-                { pattern: /flight.+canceled.+change/i, weight: 0.75, type: 'flight_cancel' },
-                { pattern: /change.+due to flight/i, weight: 0.75, type: 'flight_issue' }
-            ],
-            is: [
-                // Time/date change requests in Icelandic
-                { pattern: /annan tíma/i, weight: 0.7, type: 'different_time' },
-                { pattern: /aðra dagsetningu/i, weight: 0.7, type: 'different_date' },
-                { pattern: /breyta.+pöntun/i, weight: 0.7, type: 'change_order' },
-                { pattern: /skipta.+um tíma/i, weight: 0.7, type: 'switch_time' },
-                
-                // Plans changed mentions in Icelandic
-                { pattern: /áætlanir breyttust/i, weight: 0.6, type: 'plans_changed' },
-                { pattern: /áætlun breyttist/i, weight: 0.6, type: 'plan_changed' },
-                
-                // Flight issues in Icelandic
-                { pattern: /flug.+seinkað/i, weight: 0.75, type: 'flight_delay' },
-                { pattern: /flug.+aflýst/i, weight: 0.75, type: 'flight_cancel' }
-            ]
-        };
-        
-        // Lower confidence indicators - Suggestive but need more context
-        const lowerConfidencePatterns = {
-            en: [
-                // Date mentions with booking context
-                { pattern: /next week instead/i, weight: 0.5, type: 'date_suggestion' },
-                { pattern: /prefer.+later/i, weight: 0.5, type: 'preference' },
-                { pattern: /better time/i, weight: 0.5, type: 'preference' },
-                
-                // Availability questions
-                { pattern: /availab.+different/i, weight: 0.5, type: 'availability' },
-                { pattern: /other slots/i, weight: 0.5, type: 'slots' },
-                { pattern: /other times/i, weight: 0.5, type: 'times' },
-                
-                // Problems with current booking
-                { pattern: /can't make/i, weight: 0.6, type: 'cant_make' },
-                { pattern: /won't be able/i, weight: 0.6, type: 'cant_make' }
-            ],
-            is: [
-                // Date suggestions in Icelandic
-                { pattern: /næstu viku í staðinn/i, weight: 0.5, type: 'next_week' },
-                { pattern: /betra.+seinna/i, weight: 0.5, type: 'better_later' },
-                { pattern: /betri tíma/i, weight: 0.5, type: 'better_time' },
-                
-                // Availability in Icelandic
-                { pattern: /aðrir tímar/i, weight: 0.5, type: 'other_times' },
-                { pattern: /önnur tímabil/i, weight: 0.5, type: 'other_periods' },
-                
-                // Problems in Icelandic
-                { pattern: /kemst ekki/i, weight: 0.6, type: 'cant_make' },
-                { pattern: /næ ekki/i, weight: 0.6, type: 'cant_make' }
-            ]
-        };
-        
-        // Negative patterns - These suggest NOT a booking change
-        const negativePatterns = {
-            en: [
-                // Questions about cancellations (not changes)
-                { pattern: /cancel policy/i, weight: -0.7, type: 'cancel_policy' },
-                { pattern: /cancel.+booking/i, weight: -0.7, type: 'cancel_booking' },
-                { pattern: /refund policy/i, weight: -0.8, type: 'refund_policy' },
-                { pattern: /get a refund/i, weight: -0.8, type: 'get_refund' },
-                
-                // Package questions not about booking changes
-                { pattern: /difference.+package/i, weight: -0.8, type: 'package_difference' },
-                { pattern: /pure.+vs.+sky/i, weight: -0.8, type: 'package_comparison' },
-                { pattern: /premium vs basic/i, weight: -0.8, type: 'package_comparison' },
-                
-                // General inquiry related to late arrival
-                { pattern: /what if.+late/i, weight: -0.6, type: 'late_arrival_question' },
-                { pattern: /arrive late.+policy/i, weight: -0.7, type: 'late_policy' },
-                { pattern: /late arrival policy/i, weight: -0.7, type: 'late_policy' }
-            ],
-            is: [
-                // Questions about cancellations in Icelandic
-                { pattern: /afbókunarstefna/i, weight: -0.7, type: 'cancel_policy' },
-                { pattern: /hætta við bókun/i, weight: -0.7, type: 'cancel_booking' },
-                { pattern: /endurgreiðslustefna/i, weight: -0.8, type: 'refund_policy' },
-                { pattern: /fá endurgreiðslu/i, weight: -0.8, type: 'get_refund' },
-                
-                // Package questions in Icelandic
-                { pattern: /munur.+pakka/i, weight: -0.8, type: 'package_difference' },
-                { pattern: /munur.+saman.+sér/i, weight: -0.8, type: 'package_comparison' },
-                
-                // Late arrival in Icelandic
-                { pattern: /hvað ef.+seinn/i, weight: -0.6, type: 'late_arrival_question' },
-                { pattern: /mæta seint.+stefna/i, weight: -0.7, type: 'late_policy' }
-            ]
-        };
-        
-        // Context enhancers - These boost confidence based on conversation context
-        // Only used if context object is provided
-        const contextEnhancers = [
-            // If there's been previous booking talk
-            { condition: context => context?.lastTopic === 'booking', boost: 0.2 },
-            { condition: context => context?.topics?.includes('booking'), boost: 0.15 },
-            
-            // If user mentioned dates recently
-            { condition: context => context?.bookingContext?.dates?.length > 0, boost: 0.2 },
-            { condition: context => context?.bookingContext?.lastDateMention !== null, boost: 0.15 },
-            
-            // If there's been previous booking change intent
-            { condition: context => context?.bookingContext?.hasBookingChangeIntent === true, boost: 0.3 },
-            
-            // If this is part of a date modification sequence
-            { condition: context => context?.bookingContext?.dateModifications?.length > 0, boost: 0.25 }
-        ];
-        
-        // Calculate initial confidence score using pattern matching
-        let confidenceScore = 0;
-        let matchedPatterns = [];
-        let primaryReason = null;
-        
-        // Check for high confidence patterns first
-        const highPatterns = languageDecision.isIcelandic ? 
-            highConfidencePatterns.is : 
-            highConfidencePatterns.en;
-            
-        for (const pattern of highPatterns) {
-            if (pattern.pattern.test(msg)) {
-                confidenceScore += pattern.weight;
-                matchedPatterns.push({
-                    type: pattern.type,
-                    weight: pattern.weight
-                });
-                
-                // Set primary reason for the highest confidence match
-                if (!primaryReason || pattern.weight > primaryReason.weight) {
-                    primaryReason = { 
-                        type: pattern.type, 
-                        weight: pattern.weight 
-                    };
-                }
-            }
+        // Add language context if available
+        if (languageDecision) {
+            contentPrompt += ` (Message language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'})`;
         }
         
-        // If we already have a high confidence match, we can skip the rest
-        if (confidenceScore < 0.9) {
-            // Check for medium confidence patterns
-            const mediumPatterns = languageDecision.isIcelandic ? 
-                mediumConfidencePatterns.is : 
-                mediumConfidencePatterns.en;
-                
-            for (const pattern of mediumPatterns) {
-                if (pattern.pattern.test(msg)) {
-                    confidenceScore += pattern.weight;
-                    matchedPatterns.push({
-                        type: pattern.type,
-                        weight: pattern.weight
-                    });
-                    
-                    // Update primary reason if this is higher confidence
-                    if (!primaryReason || pattern.weight > primaryReason.weight) {
-                        primaryReason = { 
-                            type: pattern.type, 
-                            weight: pattern.weight 
-                        };
-                    }
+        // Add conversation context if available
+        let contextMessages = "";
+        if (context && context.messages && context.messages.length > 0) {
+            // Extract the last few messages for context (limited to prevent prompt overflow)
+            const recentMessages = context.messages.slice(-4);
+            
+            contextMessages = "\n\nPrevious conversation:\n";
+            
+            recentMessages.forEach(msg => {
+                if (msg.role === 'user') {
+                    contextMessages += `Customer: ${msg.content}\n`;
+                } else if (msg.role === 'assistant') {
+                    contextMessages += `Bot: ${msg.content}\n`;
                 }
-            }
-            
-            // Check for lower confidence patterns only if still needed
-            if (confidenceScore < 0.7) {
-                const lowerPatterns = languageDecision.isIcelandic ? 
-                    lowerConfidencePatterns.is : 
-                    lowerConfidencePatterns.en;
-                    
-                for (const pattern of lowerPatterns) {
-                    if (pattern.pattern.test(msg)) {
-                        confidenceScore += pattern.weight;
-                        matchedPatterns.push({
-                            type: pattern.type,
-                            weight: pattern.weight
-                        });
-                        
-                        // Update primary reason if this is higher confidence
-                        if (!primaryReason || pattern.weight > primaryReason.weight) {
-                            primaryReason = { 
-                                type: pattern.type, 
-                                weight: pattern.weight 
-                            };
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Check for negative patterns that would reduce confidence
-        const negPatterns = languageDecision.isIcelandic ? 
-            negativePatterns.is : 
-            negativePatterns.en;
-            
-        for (const pattern of negPatterns) {
-            if (pattern.pattern.test(msg)) {
-                confidenceScore += pattern.weight; // This will be negative
-                matchedPatterns.push({
-                    type: pattern.type,
-                    weight: pattern.weight
-                });
-                
-                // If this is a strong negative signal, prioritize it
-                if (pattern.weight <= -0.7) {
-                    primaryReason = { 
-                        type: pattern.type, 
-                        weight: pattern.weight,
-                        negative: true
-                    };
-                }
-            }
-        }
-        
-        // Apply context enhancers if context is provided
-        if (context) {
-            let contextBoost = 0;
-            let appliedEnhancers = [];
-            
-            for (const enhancer of contextEnhancers) {
-                if (enhancer.condition(context)) {
-                    contextBoost += enhancer.boost;
-                    appliedEnhancers.push(enhancer);
-                }
-            }
-            
-            confidenceScore += contextBoost;
-            
-            console.log('\n🧠 Applied context enhancers:', {
-                originalScore: confidenceScore - contextBoost,
-                contextBoost: contextBoost,
-                finalScore: confidenceScore,
-                enhancers: appliedEnhancers.length
             });
+            
+            // Add booking context if available
+            if (context.bookingContext) {
+                contextMessages += "\nRelevant context: ";
+                
+                if (context.bookingContext.hasBookingIntent) {
+                    contextMessages += "Customer has previously shown booking intent. ";
+                }
+                
+                if (context.bookingContext.dates && context.bookingContext.dates.length > 0) {
+                    contextMessages += `Customer has mentioned these dates: ${context.bookingContext.dates.join(', ')}. `;
+                }
+                
+                if (context.bookingContext.dateModifications && context.bookingContext.dateModifications.length > 0) {
+                    contextMessages += "Customer has tried to modify dates before. ";
+                }
+                
+                if (context.lastTopic) {
+                    contextMessages += `Last topic discussed: ${context.lastTopic}.`;
+                }
+            }
         }
         
-        // Ensure score is within bounds and not negative
-        confidenceScore = Math.min(Math.max(confidenceScore, 0), 1);
+        // Construct the full AI prompt
+        const fullPrompt = `${contentPrompt}
         
-        // Determine confidence level from score
-        let confidenceLevel;
-        if (confidenceScore >= 0.8) {
-            confidenceLevel = 'high';
-        } else if (confidenceScore >= 0.5) {
-            confidenceLevel = 'medium';
-        } else {
-            confidenceLevel = 'low';
+${contextMessages}
+
+Customer message: "${message}"
+
+I need to determine if the customer is requesting to change an existing booking. This includes:
+- Explicit requests to change/modify a booking date or time
+- Requests to reschedule an existing reservation
+- Messages indicating they can't make their current booking time
+- Messages stating they need to move their booking to a different date/time
+
+This should NOT include:
+- Questions about different package options
+- Queries about pricing differences
+- Questions about cancellation or refund policies
+- Hypothetical questions about what happens if they need to change in the future
+- Policy questions like "Can I change my booking if needed?"
+
+Please analyze the message and respond with:
+1. A classification (YES if it's a booking change request, NO if it's not)
+2. The confidence level (LOW, MEDIUM, HIGH)
+3. Brief reasoning for this decision
+
+Format your response exactly like this example:
+CLASSIFICATION: YES
+CONFIDENCE: HIGH
+REASONING: The customer explicitly asked to change their booking from Tuesday to Thursday.`;
+
+        // Make the API call to OpenAI
+        const response = await openai.chat.completions.create({
+            model: "gpt-4-turbo-preview", // Using the latest available model
+            messages: [
+                { role: "system", content: "You are an assistant that specializes in analyzing customer messages. You focus solely on analyzing the intent of the customer message, not on generating responses. Keep your analysis factual and to the point." },
+                { role: "user", content: fullPrompt }
+            ],
+            temperature: 0.1, // Using low temperature for more consistent results
+            max_tokens: 150 // Limited tokens since we only need the analysis
+        });
+        
+        // Extract and parse the response
+        const aiResponse = response.choices[0].message.content.trim();
+        
+        // Log the full AI response for debugging
+        console.log('\n🤖 AI Analysis:', aiResponse);
+        
+        // Parse the structured response
+        const classification = aiResponse.match(/CLASSIFICATION:\s*(YES|NO)/i)?.[1].toUpperCase();
+        const confidence = aiResponse.match(/CONFIDENCE:\s*(LOW|MEDIUM|HIGH)/i)?.[1].toUpperCase();
+        const reasoning = aiResponse.match(/REASONING:\s*(.+)$/i)?.[1];
+        
+        // Convert to confidence score
+        let confidenceScore = 0;
+        switch (confidence) {
+            case 'HIGH': confidenceScore = 0.9; break;
+            case 'MEDIUM': confidenceScore = 0.7; break;
+            case 'LOW': confidenceScore = 0.4; break;
+            default: confidenceScore = 0.5; // Default if parsing fails
         }
         
-        // Form submission is a guaranteed match
-        const isFormSubmission = msg.startsWith('booking change request:');
-        if (isFormSubmission) {
-            confidenceScore = 1.0;
-            confidenceLevel = 'high';
-            primaryReason = { type: 'form_submission', weight: 1.0 };
-        }
+        // Final decision
+        const shouldShowForm = classification === 'YES' && confidenceScore >= 0.6;
         
-        // First check for form submission
-        if (msg.startsWith('booking change request:')) {
-            console.log('\n✅ Form submission detected - definite booking change');
-            return {
-                shouldShowForm: true,
-                isWithinAgentHours: true, // Form submissions bypass hours check
-                confidence: 1.0,
-                reasoning: "Form submission"
-            };
-        }
-        
-        // Generate reasoning
-        let reasoning;
-        if (primaryReason && primaryReason.negative) {
-            reasoning = `Detected ${primaryReason.type} which indicates this is not a booking change request`;
-        } else if (primaryReason) {
-            reasoning = `Detected ${primaryReason.type} with ${confidenceLevel} confidence`;
-        } else {
-            reasoning = `No clear booking change intent detected`;
-        }
-        
-        // Log the decision process
-        console.log('\n📊 Booking change detection analysis:', {
-            message: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
+        // Log the decision
+        console.log('\n📊 AI-powered booking change detection result:', {
+            classification,
             confidenceScore,
-            confidenceLevel,
-            matchedPatterns: matchedPatterns.map(p => p.type),
-            primaryReason: primaryReason?.type || 'none',
-            shouldShowForm: confidenceScore >= 0.7
+            shouldShowForm,
+            reasoning
         });
         
         return {
-            shouldShowForm: confidenceScore >= 0.7,
-            isWithinAgentHours: true, // This should be determined elsewhere
+            shouldShowForm,
             confidence: confidenceScore,
-            reasoning: reasoning
+            reasoning: reasoning || 'No reasoning provided',
+            isWithinAgentHours: true // This should be determined elsewhere
         };
     } catch (error) {
         console.error('\n❌ Error in AI booking change detection:', error);
-        // Fallback to safe default
+        
+        // Fallback to a basic heuristic detection if AI fails
+        const bookingChangeTerms = ['change', 'modify', 'reschedule', 'move', 'switch', 'different', 'another'];
+        const bookingTerms = ['booking', 'reservation', 'time', 'date', 'appointment'];
+        
+        const msg = message.toLowerCase();
+        
+        // Count matching terms
+        let bookingChangeCount = 0;
+        let bookingCount = 0;
+        
+        bookingChangeTerms.forEach(term => {
+            if (msg.includes(term)) bookingChangeCount++;
+        });
+        
+        bookingTerms.forEach(term => {
+            if (msg.includes(term)) bookingCount++;
+        });
+        
+        // Simple heuristic for fallback
+        const fallbackConfidence = (bookingChangeCount * 0.2) + (bookingCount * 0.1);
+        const shouldShowForm = fallbackConfidence >= 0.3;
+        
+        console.log('\n⚠️ Using fallback detection due to AI error:', {
+            fallbackConfidence,
+            shouldShowForm,
+            bookingChangeCount,
+            bookingCount
+        });
+        
         return {
-            shouldShowForm: false,
+            shouldShowForm,
+            confidence: fallbackConfidence,
+            reasoning: 'Fallback detection due to AI error',
             isWithinAgentHours: true,
-            confidence: 0,
             error: error.message
         };
     }
@@ -649,8 +467,8 @@ export async function createBookingChangeRequest(customerId, isIcelandic = false
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                active: true,
-                continuous: true,
+                active: true, // Explicitly make this active
+                continuous: true, // Critical to prevent auto-closing
                 group_id: groupId,
                 customers: [{
                     id: customerId,
@@ -965,8 +783,8 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
 }
 
 /**
- * AI-powered function to determine if a chat should be transferred to a human agent
- * Uses context, frustration signals, and query complexity
+ * True AI-powered function to determine if a chat should be transferred to a human agent
+ * Uses language model classification for human-like understanding
  * 
  * @param {string} message - User message
  * @param {Object} languageDecision - Language detection information
@@ -975,236 +793,119 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
  */
 export async function shouldTransferToHumanAgent(message, languageDecision, context) {
     try {
-        const msg = message.toLowerCase();
-        console.log('\n🤖 AI agent transfer detection for:', msg);
+        console.log('\n🧠 AI agent transfer detection for:', message);
         
-        // Start with 0 confidence
-        let transferConfidence = 0;
-        let detectionReason = null;
-        let matchedPatterns = [];
+        // Build system prompt for AI
+        const systemPrompt = "You are an assistant that specializes in analyzing customer service conversations. Your task is to determine when a customer should be transferred to a human agent. Focus solely on analyzing the customer's message and context, not on generating responses.";
         
-        // 1. Check for direct, explicit requests to speak to a human
-        const directRequestPatterns = {
-            en: [
-                { pattern: /speak (?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
-                { pattern: /talk (?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
-                { pattern: /connect (?:me )?(?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
-                { pattern: /transfer (?:me )?(?:to|with) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
-                { pattern: /(?:get|need|want) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.9 },
-                { pattern: /(?:i want|i need) (?:to speak to|to talk to) (?:an? )?(?:human|agent|person|representative)/i, weight: 0.95 },
-                { pattern: /(?:real|live|human) (?:agent|person|representative|assistant)/i, weight: 0.9 },
-                { pattern: /(?:human|agent|person) (?:assistance|support|help)/i, weight: 0.85 }
-            ],
-            is: [
-                { pattern: /tala við (?:þjónustufulltrúa|manneskju|starfsmann)/i, weight: 0.95 },
-                { pattern: /fá að tala við/i, weight: 0.9 },
-                { pattern: /geta talað við/i, weight: 0.9 },
-                { pattern: /fá samband við/i, weight: 0.9 },
-                { pattern: /vera í sambandi við/i, weight: 0.85 },
-                { pattern: /fá (?:þjónustufulltrúa|manneskju)/i, weight: 0.9 }
-            ]
-        };
+        // Build user prompt with message and context
+        let userPrompt = "Analyze this customer message and determine if they should be transferred to a human agent:";
         
-        // 2. Frustration signals - look for patterns indicating user is frustrated
-        const frustrationPatterns = {
-            en: [
-                { pattern: /(?:you're|you are) (?:not|n't) (?:helping|understanding|getting it)/i, weight: 0.8 },
-                { pattern: /(?:this is|that's) (?:not|n't) (?:helpful|what i asked|what i want|what i need)/i, weight: 0.7 },
-                { pattern: /(?:i already|already) (?:told|said|asked|explained)/i, weight: 0.6 },
-                { pattern: /(?:wrong|incorrect|not right|doesn't make sense)/i, weight: 0.5 },
-                { pattern: /(?:you don't understand|you're confused|not what i meant)/i, weight: 0.7 },
-                { pattern: /(?:useless|waste of time|pointless)/i, weight: 0.8 },
-                { pattern: /(?:stupid|dumb|idiotic)/i, weight: 0.7 }
-            ],
-            is: [
-                { pattern: /(?:þú ert|þú skilur) (?:ekki|ekki að) (?:hjálpa|skilja)/i, weight: 0.8 },
-                { pattern: /(?:þetta er|það er) (?:ekki|ekki það sem) (?:hjálplegt|ég spurði um|ég vil|ég þarf)/i, weight: 0.7 },
-                { pattern: /(?:ég hef þegar|þegar) (?:sagt|spurði|útskýrði)/i, weight: 0.6 },
-                { pattern: /(?:rangt|ekki rétt|skil ekki)/i, weight: 0.5 },
-                { pattern: /(?:þú skilur ekki|þú ert ruglaður|ekki það sem ég átti við)/i, weight: 0.7 },
-                { pattern: /(?:gagnslaus|tímaeyðsla|tilgangslaus)/i, weight: 0.8 },
-                { pattern: /(?:heimsk|heimskur|fáránlegt)/i, weight: 0.7 }
-            ]
-        };
+        // Add language context
+        if (languageDecision) {
+            userPrompt += ` (Message language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'})`;
+        }
         
-        // 3. Repeated questions - check context for repeated similar questions
-        function hasRepeatedQuestions(context) {
-            if (!context || !context.messages) return false;
+        // Add conversation context if available
+        if (context && context.messages && context.messages.length > 0) {
+            // Extract the last few messages for context
+            const recentMessages = context.messages.slice(-4);
             
-            // Get user messages
+            userPrompt += "\n\nPrevious conversation:\n";
+            
+            recentMessages.forEach(msg => {
+                if (msg.role === 'user') {
+                    userPrompt += `Customer: ${msg.content}\n`;
+                } else if (msg.role === 'assistant') {
+                    userPrompt += `Bot: ${msg.content}\n`;
+                }
+            });
+            
+            // Add additional context
+            if (context.lastTopic) {
+                userPrompt += `\nLast topic discussed: ${context.lastTopic}`;
+            }
+            
+            // Add frustration indicators if available
             const userMessages = context.messages.filter(m => m.role === 'user');
-            if (userMessages.length < 3) return false;
-            
-            // Look at the last 3 messages
-            const recentMessages = userMessages.slice(-3);
-            
-            // Check for similar phrases or questions
-            let similarityCount = 0;
-            for (let i = 0; i < recentMessages.length - 1; i++) {
-                const currentMsg = recentMessages[i].content.toLowerCase();
-                const nextMsg = recentMessages[i+1].content.toLowerCase();
+            const repeatCount = userMessages.length >= 3 ? 
+                new Set(userMessages.slice(-3).map(m => m.content)).size : 0;
                 
-                // Check for similarity
-                if (currentMsg.includes('?') && nextMsg.includes('?')) {
-                    // Both are questions
-                    similarityCount++;
-                }
-                
-                // Check for repeated keywords
-                const currentWords = currentMsg.split(' ').filter(w => w.length > 4);
-                const nextWords = nextMsg.split(' ').filter(w => w.length > 4);
-                
-                // Count matching words
-                let matchCount = 0;
-                for (const word of currentWords) {
-                    if (nextWords.includes(word)) matchCount++;
-                }
-                
-                // If significant overlap
-                if (matchCount >= 2 || matchCount / currentWords.length > 0.3) {
-                    similarityCount++;
-                }
+            if (repeatCount === 1) {
+                userPrompt += "\nNote: Customer has repeated the same message multiple times.";
             }
-            
-            return similarityCount >= 1;
         }
         
-        // 4. Complex queries that might need human assistance
-        const complexQueryPatterns = {
-            en: [
-                { pattern: /(?:specific|custom|special|unusual|complex) (?:request|situation|case|scenario|question)/i, weight: 0.6 },
-                { pattern: /(?:exception|special consideration|unique circumstance)/i, weight: 0.6 },
-                { pattern: /(?:not sure if|don't know if|uncertain if) (?:you can help|this is possible)/i, weight: 0.5 },
-                { pattern: /(?:complicated|difficult|challenging) (?:situation|request|question|issue|problem)/i, weight: 0.6 }
+        // Add the customer message
+        userPrompt += `\n\nCustomer message: "${message}"`;
+        
+        // Add decision criteria
+        userPrompt += `\n\nTransfer to a human agent if the customer:
+1. Explicitly requests to speak with a human agent/representative/person
+2. Shows clear signs of frustration with the automated service
+3. Has repeated the same question multiple times without satisfaction
+4. Has a complex issue that requires human judgment
+5. Is using emotional language indicating dissatisfaction
+6. Has a time-sensitive or urgent matter
+7. Has a technical issue that can't be resolved through standard procedures
+
+Do NOT transfer if the customer:
+1. Is asking simple informational questions
+2. Is just browsing options or prices
+3. Is making general comments or chitchat
+4. Can be adequately helped by automated systems
+5. Is not showing any signs of frustration or urgency
+
+Analyze the message carefully and respond with:
+1. A classification (YES if they should be transferred, NO if not)
+2. The confidence level (LOW, MEDIUM, HIGH)
+3. The primary reason for this decision
+
+Format your response exactly like this example:
+CLASSIFICATION: YES
+CONFIDENCE: HIGH
+REASON: The customer explicitly asked to speak with a human agent.`;
+
+        // Make the API call to OpenAI
+        const response = await openai.chat.completions.create({
+            model: "gpt-4-turbo-preview", // Using the latest available model
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
             ],
-            is: [
-                { pattern: /(?:sérstök|sérsniðin|óvenjuleg|flókin) (?:beiðni|aðstæður|mál|spurning)/i, weight: 0.6 },
-                { pattern: /(?:undantekning|sérstök athugun|sérstakar aðstæður)/i, weight: 0.6 },
-                { pattern: /(?:ekki viss|veit ekki|óviss) (?:hvort þú getir hjálpað|hvort þetta sé mögulegt)/i, weight: 0.5 },
-                { pattern: /(?:flókið|erfitt|krefjandi) (?:aðstæður|beiðni|spurning|vandamál)/i, weight: 0.6 }
-            ]
-        };
+            temperature: 0.1, // Using low temperature for more consistent results
+            max_tokens: 150 // Limited tokens since we only need the analysis
+        });
         
-        // Check direct request patterns first
-        const directPatterns = languageDecision.isIcelandic ? 
-            directRequestPatterns.is : 
-            directRequestPatterns.en;
-            
-        for (const pattern of directPatterns) {
-            if (pattern.pattern.test(msg)) {
-                transferConfidence = Math.max(transferConfidence, pattern.weight);
-                matchedPatterns.push({
-                    type: 'direct_request',
-                    pattern: pattern.pattern.toString(),
-                    weight: pattern.weight
-                });
-                
-                if (!detectionReason || pattern.weight > 0.9) {
-                    detectionReason = 'direct_agent_request';
-                }
-            }
+        // Extract and parse the response
+        const aiResponse = response.choices[0].message.content.trim();
+        
+        // Log the full AI response for debugging
+        console.log('\n🤖 AI Analysis:', aiResponse);
+        
+        // Parse the structured response
+        const classification = aiResponse.match(/CLASSIFICATION:\s*(YES|NO)/i)?.[1].toUpperCase();
+        const confidence = aiResponse.match(/CONFIDENCE:\s*(LOW|MEDIUM|HIGH)/i)?.[1].toUpperCase();
+        const reason = aiResponse.match(/REASON:\s*(.+)$/i)?.[1];
+        
+        // Convert to confidence score
+        let confidenceScore = 0;
+        switch (confidence) {
+            case 'HIGH': confidenceScore = 0.9; break;
+            case 'MEDIUM': confidenceScore = 0.7; break;
+            case 'LOW': confidenceScore = 0.4; break;
+            default: confidenceScore = 0.5; // Default if parsing fails
         }
         
-        // If already high confidence, skip other checks
-        if (transferConfidence < 0.9) {
-            // Check frustration patterns
-            const frustrationPatternList = languageDecision.isIcelandic ? 
-                frustrationPatterns.is : 
-                frustrationPatterns.en;
-                
-            for (const pattern of frustrationPatternList) {
-                if (pattern.pattern.test(msg)) {
-                    transferConfidence = Math.max(transferConfidence, pattern.weight);
-                    matchedPatterns.push({
-                        type: 'frustration',
-                        pattern: pattern.pattern.toString(),
-                        weight: pattern.weight
-                    });
-                    
-                    if (!detectionReason || (detectionReason !== 'direct_agent_request' && pattern.weight > 0.7)) {
-                        detectionReason = 'user_frustration';
-                    }
-                }
-            }
-            
-            // Check for repeated questions or similar queries
-            if (context && hasRepeatedQuestions(context)) {
-                transferConfidence = Math.max(transferConfidence, 0.7);
-                matchedPatterns.push({
-                    type: 'repeated_questions',
-                    weight: 0.7
-                });
-                
-                if (!detectionReason || (detectionReason !== 'direct_agent_request' && detectionReason !== 'user_frustration')) {
-                    detectionReason = 'repeated_questions';
-                }
-            }
-            
-            // Check for complex queries
-            const complexQueryPatternList = languageDecision.isIcelandic ? 
-                complexQueryPatterns.is : 
-                complexQueryPatterns.en;
-                
-            for (const pattern of complexQueryPatternList) {
-                if (pattern.pattern.test(msg)) {
-                    transferConfidence = Math.max(transferConfidence, pattern.weight);
-                    matchedPatterns.push({
-                        type: 'complex_query',
-                        pattern: pattern.pattern.toString(),
-                        weight: pattern.weight
-                    });
-                    
-                    if (!detectionReason || (detectionReason !== 'direct_agent_request' && 
-                                            detectionReason !== 'user_frustration' && 
-                                            detectionReason !== 'repeated_questions')) {
-                        detectionReason = 'complex_query';
-                    }
-                }
-            }
-            
-            // Additional context-based checks
-            if (context) {
-                // Check for conversation length - longer conversations might benefit from human assistance
-                const userMessagesCount = context.messages?.filter(m => m.role === 'user').length || 0;
-                if (userMessagesCount >= 8) {
-                    const longConversationBoost = Math.min(0.1 + (userMessagesCount - 8) * 0.03, 0.3);
-                    transferConfidence = Math.max(transferConfidence, longConversationBoost);
-                    matchedPatterns.push({
-                        type: 'long_conversation',
-                        messageCount: userMessagesCount,
-                        weight: longConversationBoost
-                    });
-                }
-                
-                // Check if user has been asking about the same topic repeatedly
-                if (context.lastTopic && 
-                    context.topics && 
-                    context.topics.filter(t => t === context.lastTopic).length >= 3) {
-                    
-                    transferConfidence = Math.max(transferConfidence, 0.5);
-                    matchedPatterns.push({
-                        type: 'persistent_topic',
-                        topic: context.lastTopic,
-                        weight: 0.5
-                    });
-                    
-                    if (!detectionReason || detectionReason === 'complex_query') {
-                        detectionReason = 'persistent_topic';
-                    }
-                }
-            }
-        }
+        // Final decision
+        const shouldTransfer = classification === 'YES' && confidenceScore >= 0.6;
         
-        // Make final determination
-        const shouldTransfer = transferConfidence >= 0.8;
-        
-        // Log the decision process
+        // Log the decision
         console.log('\n👥 Agent transfer detection analysis:', {
-            message: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
-            confidence: transferConfidence,
-            matchedPatterns: matchedPatterns.map(p => p.type),
-            primaryReason: detectionReason,
-            shouldTransfer
+            classification,
+            confidenceScore,
+            shouldTransfer,
+            reason
         });
         
         // Check if any agents are available (for convenience)
@@ -1216,19 +917,48 @@ export async function shouldTransferToHumanAgent(message, languageDecision, cont
             console.error('Error checking agent availability:', error);
         }
         
-        // Return the result
+        // Return the final decision
         return {
             shouldTransfer,
-            confidence: transferConfidence,
-            reason: detectionReason || 'no_trigger',
+            confidence: confidenceScore,
+            reason: reason || 'Unknown reason',
             agents: availableAgents
         };
     } catch (error) {
         console.error('\n❌ Error in AI agent transfer detection:', error);
+        
+        // Fallback to a very basic heuristic in case of error
+        const msg = message.toLowerCase();
+        const directTerms = ['human', 'agent', 'person', 'representative', 'real person', 'speak to'];
+        const frustrationTerms = ['not helpful', 'frustrating', 'annoying', 'waste of time', 'stupid'];
+        
+        // Count matches
+        let directCount = 0;
+        let frustrationCount = 0;
+        
+        directTerms.forEach(term => {
+            if (msg.includes(term)) directCount++;
+        });
+        
+        frustrationTerms.forEach(term => {
+            if (msg.includes(term)) frustrationCount++;
+        });
+        
+        // Simple heuristic
+        const shouldTransfer = directCount >= 1 || frustrationCount >= 1;
+        const confidence = directCount >= 1 ? 0.8 : (frustrationCount >= 1 ? 0.6 : 0.2);
+        
+        console.log('\n⚠️ Using fallback detection due to AI error:', {
+            shouldTransfer,
+            confidence,
+            directCount,
+            frustrationCount
+        });
+        
         return {
-            shouldTransfer: false,
-            confidence: 0,
-            reason: 'error',
+            shouldTransfer,
+            confidence,
+            reason: 'Fallback detection due to AI error',
             error: error.message
         };
     }
