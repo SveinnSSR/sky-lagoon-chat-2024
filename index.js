@@ -892,15 +892,11 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 /error|fail|failed|bug|crash|not working|problem|can't|cannot|won't|stuck/i.test(message);
             
             if (isTechnicalIssue) {
-                // Instead of a hardcoded message, add a flag to let the main flow handle it
+                // Flag for technical issue without trying to modify messages yet
                 return {
                     shouldTransfer: false,
                     reason: 'technical_issue_outside_hours',
-                    isTechnicalIssue: true,  // Flag for main flow to generate appropriate response
-                    technicalDetails: {
-                        issue: message,
-                        contactEmail: 'reservations@skylagoon.is'
-                    }
+                    isTechnicalIssue: true  // Flag for later processing
                 };
             }
             
@@ -2530,24 +2526,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         // ADD THIS NEW CONDITION BLOCK RIGHT HERE (between the if-block and else-if block)
         } else if (transferCheck.isTechnicalIssue) {
-            // Handle technical issues with AI-generated response
-            console.log('\n🛠️ Handling technical issue with AI-generated response');
+            // Handle technical issues by adding special instructions to context
+            console.log('\n🛠️ Handling technical issue with context instructions');
             
-            // Push a special system instruction for technical issues
-            messages.push({
-                role: "system",
-                content: `The user is reporting a technical issue with the booking system outside of customer service hours. 
-                Generate a helpful, empathetic response that:
-                1. Acknowledges their specific technical issue (${transferCheck.technicalDetails.issue})
-                2. Suggests emailing ${transferCheck.technicalDetails.contactEmail} with details of the error
-                3. Is conversational and natural, not like a generic error message
-                4. Mentions our operating hours (9 AM - 4 PM GMT on weekdays)
-                5. Expresses that we look forward to welcoming them soon`
-            });
+            // Instead of trying to access messages, add to context
+            context.technicalIssuePrompt = {
+                issue: transferCheck.technicalDetails.issue,
+                contactEmail: transferCheck.technicalDetails.contactEmail,
+                isOutsideHours: true
+            };
             
-            // Continue to normal GPT flow to generate the custom response
-            // DO NOT add a return statement here - this will fall through to the normal GPT processing
-        // END OF NEW CONDITION BLOCK            
+            // Add a special flag to the context to indicate a technical issue
+            context.lastTopic = 'technical_issue';
+            
+            // Let the normal flow continue - don't return here
+        // END OF NEW CONDITION BLOCK          
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
             // Add response to context
@@ -2776,6 +2769,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     Time of Day: ${new Date().getHours() >= 9 && new Date().getHours() < 19 ? 'During support hours' : 'After hours'}`
             });
         }
+
+        // ADD THIS NEW BLOCK RIGHT HERE
+        // Check for technical issue context from transfer check
+        if (transferCheck && transferCheck.isTechnicalIssue) {
+            console.log('\n🛠️ Adding technical issue handling instructions to prompt');
+            messages.push({
+                role: "system",
+                content: `IMPORTANT: The user is reporting a technical issue with the booking system outside of customer service hours.
+                Generate a helpful, empathetic response that:
+                1. Acknowledges their specific technical issue with the booking system
+                2. Suggests emailing reservations@skylagoon.is with details of the error
+                3. Is conversational and natural, not like a generic error message
+                4. Mentions our operating hours (9 AM - 4 PM GMT on weekdays)
+                5. Expresses that we look forward to welcoming them soon`
+            });
+        }
+        // END OF NEW BLOCK
 
         // Conversation continuity check - Check if this is an ongoing conversation
         const isOngoingConversation = context.messages && 
