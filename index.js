@@ -879,13 +879,32 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 confidence: languageDecision.confidence
             }
         });
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
-
+        
         // First check if agents are available (outside operating hours)
         if (transferCheck.shouldTransfer && !isWithinOperatingHours()) {
-            // Return a helpful message for outside hours
+            // Check if this is a technical issue
+            const isTechnicalIssue = 
+                (transferCheck.reason && 
+                (transferCheck.reason.includes('technical') || 
+                 transferCheck.reason.toLowerCase().includes('issue'))) ||
+                /error|fail|failed|bug|crash|not working|problem|can't|cannot|won't|stuck/i.test(message);
+            
+            if (isTechnicalIssue) {
+                // Instead of a hardcoded message, add a flag to let the main flow handle it
+                return {
+                    shouldTransfer: false,
+                    reason: 'technical_issue_outside_hours',
+                    isTechnicalIssue: true,  // Flag for main flow to generate appropriate response
+                    technicalDetails: {
+                        issue: message,
+                        contactEmail: 'reservations@skylagoon.is'
+                    }
+                };
+            }
+            
+            // Standard outside hours message for non-technical issues
             const redirectMessage = languageDecision.isIcelandic ? 
                 "Því miður er þjónustuverið okkar lokað núna. Opnunartími þjónustuvers er virka daga frá kl. 9-16 (GMT). Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800." :
                 "Our customer service is currently closed. Our service hours are weekdays from 9 AM to 4 PM (GMT). For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800.";
@@ -896,7 +915,7 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 response: redirectMessage
             };
         }
-
+        
         // Temporarily disable all live agent transfers
         if (transferCheck.shouldTransfer) {
             // Return a helpful message redirecting to booking form
@@ -910,7 +929,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 response: redirectMessage
             };
         }
-
         return {
             shouldTransfer: transferCheck.shouldTransfer,
             confidence: transferCheck.confidence,
@@ -2510,6 +2528,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
                 return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
+        // ADD THIS NEW CONDITION BLOCK RIGHT HERE (between the if-block and else-if block)
+        } else if (transferCheck.isTechnicalIssue) {
+            // Handle technical issues with AI-generated response
+            console.log('\n🛠️ Handling technical issue with AI-generated response');
+            
+            // Push a special system instruction for technical issues
+            messages.push({
+                role: "system",
+                content: `The user is reporting a technical issue with the booking system outside of customer service hours. 
+                Generate a helpful, empathetic response that:
+                1. Acknowledges their specific technical issue (${transferCheck.technicalDetails.issue})
+                2. Suggests emailing ${transferCheck.technicalDetails.contactEmail} with details of the error
+                3. Is conversational and natural, not like a generic error message
+                4. Mentions our operating hours (9 AM - 4 PM GMT on weekdays)
+                5. Expresses that we look forward to welcoming them soon`
+            });
+            
+            // Continue to normal GPT flow to generate the custom response
+            // DO NOT add a return statement here - this will fall through to the normal GPT processing
+        // END OF NEW CONDITION BLOCK            
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
             // Add response to context
