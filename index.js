@@ -1010,15 +1010,6 @@ const getSunsetDataForContext = (userMessage, languageDecision) => {
     };
 };
 
-const isBookingQuery = (message) => {
-    const msg = message.toLowerCase();
-    return msg.includes('bóka') || 
-           msg.includes('panta') || 
-           msg.includes('tíma') || 
-           msg.includes('stefnumót') ||
-           msg.includes('hvernig bóka');
-};
-
 // Helper function to check if a pattern matches as a whole word
 function matchesWholeWord(text, pattern) {
     // Escape special regex characters in the pattern
@@ -1028,25 +1019,6 @@ function matchesWholeWord(text, pattern) {
     // Test if the pattern matches as a whole word
     return regex.test(text);
 }
-
-const questionPatterns = {
-    booking: {
-        en: [
-            'how do i book', 'how to book', 'can i book',
-            'want to book', 'book a ticket', 'make a booking',
-            'book tickets', 'booking process'
-        ],
-        is: [
-            'hvernig bóka', 'hvernig get ég bókað', 'get ég bókað',
-            'vil bóka', 'bóka miða', 'gera bókun',
-            'bóka tíma', 'bókunarferli'
-        ]
-    },
-    question: {
-        en: ['how', 'what', 'when', 'where', 'why', 'can', 'do', 'does', 'which', 'are', 'is', 'will', 'should'],
-        is: ['hvernig', 'hvað', 'hvenær', 'hvar', 'af hverju', 'get', 'er', 'má', 'hver']    
-    }
-};
 
 // Helper functions
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -1467,14 +1439,6 @@ const calculateConfidence = (userMessage, relevantKnowledge, languageDecision) =
     });
 
     return score;
-};
-
-// Add the service question checker here
-const isServiceQuestion = (message, languageDecision) => {
-    const msg = message.toLowerCase();
-    return languageDecision.isIcelandic ?
-        msg.includes('bjóð') || msg.includes('með') || msg.includes('hafið') :
-        msg.includes('offer') || msg.includes('have') || msg.includes('with');
 };
 
 const ERROR_MESSAGES = {
@@ -1908,21 +1872,6 @@ const getAppropriateSuffix = (message, languageDecision) => {
         return " 😊";
     }
     return "";
-};
-
-const isLateArrivalTopic = (message, languageDecision) => {
-    const lowerMessage = message.toLowerCase();
-    
-    // Simple pattern matching just to identify the topic (not for response generation)
-    return lowerMessage.includes('late') || 
-           lowerMessage.includes('delay') || 
-           (lowerMessage.includes('arrive') && lowerMessage.includes('after')) ||
-           // Icelandic terms
-           (languageDecision?.isIcelandic && (
-               lowerMessage.includes('sein') || 
-               lowerMessage.includes('töf') ||
-               lowerMessage.includes('eftir bókun')
-           ));
 };
 
 // Token management - optimized for GPT-4
