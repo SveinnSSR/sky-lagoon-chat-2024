@@ -896,7 +896,11 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 return {
                     shouldTransfer: false,
                     reason: 'technical_issue_outside_hours',
-                    isTechnicalIssue: true  // Flag for later processing
+                    isTechnicalIssue: true,  // Flag for later processing
+                    technicalDetails: {
+                        issue: message,
+                        contactEmail: 'reservations@skylagoon.is'
+                    }
                 };
             }
             
@@ -2774,12 +2778,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Check for technical issue context from transfer check
         if (transferCheck && transferCheck.isTechnicalIssue) {
             console.log('\n🛠️ Adding technical issue handling instructions to prompt');
+            
+            // Use optional chaining and defaults for safety
+            const issue = transferCheck.technicalDetails?.issue || "with the booking system";
+            const contactEmail = transferCheck.technicalDetails?.contactEmail || "reservations@skylagoon.is";
+            
             messages.push({
                 role: "system",
                 content: `IMPORTANT: The user is reporting a technical issue with the booking system outside of customer service hours.
                 Generate a helpful, empathetic response that:
-                1. Acknowledges their specific technical issue with the booking system
-                2. Suggests emailing reservations@skylagoon.is with details of the error
+                1. Acknowledges their specific technical issue (${issue})
+                2. Suggests emailing ${contactEmail} with details of the error
                 3. Is conversational and natural, not like a generic error message
                 4. Mentions our operating hours (9 AM - 4 PM GMT on weekdays)
                 5. Expresses that we look forward to welcoming them soon`
