@@ -775,28 +775,29 @@ const LIVECHAT_HOURS = {
 };
 
 /**
- * Helper function to check if current time is within operating hours
- * @returns {boolean} Whether current time is within operating hours
+ * Helper function to check if any agents are actually available
+ * @returns {Promise<boolean>} Whether any agents are available
  */
-const isWithinOperatingHours = () => {
-    const now = new Date();
-    const hours = now.getHours(); // Use local time instead of UTC
-    const dayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
-    
-    // Check if it's a weekend (no agents on weekends)
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    
-    console.log('\n⏰ Hours Check:', {
-        currentHour: hours,
-        start: LIVECHAT_HOURS.START,
-        end: LIVECHAT_HOURS.END,
-        day: dayOfWeek,
-        isWeekend,
-        isWithin: !isWeekend && hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END
-    });
-    
-    // Only within hours on weekdays
-    return !isWeekend && hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
+const areAgentsAvailable = async () => {
+    try {
+        // Use your existing function to check real agent availability
+        const agentStatus = await checkAgentAvailability(false); // false for English
+        
+        const agentsAvailable = agentStatus.areAgentsAvailable && 
+                               agentStatus.availableAgents && 
+                               agentStatus.availableAgents.length > 0;
+        
+        console.log('\n👥 Agent availability check:', {
+            agentsAvailable,
+            agentCount: agentStatus.availableAgents?.length || 0,
+            status: agentStatus
+        });
+        
+        return agentsAvailable;
+    } catch (error) {
+        console.error('\n❌ Error checking agent availability:', error);
+        return false; // Default to unavailable if check fails
+    }
 };
 
 /**
@@ -873,7 +874,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
         // Log transfer check
         console.log('\n👥 Agent Transfer Check:', {
             message: message.substring(0, 30) + '...',
-            withinHours: isWithinOperatingHours(),
             language: {
                 isIcelandic: languageDecision.isIcelandic,
                 confidence: languageDecision.confidence
@@ -890,8 +890,8 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             transferType: transferCheck.transferType || 'NONE'
         });
         
-        // Check if agents are available
-        const agentsAvailable = isWithinOperatingHours();
+        // ENHANCED: Check for ACTUAL agent availability instead of just hours
+        const agentsAvailable = await areAgentsAvailable();
         
         // SIMPLIFIED: Only handle explicit human requests
         if (transferCheck.shouldTransfer && !agentsAvailable) {
@@ -902,7 +902,7 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             
             return {
                 shouldTransfer: false,
-                reason: 'human_requested_outside_hours',
+                reason: 'human_requested_but_no_agents',
                 response: humanRequestedMessage
             };
         }
