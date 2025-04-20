@@ -856,15 +856,22 @@ Do NOT transfer if the customer:
 4. Can be adequately helped by automated systems
 5. Is not showing any signs of frustration or urgency
 
+If a transfer is needed, also classify the type of transfer:
+- TECHNICAL_ISSUE: Customer has technical problems with website, booking system, payments, etc.
+- HUMAN_REQUESTED: Customer explicitly asked for a human agent
+- COMPLEX_ISSUE: Other complex issues requiring human judgment
+
 Analyze the message carefully and respond with:
 1. A classification (YES if they should be transferred, NO if not)
 2. The confidence level (LOW, MEDIUM, HIGH)
 3. The primary reason for this decision
+4. The type of transfer (only if classification is YES)
 
 Format your response exactly like this example:
 CLASSIFICATION: YES
 CONFIDENCE: HIGH
-REASON: The customer explicitly asked to speak with a human agent.`;
+REASON: The customer explicitly asked to speak with a human agent.
+TYPE: HUMAN_REQUESTED`;
 
         // Make the API call to OpenAI
         const response = await openai.chat.completions.create({
@@ -887,6 +894,7 @@ REASON: The customer explicitly asked to speak with a human agent.`;
         const classification = aiResponse.match(/CLASSIFICATION:\s*(YES|NO)/i)?.[1].toUpperCase();
         const confidence = aiResponse.match(/CONFIDENCE:\s*(LOW|MEDIUM|HIGH)/i)?.[1].toUpperCase();
         const reason = aiResponse.match(/REASON:\s*(.+)$/i)?.[1];
+        const transferType = aiResponse.match(/TYPE:\s*(TECHNICAL_ISSUE|HUMAN_REQUESTED|COMPLEX_ISSUE)/i)?.[1]?.toUpperCase();
         
         // Convert to confidence score
         let confidenceScore = 0;
@@ -905,7 +913,8 @@ REASON: The customer explicitly asked to speak with a human agent.`;
             classification,
             confidenceScore,
             shouldTransfer,
-            reason
+            reason,
+            transferType
         });
         
         // Check if any agents are available (for convenience)
@@ -917,48 +926,24 @@ REASON: The customer explicitly asked to speak with a human agent.`;
             console.error('Error checking agent availability:', error);
         }
         
-        // Return the final decision
+        // Return the final decision with transfer type
         return {
             shouldTransfer,
             confidence: confidenceScore,
             reason: reason || 'Unknown reason',
+            transferType: transferType || (shouldTransfer ? 'COMPLEX_ISSUE' : undefined), // Default if type not provided
             agents: availableAgents
         };
     } catch (error) {
         console.error('\n❌ Error in AI agent transfer detection:', error);
         
-        // Fallback to a very basic heuristic in case of error
-        const msg = message.toLowerCase();
-        const directTerms = ['human', 'agent', 'person', 'representative', 'real person', 'speak to'];
-        const frustrationTerms = ['not helpful', 'frustrating', 'annoying', 'waste of time', 'stupid'];
-        
-        // Count matches
-        let directCount = 0;
-        let frustrationCount = 0;
-        
-        directTerms.forEach(term => {
-            if (msg.includes(term)) directCount++;
-        });
-        
-        frustrationTerms.forEach(term => {
-            if (msg.includes(term)) frustrationCount++;
-        });
-        
-        // Simple heuristic
-        const shouldTransfer = directCount >= 1 || frustrationCount >= 1;
-        const confidence = directCount >= 1 ? 0.8 : (frustrationCount >= 1 ? 0.6 : 0.2);
-        
-        console.log('\n⚠️ Using fallback detection due to AI error:', {
-            shouldTransfer,
-            confidence,
-            directCount,
-            frustrationCount
-        });
+        // In case of AI error, return a conservative default without keyword matching
+        console.log('\n⚠️ Using safe default due to AI error');
         
         return {
-            shouldTransfer,
-            confidence,
-            reason: 'Fallback detection due to AI error',
+            shouldTransfer: false,
+            confidence: 0.2,
+            reason: 'AI error - defaulting to no transfer',
             error: error.message
         };
     }

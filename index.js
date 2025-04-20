@@ -879,24 +879,28 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 confidence: languageDecision.confidence
             }
         });
+        
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
-        // First check if agents are available (outside operating hours)
-        if (transferCheck.shouldTransfer && !isWithinOperatingHours()) {
-            // Check if this is a technical issue
-            const isTechnicalIssue = 
-                (transferCheck.reason && 
-                (transferCheck.reason.includes('technical') || 
-                 transferCheck.reason.toLowerCase().includes('issue'))) ||
-                /error|fail|failed|bug|crash|not working|problem|can't|cannot|won't|stuck/i.test(message);
-            
-            if (isTechnicalIssue) {
-                // Flag for technical issue without trying to modify messages yet
+        console.log('\n🔍 Transfer Check Details:', {
+            shouldTransfer: transferCheck.shouldTransfer,
+            confidence: transferCheck.confidence,
+            reason: transferCheck.reason,
+            transferType: transferCheck.transferType || 'NONE'
+        });
+        
+        // Check if agents are available
+        const agentsAvailable = isWithinOperatingHours();
+        
+        // If transfer needed but no agents available
+        if (transferCheck.shouldTransfer && !agentsAvailable) {
+            // Rely on AI's classification of transfer type
+            if (transferCheck.transferType === 'TECHNICAL_ISSUE') {
                 return {
                     shouldTransfer: false,
                     reason: 'technical_issue_outside_hours',
-                    isTechnicalIssue: true,  // Flag for later processing
+                    isTechnicalIssue: true,
                     technicalDetails: {
                         issue: message,
                         contactEmail: 'reservations@skylagoon.is'
@@ -904,36 +908,51 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 };
             }
             
-            // Standard outside hours message for non-technical issues
-            const redirectMessage = languageDecision.isIcelandic ? 
-                "Því miður er þjónustuverið okkar lokað núna. Opnunartími þjónustuvers er virka daga frá kl. 9-16 (GMT). Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800." :
-                "Our customer service is currently closed. Our service hours are weekdays from 9 AM to 4 PM (GMT). For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800.";
+            // For explicit human requests
+            if (transferCheck.transferType === 'HUMAN_REQUESTED') {
+                return {
+                    shouldTransfer: false,
+                    reason: 'human_requested_outside_hours',
+                    enhancePrompt: true,
+                    promptContext: {
+                        situation: 'human_requested_outside_hours',
+                        operatingHours: '9 AM to 6 PM GMT on weekdays',
+                        phoneNumber: '+354 527 6800',
+                        email: 'reservations@skylagoon.is'
+                    }
+                };
+            }
             
+            // For complex issues or any other type - let AI handle naturally
             return {
                 shouldTransfer: false,
-                reason: 'outside_hours',
-                response: redirectMessage
+                reason: 'complex_issue_outside_hours',
+                enhancePrompt: true,
+                promptContext: {
+                    situation: 'complex_issue_outside_hours',
+                    operatingHours: '9 AM to 6 PM GMT on weekdays',
+                    phoneNumber: '+354 527 6800',
+                    email: 'reservations@skylagoon.is'
+                }
             };
         }
         
-        // Temporarily disable all live agent transfers
-        if (transferCheck.shouldTransfer) {
-            // Return a helpful message redirecting to booking form
-            const redirectMessage = languageDecision.isIcelandic ? 
-                "Því miður er ekki hægt að tengja þig við þjónustufulltrúa í augnablikinu. Fyrir bókunarbreytingar, vinsamlegast notaðu eyðublaðið okkar. Fyrir tafarlausa aðstoð, vinsamlegast hringdu í +354 527 6800." :
-                "Our live agent chat system is currently unavailable. For booking changes, please use our booking request form. For immediate assistance, please call us at +354 527 6800.";
-            
+        // If transfer is needed and agents are available
+        if (transferCheck.shouldTransfer && agentsAvailable) {
             return {
-                shouldTransfer: false,
-                reason: 'transfer_disabled',
-                response: redirectMessage
+                shouldTransfer: true,
+                confidence: transferCheck.confidence,
+                reason: transferCheck.reason,
+                transferType: transferCheck.transferType,
+                agents: transferCheck.agents
             };
         }
+        
+        // Default case - no transfer needed
         return {
-            shouldTransfer: transferCheck.shouldTransfer,
+            shouldTransfer: false,
             confidence: transferCheck.confidence,
-            reason: transferCheck.reason,
-            agents: transferCheck.agents
+            reason: transferCheck.reason
         };
     } catch (error) {
         console.error('\n❌ Error in shouldTransferToAgent:', error);
@@ -2403,8 +2422,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 // Prepare booking change message based on language and agent hours
                 const bookingChangeMessage = languageDecision.isIcelandic ?
-                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-16 (GMT) virka daga. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
-                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 4 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
+                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-18 virka daga og 9-16 um helgar. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
+                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 6 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
 
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
@@ -2774,7 +2793,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // ADD THIS NEW BLOCK RIGHT HERE
         // Check for technical issue context from transfer check
         if (transferCheck && transferCheck.isTechnicalIssue) {
             console.log('\n🛠️ Adding technical issue handling instructions to prompt');
@@ -2790,11 +2808,48 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 1. Acknowledges their specific technical issue (${issue})
                 2. Suggests emailing ${contactEmail} with details of the error
                 3. Is conversational and natural, not like a generic error message
-                4. Mentions our operating hours (9 AM - 4 PM GMT on weekdays)
+                4. Mentions our operating hours (9 AM - 6 PM GMT on weekdays and 9 AM - 4 PM GMT on weekends)
                 5. Expresses that we look forward to welcoming them soon`
             });
         }
-        // END OF NEW BLOCK
+
+        // Handle human agent requests outside hours
+        if (transferCheck && transferCheck.enhancePrompt && 
+            transferCheck.promptContext?.situation === 'human_requested_outside_hours') {
+            
+            messages.push({
+                role: "system",
+                content: `IMPORTANT: The user has specifically requested to speak with a human agent, but our 
+                customer service is only available during ${transferCheck.promptContext.operatingHours}.
+                
+                Generate a helpful, empathetic response that:
+                1. Acknowledges their desire to speak with a human agent
+                2. Explains when human agents are available
+                3. Offers alternative contact methods (phone: ${transferCheck.promptContext.phoneNumber}, 
+                   email: ${transferCheck.promptContext.email})
+                4. Offers to help with their question yourself where possible
+                5. Is conversational and natural, not like a generic message`
+            });
+        }
+
+        // Handle complex issues outside hours
+        if (transferCheck && transferCheck.enhancePrompt && 
+            transferCheck.promptContext?.situation === 'complex_issue_outside_hours') {
+            
+            messages.push({
+                role: "system",
+                content: `IMPORTANT: The user has a complex issue that would typically benefit from human assistance, 
+                but our customer service is only available during ${transferCheck.promptContext.operatingHours}.
+                
+                Generate a helpful, comprehensive response that:
+                1. Addresses their question or issue as completely as possible
+                2. Provides any relevant information or alternatives that might help
+                3. Only if you cannot fully resolve their issue, mention when human agents are available
+                4. Offers contact methods for follow-up (phone: ${transferCheck.promptContext.phoneNumber}, 
+                   email: ${transferCheck.promptContext.email})
+                5. Is conversational and natural, not like a generic message`
+            });
+        }
 
         // Conversation continuity check - Check if this is an ongoing conversation
         const isOngoingConversation = context.messages && 
