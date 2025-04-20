@@ -775,7 +775,33 @@ const LIVECHAT_HOURS = {
 };
 
 /**
- * Helper function to check if any agents are actually available
+ * Helper function to check if current time is within operating hours
+ * KEPT FOR BACKWARD COMPATIBILITY with existing functions
+ * @returns {boolean} Whether current time is within operating hours
+ */
+const isWithinOperatingHours = () => {
+    const now = new Date();
+    const hours = now.getHours(); // Use local time instead of UTC
+    const dayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
+    
+    // For testing: include weekends in operating hours
+    const isWithinHours = hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
+    
+    console.log('\n⏰ Hours Check:', {
+        currentHour: hours,
+        start: LIVECHAT_HOURS.START,
+        end: LIVECHAT_HOURS.END,
+        day: dayOfWeek,
+        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+        isWithin: isWithinHours
+    });
+    
+    // Only check the hours, ignore weekends
+    return isWithinHours;
+};
+
+/**
+ * Enhanced function to check if any agents are actually available
  * @returns {Promise<boolean>} Whether any agents are available
  */
 const areAgentsAvailable = async () => {
