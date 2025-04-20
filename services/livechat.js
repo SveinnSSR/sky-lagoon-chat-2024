@@ -3088,23 +3088,61 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
 }
 
 /**
- * Send message to LiveChat with fallback
+ * Send message to LiveChat with enhanced error handling and retries
  * @param {string} chatId - LiveChat chat ID
  * @param {string} message - Message to send
- * @param {string} credentials - Auth credentials
+ * @param {string} credentials - Auth credentials or bot token
  * @returns {Promise<boolean>} Success status
  */
 export async function sendMessageToLiveChat(chatId, message, credentials) {
     try {
-        // First try using bot token if it looks like a JWT (contains periods)
-        if (credentials && credentials.includes('.')) {
-            console.log('\n📨 Trying to send message using bot token...');
+        const maxRetries = 3;
+        let lastError;
+        const isToken = credentials && credentials.includes('.');
+        
+        // First check access to make sure we can send messages
+        try {
+            console.log('\n🔍 Verifying chat access before sending message...');
+            
+            const authHeader = isToken ? 
+                `Bearer ${credentials}` : 
+                `Basic ${credentials}`;
+                
+            const accessCheck = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authHeader,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId
+                })
+            });
+            
+            if (!accessCheck.ok) {
+                console.warn('\n⚠️ No permission to access this chat, messages will likely fail');
+            } else {
+                console.log('\n✅ Chat access verified, proceeding with sending message');
+            }
+        } catch (accessError) {
+            console.warn('\n⚠️ Chat access check failed:', accessError.message);
+        }
+        
+        // Try sending with the provided credentials
+        for (let i = 0; i < maxRetries; i++) {
             try {
+                const authHeader = isToken ? 
+                    `Bearer ${credentials}` : 
+                    `Basic ${credentials}`;
+                
+                console.log(`\n📨 Attempt ${i+1}/${maxRetries}: Sending message with ${isToken ? 'bot token' : 'agent credentials'}...`);
+                
                 const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${credentials}`,
+                        'Authorization': authHeader,
                         'X-Region': 'fra'
                     },
                     body: JSON.stringify({
@@ -3118,50 +3156,34 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                 });
                 
                 if (response.ok) {
-                    console.log('\n✅ Message sent with bot token');
+                    console.log(`\n✅ Message sent successfully on attempt ${i+1}`);
                     return true;
                 }
                 
                 const errorText = await response.text();
-                console.log('\n⚠️ Bot token failed:', errorText);
-            } catch (error) {
-                console.log('\n⚠️ Bot token failed:', error.message);
+                console.warn(`\n⚠️ Attempt ${i+1} failed:`, errorText);
+                
+                // Store the last error to throw if all attempts fail
+                lastError = new Error(`Send message failed: ${response.status}`);
+                
+                // Only retry for certain types of errors
+                if (errorText.includes('authorization') || errorText.includes('Requester is not user')) {
+                    console.log(`\n⏳ Authorization error, waiting before retry...`);
+                    // Exponential backoff with jitter
+                    const delay = Math.floor(Math.random() * 1000) + (1000 * Math.pow(2, i));
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    // For other errors, don't retry
+                    break;
+                }
+            } catch (attemptError) {
+                console.error(`\n❌ Error on attempt ${i+1}:`, attemptError);
+                lastError = attemptError;
             }
         }
         
-        // Fallback to agent credentials
-        console.log('\n📨 Using agent credentials to send message...');
-        
-        // Get agent credentials - either from params or generate fresh ones
-        const agentCreds = credentials && !credentials.includes('.') 
-            ? credentials 
-            : Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCreds}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                event: {
-                    type: 'message',
-                    text: message,
-                    visibility: 'all'
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Send message error response:', errorText);
-            throw new Error(`Send message failed: ${response.status}`);
-        }
-
-        console.log('\n✅ Message sent with agent credentials');
-        return true;
+        // If we reach here, all attempts failed
+        throw lastError || new Error('Failed to send message after all retry attempts');
     } catch (error) {
         console.error('\n❌ Error sending message to LiveChat:', error);
         return false;
