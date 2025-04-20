@@ -825,53 +825,32 @@ export async function shouldTransferToHumanAgent(message, languageDecision, cont
             if (context.lastTopic) {
                 userPrompt += `\nLast topic discussed: ${context.lastTopic}`;
             }
-            
-            // Add frustration indicators if available
-            const userMessages = context.messages.filter(m => m.role === 'user');
-            const repeatCount = userMessages.length >= 3 ? 
-                new Set(userMessages.slice(-3).map(m => m.content)).size : 0;
-                
-            if (repeatCount === 1) {
-                userPrompt += "\nNote: Customer has repeated the same message multiple times.";
-            }
         }
         
         // Add the customer message
         userPrompt += `\n\nCustomer message: "${message}"`;
         
-        // Add decision criteria
-        userPrompt += `\n\nTransfer to a human agent if the customer:
-1. Explicitly requests to speak with a human agent/representative/person
-2. Shows clear signs of frustration with the automated service
-3. Has repeated the same question multiple times without satisfaction
-4. Has a complex issue that requires human judgment
-5. Is using emotional language indicating dissatisfaction
-6. Has a time-sensitive or urgent matter
-7. Has a technical issue that can't be resolved through standard procedures
+        // Add decision criteria with SIMPLIFIED transfer criteria
+        userPrompt += `\n\nTransfer to a human agent ONLY if the customer:
+1. Explicitly and directly asks to speak with a human agent/representative/person
+2. Specifically requests to talk to a real person or staff member
+3. Clearly states they want human assistance, not automated help
 
 Do NOT transfer if the customer:
-1. Is asking simple informational questions
-2. Is just browsing options or prices
-3. Is making general comments or chitchat
-4. Can be adequately helped by automated systems
-5. Is not showing any signs of frustration or urgency
+1. Is reporting a technical issue or problem that can be solved with instructions
+2. Is asking for help with booking, payment, or using the website
+3. Is requesting information about packages, prices, or services
+4. Has questions about the booking process or Multi-Pass usage
+5. Needs help with gift cards or booking changes
+6. Is expressing frustration without explicitly requesting a human
 
-If a transfer is needed, also classify the type of transfer:
-- TECHNICAL_ISSUE: Customer has technical problems with website, booking system, payments, etc.
-- HUMAN_REQUESTED: Customer explicitly asked for a human agent
-- COMPLEX_ISSUE: Other complex issues requiring human judgment
-
-Analyze the message carefully and respond with:
-1. A classification (YES if they should be transferred, NO if not)
-2. The confidence level (LOW, MEDIUM, HIGH)
-3. The primary reason for this decision
-4. The type of transfer (only if classification is YES)
+Be extremely strict about this - only recommend transfer for explicit human agent requests.
 
 Format your response exactly like this example:
-CLASSIFICATION: YES
-CONFIDENCE: HIGH
-REASON: The customer explicitly asked to speak with a human agent.
-TYPE: HUMAN_REQUESTED`;
+CLASSIFICATION: YES/NO
+CONFIDENCE: LOW/MEDIUM/HIGH
+REASON: Brief explanation of your decision.
+TYPE: HUMAN_REQUESTED (only if classification is YES)`;
 
         // Make the API call to OpenAI
         const response = await openai.chat.completions.create({
@@ -894,7 +873,7 @@ TYPE: HUMAN_REQUESTED`;
         const classification = aiResponse.match(/CLASSIFICATION:\s*(YES|NO)/i)?.[1].toUpperCase();
         const confidence = aiResponse.match(/CONFIDENCE:\s*(LOW|MEDIUM|HIGH)/i)?.[1].toUpperCase();
         const reason = aiResponse.match(/REASON:\s*(.+)$/i)?.[1];
-        const transferType = aiResponse.match(/TYPE:\s*(TECHNICAL_ISSUE|HUMAN_REQUESTED|COMPLEX_ISSUE)/i)?.[1]?.toUpperCase();
+        const transferType = aiResponse.match(/TYPE:\s*(HUMAN_REQUESTED)/i)?.[1]?.toUpperCase();
         
         // Convert to confidence score
         let confidenceScore = 0;
@@ -905,8 +884,10 @@ TYPE: HUMAN_REQUESTED`;
             default: confidenceScore = 0.5; // Default if parsing fails
         }
         
-        // Final decision
-        const shouldTransfer = classification === 'YES' && confidenceScore >= 0.6;
+        // Final decision - only transfer for explicit human requests
+        const shouldTransfer = classification === 'YES' && 
+                             confidenceScore >= 0.8 && // Higher threshold for transfers
+                             transferType === 'HUMAN_REQUESTED';
         
         // Log the decision
         console.log('\n👥 Agent transfer detection analysis:', {
@@ -931,15 +912,13 @@ TYPE: HUMAN_REQUESTED`;
             shouldTransfer,
             confidence: confidenceScore,
             reason: reason || 'Unknown reason',
-            transferType: transferType || (shouldTransfer ? 'COMPLEX_ISSUE' : undefined), // Default if type not provided
+            transferType: transferType || (shouldTransfer ? 'HUMAN_REQUESTED' : undefined),
             agents: availableAgents
         };
     } catch (error) {
         console.error('\n❌ Error in AI agent transfer detection:', error);
         
-        // In case of AI error, return a conservative default without keyword matching
-        console.log('\n⚠️ Using safe default due to AI error');
-        
+        // In case of AI error, return a conservative default
         return {
             shouldTransfer: false,
             confidence: 0.2,

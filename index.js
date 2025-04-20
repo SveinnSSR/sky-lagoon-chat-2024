@@ -893,47 +893,17 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
         // Check if agents are available
         const agentsAvailable = isWithinOperatingHours();
         
-        // If transfer needed but no agents available
+        // SIMPLIFIED: Only handle explicit human requests
         if (transferCheck.shouldTransfer && !agentsAvailable) {
-            // Rely on AI's classification of transfer type
-            if (transferCheck.transferType === 'TECHNICAL_ISSUE') {
-                return {
-                    shouldTransfer: false,
-                    reason: 'technical_issue_outside_hours',
-                    isTechnicalIssue: true,
-                    technicalDetails: {
-                        issue: message,
-                        contactEmail: 'reservations@skylagoon.is'
-                    }
-                };
-            }
+            // If human requested but unavailable, provide operating hours
+            const humanRequestedMessage = languageDecision.isIcelandic ? 
+                "Því miður er þjónustuverið okkar lokað núna. Opnunartími þjónustuvers er virka daga frá kl. 9-18 og um helgar frá kl. 9-16. Ég get þó reynt að aðstoða þig með spurningar þínar." :
+                "Our customer service team is currently unavailable. Our service hours are weekdays from 9 AM to 6 PM and weekends from 9 AM to 4 PM. I'll do my best to assist you with your questions.";
             
-            // For explicit human requests
-            if (transferCheck.transferType === 'HUMAN_REQUESTED') {
-                return {
-                    shouldTransfer: false,
-                    reason: 'human_requested_outside_hours',
-                    enhancePrompt: true,
-                    promptContext: {
-                        situation: 'human_requested_outside_hours',
-                        operatingHours: '9 AM to 6 PM GMT on weekdays',
-                        phoneNumber: '+354 527 6800',
-                        email: 'reservations@skylagoon.is'
-                    }
-                };
-            }
-            
-            // For complex issues or any other type - let AI handle naturally
             return {
                 shouldTransfer: false,
-                reason: 'complex_issue_outside_hours',
-                enhancePrompt: true,
-                promptContext: {
-                    situation: 'complex_issue_outside_hours',
-                    operatingHours: '9 AM to 6 PM GMT on weekdays',
-                    phoneNumber: '+354 527 6800',
-                    email: 'reservations@skylagoon.is'
-                }
+                reason: 'human_requested_outside_hours',
+                response: humanRequestedMessage
             };
         }
         
@@ -2547,23 +2517,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 });
                 return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
-        // ADD THIS NEW CONDITION BLOCK RIGHT HERE (between the if-block and else-if block)
-        } else if (transferCheck.isTechnicalIssue) {
-            // Handle technical issues by adding special instructions to context
-            console.log('\n🛠️ Handling technical issue with context instructions');
-            
-            // Instead of trying to access messages, add to context
-            context.technicalIssuePrompt = {
-                issue: transferCheck.technicalDetails.issue,
-                contactEmail: transferCheck.technicalDetails.contactEmail,
-                isOutsideHours: true
-            };
-            
-            // Add a special flag to the context to indicate a technical issue
-            context.lastTopic = 'technical_issue';
-            
-            // Let the normal flow continue - don't return here
-        // END OF NEW CONDITION BLOCK          
         } else if (transferCheck.response) {
             // If we have a specific response (e.g., outside hours), send it
             // Add response to context
@@ -2793,26 +2746,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Check for technical issue context from transfer check
-        if (transferCheck && transferCheck.isTechnicalIssue) {
-            console.log('\n🛠️ Adding technical issue handling instructions to prompt');
-            
-            // Use optional chaining and defaults for safety
-            const issue = transferCheck.technicalDetails?.issue || "with the booking system";
-            const contactEmail = transferCheck.technicalDetails?.contactEmail || "reservations@skylagoon.is";
-            
-            messages.push({
-                role: "system",
-                content: `IMPORTANT: The user is reporting a technical issue with the booking system outside of customer service hours.
-                Generate a helpful, empathetic response that:
-                1. Acknowledges their specific technical issue (${issue})
-                2. Suggests emailing ${contactEmail} with details of the error
-                3. Is conversational and natural, not like a generic error message
-                4. Mentions our operating hours (9 AM - 6 PM GMT on weekdays and 9 AM - 4 PM GMT on weekends)
-                5. Expresses that we look forward to welcoming them soon`
-            });
-        }
-
         // Handle human agent requests outside hours
         if (transferCheck && transferCheck.enhancePrompt && 
             transferCheck.promptContext?.situation === 'human_requested_outside_hours') {
@@ -2828,25 +2761,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 3. Offers alternative contact methods (phone: ${transferCheck.promptContext.phoneNumber}, 
                    email: ${transferCheck.promptContext.email})
                 4. Offers to help with their question yourself where possible
-                5. Is conversational and natural, not like a generic message`
-            });
-        }
-
-        // Handle complex issues outside hours
-        if (transferCheck && transferCheck.enhancePrompt && 
-            transferCheck.promptContext?.situation === 'complex_issue_outside_hours') {
-            
-            messages.push({
-                role: "system",
-                content: `IMPORTANT: The user has a complex issue that would typically benefit from human assistance, 
-                but our customer service is only available during ${transferCheck.promptContext.operatingHours}.
-                
-                Generate a helpful, comprehensive response that:
-                1. Addresses their question or issue as completely as possible
-                2. Provides any relevant information or alternatives that might help
-                3. Only if you cannot fully resolve their issue, mention when human agents are available
-                4. Offers contact methods for follow-up (phone: ${transferCheck.promptContext.phoneNumber}, 
-                   email: ${transferCheck.promptContext.email})
                 5. Is conversational and natural, not like a generic message`
             });
         }
