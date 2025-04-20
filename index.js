@@ -2463,9 +2463,40 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
 
-                // Send initial message to LiveChat (if not already sent in welcome_message)
-                const messageSent = await sendMessageToLiveChat(chatData.chat_id, userMessage, chatData.bot_token);
+                // Send initial message to LiveChat with better formatting
+                const formattedMessage = `User message: ${userMessage}`;
+                const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.bot_token);
                 console.log('\n📝 Initial message sent:', messageSent);
+                
+                // Send context information to LiveChat to help agents
+                try {
+                    console.log('\n📝 Sending conversation context to LiveChat...');
+                    
+                    // Get recent conversation history (up to 4 messages)
+                    const recentMessages = context.messages
+                        .slice(-4)  // Get last 4 messages
+                        .filter(m => m.role !== 'system')  // Filter out system messages
+                        .map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content.substring(0, 100)}${m.content.length > 100 ? '...' : ''}`)
+                        .join('\n');
+                    
+                    const contextMessage = `
+--- Conversation Context ---
+Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
+Topic: ${context.lastTopic || 'General inquiry'}
+${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
+-------------------------`;
+                    
+                    await sendMessageToLiveChat(
+                        chatData.chat_id,
+                        contextMessage,
+                        chatData.bot_token
+                    );
+                    
+                    console.log('\n✅ Context information sent to LiveChat');
+                } catch (contextError) {
+                    console.error('\n⚠️ Error sending context to LiveChat:', contextError);
+                    // Continue even if context sending fails
+                }
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
