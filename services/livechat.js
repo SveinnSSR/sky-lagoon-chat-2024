@@ -111,6 +111,410 @@ export async function checkAgentAvailability(isIcelandic = false) {
 }
 
 /**
+ * Creates a LiveChat chat using direct API calls with detailed logging
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createChatDebug(customerId, isIcelandic = false) {
+    try {
+        console.log('\n🔍 DETAILED DEBUG: Creating LiveChat session with comprehensive logging');
+        
+        // Step 1: Verify agent availability and credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        console.log('\n👥 Checking available agents with agent credentials...');
+        const agentResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                filters: {
+                    group_ids: [SKY_LAGOON_GROUPS.EN, SKY_LAGOON_GROUPS.IS]
+                }
+            })
+        });
+        
+        if (!agentResponse.ok) {
+            const agentErrorText = await agentResponse.text();
+            console.error('\n❌ Agent status check failed:', agentErrorText);
+            throw new Error(`Agent status check failed: ${agentResponse.status} - ${agentErrorText}`);
+        }
+        
+        const agentStatuses = await agentResponse.json();
+        console.log('\n👥 Agent statuses:', JSON.stringify(agentStatuses, null, 2));
+        
+        // Step 2: Find available agent
+        const availableAgents = agentStatuses.filter(agent => 
+            agent.status === 'accepting_chats' || agent.status === 'online'
+        );
+        
+        if (availableAgents.length === 0) {
+            console.log('\n⚠️ No agents available, using default agent');
+            availableAgents.push({
+                agent_id: 'david@svorumstrax.is',
+                status: 'accepting_chats'
+            });
+        }
+        
+        const targetAgent = availableAgents[0];
+        console.log('\n👤 Target agent:', targetAgent);
+        
+        // Step 3: Get a bot token for chat creation
+        console.log('\n🤖 Getting bot token with debug info...');
+        
+        const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                bot_id: BOT_ID,
+                bot_secret: BOT_SECRET,
+                client_id: CLIENT_ID,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737"
+            })
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('\n❌ Bot token error:', errorText);
+            console.error('Request details:', {
+                bot_id: BOT_ID,
+                client_id: CLIENT_ID,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737"
+            });
+            throw new Error(`Failed to get bot token: ${tokenResponse.status} - ${errorText}`);
+        }
+
+        const tokenData = await tokenResponse.json();
+        console.log('\n✅ Bot token acquired:', tokenData);
+        const botToken = tokenData.token;
+        
+        // Step 4: Create chat with comprehensive parameters
+        console.log('\n🤖 DEBUG: Creating chat with comprehensive parameters...');
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
+        
+        // TESTING: First try direct agent based creation
+        const chatParams = {
+            active: true,
+            continuous: true,
+            group_id: groupId,
+            agent_ids: [targetAgent.agent_id], // Try direct agent assignment
+            customers: [{
+                id: customerId,
+                name: `User ${customerId}`,
+                email: `${customerId}@skylagoon.com`
+            }],
+            properties: {
+                source: {
+                    type: "other"
+                },
+                routing: {
+                    status: "assigned", // Try "assigned" status
+                    agents: [targetAgent.agent_id],
+                    priority: "normal"
+                }
+            }
+        };
+        
+        console.log('\n📝 Chat creation params:', JSON.stringify(chatParams, null, 2));
+        
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify(chatParams)
+        });
+
+        let chatData;
+        try {
+            const chatResponseText = await chatResponse.text();
+            console.log('\n🔍 Raw chat response:', chatResponseText);
+            
+            if (!chatResponse.ok) {
+                console.error('\n❌ Chat creation error:', chatResponseText);
+                
+                // FALLBACK: Try creating without agent_ids if that failed
+                console.log('\n🔄 Trying fallback chat creation without agent_ids...');
+                
+                delete chatParams.agent_ids;
+                chatParams.properties.routing.status = "need_agent";
+                delete chatParams.properties.routing.agents;
+                
+                console.log('\n📝 Fallback chat params:', JSON.stringify(chatParams, null, 2));
+                
+                const fallbackResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${botToken}`,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify(chatParams)
+                });
+                
+                const fallbackText = await fallbackResponse.text();
+                console.log('\n🔍 Fallback raw response:', fallbackText);
+                
+                if (!fallbackResponse.ok) {
+                    console.error('\n❌ Fallback chat creation failed:', fallbackText);
+                    throw new Error(`Both chat creation attempts failed`);
+                }
+                
+                chatData = JSON.parse(fallbackText);
+            } else {
+                chatData = JSON.parse(chatResponseText);
+            }
+        } catch (parseError) {
+            console.error('\n❌ Error parsing chat response:', parseError);
+            throw new Error(`Failed to parse chat response: ${parseError.message}`);
+        }
+        
+        console.log('\n✅ Chat created with details:', chatData);
+        
+        // Step 5: Send a system message for context
+        console.log('\n🤖 Sending system message...');
+        const systemResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'system_message',
+                    text: '⚠️ AI CHATBOT TRANSFER: Customer has requested to speak with a human agent',
+                    recipients: 'all'
+                }
+            })
+        });
+        
+        const systemResponseText = await systemResponse.text();
+        console.log('\n🔍 System message response:', systemResponseText);
+        
+        if (!systemResponse.ok) {
+            console.error('\n⚠️ System message failed:', systemResponseText);
+        }
+        
+        // Step 6: Try explicit agent assignment (if not already assigned)
+        console.log('\n👤 Attempting explicit agent assignment...');
+        const assignParams = {
+            id: chatData.chat_id,
+            agent_id: targetAgent.agent_id
+        };
+        
+        console.log('\n📝 Assignment params:', JSON.stringify(assignParams, null, 2));
+        
+        const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify(assignParams)
+        });
+        
+        const assignResponseText = await assignResponse.text();
+        console.log('\n🔍 Assignment response:', assignResponseText);
+        
+        if (!assignResponse.ok) {
+            console.warn('\n⚠️ Explicit assignment failed:', assignResponseText);
+            
+            // Try alternative assignment using agent credentials
+            console.log('\n🔄 Trying assignment with agent credentials...');
+            const altAssignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify(assignParams)
+            });
+            
+            const altAssignText = await altAssignResponse.text();
+            console.log('\n🔍 Alt assignment response:', altAssignText);
+            
+            if (!altAssignResponse.ok) {
+                console.warn('\n⚠️ Alternative assignment also failed');
+            }
+        }
+        
+        // Step 7: Send user message
+        console.log('\n💬 Sending user message...');
+        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'This customer has requested to speak with a human agent. Please assist them.',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        const messageResponseText = await messageResponse.text();
+        console.log('\n🔍 Message response:', messageResponseText);
+        
+        if (!messageResponse.ok) {
+            console.error('\n⚠️ Message sending failed:', messageResponseText);
+        }
+        
+        // Step 8: Send a rich message as urgent notification
+        console.log('\n🔔 Sending urgent notification...');
+        const notifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'rich_message',
+                    template_id: 'cards',
+                    elements: [{
+                        title: '🚨 URGENT: Customer Transfer from AI Chatbot',
+                        subtitle: 'This customer needs immediate assistance',
+                        buttons: [{
+                            text: 'Respond',
+                            type: 'message',
+                            value: 'I am here to help you',
+                            postback_id: 'agent_response'
+                        }]
+                    }]
+                }
+            })
+        });
+        
+        const notifyResponseText = await notifyResponse.text();
+        console.log('\n🔍 Notification response:', notifyResponseText);
+        
+        if (!notifyResponse.ok) {
+            console.error('\n⚠️ Notification failed:', notifyResponseText);
+        }
+        
+        // Step 9: Add tag for visibility
+        console.log('\n🏷️ Adding tag to chat...');
+        const tagResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                tag: "urgent_ai_transfer"
+            })
+        });
+        
+        const tagResponseText = await tagResponse.text();
+        console.log('\n🔍 Tag response:', tagResponseText);
+        
+        if (!tagResponse.ok) {
+            console.error('\n⚠️ Tagging failed:', tagResponseText);
+        }
+        
+        // Step 10: Get final chat status
+        console.log('\n🔍 Getting final chat status...');
+        const statusResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id
+            })
+        });
+        
+        if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('\n📊 Final chat status:', JSON.stringify({
+                id: statusData.id,
+                active: statusData.active,
+                users: statusData.users,
+                thread: {
+                    events: statusData.thread?.events?.length,
+                    queue: statusData.thread?.queue || null
+                },
+                properties: statusData.properties
+            }, null, 2));
+        } else {
+            console.warn('\n⚠️ Unable to get final chat status:', await statusResponse.text());
+        }
+        
+        // Also try checking the chat as an agent
+        try {
+            console.log('\n🔍 Checking chat status as agent...');
+            const agentStatusResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id
+                })
+            });
+            
+            if (agentStatusResponse.ok) {
+                const agentStatusData = await agentStatusResponse.json();
+                console.log('\n📊 Chat status as agent:', JSON.stringify({
+                    id: agentStatusData.id,
+                    active: agentStatusData.active,
+                    users: agentStatusData.users?.length,
+                    thread: agentStatusData.thread?.events?.length
+                }, null, 2));
+            } else {
+                console.warn('\n⚠️ Unable to get chat status as agent:', await agentStatusResponse.text());
+            }
+        } catch (agentCheckError) {
+            console.error('\n❌ Error checking chat as agent:', agentCheckError);
+        }
+        
+        console.log('\n📋 DEBUG chat creation completed with comprehensive logging.');
+        console.log('Chat ID:', chatData.chat_id);
+        
+        return {
+            chat_id: chatData.chat_id,
+            bot_token: botToken,
+            agent_credentials: agentCredentials,
+            assigned_agent: targetAgent.agent_id,
+            debug_info: {
+                creation_time: new Date().toISOString(),
+                target_agent: targetAgent,
+                group_id: groupId
+            }
+        };
+    } catch (error) {
+        console.error('\n❌ Error in createChatDebug:', error);
+        throw error;
+    }
+}
+
+/**
  * Creates a LiveChat chat using bot and assigns directly to an agent
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group

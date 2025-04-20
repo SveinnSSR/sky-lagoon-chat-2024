@@ -45,7 +45,8 @@ import {
 // AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
     checkAgentAvailability, 
-    createChat, 
+    createChat,
+    createChatDebug,  // Add this line 
     sendMessageToLiveChat,
     detectBookingChangeRequest,
     createBookingChangeRequest,
@@ -2479,16 +2480,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat using bot
+                // Create chat using bot with enhanced debugging
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatData = await createChat(sessionId, languageDecision.isIcelandic);
-
+                const chatData = await createChatDebug(sessionId, languageDecision.isIcelandic);
+                
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
                 }
-
+                
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
-
+                
                 // Send initial message to LiveChat with better formatting
                 const formattedMessage = `User message: ${userMessage}`;
                 const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.bot_token);
