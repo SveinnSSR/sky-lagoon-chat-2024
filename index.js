@@ -2533,28 +2533,27 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (transferCheck.shouldTransfer) {
             try {
                 // Create chat using improved bot transfer function
-                console.log('\n📝 Creating new LiveChat chat with enabled bot for:', sessionId);
+                console.log('\n📝 Creating new LiveChat chat for human transfer:', sessionId);
                 const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
                 
-                if (!chatData.chat_id) {
-                    throw new Error('Failed to create chat');
+                if (!chatData || !chatData.chat_id) {
+                    throw new Error('Failed to create chat or get chat ID');
                 }
                 
-                console.log('\n✅ Chat created and transferred successfully:', chatData.chat_id);
+                console.log('\n✅ Chat created successfully:', chatData.chat_id);
                 
-                // REMOVE ALL MESSAGE SENDING ATTEMPTS HERE
-                // The createBotTransferChat function already sends the initial messages
-                // Any attempts to send messages after transfer will fail with "Requester is not user of the chat"
+                // CRITICAL: DO NOT send any additional messages after creating the chat
+                // The bot already sent the necessary messages during createBotTransferChat
                 
-                // Prepare transfer message based on language (for the user interface)
+                // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
                     "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
                     "I'm connecting you with a customer service representative. One moment...";
-                    
+                
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: transferMessage });
                 
-                // Use the unified broadcast system to prepare the response
+                // Use the unified broadcast system but don't send additional messages to LiveChat
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: transferMessage,
                     transferred: true,
@@ -2568,21 +2567,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     topicType: 'transfer',
                     responseType: 'direct_response'
                 });
+                
                 return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
                 console.error('\n❌ Transfer Error:', error);
-                // Fallback response when transfer fails
+                
+                // Provide fallback response
                 const fallbackMessage = languageDecision.isIcelandic ?
-                    "Því miður er ekki hægt að tengja þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
-                    "I'm sorry, I couldn't connect you with an agent at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
-
-                // Add response to context
+                    "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
+                    "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
+                
+                // Add fallback response to context
                 addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-
-                // Use the unified broadcast system but don't send response yet
+                
+                // Return error response
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
-                    transferred: false,
                     error: error.message,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -2591,6 +2591,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     topicType: 'transfer_failed',
                     responseType: 'direct_response'
                 });
+                
                 return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         }

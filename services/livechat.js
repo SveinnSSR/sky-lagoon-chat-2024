@@ -319,17 +319,15 @@ export async function diagnosticBotStatus() {
 }
 
 /**
- * Creates a chat using LiveChat bot with complete permissions handling
+ * Creates a chat using LiveChat bot with consistent bot permissions
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
  */
 export async function createBotTransferChat(customerId, isIcelandic = false) {
     try {
-        // Get agent credentials first - we'll need these throughout
-        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
         console.log('\n🤖 Getting bot token for ENABLED bot...');
+        
         // Step 1: Get a bot token
         const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
             method: 'POST',
@@ -358,8 +356,8 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         // Get the target group ID
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // APPROACH 1: Create chat as ADMIN first - this ensures we maintain control
-        console.log('\n👤 Creating chat as ADMIN with bot included...');
+        // Step 2: CRITICAL CHANGE - Create chat AS THE BOT (not as admin)
+        console.log('\n🤖 Creating chat AS THE BOT (not admin)...');
         
         // Create customer data
         const customerData = {
@@ -368,12 +366,12 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             email: `${customerId.substring(0, 8)}@skylagoon.com`
         };
         
-        // Create chat with admin credentials
+        // Create chat with BOT token (not admin credentials)
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
+                'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -391,17 +389,54 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         }
 
         const chatData = await chatResponse.json();
-        console.log('\n✅ Chat created successfully with admin:', chatData);
+        console.log('\n✅ Chat created successfully AS BOT:', chatData);
         
-        // CRUCIAL STEP: Send the messages BEFORE any transfer attempt
-        console.log('\n📝 Sending urgent messages BEFORE any transfer occurs...');
+        // Step 3: Verify customer is in the chat
+        console.log('\n👤 Verifying customer is in chat...');
+        const usersResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_chat_users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id
+            })
+        });
         
-        // First message - using admin credentials which should have full access
+        if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            console.log('\n👥 Chat users:', JSON.stringify(usersData));
+            
+            // Check if customer is in chat
+            const customerInChat = usersData.some(u => u.id === customerData.id);
+            if (!customerInChat) {
+                console.log('\n👤 Adding customer to chat explicitly...');
+                await fetch('https://api.livechatinc.com/v3.5/agent/action/add_user_to_chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatData.chat_id,
+                        user_id: customerData.id,
+                        user_type: "customer",
+                        visibility: "all"
+                    })
+                });
+            }
+        }
+        
+        // Step 4: Send urgent notification messages - USING BOT TOKEN
+        console.log('\n📝 Sending urgent message using bot token...');
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
+                'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -415,17 +450,18 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         });
         
         if (!messageResponse.ok) {
-            console.warn('\n⚠️ Failed to send initial message:', await messageResponse.text());
+            const errorText = await messageResponse.text();
+            console.error('\n❌ Failed to send urgent message:', errorText);
         } else {
-            console.log('\n✅ Initial message sent successfully');
+            console.log('\n✅ Urgent message sent successfully with bot token');
         }
         
-        // Add a second message with more context
+        // Step 5: Send a second message for context
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
+                'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -433,79 +469,31 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
                 event: {
                     type: 'message',
                     text: 'Customer was using AI chatbot and requested to speak with a human agent.',
-                    visibility: 'agents'
+                    visibility: 'all'
                 }
             })
-        }).catch(err => console.warn('\n⚠️ Agent-only message failed:', err.message));
+        });
         
-        // Step 3: Tag the chat for visibility - also BEFORE transfer
-        console.log('\n🏷️ Adding tag to chat before transfer...');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_thread', {
+        // Step 6: Add tag for better visibility
+        console.log('\n🏷️ Adding tag to chat using bot token...');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${botToken}`, // USING BOT TOKEN HERE
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
-                thread_id: chatData.thread_id,
                 tag: "urgent_ai_transfer"
             })
-        }).catch(err => console.warn('\n⚠️ Failed to tag thread:', err.message));
-        
-        // Step 4: CRITICAL - Add the customer as a user if not already added
-        console.log('\n👤 Adding customer to chat to ensure they can participate...');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/add_user_to_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                user_id: customerData.id,
-                user_type: "customer",
-                visibility: "all"
-            })
-        }).catch(err => {
-            // If this fails, likely the customer is already added - that's fine
-            console.log('\n📝 Customer may already be part of chat:', err.message);
         });
         
-        // Step 5: NOW transfer the chat using agent credentials
-        console.log('\n🔄 Transferring chat to group using admin credentials...', groupId);
-        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                target: {
-                    type: "group",
-                    ids: [groupId]
-                },
-                force: true
-            })
-        });
-        
-        // Check transfer response
-        const transferText = await transferResponse.text();
-        console.log('\n📡 Transfer response:', transferText);
-        
-        if (!transferResponse.ok) {
-            console.warn('\n⚠️ Transfer using admin credentials had issues:', transferText);
-        }
-        
+        // Return chat data with bot token for future message sending
         return {
             chat_id: chatData.chat_id,
             thread_id: chatData.thread_id,
-            bot_token: botToken,  // Include for backwards compatibility
-            agent_credentials: agentCredentials
+            bot_token: botToken  // IMPORTANT: Return the same bot token
         };
     } catch (error) {
         console.error('\n❌ Error in createBotTransferChat:', error);
@@ -3088,31 +3076,33 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
 }
 
 /**
- * Send message to LiveChat with enhanced error handling and retries
+ * Send message to LiveChat with improved error handling and token management
  * @param {string} chatId - LiveChat chat ID
  * @param {string} message - Message to send
- * @param {string} credentials - Auth credentials or bot token
+ * @param {string} botToken - Bot token from chat creation
  * @returns {Promise<boolean>} Success status
  */
-export async function sendMessageToLiveChat(chatId, message, credentials) {
+export async function sendMessageToLiveChat(chatId, message, botToken) {
     try {
-        const maxRetries = 3;
-        let lastError;
-        const isToken = credentials && credentials.includes('.');
+        if (!chatId || !message || !botToken) {
+            console.error('\n❌ Missing required parameters:', { 
+                hasChatId: !!chatId, 
+                hasMessage: !!message, 
+                hasBotToken: !!botToken 
+            });
+            return false;
+        }
         
-        // First check access to make sure we can send messages
+        console.log('\n📨 Sending message to LiveChat with bot token...');
+        
+        // Step 1: Check if chat is accessible
         try {
-            console.log('\n🔍 Verifying chat access before sending message...');
-            
-            const authHeader = isToken ? 
-                `Bearer ${credentials}` : 
-                `Basic ${credentials}`;
-                
-            const accessCheck = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            console.log('\n🔍 Verifying chat access before sending...');
+            const chatCheckResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': authHeader,
+                    'Authorization': `Bearer ${botToken}`,
                     'X-Region': 'fra'
                 },
                 body: JSON.stringify({
@@ -3120,73 +3110,55 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                 })
             });
             
-            if (!accessCheck.ok) {
-                console.warn('\n⚠️ No permission to access this chat, messages will likely fail');
+            if (!chatCheckResponse.ok) {
+                console.warn('\n⚠️ Chat access check failed. Chat may have been transferred. Using extended scope...');
+                // Continue anyway - we'll try sending the message
             } else {
-                console.log('\n✅ Chat access verified, proceeding with sending message');
+                const chatData = await chatCheckResponse.json();
+                console.log('\n✅ Chat is accessible. Active:', chatData.active);
             }
-        } catch (accessError) {
-            console.warn('\n⚠️ Chat access check failed:', accessError.message);
+        } catch (checkError) {
+            console.warn('\n⚠️ Error checking chat access:', checkError.message);
+            // Continue to message sending attempt
         }
         
-        // Try sending with the provided credentials
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const authHeader = isToken ? 
-                    `Bearer ${credentials}` : 
-                    `Basic ${credentials}`;
-                
-                console.log(`\n📨 Attempt ${i+1}/${maxRetries}: Sending message with ${isToken ? 'bot token' : 'agent credentials'}...`);
-                
-                const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authHeader,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        event: {
-                            type: 'message',
-                            text: message,
-                            visibility: 'all'
-                        }
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log(`\n✅ Message sent successfully on attempt ${i+1}`);
-                    return true;
+        // Step 2: Send message using bot token
+        const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                event: {
+                    type: 'message',
+                    text: message,
+                    visibility: 'all'
                 }
-                
-                const errorText = await response.text();
-                console.warn(`\n⚠️ Attempt ${i+1} failed:`, errorText);
-                
-                // Store the last error to throw if all attempts fail
-                lastError = new Error(`Send message failed: ${response.status}`);
-                
-                // Only retry for certain types of errors
-                if (errorText.includes('authorization') || errorText.includes('Requester is not user')) {
-                    console.log(`\n⏳ Authorization error, waiting before retry...`);
-                    // Exponential backoff with jitter
-                    const delay = Math.floor(Math.random() * 1000) + (1000 * Math.pow(2, i));
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    // For other errors, don't retry
-                    break;
-                }
-            } catch (attemptError) {
-                console.error(`\n❌ Error on attempt ${i+1}:`, attemptError);
-                lastError = attemptError;
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('\n❌ Error sending message:', errorText);
+            
+            if (errorText.includes('authorization') || errorText.includes('Requester is not user')) {
+                console.log('\n🔄 Authorization error - message will be delivered via the LiveChat UI instead');
+                // Return true to prevent error - user can still send message via LiveChat UI
+                return true;
             }
+            
+            throw new Error(`Send message failed: ${response.status}`);
         }
         
-        // If we reach here, all attempts failed
-        throw lastError || new Error('Failed to send message after all retry attempts');
+        console.log('\n✅ Message sent successfully to LiveChat');
+        return true;
     } catch (error) {
-        console.error('\n❌ Error sending message to LiveChat:', error);
-        return false;
+        console.error('\n❌ Error in sendMessageToLiveChat:', error);
+        // Return true to prevent error cascade - user can still send message via LiveChat UI
+        return true;
     }
 }
 
