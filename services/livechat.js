@@ -111,6 +111,154 @@ export async function checkAgentAvailability(isIcelandic = false) {
 }
 
 /**
+ * Creates a LiveChat chat with minimal parameters for direct assignment
+ * @param {string} customerId - Customer ID (session ID)
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createDirectChatNoGroup(customerId) {
+    try {
+        console.log('\n👤 Creating direct chat without group specification...');
+        
+        // Get agent credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Get available agents first
+        console.log('\n👥 Checking for available agents...');
+        
+        const agentResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({})  // No filters - get all agents
+        });
+        
+        const agentStatuses = await agentResponse.json();
+        console.log('\n👥 All agent statuses:', JSON.stringify(agentStatuses, null, 2));
+        
+        // Find David or any available agent
+        const availableAgents = agentStatuses.filter(agent => 
+            agent.status === 'accepting_chats' || agent.status === 'online');
+            
+        if (availableAgents.length === 0) {
+            throw new Error('No agents available to take chat');
+        }
+        
+        // Use David's agent ID directly
+        const targetAgent = availableAgents.find(a => a.agent_id === 'david@svorumstrax.is') || availableAgents[0];
+        
+        console.log('\n✅ Found agent to assign chat to:', targetAgent.agent_id);
+        
+        // Create the minimal chat parameters - no group specification
+        const simpleChatData = {
+            active: true,
+            continuous: true,
+            customers: [{
+                id: customerId,
+                name: `User ${customerId.substring(0, 8)}...`, 
+                email: `${customerId.substring(0, 8)}@skylagoon.com`
+            }]
+        };
+        
+        console.log('\n📝 Simple chat params:', JSON.stringify(simpleChatData, null, 2));
+        
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify(simpleChatData)
+        });
+        
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Simple chat creation error:', errorText);
+            throw new Error('Failed to create simple chat');
+        }
+        
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Simple chat created successfully:', chatData);
+        
+        // Now try to add David to this chat
+        console.log('\n👤 Adding David to chat...');
+        
+        const addAgentResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                agent_id: targetAgent.agent_id
+            })
+        });
+        
+        const addAgentText = await addAgentResponse.text();
+        console.log('\n🔍 Add agent response:', addAgentText);
+        
+        // Send an urgent message 
+        console.log('\n🚨 Sending urgent notification message...');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        // Check chat status
+        console.log('\n🔍 Checking final chat status...');
+        const statusResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id
+            })
+        });
+        
+        if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('\n📊 Final chat status:', JSON.stringify({
+                id: statusData.id,
+                active: statusData.active,
+                users: statusData.users?.map(u => ({ id: u.id, name: u.name, type: u.type })),
+                access: statusData.access,
+                properties: statusData.properties
+            }, null, 2));
+        }
+        
+        console.log('\n📋 Direct chat creation without group completed.');
+        
+        return {
+            chat_id: chatData.chat_id,
+            agent_credentials: agentCredentials
+        };
+    } catch (error) {
+        console.error('\n❌ Error in createDirectChatNoGroup:', error);
+        throw error;
+    }
+}
+
+/**
  * Creates a LiveChat chat with direct agent assignment
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
