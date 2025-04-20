@@ -46,6 +46,7 @@ import {
 import { 
     checkAgentAvailability,
     diagnosticLiveChat, // Add this line 
+    createDirectAgentChat, // Add this line 
     createAgentChatWithTransfer, // Add this line
     createAgentChat, // Add this line
     createChatQueue, // Add this line
@@ -2500,7 +2501,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             try {
                 // Create chat using bot with enhanced debugging
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatData = await createAgentChatWithTransfer(sessionId, languageDecision.isIcelandic);
+                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
