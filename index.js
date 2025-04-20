@@ -46,6 +46,8 @@ import {
 import { 
     checkAgentAvailability,
     diagnosticLiveChat, // Add this line 
+    diagnosticGroupConfiguration, // Add this line
+    createDirectAgentNameTransfer, // Add this line
     createDirectChatNoGroup, // Add this line
     createDirectAgentChat, // Add this line 
     createAgentChatWithTransfer, // Add this line
@@ -2138,6 +2140,20 @@ app.get('/api/livechat-diagnostic', async (req, res) => {
   }
 });
 
+// Add a group configuration diagnostic endpoint - Livechat testing pt 2
+app.get('/api/livechat-group-diagnostic', async (req, res) => {
+  try {
+    const results = await diagnosticGroupConfiguration();
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Group diagnostic error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Test endpoint for server status (add this before your main routes)
 app.get('/ping', (req, res) => {
     res.status(200).json({
@@ -2500,19 +2516,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat using bot with enhanced debugging
-                console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatData = await createDirectChatNoGroup(sessionId, languageDecision.isIcelandic);
+                // Create chat using DIRECT AGENT NAME transfer
+                console.log('\n📝 Creating new LiveChat chat with direct agent name transfer for:', sessionId);
+                const chatData = await createDirectAgentNameTransfer(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
                 }
                 
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
+                console.log('\n👤 Assigned to agent:', chatData.assigned_agent_name);
                 
                 // Send initial message to LiveChat with better formatting
                 const formattedMessage = `User message: ${userMessage}`;
-                const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.bot_token);
+                const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.agent_credentials);
                 console.log('\n📝 Initial message sent:', messageSent);
                 
                 // Send context information to LiveChat to help agents
@@ -2527,16 +2544,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         .join('\n');
                     
                     const contextMessage = `
---- Conversation Context ---
-Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
-Topic: ${context.lastTopic || 'General inquiry'}
-${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
--------------------------`;
+        --- Conversation Context ---
+        Language: ${languageDecision.isIcelandic ? 'Icelandic' : 'English'}
+        Topic: ${context.lastTopic || 'General inquiry'}
+        ${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
+        -------------------------`;
                     
                     await sendMessageToLiveChat(
                         chatData.chat_id,
                         contextMessage,
-                        chatData.bot_token
+                        chatData.agent_credentials
                     );
                     
                     console.log('\n✅ Context information sent to LiveChat');
@@ -2547,8 +2564,8 @@ ${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
-                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
-                    "I'm connecting you with a customer service representative. One moment...";
+                    `Ég er að tengja þig við þjónustufulltrúa (${chatData.assigned_agent_name}). Eitt andartak...` :
+                    `I'm connecting you with a customer service representative (${chatData.assigned_agent_name}). One moment...`;
 
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: transferMessage });
@@ -2558,7 +2575,7 @@ ${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    bot_token: chatData.bot_token,
+                    bot_token: null,  // No bot token in this approach
                     agent_credentials: chatData.agent_credentials,
                     initiateWidget: true,
                     language: {
@@ -2595,22 +2612,6 @@ ${recentMessages ? `\nPrevious messages:\n${recentMessages}` : ''}
                 });
                 return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
-        } else if (transferCheck.response) {
-            // If we have a specific response (e.g., outside hours), send it
-            // Add response to context
-            addMessageToContext(context, { role: 'assistant', content: transferCheck.response });
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: transferCheck.response,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'transfer_unavailable',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
         }
 
         // Handle messages when in agent mode
