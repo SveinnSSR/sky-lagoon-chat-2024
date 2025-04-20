@@ -111,7 +111,7 @@ export async function checkAgentAvailability(isIcelandic = false) {
 }
 
 /**
- * Creates a LiveChat chat using bot
+ * Creates a LiveChat chat using bot and assigns directly to an agent
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
@@ -145,8 +145,26 @@ export async function createChat(customerId, isIcelandic = false) {
         const botToken = tokenData.token;
         console.log('\n✅ Bot token acquired');
         
+        // NEW: Get available agents BEFORE creating chat
+        console.log('\n👥 Checking for available agents...');
+        const agentAvailability = await checkAgentAvailability(isIcelandic);
+        
+        if (!agentAvailability.areAgentsAvailable || !agentAvailability.availableAgents || agentAvailability.availableAgents.length === 0) {
+            throw new Error('No agents available to take chat');
+        }
+        
+        // Find the first available agent - in this case, David
+        const targetAgent = agentAvailability.availableAgents.find(agent => 
+            agent.status === 'accepting_chats' || agent.status === 'online');
+            
+        if (!targetAgent) {
+            throw new Error('No agents in accepting_chats status');
+        }
+        
+        console.log('\n✅ Found available agent:', targetAgent.agent_id);
+        
         // Step 2: Bot creates a chat - ENHANCED FOR BETTER AGENT VISIBILITY
-        console.log('\n🤖 Bot creating chat...');
+        console.log('\n🤖 Bot creating chat with direct agent routing...');
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
@@ -160,6 +178,7 @@ export async function createChat(customerId, isIcelandic = false) {
                 active: true,      // Explicitly make this active
                 continuous: true,  // Critical to prevent auto-closing
                 group_id: groupId,
+                agent_ids: [targetAgent.agent_id], // DIRECTLY ASSIGN TO FOUND AGENT
                 customers: [{
                     id: customerId,
                     name: `User ${customerId}`,
@@ -169,10 +188,9 @@ export async function createChat(customerId, isIcelandic = false) {
                     source: {
                         type: "other"
                     },
-                    // Add routing property to ensure it gets properly queued
                     routing: {
-                        status: "need_agent",   // Explicitly indicate need for agent
-                        priority: "normal"      // Set normal priority
+                        status: "assigned", // CHANGED from "need_agent" to "assigned"
+                        priority: "high"    // CHANGED from "normal" to "high"
                     }
                 }
             })
@@ -199,56 +217,20 @@ export async function createChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 chat_id: chatData.chat_id,
                 event: {
-                    type: 'message',
-                    text: 'Customer requesting assistance with booking change',
-                    visibility: 'all'
+                    type: 'system_message', // CHANGED from 'message' to 'system_message'
+                    text: '⚠️ AI CHATBOT TRANSFER: Customer has requested to speak with a human agent',
+                    recipients: 'all'
                 }
             })
         });
         
-        // Step 4: Transfer chat to appropriate group - THIS IS THE KEY STEP FOR PROPER GROUP ASSIGNMENT
-        console.log('\n🤖 Transferring chat to group:', groupId);
-        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatData.chat_id,
-                target: {
-                    type: "group",
-                    ids: [groupId]
-                },
-                // ADDED: Force option to ensure proper transfer
-                force: true
-            })
-        });
-
-        // Check transfer response
-        let transferData = {};
+        // Skip the transfer step since we're directly assigning to an agent
+        // Instead, send an immediate follow-up message to keep the chat active
         try {
-            const transferText = await transferResponse.text();
-            console.log('\n📡 Transfer response:', transferText);
-            
-            if (transferText && transferText.trim() !== '') {
-                transferData = JSON.parse(transferText);
-            }
-            
-            if (!transferResponse.ok) {
-                console.error('\n❌ Transfer failed:', transferText);
-            }
-        } catch (parseError) {
-            console.error('\n❌ Error parsing transfer response:', parseError);
-        }
-        
-        // Step 5: ADDED - Send a follow-up message to keep the chat active for agents
-        try {
-            console.log('\n🤖 Sending follow-up message to keep chat active...');
+            console.log('\n🤖 Sending follow-up message to alert agent...');
             const followUpMessage = isIcelandic ? 
-                "Þjónustufulltrúi mun aðstoða þig fljótlega." : 
-                "An agent will assist you shortly.";
+                "Viðskiptavinur hefur óskað eftir aðstoð þjónustufulltrúa í gegnum AI spjallkerfi okkar. Vinsamlegast svaraðu eins fljótt og auðið er." : 
+                "Customer has requested human assistance through our AI chat system. Please respond as soon as possible.";
                 
             await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                 method: 'POST',
@@ -273,7 +255,43 @@ export async function createChat(customerId, isIcelandic = false) {
             // Continue even if follow-up fails
         }
         
-        // Step 6: ADDED - Add explicit tag to make transfers more visible
+        // Send URGENT NOTIFICATION to alert the agent
+        try {
+            console.log('\n🔔 Sending urgent notification to agent...');
+            
+            await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${botToken}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    event: {
+                        type: 'rich_message',
+                        template_id: 'cards',
+                        elements: [{
+                            title: '🚨 URGENT: Customer Transfer from AI Chatbot',
+                            subtitle: 'This customer needs immediate human assistance',
+                            buttons: [{
+                                text: 'Acknowledge',
+                                type: 'message',
+                                value: 'I am here to help you',
+                                postback_id: 'agent_ack'
+                            }]
+                        }]
+                    }
+                })
+            });
+            
+            console.log('\n✅ Urgent notification sent to agent');
+        } catch (notificationError) {
+            console.error('\n⚠️ Error sending notification:', notificationError);
+            // Continue even if notification fails
+        }
+        
+        // Add explicit tag to make transfers more visible
         try {
             console.log('\n🏷️ Adding AI transfer tag to chat...');
             await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
@@ -285,18 +303,18 @@ export async function createChat(customerId, isIcelandic = false) {
                 },
                 body: JSON.stringify({
                     chat_id: chatData.chat_id,
-                    tag: "ai_transfer"  // Tag to help identify transferred chats
+                    tag: "urgent_ai_transfer"  // CHANGED to more urgent tag
                 })
             });
-            console.log('\n✅ Added ai_transfer tag to chat');
+            console.log('\n✅ Added urgent_ai_transfer tag to chat');
         } catch (tagError) {
             console.error('\n⚠️ Failed to add tag to chat:', tagError);
             // Continue even if tagging fails
         }
         
-        // Step 7: ADDED - Check chat status to verify it's active for agents
+        // Check chat status to verify it's active for agents
         try {
-            console.log('\n🔍 Checking chat status after transfer...');
+            console.log('\n🔍 Checking chat status after direct assignment...');
             const statusResponse = await fetch(`https://api.livechatinc.com/v3.5/agent/action/get_chat`, {
                 method: 'POST',
                 headers: {
@@ -311,14 +329,15 @@ export async function createChat(customerId, isIcelandic = false) {
             
             if (statusResponse.ok) {
                 const statusData = await statusResponse.json();
-                console.log('\n📊 Chat status after transfer:', {
+                console.log('\n📊 Chat status after assignment:', {
                     id: statusData.id,
                     active: statusData.active,
                     users: statusData.users?.length || 0,
-                    thread: statusData.thread?.events?.length || 0
+                    thread: statusData.thread?.events?.length || 0,
+                    agent: targetAgent.agent_id
                 });
             } else {
-                console.warn('\n⚠️ Could not check chat status after transfer');
+                console.warn('\n⚠️ Could not check chat status after assignment');
             }
         } catch (statusError) {
             console.error('\n⚠️ Error checking chat status:', statusError);
@@ -328,10 +347,11 @@ export async function createChat(customerId, isIcelandic = false) {
         // Save agent credentials for fallback message sending
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        console.log('\n📋 Transfer completed. Chat should now appear in agent queue.');
+        console.log('\n📋 Direct agent assignment completed. Chat should now appear in agent queue.');
         console.log('Chat details:', {
             chatId: chatData.chat_id,
             groupId: groupId,
+            agentId: targetAgent.agent_id,
             status: 'active',
             continuous: true
         });
@@ -340,7 +360,7 @@ export async function createChat(customerId, isIcelandic = false) {
             chat_id: chatData.chat_id,
             bot_token: botToken,
             agent_credentials: agentCredentials,
-            transfer_result: transferData
+            assigned_agent: targetAgent.agent_id
         };
     } catch (error) {
         console.error('\n❌ Error in createChat:', error);
