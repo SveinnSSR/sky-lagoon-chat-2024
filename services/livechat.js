@@ -111,6 +111,233 @@ export async function checkAgentAvailability(isIcelandic = false) {
 }
 
 /**
+ * Diagnostic tool to check LiveChat configuration
+ * and verify if chats are visible in queue
+ * @returns {Promise<Object>} Diagnostic information
+ */
+export async function diagnosticLiveChat() {
+    try {
+        console.log('\n🔍 Running LiveChat diagnostics...');
+        
+        // Step 1: Get agent credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Step 2: Check queued chats directly
+        console.log('\n👥 Checking queued chats with agent credentials...');
+        
+        const queueResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_queued_chats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                group_ids: [SKY_LAGOON_GROUPS.EN, SKY_LAGOON_GROUPS.IS]
+            })
+        });
+        
+        if (!queueResponse.ok) {
+            console.error('\n❌ Queue check failed:', await queueResponse.text());
+        } else {
+            const queueData = await queueResponse.json();
+            console.log('\n👁️ Queued chats:', JSON.stringify(queueData, null, 2));
+            
+            if (queueData.length === 0) {
+                console.log('\n⚠️ No chats found in queue. This may indicate a visibility issue.');
+            } else {
+                console.log(`\n✅ Found ${queueData.length} chats in queue.`);
+            }
+        }
+        
+        // Step 3: Check agent availability in more detail
+        console.log('\n👥 Checking detailed agent status...');
+        
+        const agentDetailResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_agent_details', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: "david@svorumstrax.is"
+            })
+        });
+        
+        if (!agentDetailResponse.ok) {
+            console.error('\n❌ Agent details check failed:', await agentDetailResponse.text());
+        } else {
+            const agentDetails = await agentDetailResponse.json();
+            console.log('\n👤 Agent details:', JSON.stringify({
+                id: agentDetails.id,
+                name: agentDetails.name,
+                status: agentDetails.status,
+                present: agentDetails.present,
+                permission: agentDetails.permission,
+                groups: agentDetails.groups
+            }, null, 2));
+            
+            // Check if agent is in the correct groups
+            const isInEnglishGroup = agentDetails.groups?.some(g => g.id === SKY_LAGOON_GROUPS.EN);
+            const isInIcelandicGroup = agentDetails.groups?.some(g => g.id === SKY_LAGOON_GROUPS.IS);
+            
+            console.log('\n🔍 Group membership check:', {
+                inEnglishGroup: isInEnglishGroup,
+                inIcelandicGroup: isInIcelandicGroup
+            });
+            
+            if (!isInEnglishGroup && !isInIcelandicGroup) {
+                console.log('\n⚠️ Agent is not in any Sky Lagoon groups. This may prevent chat routing.');
+            }
+        }
+        
+        // Step 4: Check active chats
+        console.log('\n💬 Checking active chats...');
+        
+        const activeChatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_chats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                filters: {
+                    groups: [SKY_LAGOON_GROUPS.EN, SKY_LAGOON_GROUPS.IS]
+                }
+            })
+        });
+        
+        if (!activeChatResponse.ok) {
+            console.error('\n❌ Active chats check failed:', await activeChatResponse.text());
+        } else {
+            const activeChats = await activeChatResponse.json();
+            console.log('\n💬 Active chats:', JSON.stringify(activeChats.chats_summary.slice(0, 5), null, 2));
+            
+            // Check if our test chat is among active chats
+            const testChat = activeChats.chats_summary.find(chat => 
+                chat.id === 'SV50AT0EPL' || chat.thread.id === 'SV50AT0EQL');
+            
+            if (testChat) {
+                console.log('\n✅ Test chat found in active chats:', testChat);
+            } else {
+                console.log('\n⚠️ Test chat not found in active chats list.');
+            }
+        }
+        
+        // Step 5: Check archived chats
+        console.log('\n📦 Checking archived chats...');
+        
+        const archivedResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_archives', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                filters: {
+                    from: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+                    to: new Date().toISOString(),
+                    groups: [SKY_LAGOON_GROUPS.EN, SKY_LAGOON_GROUPS.IS]
+                }
+            })
+        });
+        
+        if (!archivedResponse.ok) {
+            console.error('\n❌ Archives check failed:', await archivedResponse.text());
+        } else {
+            const archives = await archivedResponse.json();
+            console.log('\n📦 Recent archived chats:', JSON.stringify(archives.chats_summary.slice(0, 5), null, 2));
+            
+            // Check if our test chat is among archived chats
+            const testChat = archives.chats_summary.find(chat => 
+                chat.id === 'SV50AT0EPL' || chat.thread?.id === 'SV50AT0EQL');
+            
+            if (testChat) {
+                console.log('\n⚠️ Test chat found in ARCHIVED chats (this indicates it was closed):', testChat);
+            } else {
+                console.log('\n✅ Test chat not found in archived chats (this is good).');
+            }
+        }
+        
+        // Step 6: Test creating a chat directly with agent credentials
+        console.log('\n🧪 Testing direct chat creation with agent credentials...');
+        
+        const directChatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                active: true,
+                continuous: true,
+                group_id: SKY_LAGOON_GROUPS.EN,
+                customers: [{
+                    id: `test_${Date.now()}`,
+                    name: `Test Direct Agent Chat`,
+                    email: `test_${Date.now()}@skylagoon.com`
+                }],
+                properties: {
+                    routing: {
+                        status: "queued",
+                        priority: "high"
+                    },
+                    source: {
+                        type: "other"
+                    }
+                }
+            })
+        });
+        
+        if (!directChatResponse.ok) {
+            console.error('\n❌ Direct chat creation failed:', await directChatResponse.text());
+        } else {
+            const directChatData = await directChatResponse.json();
+            console.log('\n✅ Direct agent chat created successfully:', directChatData);
+            
+            // Send a test message
+            const directMsgResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: directChatData.chat_id,
+                    event: {
+                        type: 'message',
+                        text: '🧪 TEST MESSAGE - This is a diagnostic test for agent visibility',
+                        visibility: 'all'
+                    }
+                })
+            });
+            
+            if (!directMsgResponse.ok) {
+                console.error('\n❌ Direct message failed:', await directMsgResponse.text());
+            } else {
+                console.log('\n✅ Direct message sent successfully');
+            }
+        }
+        
+        return {
+            timestamp: new Date().toISOString(),
+            message: "Diagnostics completed. Check logs for detailed results."
+        };
+    } catch (error) {
+        console.error('\n❌ Diagnostic error:', error);
+        return {
+            error: error.message,
+            timestamp: new Date().toISOString()
+        };
+    }
+}
+
+/**
  * Creates a LiveChat chat optimized for queue visibility
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group

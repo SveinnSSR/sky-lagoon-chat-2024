@@ -45,7 +45,8 @@ import {
 // AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
     checkAgentAvailability,
-    createChatQueue, // Add this line 
+    diagnosticLiveChat, // Add this line 
+    createChatQueue, // Add this line
     createChat,
     createChatDebug,  // Add this line 
     sendMessageToLiveChat,
@@ -2117,6 +2118,20 @@ app.get('/', (req, res) => {
             apiKeyConfigured: !!config.API_KEY
         }
     });
+});
+
+// Add a diagnostic endpoint - Livechat testing
+app.get('/api/livechat-diagnostic', async (req, res) => {
+  try {
+    const results = await diagnosticLiveChat();
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Diagnostic error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 // Test endpoint for server status (add this before your main routes)
