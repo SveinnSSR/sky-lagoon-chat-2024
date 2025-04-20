@@ -111,6 +111,367 @@ export async function checkAgentAvailability(isIcelandic = false) {
 }
 
 /**
+ * Diagnostic function specifically for analyzing bot status and capabilities
+ * @returns {Promise<Object>} Diagnostic information
+ */
+export async function diagnosticBotStatus() {
+    try {
+        console.log('\n🔍 Running bot status diagnostic...');
+        
+        // Get both admin and bot credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Get a bot token
+        console.log('\n🤖 Getting bot token for enabled bot...');
+        const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                bot_id: BOT_ID,
+                bot_secret: BOT_SECRET,
+                client_id: CLIENT_ID,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737"
+            })
+        });
+        
+        if (!tokenResponse.ok) {
+            console.error('\n❌ Bot token error:', await tokenResponse.text());
+            return { error: 'Failed to get bot token' };
+        }
+        
+        const tokenData = await tokenResponse.json();
+        const botToken = tokenData.token;
+        console.log('\n✅ Bot token acquired for enabled bot');
+        
+        // Step 1: Check bot status in LiveChat
+        console.log('\n👤 Checking bot status...');
+        
+        // First using admin credentials
+        const botStatusResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/get_bot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: BOT_ID
+            })
+        });
+        
+        if (botStatusResponse.ok) {
+            const botData = await botStatusResponse.json();
+            console.log('\n👤 Bot details from config API:', JSON.stringify(botData, null, 2));
+            
+            // Check if bot is properly enabled/configured
+            console.log('\n✅ Bot enabled status:', botData.enabled || 'unknown');
+            console.log('\n✅ Bot owner:', botData.owner_client_id || 'unknown');
+        } else {
+            console.error('\n❌ Failed to get bot details:', await botStatusResponse.text());
+        }
+        
+        // Step 2: Check bot status using agent API
+        console.log('\n👤 Checking bot status with agent API...');
+        const botRoutingResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_routing_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                agent_id: BOT_ID
+            })
+        });
+        
+        if (botRoutingResponse.ok) {
+            const botRouting = await botRoutingResponse.json();
+            console.log('\n👤 Bot routing status:', JSON.stringify(botRouting, null, 2));
+        } else {
+            console.error('\n❌ Failed to get bot routing status:', await botRoutingResponse.text());
+        }
+        
+        // Step 3: Check bot's capabilities (what actions it can perform)
+        console.log('\n🔄 Testing bot actions and permissions...');
+        
+        // Try creating a chat
+        console.log('\n📝 Testing bot chat creation...');
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                active: true,
+                continuous: true,
+                customers: [{
+                    id: `test_${Date.now()}`,
+                    name: 'Bot Diagnostic Test',
+                    email: `test_${Date.now()}@skylagoon.com`
+                }]
+            })
+        });
+        
+        if (chatResponse.ok) {
+            const chatData = await chatResponse.json();
+            console.log('\n✅ Bot successfully created chat:', chatData);
+            
+            // Test if bot can transfer this chat
+            console.log('\n🔄 Testing bot transfer capabilities...');
+            const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${botToken}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatData.chat_id,
+                    target: {
+                        type: "group",
+                        ids: [SKY_LAGOON_GROUPS.EN]
+                    },
+                    force: true
+                })
+            });
+            
+            const transferText = await transferResponse.text();
+            console.log('\n🔄 Bot transfer test result:', transferText);
+            
+            if (transferResponse.ok) {
+                console.log('\n✅ Bot can successfully transfer chats');
+            } else {
+                console.error('\n❌ Bot transfer test failed');
+            }
+            
+            // Check if this chat is properly visible
+            console.log('\n👁️ Checking transferred chat visibility...');
+            // Wait 2 seconds to ensure transfer completes
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const chatVisibilityResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_chats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({})
+            });
+            
+            if (chatVisibilityResponse.ok) {
+                const activeChats = await chatVisibilityResponse.json();
+                const foundChat = activeChats.chats_summary?.find(c => c.id === chatData.chat_id);
+                console.log('\n👁️ Is test chat visible in active chats?', foundChat ? 'YES' : 'NO');
+                
+                if (foundChat) {
+                    console.log('\n👁️ Visible chat details:', JSON.stringify(foundChat, null, 2));
+                } else {
+                    // Check archives
+                    console.log('\n👁️ Chat not found in active list, checking archives...');
+                    const archiveResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_archives', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Basic ${agentCredentials}`,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            filters: {
+                                from: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                                to: new Date().toISOString()
+                            }
+                        })
+                    });
+                    
+                    if (archiveResponse.ok) {
+                        const archives = await archiveResponse.json();
+                        const archivedChat = archives.chats_summary?.find(c => c.id === chatData.chat_id);
+                        console.log('\n👁️ Test chat found in archives?', archivedChat ? 'YES' : 'NO');
+                        
+                        if (archivedChat) {
+                            console.log('\n👁️ Archived chat details:', JSON.stringify(archivedChat, null, 2));
+                        }
+                    }
+                }
+            }
+        } else {
+            console.error('\n❌ Bot chat creation test failed:', await chatResponse.text());
+        }
+        
+        return {
+            timestamp: new Date().toISOString(),
+            bot_id: BOT_ID,
+            message: "Bot status diagnostic completed. Check logs for detailed results."
+        };
+    } catch (error) {
+        console.error('\n❌ Bot status diagnostic error:', error);
+        return {
+            error: error.message,
+            timestamp: new Date().toISOString()
+        };
+    }
+}
+
+/**
+ * Creates a chat using the now-enabled LiveChat bot with simplified transfer
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createBotTransferChat(customerId, isIcelandic = false) {
+    try {
+        console.log('\n🤖 Getting bot token for ENABLED bot...');
+        
+        // Step 1: Get a bot token - same as before
+        const tokenResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/issue_bot_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                bot_id: BOT_ID,
+                bot_secret: BOT_SECRET,
+                client_id: CLIENT_ID,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737"
+            })
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('\n❌ Bot token error:', errorText);
+            throw new Error('Failed to get bot token');
+        }
+
+        const tokenData = await tokenResponse.json();
+        const botToken = tokenData.token;
+        console.log('\n✅ Bot token acquired for enabled bot');
+        
+        // Step 2: Create a chat as the enabled bot - simplified parameters
+        console.log('\n🤖 Creating chat with enabled bot...');
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
+        
+        const chatParams = {
+            active: true,
+            continuous: true, 
+            group_id: groupId,
+            customers: [{
+                id: customerId,
+                name: `User ${customerId.substring(0, 8)}...`,
+                email: `${customerId.substring(0, 8)}@skylagoon.com`
+            }]
+        };
+        
+        console.log('\n📝 Chat creation params:', JSON.stringify(chatParams, null, 2));
+        
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify(chatParams)
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Chat creation error:', errorText);
+            throw new Error('Failed to create chat');
+        }
+
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created successfully:', chatData);
+        
+        // Step 3: Send a message to establish the chat context
+        console.log('\n📝 Sending initial system message as bot...');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        // Step 4: Transfer chat with the ACTIVE bot token (with force:true)
+        console.log('\n🔄 Transferring chat to group with force:true parameter...', groupId);
+        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                target: {
+                    type: "group",
+                    ids: [groupId]
+                },
+                force: true  // Force the transfer to complete
+            })
+        });
+        
+        // Check transfer response
+        const transferText = await transferResponse.text();
+        console.log('\n📡 Transfer response:', transferText);
+        
+        if (!transferResponse.ok) {
+            console.warn('\n⚠️ Transfer may have issues:', transferText);
+            // Continue even if there are warnings - the chat was created
+        }
+        
+        // Verify the chat's status after transfer
+        console.log('\n🔍 Checking chat status post-transfer...');
+        const statusResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${botToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id
+            })
+        });
+        
+        if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log('\n📊 Chat status after transfer:', JSON.stringify({
+                id: statusData.id,
+                active: statusData.active,
+                users: statusData.users,
+                access: statusData.access
+            }, null, 2));
+        }
+        
+        return {
+            chat_id: chatData.chat_id,
+            bot_token: botToken,
+            group_id: groupId
+        };
+    } catch (error) {
+        console.error('\n❌ Error in createBotTransferChat:', error);
+        throw error;
+    }
+}
+
+/**
  * Creates a LiveChat chat with direct agent NAME transfer
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group

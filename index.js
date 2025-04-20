@@ -47,6 +47,8 @@ import {
     checkAgentAvailability,
     diagnosticLiveChat, // Add this line 
     diagnosticGroupConfiguration, // Add this line
+    diagnosticBotStatus, // Add this line
+    createBotTransferChat, // Add this line
     createDirectAgentNameTransfer, // Add this line
     createDirectChatNoGroup, // Add this line
     createDirectAgentChat, // Add this line 
@@ -915,23 +917,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
         
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================
-        // The rest of the function will not run while the above block is active
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
@@ -2171,6 +2156,20 @@ app.get('/api/livechat-group-diagnostic', async (req, res) => {
   }
 });
 
+// Add a diagnostic endpoint for bot status - Livechat testing pt 3
+app.get('/api/livechat-bot-diagnostic', async (req, res) => {
+  try {
+    const results = await diagnosticBotStatus();
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Bot status diagnostic error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Test endpoint for server status (add this before your main routes)
 app.get('/ping', (req, res) => {
     res.status(200).json({
@@ -2533,20 +2532,19 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat using DIRECT AGENT NAME transfer
-                console.log('\n📝 Creating new LiveChat chat with direct agent name transfer for:', sessionId);
-                const chatData = await createDirectAgentNameTransfer(sessionId, languageDecision.isIcelandic);
+                // Create chat using simplified bot transfer approach now that bot is enabled
+                console.log('\n📝 Creating new LiveChat chat with enabled bot for:', sessionId);
+                const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
                 }
                 
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
-                console.log('\n👤 Assigned to agent:', chatData.assigned_agent_name);
                 
                 // Send initial message to LiveChat with better formatting
                 const formattedMessage = `User message: ${userMessage}`;
-                const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.agent_credentials);
+                const messageSent = await sendMessageToLiveChat(chatData.chat_id, formattedMessage, chatData.bot_token);
                 console.log('\n📝 Initial message sent:', messageSent);
                 
                 // Send context information to LiveChat to help agents
@@ -2570,7 +2568,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     await sendMessageToLiveChat(
                         chatData.chat_id,
                         contextMessage,
-                        chatData.agent_credentials
+                        chatData.bot_token
                     );
                     
                     console.log('\n✅ Context information sent to LiveChat');
@@ -2581,8 +2579,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
-                    `Ég er að tengja þig við þjónustufulltrúa (${chatData.assigned_agent_name}). Eitt andartak...` :
-                    `I'm connecting you with a customer service representative (${chatData.assigned_agent_name}). One moment...`;
+                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
+                    "I'm connecting you with a customer service representative. One moment...";
 
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: transferMessage });
@@ -2592,8 +2590,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    bot_token: null,  // No bot token in this approach
-                    agent_credentials: chatData.agent_credentials,
+                    bot_token: chatData.bot_token,
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
