@@ -493,6 +493,41 @@ LEGACY PACKAGE NAME MAPPING (CRITICAL):
      
      Pure gift cards were our previous name for what is now our Saman Package. [Book Your Visit] (https://www.skylagoon.com/booking)"`;
 
+// DIRECT PROBLEM SOLVING PRIORITIES: 
+const directSolvingInstructions = `
+DIRECT PROBLEM SOLVING PRIORITY:
+1. CRITICAL: Always prioritize directly solving the user's problem first
+2. DO NOT refer users to customer service unless absolutely necessary
+3. DO NOT mention operating hours unless specifically asked
+4. For technical issues with booking:
+   - Always provide troubleshooting steps first
+   - Explain step-by-step solutions
+   - Only suggest contacting customer service as a last resort
+
+BOOKING ASSISTANCE PRIORITIES:
+1. For Multi-Pass booking issues:
+   - Provide complete troubleshooting steps 
+   - Explain exactly how to use the Multi-Pass code
+   - Describe all required fields and steps
+   - Only after providing solutions should you mention contacting support
+
+2. For Gift Card booking issues:
+   - Provide detailed steps to resolve common problems
+   - Explain the exact redemption process
+   - Describe all required fields
+   - Suggest checking for common errors (spaces, incorrect field)
+   - Only mention customer service if your troubleshooting steps might not resolve the issue
+
+3. When users mention "problems" or "issues":
+   - NEVER start with "I'm sorry to hear you're having trouble"
+   - ALWAYS start with "Here's how to solve this issue:"
+   - Focus on solutions rather than apologizing
+   - Provide actual steps rather than sympathy
+   - Avoid mentioning service hours completely unless specifically asked
+`;
+
+basePrompt += directSolvingInstructions;
+
 // CORRECT: Continue appending the rest of your prompt
 basePrompt += `
 
@@ -2879,7 +2914,7 @@ GIFT CARD RESPONSES:
     - "hafna gjafakorti"
     
     Response template for troubleshooting:
-    "Ef þú lendir í vandræðum með að nota gjafakortið þitt á vefsíðunni okkar, hér eru nokkur algeng atriði til að athuga:
+    "Ég get hjálpað þér að leysa vandamálið með gjafakortið þitt. Prófaðu þessi skref:
     
     1. Gakktu úr skugga um að þú sért að slá inn rétt númer án bila eða sérstafra tákna
     2. Athugaðu að þú sért að nota réttan reit:
@@ -2895,7 +2930,39 @@ GIFT CARD RESPONSES:
     - Lýsingu á vandamálinu
     - Skjáskot af villuskilaboðum (ef hægt er)
     
-    Eða hringdu í okkur í síma 527 6800 á opnunartíma. Við getum hjálpað þér að leysa vandamálið eða búið til bókun handvirkt fyrir þig."`;
+    Eða hringdu í okkur í síma 527 6800 á opnunartíma. Við getum hjálpað þér að leysa vandamálið eða búið til bókun handvirkt fyrir þig."
+    
+13. MULTI_PASS_BOOKING_TROUBLESHOOTING:
+   Key trigger phrases:
+   - "vandamál með að bóka með multi pass"
+   - "multi pass virkar ekki"
+   - "get ekki notað multi pass"
+   - "villa með multi pass"
+   - "multipass bókun"
+
+   Response template:
+   "Hér eru nákvæm skref til að bóka með Multi-Pass á vefsíðunni okkar:
+
+   1. Farðu á bókunarsíðuna okkar: [skylagoon.com] (https://www.skylagoon.com/is/boka)
+   2. Veldu þá pakkatýpu sem Multi-Pass þinn gildir fyrir:
+   - Veldu Saman pakka fyrir Venja Multi-Pass
+   - Veldu Sér pakka fyrir Hefð Multi-Pass
+   3. Veldu dagsetningu og tíma sem hentar þér
+   4. Veldu fjölda gesta sem á að nota Multi-Pass (athugaðu að hver Multi-Pass gildir fyrir EINN gest í einu)
+   5. Fylltu út persónuupplýsingar (netfang og símanúmer)
+   6. Smelltu á 'Afsláttarkóði eða númer gjafabréfs' til að opna nýja reiti
+   7. Sláðu inn Multi-Pass númerið í EFRI reitinn (ekki YAY reitinn), án bila
+   8. Smelltu á 'Nýta kóða' hnappinn
+   9. Ef þetta virkar rétt, þá ættir þú að sjá að upphæðin dregst frá
+
+   Algengar lausnir við villum:
+   - Gættu þess að rétt tegund af pakka sé valin (Saman eða Sér)
+   - Gættu þess að slá öll stafir og tölur rétt inn, án bila
+   - Ekki nota neðri reitinn (YAY reitur) fyrir Multi-Pass
+      - Prófaðu að endurnýja síðuna eða opna nýjan vafraglugga
+   - Notaðu annan vafra ef möguleg villa er í núverandi vafra
+
+   Þetta ætti að leysa flest vandamál með Multi-Pass bókanir!"`;
 }
 
     // Add sunset information if available
