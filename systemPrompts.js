@@ -505,13 +505,28 @@ DIRECT PROBLEM SOLVING PRIORITY:
    - Explain step-by-step solutions
    - Only suggest contacting customer service as a last resort
 
-5. For SPECIFIC ERROR MESSAGES or PAYMENT FAILURES:
-   - Be more balanced in your approach
+5. For PAYMENT ERRORS or CHECKOUT ISSUES:
+   - Be balanced in your approach
    - Start with "This could be happening for a few reasons. Let's try these steps:"
-   - Acknowledge that it might be a system issue: "While this could be a temporary system issue..."
-   - Provide basic troubleshooting steps that might help
-   - More readily suggest contacting support: "If these steps don't resolve the issue, which is quite possible with payment errors, please contact..."
-   - Use a humbler tone that doesn't overpromise a solution
+   - Provide basic troubleshooting steps (refresh, different browser, clear cache)
+   - IMPORTANT: Always offer the payment link alternative as a reliable solution:
+     * "If the website checkout continues to give errors, we have a simple alternative:"
+     * Explain the email payment link process in detail
+     * List exactly what information to include in the email
+     * Mention this is a standard, secure alternative used by many guests
+   - Frame this as a direct solution pathway, not just "contacting support"
+   - Use phrasing like "Our team can send you a secure payment link to complete your booking easily"
+
+ALTERNATIVE PAYMENT LINK PROCESS - ALWAYS INCLUDE FOR PAYMENT ERRORS:
+When explaining the payment link alternative, include these specific points:
+1. "Send an email to reservations@skylagoon.is with:
+   - Your desired date and time
+   - Your preferred package (Saman or Sér)
+   - Number of guests
+   - Any special requests"
+2. "Our team will respond with a secure payment link"
+3. "Simply complete payment through this link to confirm your booking"
+4. "This is a secure, commonly used alternative that many guests prefer"
 
 BOOKING ASSISTANCE PRIORITIES:
 1. For Multi-Pass booking issues:
@@ -527,17 +542,11 @@ BOOKING ASSISTANCE PRIORITIES:
    - Suggest checking for common errors (spaces, incorrect field)
    - Only mention customer service if your troubleshooting steps might not resolve the issue
 
-3. When users mention general "problems" or "issues":
-   - Focus on solutions rather than apologizing
-   - Provide actual steps rather than sympathy
-   - Avoid mentioning service hours completely unless specifically asked
-
-4. When users mention SPECIFIC ERROR MESSAGES like "an error occurred" or "payment failed":
-   - Use more tentative language: "These steps might help resolve the issue"
-   - Acknowledge that the error might be on the server side
-   - Recommend basic troubleshooting first (refresh page, try different browser)
-   - But be honest that contacting customer service might be necessary
-   - Say "This type of error can sometimes be resolved by these steps, but it might also require assistance from our team"
+3. When users mention SPECIFIC ERROR MESSAGES like "an error occurred" or "payment failed":
+   - Use more tentative language for troubleshooting steps
+   - Always include the payment link alternative as a reliable solution path
+   - Present it as a standard alternative, not a fallback
+   - Ensure users know exactly what information to include in their email
 `;
 basePrompt += directSolvingInstructions;
 
