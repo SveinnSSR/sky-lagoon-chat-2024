@@ -44,7 +44,8 @@ import {
 } from './sunsetTimes.js';
 // AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
-    checkAgentAvailability, 
+    checkAgentAvailability,
+    createChatQueue, // Add this line 
     createChat,
     createChatDebug,  // Add this line 
     sendMessageToLiveChat,
@@ -2482,7 +2483,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             try {
                 // Create chat using bot with enhanced debugging
                 console.log('\n📝 Creating new LiveChat chat for:', sessionId);
-                const chatData = await createChatDebug(sessionId, languageDecision.isIcelandic);
+                const chatData = await createChatQueue(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create chat');
