@@ -2656,8 +2656,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Prioritize agent_credentials over bot_token
+                // Prioritize agent_credentials over bot_token and log what we're using
                 const credentials = req.body.agent_credentials || req.body.bot_token;
+                console.log('\n📨 Agent mode using credentials type:', 
+                    req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
+                
                 await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 // No broadcast needed for agent mode messages - just forward them

@@ -3184,15 +3184,27 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             return false;
         }
         
-        // Determine if these are agent credentials or bot token
-        const isAgentCredentials = credentials.includes(':');
-        const authHeader = isAgentCredentials ? 
-            `Basic ${credentials}` : 
-            `Bearer ${credentials}`;
+        // Improved credential handling that handles possible prefixes
+        let authHeader;
         
-        console.log(`\n📨 Sending message to LiveChat with ${isAgentCredentials ? 'agent credentials' : 'bot token'}...`);
+        // Check if credentials already have an auth prefix
+        if (credentials.startsWith('Basic ')) {
+            authHeader = credentials;
+            console.log('\n📨 Sending message to LiveChat with prefixed agent credentials...');
+        } else if (credentials.startsWith('Bearer ')) {
+            authHeader = credentials;
+            console.log('\n📨 Sending message to LiveChat with prefixed bot token...');
+        } else if (credentials.includes(':')) {
+            // Agent credentials (contains colon) - needs Basic prefix
+            authHeader = `Basic ${credentials}`;
+            console.log('\n📨 Sending message to LiveChat with agent credentials...');
+        } else {
+            // Bot token - needs Bearer prefix
+            authHeader = `Bearer ${credentials}`;
+            console.log('\n📨 Sending message to LiveChat with bot token...');
+        }
         
-        // Step 1: Check if chat is accessible
+        // Step 1: Check if chat is accessible with current credentials
         try {
             console.log('\n🔍 Verifying chat access before sending...');
             const chatCheckResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
@@ -3208,8 +3220,8 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             });
             
             if (!chatCheckResponse.ok) {
-                console.warn(`\n⚠️ Chat access check failed with ${isAgentCredentials ? 'agent credentials' : 'bot token'}. ${chatCheckResponse.status}: ${await chatCheckResponse.text()}`);
-                // Continue anyway - we'll still try sending the message
+                const errorText = await chatCheckResponse.text();
+                console.warn(`\n⚠️ Chat access check failed. ${chatCheckResponse.status}: ${errorText}`);
             } else {
                 const chatData = await chatCheckResponse.json();
                 console.log('\n✅ Chat is accessible. Active:', chatData.active);
@@ -3249,7 +3261,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                 return true;
             }
             
-            // For other errors, throw to let caller handle them
             throw new Error(`Send message failed: ${response.status}`);
         }
         
