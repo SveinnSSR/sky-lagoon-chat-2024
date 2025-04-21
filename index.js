@@ -998,8 +998,8 @@ async function processLiveChatMessage(payload) {
       global.liveChatSessionMappings = new Map();
     }
     
-    // Find the session ID associated with this chat
-    const sessionId = findSessionIdForChat(chatId);
+    // Find the session ID associated with this chat - NOW ASYNC
+    const sessionId = await findSessionIdForChat(chatId);
     
     if (!sessionId) {
       console.warn('\n⚠️ No session ID found for chat:', chatId);
@@ -1047,21 +1047,65 @@ async function processLiveChatMessage(payload) {
 /**
  * Finds the session ID associated with a LiveChat chat ID
  * @param {string} chatId - The LiveChat chat ID
- * @returns {string|null} - The session ID or null if not found
+ * @returns {Promise<string|null>} - The session ID or null if not found
  */
-function findSessionIdForChat(chatId) {
+async function findSessionIdForChat(chatId) {
   // Initialize the mapping if it doesn't exist
   if (!global.liveChatSessionMappings) {
     global.liveChatSessionMappings = new Map();
   }
   
-  // Direct lookup first
+  // Direct lookup first from memory
   if (global.liveChatSessionMappings.has(chatId)) {
     return global.liveChatSessionMappings.get(chatId);
   }
   
+  // If not found in memory, check MongoDB
+  try {
+    const { db } = await connectToDatabase();
+    const mapping = await db.collection('livechat_mappings').findOne({ chatId: chatId });
+    
+    if (mapping && mapping.sessionId) {
+      // Cache in memory for future use
+      global.liveChatSessionMappings.set(chatId, mapping.sessionId);
+      console.log(`\n🔍 Found session mapping in MongoDB: ${chatId} -> ${mapping.sessionId}`);
+      return mapping.sessionId;
+    }
+  } catch (error) {
+    console.error('\n❌ Error retrieving mapping from MongoDB:', error);
+  }
+  
   // No mapping found
   return null;
+}
+
+// Add this as a new function after your existing helper functions
+async function storeChatSessionMapping(chatId, sessionId) {
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Store in-memory for immediate use
+    if (!global.liveChatSessionMappings) {
+      global.liveChatSessionMappings = new Map();
+    }
+    global.liveChatSessionMappings.set(chatId, sessionId);
+    
+    // Also store in MongoDB for persistence
+    await db.collection('livechat_mappings').updateOne(
+      { chatId: chatId },
+      { $set: { sessionId: sessionId, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    
+    console.log(`\n🔗 Mapped LiveChat chat ID ${chatId} to session ID ${sessionId} (in memory and MongoDB)`);
+  } catch (error) {
+    console.error('\n❌ Error storing chat mapping:', error);
+    // Still set the in-memory mapping even if MongoDB fails
+    if (!global.liveChatSessionMappings) {
+      global.liveChatSessionMappings = new Map();
+    }
+    global.liveChatSessionMappings.set(chatId, sessionId);
+  }
 }
 
 // Add this helper function to detect sunset-related queries
@@ -2629,15 +2673,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📝 Creating new LiveChat chat with correct API structure:', sessionId);
                 const chatData = await createProperChat(sessionId, languageDecision.isIcelandic);
 
-                // Store mapping between LiveChat chat ID and our session ID
+                // Store mapping between LiveChat chat ID and our session ID in memory and MongoDB
                 if (chatData && chatData.chat_id) {
-                    if (!global.liveChatSessionMappings) {
-                        global.liveChatSessionMappings = new Map();
-                    }
-                    
-                    // Add the mapping
-                    global.liveChatSessionMappings.set(chatData.chat_id, sessionId);
-                    console.log(`\n🔗 Mapped LiveChat chat ID ${chatData.chat_id} to session ID ${sessionId}`);
+                    // Use the persistent storage function
+                    await storeChatSessionMapping(chatData.chat_id, sessionId);
                 }
                 
                 if (!chatData || !chatData.chat_id) {
@@ -4071,7 +4110,7 @@ const server = app.listen(PORT, () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Production URL (can be overridden with environment variable)
-    const webhookUrl = process.env.WEBHOOK_URL || 'https://skylagoon-chat-api.vercel.app/webhook/livechat';
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://sky-lagoon-chat-2024.vercel.app/webhook/livechat';
     
     console.log('\n🔄 Registering LiveChat webhook at:', webhookUrl);
     

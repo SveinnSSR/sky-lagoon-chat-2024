@@ -1765,7 +1765,9 @@ export async function registerLiveChatWebhook(webhookUrl) {
         'Authorization': `Basic ${agentCredentials}`,
         'X-Region': 'fra'
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        owner_client_id: CLIENT_ID  // Add this required parameter
+      })
     });
     
     if (!listResponse.ok) {
@@ -1800,7 +1802,8 @@ export async function registerLiveChatWebhook(webhookUrl) {
         description: 'Sky Lagoon AI Chatbot Integration',
         action: 'incoming_event',
         secret_key: 'sky-lagoon-webhook-key-2025', // You can use a more secure secret
-        type: 'license'
+        type: 'license',
+        owner_client_id: CLIENT_ID  // Add this required parameter
       })
     });
     
