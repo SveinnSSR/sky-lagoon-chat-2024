@@ -62,7 +62,9 @@ import {
     detectBookingChangeRequest,
     createBookingChangeRequest,
     submitBookingChangeRequest,
-    shouldTransferToHumanAgent  // Add this missing import 
+    shouldTransferToHumanAgent,  // Add this missing import
+    createChatAsCustomer, // Add the new customer chat function
+    sendCustomerMessageToLiveChat // Add the new customer message function 
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -2533,15 +2535,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat DIRECTLY with agent credentials - KEY CHANGE
-                console.log('\n📝 Creating new LiveChat chat with direct agent approach:', sessionId);
-                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
+                // Create chat AS CUSTOMER instead of with agent credentials
+                console.log('\n📝 Creating new LiveChat chat AS CUSTOMER:', sessionId);
+                const chatData = await createChatAsCustomer(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData || !chatData.chat_id) {
                     throw new Error('Failed to create chat or get chat ID');
                 }
                 
-                console.log('\n✅ Chat created successfully with agent credentials:', chatData.chat_id);
+                console.log('\n✅ Chat created successfully AS CUSTOMER:', chatData.chat_id);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -2556,7 +2558,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
+                    customer_token: chatData.customer_token, // Use customer token instead of agent credentials
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -2566,23 +2568,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseType: 'direct_response'
                 });
                 
-                // Simplified verification (no transfer needed since we're creating with agent credentials)
+                // Simplified verification (now checking chat as a customer)
                 setTimeout(async () => {
                     try {
                         console.log('\n⏱️ Running simple visibility verification check...');
-                        // Use the same agent credentials from the chat data
-                        const agentCredentials = chatData.agent_credentials;
+                        // Use the customer token to check chat status
+                        const customerToken = chatData.customer_token;
                         
-                        // Just verify the chat exists and is active
-                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                        // Verify the chat exists and is active
+                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_chat', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Basic ${agentCredentials}`,
+                                'Authorization': `Bearer ${customerToken}`,
                                 'X-Region': 'fra'
                             },
                             body: JSON.stringify({
-                                id: chatData.chat_id
+                                chat_id: chatData.chat_id
                             })
                         });
                         
@@ -2591,29 +2593,27 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             console.log('\n🔍 Chat status verification:', {
                                 id: chatData.chat_id,
                                 active: chatStatus.active,
-                                status: chatStatus.status || 'unknown',
-                                users: chatStatus.users?.length || 0,
-                                group_id: chatStatus.group_id
+                                thread: chatStatus.thread || {},
+                                users: chatStatus.users?.length || 0
                             });
                             
                             // If the chat looks inactive, send a follow-up message to alert agents
-                            if (!chatStatus.active || chatStatus.users?.length < 2) {
+                            if (!chatStatus.active || !chatStatus.thread?.events?.length) {
                                 console.log('\n⚠️ Chat visibility check - sending reminder message...');
                                 
-                                // Send a reminder message
-                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                                // Send a reminder message AS THE CUSTOMER
+                                await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
-                                        'Authorization': `Basic ${agentCredentials}`,
+                                        'Authorization': `Bearer ${customerToken}`,
                                         'X-Region': 'fra'
                                     },
                                     body: JSON.stringify({
                                         chat_id: chatData.chat_id,
                                         event: {
                                             type: 'message',
-                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
-                                            visibility: 'all'
+                                            text: '🚨🚨 REMINDER: Customer waiting for assistance'
                                         }
                                     })
                                 });
@@ -2656,19 +2656,22 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Prioritize agent_credentials over bot_token and log what we're using
-                const credentials = req.body.agent_credentials || req.body.bot_token;
-                console.log('\n📨 Agent mode using credentials type:', 
-                    req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
+                // Use customer token instead of agent credentials
+                const customerToken = req.body.customer_token;
                 
-                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
+                if (!customerToken) {
+                    throw new Error('Missing customer token for agent mode');
+                }
+                
+                console.log('\n📨 Agent mode using customer token...');
+                
+                await sendCustomerMessageToLiveChat(req.body.chatId, userMessage, customerToken);
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
-                    agent_credentials: req.body.agent_credentials,
-                    bot_token: req.body.bot_token, // Keep bot_token for backward compatibility
+                    customer_token: customerToken,
                     suppressMessage: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',

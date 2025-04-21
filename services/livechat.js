@@ -510,6 +510,139 @@ export async function ensureChatVisibility(chatId, groupId) {
 }
 
 /**
+ * Creates a LiveChat chat AS A CUSTOMER instead of as an agent
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createChatAsCustomer(customerId, isIcelandic = false) {
+    try {
+        console.log('\n👤 Creating chat AS A CUSTOMER (proper routing path)...');
+        
+        // 1. Generate a customer token
+        const licenseId = "10d9b2c9-311a-41b4-94ae-b0c4562d7737"; // Your organization ID
+        
+        // Create a customer JWT token
+        const customerToken = await generateCustomerToken(customerId);
+        
+        // 2. Start a chat AS THE CUSTOMER
+        console.log('\n🧑‍💻 Customer starting a chat through proper customer pathway...');
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${customerToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                license_id: licenseId, // Required for customer chat
+                group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
+                customer: {
+                    id: customerId,
+                    name: `User ${customerId.substring(0, 8)}...`,
+                    email: `${customerId.substring(0, 8)}@skylagoon.com`
+                },
+                // These properties come from the customer's perspective
+                properties: {
+                    source: {
+                        type: "widget"  // Important - makes it look like a web widget chat
+                    }
+                }
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Customer chat creation error:', errorText);
+            throw new Error('Failed to create customer chat');
+        }
+
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created AS CUSTOMER:', chatData);
+        
+        // 3. Send initial message AS THE CUSTOMER
+        await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${customerToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 AI CHATBOT TRANSFER - Customer has requested human assistance',
+                }
+            })
+        });
+        
+        // 4. Send a second message with additional context
+        await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${customerToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: 'This is an automated transfer from the Sky Lagoon AI chatbot. The customer would like to speak with a human agent.',
+                }
+            })
+        });
+        
+        return {
+            chat_id: chatData.chat_id,
+            thread_id: chatData.thread_id,
+            customer_token: customerToken  // Save for future messages
+        };
+    } catch (error) {
+        console.error('\n❌ Error creating customer chat:', error);
+        throw error;
+    }
+}
+
+/**
+ * Generate a customer token for LiveChat
+ * @param {string} customerId - Customer ID
+ * @returns {Promise<string>} JWT token
+ */
+async function generateCustomerToken(customerId) {
+    try {
+        // Using agent credentials to request a customer token
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        const response = await fetch('https://api.livechatinc.com/v3.5/configuration/action/generate_customer_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                customer_id: customerId,
+                organization_id: "10d9b2c9-311a-41b4-94ae-b0c4562d7737" // Your org/license ID
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('\n❌ Customer token generation error:', errorText);
+            throw new Error(`Failed to generate customer token: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.token;
+    } catch (error) {
+        console.error('Error generating customer token:', error);
+        throw error;
+    }
+}
+
+/**
  * Creates a chat DIRECTLY using agent credentials, no transfer needed
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
@@ -3162,6 +3295,52 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
         return true;
     } catch (error) {
         console.error('\n❌ Error sending booking change data to LiveChat:', error);
+        return false;
+    }
+}
+
+/**
+ * Send message to LiveChat AS A CUSTOMER
+ * @param {string} chatId - LiveChat chat ID
+ * @param {string} message - Message to send
+ * @param {string} customerToken - Customer JWT token
+ * @returns {Promise<boolean>} Success status
+ */
+export async function sendCustomerMessageToLiveChat(chatId, message, customerToken) {
+    try {
+        if (!chatId || !message || !customerToken) {
+            console.error('\n❌ Missing required parameters for customer message');
+            return false;
+        }
+        
+        console.log('\n📨 Sending message AS CUSTOMER to LiveChat...');
+        
+        const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${customerToken}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                event: {
+                    type: 'message',
+                    text: message
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('\n❌ Error sending customer message:', errorText);
+            return false;
+        }
+        
+        console.log('\n✅ Customer message sent successfully');
+        return true;
+    } catch (error) {
+        console.error('\n❌ Error in sendCustomerMessageToLiveChat:', error);
         return false;
     }
 }
