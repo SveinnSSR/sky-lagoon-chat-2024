@@ -319,101 +319,82 @@ export async function diagnosticBotStatus() {
 }
 
 /**
- * Force a chat to be visible in the LiveChat agent interface
+ * Ensures a chat is visible in the LiveChat agent interface
+ * Uses multiple approaches with proper validation formatting
  * @param {string} chatId - LiveChat chat ID
  * @param {number} groupId - Target group ID (69 for English, 70 for Icelandic)
- * @param {string} agentEmail - Target agent email (default: david@svorumstrax.is)
  * @returns {Promise<boolean>} Success status
  */
-export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@svorumstrax.is') {
+export async function ensureChatVisibility(chatId, groupId) {
     try {
-        console.log('\n🔍 Forcing chat visibility for:', chatId, 'to group:', groupId);
+        console.log('\n🔍 Ensuring chat visibility for:', chatId, 'to group:', groupId);
         
         // Get agent credentials
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // Step 1: Update chat properties to force assignment - SIMPLIFIED STRUCTURE
-        console.log('\n📝 Updating chat properties for visibility...');
-        
-        // Create a properly structured properties object
-        const updateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                properties: {
-                    // Properly structured properties object
-                    assigned_group: { 
-                        id: groupId,
-                        type: "group" 
+        // Approach 1: Standard transfer with correct format
+        console.log('\n🔄 Attempting standard transfer with correct format...');
+        try {
+            const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatId,  // Chat ID field name is 'id' not 'chat_id'
+                    target: {
+                        type: "group",
+                        id: groupId  // Single ID, not array of IDs
                     },
-                    routing: {
-                        strategy: "manual",
-                        group: { 
-                            id: groupId,
-                            type: "group" 
+                    force: true
+                })
+            });
+            
+            if (transferResponse.ok) {
+                console.log('\n✅ Standard transfer successful');
+                return true;
+            }
+            
+            const transferError = await transferResponse.text();
+            console.warn('\n⚠️ Standard transfer notice:', transferError);
+        } catch (transferError) {
+            console.warn('\n⚠️ Standard transfer error:', transferError.message);
+        }
+        
+        // Approach 2: Update chat properties with correct format
+        console.log('\n📝 Attempting properties update with correct format...');
+        try {
+            const propertiesResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,  // Required field for this endpoint
+                    properties: {
+                        assigned_group: { 
+                            id: groupId
                         }
                     }
-                }
-            })
-        });
-        
-        if (!updateResponse.ok) {
-            const errorText = await updateResponse.text();
-            console.error('\n❌ Failed to update chat properties:', errorText);
-            // Continue with fallback methods even if this step fails
-        } else {
-            console.log('\n✅ Chat properties updated successfully');
+                })
+            });
+            
+            if (propertiesResponse.ok) {
+                console.log('\n✅ Properties update successful');
+                return true;
+            }
+            
+            const propertiesError = await propertiesResponse.text();
+            console.warn('\n⚠️ Properties update notice:', propertiesError);
+        } catch (propertiesError) {
+            console.warn('\n⚠️ Properties update error:', propertiesError.message);
         }
         
-        // Step 2: Direct agent assignment
-        console.log('\n👤 Explicitly assigning chat to agent:', agentEmail);
-        const assignResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatId,
-                agent_id: agentEmail
-            })
-        });
-        
-        if (!assignResponse.ok) {
-            const errorText = await assignResponse.text();
-            console.warn('\n⚠️ Agent assignment notice:', errorText);
-            // Continue even if this step has issues
-        } else {
-            console.log('\n✅ Chat explicitly assigned to agent');
-        }
-        
-        // Step 3: Try direct group transfer as fallback
-        console.log('\n🔄 Explicitly transferring chat to group:', groupId);
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatId,
-                target: {
-                    type: "group",
-                    ids: [groupId]
-                },
-                force: true,
-                ignore_requester_presence: true
-            })
-        }).catch(err => console.warn('\n⚠️ Group transfer notice:', err.message));
-        
-        // Step 4: Send high-priority alert message
+        // Approach 3: Send a high-priority alert message to draw attention
         console.log('\n🚨 Sending high-visibility alert message...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
@@ -426,15 +407,15 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
                 chat_id: chatId,
                 event: {
                     type: 'message',
-                    text: '🔴 URGENT: LiveChat Agent Intervention Required - Customer waiting for response',
+                    text: '🔴🔴🔴 URGENT: AGENT TRANSFER NEEDED - Customer has requested human assistance and is waiting!',
                     visibility: 'all'
                 }
             })
         });
         
-        // Step 5: Verify chat is in active monitoring
-        console.log('\n🔍 Verifying chat is in active monitoring...');
-        const checkResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+        // Verify final chat status
+        console.log('\n🔍 Verifying final chat status...');
+        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -446,108 +427,28 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
             })
         });
         
-        if (checkResponse.ok) {
-            const chatData = await checkResponse.json();
-            console.log('\n📊 Chat status check:', {
+        if (verifyResponse.ok) {
+            const chatData = await verifyResponse.json();
+            console.log('\n📊 Final chat status:', {
                 id: chatData.id,
                 active: chatData.active,
                 users: chatData.users?.length || 0,
                 access: chatData.access,
-                group_id: chatData.group_id || groupId
+                group_id: chatData.group_id || groupId,
+                status: chatData.status || 'unknown'
             });
         }
         
         return true;
     } catch (error) {
-        console.error('\n❌ Error forcing chat visibility:', error);
+        console.error('\n❌ Error ensuring chat visibility:', error);
         return false;
     }
 }
 
 /**
- * Fallback method to fix chat visibility when primary method fails
- * @param {string} chatId - LiveChat chat ID
- * @param {number} groupId - Target group ID
- * @returns {Promise<boolean>} Success status
- */
-export async function fallbackVisibilityFix(chatId, groupId) {
-    try {
-        console.log('\n🔄 Using fallback visibility method for chat:', chatId, 'group:', groupId);
-        
-        // Get agent credentials
-        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        // Step 1: Force direct transfer to group
-        console.log('\n🔄 Forcing chat transfer to group:', groupId);
-        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                id: chatId,
-                target: {
-                    type: "group",
-                    ids: [groupId]
-                },
-                force: true
-            })
-        });
-        
-        if (!transferResponse.ok) {
-            const errorText = await transferResponse.text();
-            console.warn('\n⚠️ Fallback transfer warning:', errorText);
-            // Continue even if this fails
-        } else {
-            console.log('\n✅ Fallback transfer succeeded');
-        }
-        
-        // Step 2: Try to manually assign to a specific agent
-        console.log('\n👤 Manually assigning chat to david@svorumstrax.is');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                agent_id: 'david@svorumstrax.is'
-            })
-        }).catch(err => console.warn('\n⚠️ Assignment warning:', err.message));
-        
-        // Step 3: Send very urgent notification to alert agent
-        console.log('\n🚨 Sending very urgent alert message');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                event: {
-                    type: 'message',
-                    text: '🔴🔴🔴 CRITICAL: URGENT AGENT ACTION REQUIRED - Customer waiting!',
-                    visibility: 'all'
-                }
-            })
-        });
-        
-        console.log('\n✅ Fallback visibility fix completed');
-        return true;
-    } catch (error) {
-        console.error('\n❌ Error in fallback visibility fix:', error);
-        return false;
-    }
-}
-
-/**
- * Creates a chat using LiveChat bot with visibility enforcement and fallback
+ * Creates a chat using LiveChat bot with working visibility enforcement
+ * Fixed to address all validation errors and visibility issues
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
@@ -584,8 +485,8 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         // Get the target group ID
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Step 2: Create chat AS THE BOT (not as admin) with explicit routing properties
-        console.log('\n🤖 Creating chat AS THE BOT with enhanced routing...');
+        // Step 2: Create chat AS THE BOT (not as admin) with simplified properties
+        console.log('\n🤖 Creating chat AS THE BOT with simplified properties...');
         
         // Create customer data
         const customerData = {
@@ -594,7 +495,7 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             email: `${customerId.substring(0, 8)}@skylagoon.com`
         };
         
-        // Create chat with BOT token and explicit routing properties
+        // Create chat with BOT token - SIMPLIFIED for maximum compatibility
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -605,20 +506,9 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 active: true,
                 continuous: true,
-                group_id: groupId,
-                customers: [customerData],
-                properties: {
-                    // Enhanced routing properties
-                    routing: {
-                        status: "queued",
-                        priority: "urgent",
-                        source: "ai_chatbot"
-                    },
-                    source: {
-                        type: "other",
-                        url: SKY_LAGOON_GROUPS.urls[groupId] || "https://www.skylagoon.com/"
-                    }
-                }
+                group_id: groupId,  // Direct group assignment
+                customers: [customerData]
+                // No complex properties to avoid validation issues
             })
         });
 
@@ -631,46 +521,7 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created successfully AS BOT:', chatData);
         
-        // Step 3: Verify customer is in the chat
-        console.log('\n👤 Verifying customer is in chat...');
-        const usersResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_chat_users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id
-            })
-        });
-        
-        if (usersResponse.ok) {
-            const usersData = await usersResponse.json();
-            console.log('\n👥 Chat users:', JSON.stringify(usersData));
-            
-            // Check if customer is in chat
-            const customerInChat = usersData.some(u => u.id === customerData.id);
-            if (!customerInChat) {
-                console.log('\n👤 Adding customer to chat explicitly...');
-                await fetch('https://api.livechatinc.com/v3.5/agent/action/add_user_to_chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${botToken}`,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: chatData.chat_id,
-                        user_id: customerData.id,
-                        user_type: "customer",
-                        visibility: "all"
-                    })
-                });
-            }
-        }
-        
-        // Step 4: Send urgent notification messages - USING BOT TOKEN
+        // Step 3: Send urgent notification message - USING BOT TOKEN
         console.log('\n📝 Sending urgent message using bot token...');
         const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
@@ -696,25 +547,7 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             console.log('\n✅ Urgent message sent successfully with bot token');
         }
         
-        // Step 5: Send a second message for context
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                event: {
-                    type: 'message',
-                    text: 'Customer was using AI chatbot and requested to speak with a human agent.',
-                    visibility: 'all'
-                }
-            })
-        });
-        
-        // Step 6: Add tag for better visibility
+        // Step 4: Add tag for better visibility
         console.log('\n🏷️ Adding tag to chat using bot token...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
             method: 'POST',
@@ -727,18 +560,11 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
                 chat_id: chatData.chat_id,
                 tag: "urgent_ai_transfer"
             })
-        });
+        }).catch(err => console.warn('\n⚠️ Error tagging chat:', err.message));
         
-        // Step 7: CRITICAL - Force chat visibility using improved method
-        console.log('\n🔍 Enforcing chat visibility in agent interface...');
-        try {
-            await forceChatVisibility(chatData.chat_id, groupId);
-        } catch (visibilityError) {
-            console.error('\n❌ Primary visibility method failed:', visibilityError);
-            // Try fallback method if primary method fails
-            console.log('\n🔄 Trying fallback visibility method...');
-            await fallbackVisibilityFix(chatData.chat_id, groupId);
-        }
+        // Step 5: CRITICAL - Ensure chat visibility using fixed method
+        console.log('\n🔍 Ensuring chat visibility with corrected API formats...');
+        await ensureChatVisibility(chatData.chat_id, groupId);
         
         // Return chat data with bot token for future message sending
         return {

@@ -49,6 +49,7 @@ import {
     diagnosticGroupConfiguration, // Add this line
     diagnosticBotStatus, // Add this line
     forceChatVisibility, // Add this line
+    ensureChatVisibility, // Add this line
     createBotTransferChat, // Add this line
     createDirectAgentNameTransfer, // Add this line
     createDirectChatNoGroup, // Add this line
@@ -2594,10 +2595,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 users: chatStatus.users?.length || 0
                             });
                             
-                            // If chat is not properly assigned, try force visibility again
+                            // If chat is not properly assigned, try our new visibility function again
                             if (!chatStatus.active || !chatStatus.users || chatStatus.users.length < 2) {
                                 console.log('\n⚠️ Chat may not be visible - enforcing visibility again...');
-                                await forceChatVisibility(chatData.chat_id, 
+                                await ensureChatVisibility(chatData.chat_id, 
                                     languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN);
                             }
                         }
