@@ -48,25 +48,13 @@ import {
     diagnosticLiveChat, // Add this line 
     diagnosticGroupConfiguration, // Add this line
     diagnosticBotStatus, // Add this line
-    ensureChatVisibility, // Add this line
-    createBotTransferChat, // Add this line
-    createDirectAgentNameTransfer, // Add this line
-    createDirectChatNoGroup, // Add this line
-    createDirectAgentChat, // Add this line 
-    createAgentChatWithTransfer, // Add this line
-    createAgentChat, // Add this line
-    createChatQueue, // Add this line
-    createChat,
-    createChatDebug,  // Add this line 
+    createProperChat, // Add this new import
+    createDirectAgentChat, // Add this line
     sendMessageToLiveChat,
     detectBookingChangeRequest,
     createBookingChangeRequest,
     submitBookingChangeRequest,
     shouldTransferToHumanAgent,  // Add this missing import
-    createChatAsCustomer, // Add the new customer chat function
-    sendCustomerMessageToLiveChat, // Add the new customer message function
-    createEnhancedVisibleChat,
-    createProperChat, // Add this new import  
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -921,22 +909,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 confidence: languageDecision.confidence
             }
         });
-
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================    
 
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
