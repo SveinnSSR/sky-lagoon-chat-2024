@@ -918,22 +918,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================          
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
@@ -2399,7 +2383,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 
                 // Create a NEW chat for the form submission
                 console.log('\n📝 Creating new LiveChat booking change request for form submission');
-                const chatData = await createBookingChangeRequest(sessionId, languageDecision.isIcelandic);
+                // Use direct agent chat instead of bot transfer
+                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create booking change request chat');
@@ -2409,7 +2394,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 const submitted = await submitBookingChangeRequest(
                     chatData.chat_id,  // Use the new chat ID
                     formData, 
-                    chatData.bot_token // Use the new bot token
+                    chatData.agent_credentials // Use agent credentials instead of bot token
                 );
                 
                 if (!submitted) {
@@ -2476,9 +2461,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Only show form if the final check determines we need it
         if (finalBookingCheck.shouldShowForm) {
             try {
-                // Create chat using bot for the booking change request
+                // Create chat using direct agent approach for the booking change request
                 console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
-                const chatData = await createBookingChangeRequest(sessionId, languageDecision.isIcelandic);
+                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create booking change request');
@@ -2499,8 +2484,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: bookingChangeMessage,
                     showBookingChangeForm: true,
                     chatId: chatData.chat_id,
-                    bot_token: chatData.bot_token,
-                    agent_credentials: chatData.agent_credentials,
+                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence
@@ -2549,15 +2533,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat using enhanced bot transfer function with visibility enforcement
-                console.log('\n📝 Creating new LiveChat chat with visibility enforcement:', sessionId);
-                const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
+                // Create chat DIRECTLY with agent credentials - KEY CHANGE
+                console.log('\n📝 Creating new LiveChat chat with direct agent approach:', sessionId);
+                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData || !chatData.chat_id) {
                     throw new Error('Failed to create chat or get chat ID');
                 }
                 
-                console.log('\n✅ Chat created successfully:', chatData.chat_id);
+                console.log('\n✅ Chat created successfully with agent credentials:', chatData.chat_id);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -2572,7 +2556,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    bot_token: chatData.bot_token,
+                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
@@ -2582,14 +2566,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseType: 'direct_response'
                 });
                 
-                // Add a verification after 2 seconds to double-check visibility
+                // Simplified verification (no transfer needed since we're creating with agent credentials)
                 setTimeout(async () => {
                     try {
-                        console.log('\n⏱️ Running delayed visibility verification check...');
-                        // Get agent credentials
-                        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                        console.log('\n⏱️ Running simple visibility verification check...');
+                        // Use the same agent credentials from the chat data
+                        const agentCredentials = chatData.agent_credentials;
                         
-                        // Check if chat is visible in the system
+                        // Just verify the chat exists and is active
                         const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                             method: 'POST',
                             headers: {
@@ -2598,13 +2582,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 'X-Region': 'fra'
                             },
                             body: JSON.stringify({
-                                id: chatData.chat_id  // Using 'id' is correct for this endpoint
+                                id: chatData.chat_id
                             })
                         });
                         
                         if (verifyResponse.ok) {
                             const chatStatus = await verifyResponse.json();
-                            console.log('\n🔍 Delayed visibility check:', {
+                            console.log('\n🔍 Chat status verification:', {
                                 id: chatData.chat_id,
                                 active: chatStatus.active,
                                 status: chatStatus.status || 'unknown',
@@ -2612,31 +2596,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                 group_id: chatStatus.group_id
                             });
                             
-                            // If chat is not properly assigned, try more aggressive approach
-                            if (!chatStatus.active || !chatStatus.users || chatStatus.users.length < 2 ||
-                                chatStatus.group_id !== (languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN)) {
+                            // If the chat looks inactive, send a follow-up message to alert agents
+                            if (!chatStatus.active || chatStatus.users?.length < 2) {
+                                console.log('\n⚠️ Chat visibility check - sending reminder message...');
                                 
-                                console.log('\n⚠️ Chat may not be visible - trying final visibility enforcement...');
-                                
-                                // Try an aggressive approach - use admin credentials directly with transfer_chat
-                                await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Basic ${agentCredentials}`,
-                                        'X-Region': 'fra'
-                                    },
-                                    body: JSON.stringify({
-                                        id: chatData.chat_id,
-                                        target: {
-                                            type: "group",
-                                            id: languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN
-                                        },
-                                        force: true
-                                    })
-                                });
-                                
-                                // Also send an urgent message using admin credentials
+                                // Send a reminder message
                                 await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                                     method: 'POST',
                                     headers: {
@@ -2648,7 +2612,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                         chat_id: chatData.chat_id,
                                         event: {
                                             type: 'message',
-                                            text: '🚨🚨🚨 URGENT AGENT ATTENTION NEEDED: Customer is waiting!',
+                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
                                             visibility: 'all'
                                         }
                                     })
@@ -2692,16 +2656,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Try bot token first, fall back to agent credentials
-                const credentials = req.body.bot_token || req.body.agent_credentials;
+                // Prioritize agent_credentials over bot_token
+                const credentials = req.body.agent_credentials || req.body.bot_token;
                 await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
-                    bot_token: req.body.bot_token,
                     agent_credentials: req.body.agent_credentials,
+                    bot_token: req.body.bot_token, // Keep bot_token for backward compatibility
                     suppressMessage: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',

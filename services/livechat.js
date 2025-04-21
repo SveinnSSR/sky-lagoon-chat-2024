@@ -510,6 +510,94 @@ export async function ensureChatVisibility(chatId, groupId) {
 }
 
 /**
+ * Creates a chat DIRECTLY using agent credentials, no transfer needed
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createDirectAgentChat(customerId, isIcelandic = false) {
+    try {
+        console.log('\n👤 Creating chat with AGENT credentials (no transfer needed)...');
+        
+        // Always use agent credentials - this is the key change
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Target group
+        const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
+        
+        // Create the chat DIRECTLY with agent credentials
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                active: true,
+                continuous: true,
+                group_id: groupId,
+                customers: [{
+                    id: customerId,
+                    name: `User ${customerId.substring(0, 8)}...`,
+                    email: `${customerId.substring(0, 8)}@skylagoon.com`
+                }]
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Chat creation error:', errorText);
+            throw new Error('Failed to create chat');
+        }
+
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created DIRECTLY with agent credentials:', chatData);
+        
+        // Send URGENT message directly with agent credentials
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        // Optionally add a tag with agent credentials
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                tag: "urgent_ai_transfer"
+            })
+        });
+        
+        return {
+            chat_id: chatData.chat_id,
+            thread_id: chatData.thread_id,
+            agent_credentials: agentCredentials  // Return agent credentials for future operations
+        };
+    } catch (error) {
+        console.error('\n❌ Error in createDirectAgentChat:', error);
+        throw error;
+    }
+}
+
+/**
  * Creates a chat using LiveChat bot with improved visibility enforcement
  * Revised to address authorization issues and API validation errors
  * @param {string} customerId - Customer ID (session ID)
