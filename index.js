@@ -55,6 +55,7 @@ import {
     createBookingChangeRequest,
     submitBookingChangeRequest,
     shouldTransferToHumanAgent,  // Add this missing import
+    registerLiveChatWebhook  // Add this new export
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -963,6 +964,105 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
         };
     }
 };
+
+// Add these with other helper functions, AFTER imports but BEFORE endpoints
+// ===============================================================
+
+/**
+ * Processes incoming messages from LiveChat agents
+ * @param {Object} payload - The webhook payload from LiveChat
+ * @returns {Promise<Object>} - Success status and any errors
+ */
+async function processLiveChatMessage(payload) {
+  try {
+    // Extract the relevant data from the payload
+    const chatId = payload.chat_id;
+    const event = payload.event;
+    const author = event.author;
+    
+    // We only care about agent messages (not customer or system)
+    if (author.type !== 'agent') {
+      console.log('\n📝 Ignoring non-agent message from:', author.type);
+      return { success: true };
+    }
+    
+    // Extract the message text
+    const messageText = event.text;
+    
+    // Extract author information
+    const authorName = author.name || 'Agent';
+    
+    // We need to find which client session this belongs to 
+    // Check our session mappings for this chat ID
+    if (!global.liveChatSessionMappings) {
+      global.liveChatSessionMappings = new Map();
+    }
+    
+    // Find the session ID associated with this chat
+    const sessionId = findSessionIdForChat(chatId);
+    
+    if (!sessionId) {
+      console.warn('\n⚠️ No session ID found for chat:', chatId);
+      return { success: false, error: 'No session mapping found for this chat' };
+    }
+    
+    console.log(`\n📨 Broadcasting agent message to session: ${sessionId}`);
+    
+    // Create the agent message for broadcasting
+    const agentMessage = {
+      role: 'agent',
+      content: messageText,
+      author: authorName,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Use our broadcast system to send message to the frontend
+    await pusher.trigger('chat-channel', 'agent-message', {
+      sessionId: sessionId,
+      message: agentMessage,
+      chatId: chatId
+    });
+    
+    // If we're also storing context in MongoDB, update that too
+    try {
+      const context = await getPersistentSessionContext(sessionId);
+      if (context) {
+        addMessageToContext(context, {
+          role: 'agent', 
+          content: messageText,
+          author: authorName
+        });
+      }
+    } catch (contextError) {
+      console.warn('\n⚠️ Could not update context:', contextError);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('\n❌ Error processing LiveChat message:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Finds the session ID associated with a LiveChat chat ID
+ * @param {string} chatId - The LiveChat chat ID
+ * @returns {string|null} - The session ID or null if not found
+ */
+function findSessionIdForChat(chatId) {
+  // Initialize the mapping if it doesn't exist
+  if (!global.liveChatSessionMappings) {
+    global.liveChatSessionMappings = new Map();
+  }
+  
+  // Direct lookup first
+  if (global.liveChatSessionMappings.has(chatId)) {
+    return global.liveChatSessionMappings.get(chatId);
+  }
+  
+  // No mapping found
+  return null;
+}
 
 // Add this helper function to detect sunset-related queries
 const isSunsetQuery = (message, languageDecision) => {
@@ -2528,6 +2628,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Create chat with CORRECT API STRUCTURE (verified by LiveChat Tech Support)
                 console.log('\n📝 Creating new LiveChat chat with correct API structure:', sessionId);
                 const chatData = await createProperChat(sessionId, languageDecision.isIcelandic);
+
+                // Store mapping between LiveChat chat ID and our session ID
+                if (chatData && chatData.chat_id) {
+                    if (!global.liveChatSessionMappings) {
+                        global.liveChatSessionMappings = new Map();
+                    }
+                    
+                    // Add the mapping
+                    global.liveChatSessionMappings.set(chatData.chat_id, sessionId);
+                    console.log(`\n🔗 Mapped LiveChat chat ID ${chatData.chat_id} to session ID ${sessionId}`);
+                }
                 
                 if (!chatData || !chatData.chat_id) {
                     throw new Error('Failed to create chat or get chat ID');
@@ -3897,6 +4008,46 @@ app.post('/analytics-proxy', async (req, res) => {
     }
 });
 
+// Add this AFTER your existing endpoints but BEFORE app.listen
+// ===============================================================
+// LiveChat webhook endpoint for receiving agent messages
+app.post('/webhook/livechat', async (req, res) => {
+  try {
+    console.log('\n📩 Received webhook from LiveChat:', {
+      type: req.body.action,
+      payload: req.body
+    });
+    
+    // Verify the webhook is authentic (you can add more security later)
+    // For now we'll just check if the payload follows expected structure
+    if (!req.body.action || !req.body.payload) {
+      console.warn('\n⚠️ Invalid webhook format');
+      return res.status(400).json({ success: false, error: 'Invalid webhook format' });
+    }
+    
+    // We're only interested in new messages
+    if (req.body.action === 'incoming_event' && req.body.payload.event.type === 'message') {
+      // Process the incoming message
+      const result = await processLiveChatMessage(req.body.payload);
+      
+      if (result.success) {
+        console.log('\n✅ LiveChat message processed successfully');
+        return res.status(200).json({ success: true });
+      } else {
+        console.error('\n❌ Failed to process LiveChat message:', result.error);
+        return res.status(500).json({ success: false, error: result.error });
+      }
+    }
+    
+    // For other webhook types, just acknowledge receipt
+    return res.status(200).json({ success: true });
+    
+  } catch (error) {
+    console.error('\n❌ Webhook processing error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Start server with enhanced logging
 const PORT = config.PORT;
 const server = app.listen(PORT, () => {
@@ -3911,6 +4062,30 @@ const server = app.listen(PORT, () => {
     console.log('CORS origins:', corsOptions.origin);
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
 });
+
+// Add this webhook registration code here
+// Register LiveChat webhook on server startup
+(async () => {
+  try {
+    // Wait a moment for server to be fully started
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Production URL (can be overridden with environment variable)
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://skylagoon-chat-api.vercel.app/webhook/livechat';
+    
+    console.log('\n🔄 Registering LiveChat webhook at:', webhookUrl);
+    
+    const result = await registerLiveChatWebhook(webhookUrl);
+    
+    if (result.success) {
+      console.log('\n✅ LiveChat webhook registration successful:', result.webhookId);
+    } else {
+      console.error('\n❌ LiveChat webhook registration failed:', result.error);
+    }
+  } catch (error) {
+    console.error('\n❌ Error during webhook registration:', error);
+  }
+})();
 
 // Enhanced error handling for server startup
 server.on('error', (error) => {

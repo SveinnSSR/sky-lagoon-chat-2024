@@ -1744,3 +1744,79 @@ TYPE: HUMAN_REQUESTED (only if classification is YES)`;
         };
     }
 }
+
+/**
+ * Registers a webhook in LiveChat to receive messages
+ * @param {string} webhookUrl - The URL of your webhook endpoint
+ * @returns {Promise<Object>} Registration result
+ */
+export async function registerLiveChatWebhook(webhookUrl) {
+  try {
+    console.log('\n📡 Registering LiveChat webhook at:', webhookUrl);
+    
+    // Get agent credentials for API access
+    const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+    
+    // First, list existing webhooks to avoid duplicates
+    const listResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/list_webhooks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${agentCredentials}`,
+        'X-Region': 'fra'
+      },
+      body: JSON.stringify({})
+    });
+    
+    if (!listResponse.ok) {
+      const errorText = await listResponse.text();
+      console.error('\n❌ Failed to list webhooks:', errorText);
+      return { success: false, error: 'Failed to list webhooks' };
+    }
+    
+    const existingWebhooks = await listResponse.json();
+    
+    // Check if our webhook already exists
+    const existingWebhook = existingWebhooks.find(webhook => 
+      webhook.url === webhookUrl && 
+      webhook.action === 'incoming_event'
+    );
+    
+    if (existingWebhook) {
+      console.log('\n✅ Webhook already registered:', existingWebhook.id);
+      return { success: true, webhookId: existingWebhook.id, exists: true };
+    }
+    
+    // Register a new webhook
+    const registerResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/register_webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${agentCredentials}`,
+        'X-Region': 'fra'
+      },
+      body: JSON.stringify({
+        url: webhookUrl,
+        description: 'Sky Lagoon AI Chatbot Integration',
+        action: 'incoming_event',
+        secret_key: 'sky-lagoon-webhook-key-2025', // You can use a more secure secret
+        type: 'license'
+      })
+    });
+    
+    if (!registerResponse.ok) {
+      const errorText = await registerResponse.text();
+      console.error('\n❌ Failed to register webhook:', errorText);
+      return { success: false, error: 'Failed to register webhook' };
+    }
+    
+    const registerResult = await registerResponse.json();
+    console.log('\n✅ Webhook registered successfully:', registerResult);
+    
+    return { success: true, webhookId: registerResult.id };
+    
+  } catch (error) {
+    console.error('\n❌ Error registering webhook:', error);
+    return { success: false, error: error.message };
+  }
+}
