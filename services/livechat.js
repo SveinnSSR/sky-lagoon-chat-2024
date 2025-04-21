@@ -319,14 +319,14 @@ export async function diagnosticBotStatus() {
 }
 
 /**
- * Creates a LiveChat chat using the EXACT API structure per LiveChat Tech Support
+ * Creates a LiveChat chat using the correct two-step process per LiveChat Tech Support
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
  */
 export async function createProperChat(customerId, isIcelandic = false) {
     try {
-        console.log('\n👤 Creating chat with CORRECT API STRUCTURE (Tech Support verified)...');
+        console.log('\n👤 Creating chat using CORRECT TWO-STEP PROCESS (Tech Support verified)...');
         
         // Agent credentials
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
@@ -361,7 +361,64 @@ export async function createProperChat(customerId, isIcelandic = false) {
         const targetAgent = availableAgents[0];
         console.log('\n✅ Target agent found:', targetAgent.agent_id);
         
-        // SIMPLIFIED: Using EXACTLY the structure from LiveChat Tech Support
+        // STEP 1: REGISTER THE CUSTOMER FIRST (this is what we were missing!)
+        console.log('\n👤 Registering customer first (per Tech Support instructions)...');
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                name: `User ${customerId.substring(0, 8)}...`,
+                email: `${customerId.substring(0, 8)}@skylagoon.com`,
+                session_fields: [{
+                    key: "session_id",
+                    value: customerId
+                }]
+            })
+        });
+        
+        if (!customerResponse.ok) {
+            const customerErrorText = await customerResponse.text();
+            console.error('\n❌ Customer registration error:', customerErrorText);
+            
+            // Try an alternative endpoint if the first one fails
+            console.log('\n🔄 Trying alternative customer registration endpoint...');
+            const altCustomerResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/create_customer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    name: `User ${customerId.substring(0, 8)}...`,
+                    email: `${customerId.substring(0, 8)}@skylagoon.com`,
+                    custom_id: customerId
+                })
+            });
+            
+            if (!altCustomerResponse.ok) {
+                const altCustomerErrorText = await altCustomerResponse.text();
+                console.error('\n❌ Alternative customer registration error:', altCustomerErrorText);
+                throw new Error('Failed to register customer with LiveChat');
+            }
+            
+            var customerData = await altCustomerResponse.json();
+        } else {
+            var customerData = await customerResponse.json();
+        }
+        
+        console.log('\n✅ Customer registered successfully:', customerData);
+        
+        // Extract the LiveChat customer ID
+        const livechatCustomerId = customerData.id || customerData.customer_id || customerId;
+        console.log('\n👤 Using LiveChat customer ID:', livechatCustomerId);
+        
+        // STEP 2: Now start a chat with the REGISTERED customer
+        console.log('\n💬 Starting chat with registered customer...');
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -372,13 +429,10 @@ export async function createProperChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 chat: {
                     users: [{
-                        id: customerId,
-                        type: "customer",
-                        name: `User ${customerId.substring(0, 8)}...`,
-                        email: `${customerId.substring(0, 8)}@skylagoon.com`
+                        id: livechatCustomerId,
+                        type: "customer"
                     }]
                 },
-                // Keep these essential properties outside the chat object
                 active: true,
                 continuous: true,
                 group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
