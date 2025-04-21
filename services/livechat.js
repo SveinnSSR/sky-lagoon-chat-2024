@@ -319,7 +319,7 @@ export async function diagnosticBotStatus() {
 }
 
 /**
- * Creates a LiveChat chat using the correct API structure per LiveChat Tech Support
+ * Creates a LiveChat chat using the EXACT API structure per LiveChat Tech Support
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
@@ -361,7 +361,7 @@ export async function createProperChat(customerId, isIcelandic = false) {
         const targetAgent = availableAgents[0];
         console.log('\n✅ Target agent found:', targetAgent.agent_id);
         
-        // FIXED: Using the correct structure as specified by LiveChat Tech Support
+        // SIMPLIFIED: Using EXACTLY the structure from LiveChat Tech Support
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -376,20 +376,9 @@ export async function createProperChat(customerId, isIcelandic = false) {
                         type: "customer",
                         name: `User ${customerId.substring(0, 8)}...`,
                         email: `${customerId.substring(0, 8)}@skylagoon.com`
-                    }],
-                    // We can still use properties inside the chat object
-                    properties: {
-                        routing: {
-                            status: "assigned",
-                            agent_id: targetAgent.agent_id
-                        },
-                        source: {
-                            type: "widget",
-                            url: "https://www.skylagoon.com/"
-                        }
-                    }
+                    }]
                 },
-                // These should be outside the chat object
+                // Keep these essential properties outside the chat object
                 active: true,
                 continuous: true,
                 group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
@@ -406,7 +395,7 @@ export async function createProperChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created successfully with proper structure:', chatData);
         
-        // Explicitly activate the chat for the agent (resume chat)
+        // Explicitly activate the chat for the agent
         console.log('\n👤 Explicitly activating chat for agent...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
             method: 'POST',
