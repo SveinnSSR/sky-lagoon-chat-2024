@@ -48,7 +48,6 @@ import {
     diagnosticLiveChat, // Add this line 
     diagnosticGroupConfiguration, // Add this line
     diagnosticBotStatus, // Add this line
-    forceChatVisibility, // Add this line
     ensureChatVisibility, // Add this line
     createBotTransferChat, // Add this line
     createDirectAgentNameTransfer, // Add this line
