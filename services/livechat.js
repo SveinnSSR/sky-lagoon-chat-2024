@@ -3167,24 +3167,30 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
 }
 
 /**
- * Send message to LiveChat with improved error handling and token management
+ * Send message to LiveChat with improved credential handling
  * @param {string} chatId - LiveChat chat ID
  * @param {string} message - Message to send
- * @param {string} botToken - Bot token from chat creation
+ * @param {string} credentials - Bot token or agent credentials
  * @returns {Promise<boolean>} Success status
  */
-export async function sendMessageToLiveChat(chatId, message, botToken) {
+export async function sendMessageToLiveChat(chatId, message, credentials) {
     try {
-        if (!chatId || !message || !botToken) {
+        if (!chatId || !message || !credentials) {
             console.error('\n❌ Missing required parameters:', { 
                 hasChatId: !!chatId, 
                 hasMessage: !!message, 
-                hasBotToken: !!botToken 
+                hasCredentials: !!credentials 
             });
             return false;
         }
         
-        console.log('\n📨 Sending message to LiveChat with bot token...');
+        // Determine if these are agent credentials or bot token
+        const isAgentCredentials = credentials.includes(':');
+        const authHeader = isAgentCredentials ? 
+            `Basic ${credentials}` : 
+            `Bearer ${credentials}`;
+        
+        console.log(`\n📨 Sending message to LiveChat with ${isAgentCredentials ? 'agent credentials' : 'bot token'}...`);
         
         // Step 1: Check if chat is accessible
         try {
@@ -3193,17 +3199,17 @@ export async function sendMessageToLiveChat(chatId, message, botToken) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${botToken}`,
+                    'Authorization': authHeader,
                     'X-Region': 'fra'
                 },
                 body: JSON.stringify({
-                    chat_id: chatId
+                    id: chatId // Use id for agent API
                 })
             });
             
             if (!chatCheckResponse.ok) {
-                console.warn('\n⚠️ Chat access check failed. Chat may have been transferred. Using extended scope...');
-                // Continue anyway - we'll try sending the message
+                console.warn(`\n⚠️ Chat access check failed with ${isAgentCredentials ? 'agent credentials' : 'bot token'}. ${chatCheckResponse.status}: ${await chatCheckResponse.text()}`);
+                // Continue anyway - we'll still try sending the message
             } else {
                 const chatData = await chatCheckResponse.json();
                 console.log('\n✅ Chat is accessible. Active:', chatData.active);
@@ -3213,12 +3219,12 @@ export async function sendMessageToLiveChat(chatId, message, botToken) {
             // Continue to message sending attempt
         }
         
-        // Step 2: Send message using bot token
+        // Step 2: Send message using appropriate credentials
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
+                'Authorization': authHeader,
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
@@ -3234,13 +3240,6 @@ export async function sendMessageToLiveChat(chatId, message, botToken) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('\n❌ Error sending message:', errorText);
-            
-            if (errorText.includes('authorization') || errorText.includes('Requester is not user')) {
-                console.log('\n🔄 Authorization error - message will be delivered via the LiveChat UI instead');
-                // Return true to prevent error - user can still send message via LiveChat UI
-                return true;
-            }
-            
             throw new Error(`Send message failed: ${response.status}`);
         }
         
