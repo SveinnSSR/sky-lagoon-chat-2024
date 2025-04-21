@@ -64,7 +64,8 @@ import {
     submitBookingChangeRequest,
     shouldTransferToHumanAgent,  // Add this missing import
     createChatAsCustomer, // Add the new customer chat function
-    sendCustomerMessageToLiveChat // Add the new customer message function 
+    sendCustomerMessageToLiveChat, // Add the new customer message function
+    createEnhancedVisibleChat  
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -2535,15 +2536,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat AS CUSTOMER instead of with agent credentials
-                console.log('\n📝 Creating new LiveChat chat AS CUSTOMER:', sessionId);
-                const chatData = await createChatAsCustomer(sessionId, languageDecision.isIcelandic);
+                // Create enhanced visible chat
+                console.log('\n📝 Creating new LiveChat chat with enhanced visibility:', sessionId);
+                const chatData = await createEnhancedVisibleChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData || !chatData.chat_id) {
                     throw new Error('Failed to create chat or get chat ID');
                 }
                 
-                console.log('\n✅ Chat created successfully AS CUSTOMER:', chatData.chat_id);
+                console.log('\n✅ Chat created successfully with enhanced visibility:', chatData.chat_id);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -2558,7 +2559,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    customer_token: chatData.customer_token, // Use customer token instead of agent credentials
+                    agent_credentials: chatData.agent_credentials,
                     initiateWidget: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
