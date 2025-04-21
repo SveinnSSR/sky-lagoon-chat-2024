@@ -510,7 +510,7 @@ export async function ensureChatVisibility(chatId, groupId) {
 }
 
 /**
- * Creates a LiveChat chat AS A CUSTOMER instead of as an agent
+ * Creates a LiveChat chat AS A CUSTOMER instead of as an agent.
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
