@@ -2533,105 +2533,143 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                    // Create chat using enhanced bot transfer function with visibility enforcement
-                    console.log('\n📝 Creating new LiveChat chat with visibility enforcement:', sessionId);
-                    const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
-                    
-                    if (!chatData || !chatData.chat_id) {
-                            throw new Error('Failed to create chat or get chat ID');
-                    }
-                    
-                    console.log('\n✅ Chat created successfully:', chatData.chat_id);
-                    
-                    // Prepare transfer message based on language
-                    const transferMessage = languageDecision.isIcelandic ?
-                            "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
-                            "I'm connecting you with a customer service representative. One moment...";
-                    
-                    // Add response to context
-                    addMessageToContext(context, { role: 'assistant', content: transferMessage });
-                    
-                    // Use the unified broadcast system to update the UI
-                    const responseData = await sendBroadcastAndPrepareResponse({
-                            message: transferMessage,
-                            transferred: true,
-                            chatId: chatData.chat_id,
-                            bot_token: chatData.bot_token,
-                            initiateWidget: true,
-                            language: {
-                                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                                    confidence: languageDecision.confidence
+                // Create chat using enhanced bot transfer function with visibility enforcement
+                console.log('\n📝 Creating new LiveChat chat with visibility enforcement:', sessionId);
+                const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
+                
+                if (!chatData || !chatData.chat_id) {
+                    throw new Error('Failed to create chat or get chat ID');
+                }
+                
+                console.log('\n✅ Chat created successfully:', chatData.chat_id);
+                
+                // Prepare transfer message based on language
+                const transferMessage = languageDecision.isIcelandic ?
+                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
+                    "I'm connecting you with a customer service representative. One moment...";
+                
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: transferMessage });
+                
+                // Use the unified broadcast system to update the UI
+                const responseData = await sendBroadcastAndPrepareResponse({
+                    message: transferMessage,
+                    transferred: true,
+                    chatId: chatData.chat_id,
+                    bot_token: chatData.bot_token,
+                    initiateWidget: true,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'transfer',
+                    responseType: 'direct_response'
+                });
+                
+                // Add a verification after 2 seconds to double-check visibility
+                setTimeout(async () => {
+                    try {
+                        console.log('\n⏱️ Running delayed visibility verification check...');
+                        // Get agent credentials
+                        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                        
+                        // Check if chat is visible in the system
+                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${agentCredentials}`,
+                                'X-Region': 'fra'
                             },
-                            topicType: 'transfer',
-                            responseType: 'direct_response'
-                    });
-                    
-                    // Add a verification after 2 seconds to double-check visibility
-                    setTimeout(async () => {
-                            try {
-                                    // Get agent credentials
-                                    const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-                                    
-                                    // Check if chat is visible in the system
-                                    const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-                                            method: 'POST',
-                                            headers: {
-                                                    'Content-Type': 'application/json',
-                                                    'Authorization': `Basic ${agentCredentials}`,
-                                                    'X-Region': 'fra'
-                                            },
-                                            body: JSON.stringify({
-                                                    id: chatData.chat_id  // FIXED: Using 'id' instead of 'chat_id'
-                                            })
-                                    });
-                                    
-                                    if (verifyResponse.ok) {
-                                            const chatStatus = await verifyResponse.json();
-                                            console.log('\n🔍 Visibility check:', {
-                                                    id: chatData.chat_id,
-                                                    active: chatStatus.active,
-                                                    status: chatStatus.status || 'unknown',
-                                                    users: chatStatus.users?.length || 0
-                                            });
-                                            
-                                            // If chat is not properly assigned, try our visibility function again
-                                            if (!chatStatus.active || !chatStatus.users || chatStatus.users.length < 2) {
-                                                    console.log('\n⚠️ Chat may not be visible - enforcing visibility again...');
-                                                    await ensureChatVisibility(chatData.chat_id, 
-                                                            languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN);
-                                            }
-                                    }
-                            } catch (verifyError) {
-                                    console.error('\n⚠️ Verification error:', verifyError);
-                                    // Don't throw - this is just an additional check
+                            body: JSON.stringify({
+                                id: chatData.chat_id  // Using 'id' is correct for this endpoint
+                            })
+                        });
+                        
+                        if (verifyResponse.ok) {
+                            const chatStatus = await verifyResponse.json();
+                            console.log('\n🔍 Delayed visibility check:', {
+                                id: chatData.chat_id,
+                                active: chatStatus.active,
+                                status: chatStatus.status || 'unknown',
+                                users: chatStatus.users?.length || 0,
+                                group_id: chatStatus.group_id
+                            });
+                            
+                            // If chat is not properly assigned, try more aggressive approach
+                            if (!chatStatus.active || !chatStatus.users || chatStatus.users.length < 2 ||
+                                chatStatus.group_id !== (languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN)) {
+                                
+                                console.log('\n⚠️ Chat may not be visible - trying final visibility enforcement...');
+                                
+                                // Try an aggressive approach - use admin credentials directly with transfer_chat
+                                await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Basic ${agentCredentials}`,
+                                        'X-Region': 'fra'
+                                    },
+                                    body: JSON.stringify({
+                                        id: chatData.chat_id,
+                                        target: {
+                                            type: "group",
+                                            id: languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN
+                                        },
+                                        force: true
+                                    })
+                                });
+                                
+                                // Also send an urgent message using admin credentials
+                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Basic ${agentCredentials}`,
+                                        'X-Region': 'fra'
+                                    },
+                                    body: JSON.stringify({
+                                        chat_id: chatData.chat_id,
+                                        event: {
+                                            type: 'message',
+                                            text: '🚨🚨🚨 URGENT AGENT ATTENTION NEEDED: Customer is waiting!',
+                                            visibility: 'all'
+                                        }
+                                    })
+                                });
                             }
-                    }, 2000);
-                    
-                    return res.status(responseData.status || 200).json(responseData);
+                        }
+                    } catch (verifyError) {
+                        console.error('\n⚠️ Verification error:', verifyError);
+                        // Don't throw - this is just an additional check
+                    }
+                }, 2000);
+                
+                return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
-                    console.error('\n❌ Transfer Error:', error);
-                    
-                    // Provide fallback response
-                    const fallbackMessage = languageDecision.isIcelandic ?
-                            "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
-                            "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
-                    
-                    // Add fallback response to context
-                    addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-                    
-                    // Return error response
-                    const errorResponseData = await sendBroadcastAndPrepareResponse({
-                            message: fallbackMessage,
-                            error: error.message,
-                            language: {
-                                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                                    confidence: languageDecision.confidence
-                            },
-                            topicType: 'transfer_failed',
-                            responseType: 'direct_response'
-                    });
-                    
-                    return res.status(errorResponseData.status || 500).json(errorResponseData);
+                console.error('\n❌ Transfer Error:', error);
+                
+                // Provide fallback response
+                const fallbackMessage = languageDecision.isIcelandic ?
+                    "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
+                    "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
+                
+                // Add fallback response to context
+                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
+                
+                // Return error response
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
+                    message: fallbackMessage,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'transfer_failed',
+                    responseType: 'direct_response'
+                });
+                
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         }
 

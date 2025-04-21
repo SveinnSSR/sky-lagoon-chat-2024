@@ -320,7 +320,7 @@ export async function diagnosticBotStatus() {
 
 /**
  * Ensures a chat is visible in the LiveChat agent interface
- * Uses multiple approaches with proper validation formatting
+ * Completely revised to use proper agent credentials and correct API formats
  * @param {string} chatId - LiveChat chat ID
  * @param {number} groupId - Target group ID (69 for English, 70 for Icelandic)
  * @returns {Promise<boolean>} Success status
@@ -329,44 +329,117 @@ export async function ensureChatVisibility(chatId, groupId) {
     try {
         console.log('\n🔍 Ensuring chat visibility for:', chatId, 'to group:', groupId);
         
-        // Get agent credentials
+        // IMPORTANT: Always use agent credentials (not bot token) for transfers
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // Approach 1: Standard transfer with correct format
-        console.log('\n🔄 Attempting standard transfer with correct format...');
+        // Method 1: Use official transfer endpoint with correct format
+        console.log('\n🔄 Attempting official transfer API...');
         try {
             const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Basic ${agentCredentials}`,
+                    'Authorization': `Basic ${agentCredentials}`, // Always use agent credentials
                     'X-Region': 'fra'
                 },
                 body: JSON.stringify({
-                    id: chatId,  // Chat ID field name is 'id' not 'chat_id'
+                    id: chatId,  // 'id' is correct for this endpoint
                     target: {
                         type: "group",
-                        ids: [groupId]  // FIXED: Must be array of IDs with 'ids' plural
+                        id: groupId  // FIXED: Singular 'id' not 'ids' array
                     },
                     force: true
                 })
             });
             
+            const transferText = await transferResponse.text();
+            let transferData = {};
+            try {
+                if (transferText && transferText.trim() !== '') {
+                    transferData = JSON.parse(transferText);
+                }
+            } catch (e) {
+                console.warn('\n⚠️ Could not parse transfer response:', e.message);
+            }
+            
+            console.log('\n🔄 Transfer API response:', transferText);
+            
             if (transferResponse.ok) {
-                console.log('\n✅ Standard transfer successful');
+                console.log('\n✅ Official transfer successful');
                 return true;
             }
             
-            const transferError = await transferResponse.text();
-            console.warn('\n⚠️ Standard transfer notice:', transferError);
+            console.warn('\n⚠️ Official transfer notice:', transferText);
         } catch (transferError) {
-            console.warn('\n⚠️ Standard transfer error:', transferError.message);
+            console.warn('\n⚠️ Official transfer error:', transferError.message);
         }
         
-        // Approach 2: Update chat properties with correct format
-        console.log('\n📝 Attempting properties update with correct format...');
+        // Method 2: Use update_chat endpoint with routing property
+        console.log('\n📝 Attempting update_chat with routing properties...');
         try {
-            const propertiesResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
+            const updateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`, // Always use agent credentials
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatId,  // 'id' is correct for this endpoint
+                    properties: {
+                        routing: {
+                            group: {
+                                id: groupId
+                            }
+                        }
+                    }
+                })
+            });
+            
+            const updateText = await updateResponse.text();
+            console.log('\n📝 Update chat response:', updateText);
+            
+            if (updateResponse.ok) {
+                console.log('\n✅ Update chat successful');
+                return true;
+            }
+            
+            console.warn('\n⚠️ Update chat notice:', updateText);
+        } catch (updateError) {
+            console.warn('\n⚠️ Update chat error:', updateError.message);
+        }
+        
+        // Method 3: Send a high-priority alert message to draw attention
+        console.log('\n🚨 Sending high-visibility alert message...');
+        try {
+            const alertResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`, // Always use agent credentials
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId, // This endpoint uses chat_id
+                    event: {
+                        type: 'message',
+                        text: '🔴🔴🔴 URGENT: AGENT TRANSFER NEEDED - Customer has requested human assistance and is waiting!',
+                        visibility: 'all'
+                    }
+                })
+            });
+            
+            if (alertResponse.ok) {
+                console.log('\n✅ Alert message sent successfully');
+            }
+        } catch (alertError) {
+            console.warn('\n⚠️ Alert message error:', alertError.message);
+        }
+        
+        // Method 4: Final attempt - try direct group assignment
+        console.log('\n🔄 Attempting direct group assignment...');
+        try {
+            const directResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/update_group_chat_access', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -374,73 +447,62 @@ export async function ensureChatVisibility(chatId, groupId) {
                     'X-Region': 'fra'
                 },
                 body: JSON.stringify({
-                    id: chatId,  // FIXED: Required field is 'id' not 'chat_id'
-                    properties: {
-                        assigned_group: { 
-                            id: groupId,
-                            type: "group"  // Added type for better compatibility
-                        }
-                    }
+                    chat_id: chatId,
+                    group_id: groupId,
+                    access: true
                 })
             });
             
-            if (propertiesResponse.ok) {
-                console.log('\n✅ Properties update successful');
+            const directText = await directResponse.text();
+            console.log('\n🔄 Direct assignment response:', directText);
+            
+            if (directResponse.ok) {
+                console.log('\n✅ Direct group assignment successful');
                 return true;
             }
-            
-            const propertiesError = await propertiesResponse.text();
-            console.warn('\n⚠️ Properties update notice:', propertiesError);
-        } catch (propertiesError) {
-            console.warn('\n⚠️ Properties update error:', propertiesError.message);
+        } catch (directError) {
+            console.warn('\n⚠️ Direct assignment error:', directError.message);
         }
         
-        // Approach 3: Send a high-priority alert message to draw attention
-        console.log('\n🚨 Sending high-visibility alert message...');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${agentCredentials}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                event: {
-                    type: 'message',
-                    text: '🔴🔴🔴 URGENT: AGENT TRANSFER NEEDED - Customer has requested human assistance and is waiting!',
-                    visibility: 'all'
-                }
-            })
-        });
-        
-        // Add verification step to confirm final status
+        // Final verification step
         console.log('\n🔍 Verifying final chat status...');
-        const verifyChat = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Basic ${agentCredentials}`,
-                'Content-Type': 'application/json',
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({ 
-                id: chatId  // FIXED: Using 'id' instead of 'chat_id'
-            })
-        });
-        
-        if (verifyChat.ok) {
-            const chatData = await verifyChat.json();
-            console.log('\n📊 Final chat status verification:', {
-                id: chatData.id,
-                active: chatData.active,
-                users: chatData.users?.length || 0,
-                access: chatData.access,
-                group_id: chatData.group_id || groupId,
-                status: chatData.status || 'unknown'
+        try {
+            const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${agentCredentials}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    id: chatId
+                })
             });
+            
+            if (verifyResponse.ok) {
+                const chatData = await verifyResponse.json();
+                console.log('\n📊 Final chat status verification:', {
+                    id: chatData.id,
+                    active: chatData.active,
+                    users: chatData.users?.length || 0,
+                    access: chatData.access,
+                    group_id: chatData.group_id || groupId,
+                    status: chatData.status || 'unknown'
+                });
+                
+                // Consider any group assignment a success
+                if (chatData.group_id === groupId) {
+                    console.log('\n✅ Chat successfully assigned to correct group');
+                    return true;
+                }
+            }
+        } catch (verifyError) {
+            console.warn('\n⚠️ Verification error:', verifyError.message);
         }
         
-        return true;
+        // We attempted all methods but couldn't confirm success
+        console.log('\n⚠️ All visibility methods attempted, chat may not be visible to agents');
+        return false;
     } catch (error) {
         console.error('\n❌ Error ensuring chat visibility:', error);
         return false;
@@ -448,8 +510,8 @@ export async function ensureChatVisibility(chatId, groupId) {
 }
 
 /**
- * Creates a chat using LiveChat bot with working visibility enforcement
- * Fixed to address all validation errors and visibility issues
+ * Creates a chat using LiveChat bot with improved visibility enforcement
+ * Revised to address authorization issues and API validation errors
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
@@ -486,17 +548,15 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         // Get the target group ID
         const groupId = isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN;
         
-        // Step 2: Create chat AS THE BOT (not as admin) with simplified properties
-        console.log('\n🤖 Creating chat AS THE BOT with simplified properties...');
-        
-        // Create customer data
+        // Step 2: Create customer data object
         const customerData = {
             id: customerId,
             name: `User ${customerId.substring(0, 8)}...`,
             email: `${customerId.substring(0, 8)}@skylagoon.com`
         };
         
-        // Create chat with BOT token - SIMPLIFIED for maximum compatibility
+        // Step 3: Create chat AS THE BOT (not as admin) with even simpler properties
+        console.log('\n🤖 Creating chat AS THE BOT with minimal properties...');
         const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
             method: 'POST',
             headers: {
@@ -507,9 +567,8 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             body: JSON.stringify({
                 active: true,
                 continuous: true,
-                group_id: groupId,  // Direct group assignment
                 customers: [customerData]
-                // No complex properties to avoid validation issues
+                // IMPORTANT: Removed group_id to prevent potential conflicts
             })
         });
 
@@ -522,56 +581,98 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created successfully AS BOT:', chatData);
         
-        // Step 3: Send urgent notification message - USING BOT TOKEN
+        // Step 4: Send urgent notification message - MUST be sent BEFORE transferring
         console.log('\n📝 Sending urgent message using bot token...');
-        const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                event: {
-                    type: 'message',
-                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
-                    visibility: 'all'
-                }
-            })
-        });
-        
-        if (!messageResponse.ok) {
-            const errorText = await messageResponse.text();
-            console.error('\n❌ Failed to send urgent message:', errorText);
-        } else {
-            console.log('\n✅ Urgent message sent successfully with bot token');
+        try {
+            const messageResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${botToken}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    event: {
+                        type: 'message',
+                        text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                        visibility: 'all'
+                    }
+                })
+            });
+            
+            if (messageResponse.ok) {
+                console.log('\n✅ Urgent message sent successfully with bot token');
+            } else {
+                const errorText = await messageResponse.text();
+                console.error('\n❌ Failed to send urgent message:', errorText);
+            }
+        } catch (messageError) {
+            console.error('\n❌ Error sending urgent message:', messageError.message);
         }
         
-        // Step 4: Add tag for better visibility
+        // Step 5: Add tag for better visibility - ALSO BEFORE transferring
         console.log('\n🏷️ Adding tag to chat using bot token...');
-        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${botToken}`,
-                'X-Region': 'fra'
-            },
-            body: JSON.stringify({
-                chat_id: chatData.chat_id,
-                tag: "urgent_ai_transfer"
-            })
-        }).catch(err => console.warn('\n⚠️ Error tagging chat:', err.message));
+        try {
+            const tagResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${botToken}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    tag: "urgent_ai_transfer"
+                })
+            });
+            
+            if (tagResponse.ok) {
+                console.log('\n✅ Tag added successfully with bot token');
+            } else {
+                const errorText = await tagResponse.text();
+                console.warn('\n⚠️ Failed to add tag:', errorText);
+            }
+        } catch (tagError) {
+            console.warn('\n⚠️ Error adding tag:', tagError.message);
+        }
         
-        // Step 5: CRITICAL - Ensure chat visibility using fixed method
-        console.log('\n🔍 Ensuring chat visibility with corrected API formats...');
-        await ensureChatVisibility(chatData.chat_id, groupId);
+        // Step 6: Add customer specifics to the bot message
+        try {
+            await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${botToken}`,
+                    'X-Region': 'fra'
+                },
+                body: JSON.stringify({
+                    chat_id: chatData.chat_id,
+                    event: {
+                        type: 'message',
+                        text: `Customer ID: ${customerId}\nLanguage: ${isIcelandic ? 'Icelandic' : 'English'}\nRequested: ${new Date().toISOString()}`,
+                        visibility: 'all'
+                    }
+                })
+            });
+        } catch (detailsError) {
+            console.warn('\n⚠️ Error sending customer details:', detailsError.message);
+        }
+        
+        // Step 7: CRITICAL - Ensure chat visibility AFTER sending all messages
+        console.log('\n🔍 Ensuring chat visibility with agent credentials...');
+        const visibilitySuccess = await ensureChatVisibility(chatData.chat_id, groupId);
+        
+        if (!visibilitySuccess) {
+            console.warn('\n⚠️ Chat visibility enforcement may have failed, but continuing with chat');
+        }
         
         // Return chat data with bot token for future message sending
         return {
             chat_id: chatData.chat_id,
             thread_id: chatData.thread_id,
-            bot_token: botToken  // IMPORTANT: Return the same bot token
+            bot_token: botToken,
+            visibility_enforced: visibilitySuccess
         };
     } catch (error) {
         console.error('\n❌ Error in createBotTransferChat:', error);
