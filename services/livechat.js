@@ -346,7 +346,7 @@ export async function ensureChatVisibility(chatId, groupId) {
                     id: chatId,  // Chat ID field name is 'id' not 'chat_id'
                     target: {
                         type: "group",
-                        id: groupId  // Single ID, not array of IDs
+                        ids: [groupId]  // FIXED: Must be array of IDs with 'ids' plural
                     },
                     force: true
                 })
@@ -374,10 +374,11 @@ export async function ensureChatVisibility(chatId, groupId) {
                     'X-Region': 'fra'
                 },
                 body: JSON.stringify({
-                    chat_id: chatId,  // Required field for this endpoint
+                    id: chatId,  // FIXED: Required field is 'id' not 'chat_id'
                     properties: {
                         assigned_group: { 
-                            id: groupId
+                            id: groupId,
+                            type: "group"  // Added type for better compatibility
                         }
                     }
                 })
@@ -413,23 +414,23 @@ export async function ensureChatVisibility(chatId, groupId) {
             })
         });
         
-        // Verify final chat status
+        // Add verification step to confirm final status
         console.log('\n🔍 Verifying final chat status...');
-        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+        const verifyChat = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Basic ${agentCredentials}`,
+                'Content-Type': 'application/json',
                 'X-Region': 'fra'
             },
-            body: JSON.stringify({
-                chat_id: chatId
+            body: JSON.stringify({ 
+                id: chatId  // FIXED: Using 'id' instead of 'chat_id'
             })
         });
         
-        if (verifyResponse.ok) {
-            const chatData = await verifyResponse.json();
-            console.log('\n📊 Final chat status:', {
+        if (verifyChat.ok) {
+            const chatData = await verifyChat.json();
+            console.log('\n📊 Final chat status verification:', {
                 id: chatData.id,
                 active: chatData.active,
                 users: chatData.users?.length || 0,
