@@ -2657,22 +2657,24 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
             try {
-                // Use customer token instead of agent credentials
-                const customerToken = req.body.customer_token;
+                // Use agent_credentials that are being passed in
+                const credentials = req.body.agent_credentials || req.body.bot_token;
                 
-                if (!customerToken) {
-                    throw new Error('Missing customer token for agent mode');
+                if (!credentials) {
+                    throw new Error('Missing credentials for agent mode');
                 }
                 
-                console.log('\n📨 Agent mode using customer token...');
+                console.log('\n📨 Agent mode using credentials type:', 
+                    req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                await sendCustomerMessageToLiveChat(req.body.chatId, userMessage, customerToken);
+                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
-                    customer_token: customerToken,
+                    agent_credentials: req.body.agent_credentials,
+                    bot_token: req.body.bot_token, // Keep bot_token for backward compatibility
                     suppressMessage: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
