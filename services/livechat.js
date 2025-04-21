@@ -319,21 +319,22 @@ export async function diagnosticBotStatus() {
 }
 
 /**
- * Creates a LiveChat chat using the exact format from LiveChat Tech Support
+ * Creates a LiveChat chat using the correct two-step process
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
  */
 export async function createProperChat(customerId, isIcelandic = false) {
     try {
-        console.log('\n👤 Creating chat using EXACT LIVECHAT TECH SUPPORT FORMAT...');
+        console.log('\n👤 Creating chat with PROPER TWO-STEP PROCESS...');
         
-        // Agent credentials
+        // Get agent credentials
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // SIMPLIFIED: Using EXACTLY what LiveChat Tech Support provided
-        // Note the v3.3 API endpoint to match their example
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.3/agent/action/start_chat', {
+        // STEP 1: CREATE A CUSTOMER IN LIVECHAT SYSTEM
+        console.log('\n👤 Step 1: Creating customer in LiveChat system...');
+        
+        const customerResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/create_customer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -341,56 +342,32 @@ export async function createProperChat(customerId, isIcelandic = false) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat: {
-                    users: [{
-                        id: customerId,
-                        type: "customer"
-                    }]
-                }
+                name: `User ${customerId.substring(0, 8)}...`,
+                email: `${customerId.substring(0, 8)}@skylagoon.com`,
+                // FIXED: Each session_fields item must contain a single key-value pair
+                session_fields: [
+                    { "session_id": customerId }
+                ]
             })
         });
-
-        if (!chatResponse.ok) {
-            const errorText = await chatResponse.text();
-            console.error('\n❌ Chat creation error:', errorText);
-            
-            // If v3.3 fails, try v3.5 as a fallback with same structure
-            console.log('\n🔄 Trying fallback with v3.5 API...');
-            const fallbackResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${agentCredentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    chat: {
-                        users: [{
-                            id: customerId,
-                            type: "customer"
-                        }]
-                    },
-                    active: true,
-                    continuous: true,
-                    group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN
-                })
-            });
-            
-            if (!fallbackResponse.ok) {
-                const fallbackErrorText = await fallbackResponse.text();
-                console.error('\n❌ Fallback chat creation error:', fallbackErrorText);
-                throw new Error('Failed to create chat with LiveChat Tech Support format');
-            }
-            
-            var chatData = await fallbackResponse.json();
-        } else {
-            var chatData = await chatResponse.json();
-        }
-
-        console.log('\n✅ Chat created successfully with proper structure:', chatData);
         
-        // Get available agents
-        console.log('\n👥 Finding available agents...');
+        if (!customerResponse.ok) {
+            const customerErrorText = await customerResponse.text();
+            console.error('\n❌ Customer creation error:', customerErrorText);
+            throw new Error('Failed to create customer in LiveChat system');
+        }
+        
+        const customerData = await customerResponse.json();
+        console.log('\n✅ Customer created successfully:', customerData);
+        
+        // Extract the LiveChat customer ID
+        const livechatCustomerId = customerData.customer_id;
+        console.log('\n👤 Created LiveChat customer ID:', livechatCustomerId);
+        
+        // STEP 2: START CHAT WITH THE CREATED CUSTOMER
+        console.log('\n💬 Step 2: Starting chat with created customer...');
+        
+        // First check for available agents
         const agentResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
             method: 'POST',
             headers: {
@@ -408,74 +385,74 @@ export async function createProperChat(customerId, isIcelandic = false) {
         const agentStatuses = await agentResponse.json();
         const availableAgents = agentStatuses.filter(agent => 
             agent.status === 'accepting_chats' || agent.status === 'online');
-            
-        if (availableAgents.length > 0) {
-            const targetAgent = availableAgents[0];
-            console.log('\n✅ Target agent found:', targetAgent.agent_id);
-            
-            // Explicitly activate the chat for the agent if we have an agent
-            console.log('\n👤 Explicitly activating chat for agent...');
-            try {
-                await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Basic ${agentCredentials}`,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        id: chatData.chat_id,
-                        agent_id: targetAgent.agent_id
-                    })
-                });
-            } catch (activateError) {
-                console.warn('\n⚠️ Could not activate chat for agent, continuing anyway:', activateError.message);
-            }
+        
+        // Now create the chat with EXACT format from LiveChat Tech Support
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat: {
+                    users: [{
+                        id: livechatCustomerId,
+                        type: "customer"
+                    }]
+                },
+                active: true,
+                continuous: true,
+                group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
+                // Only include agent_ids if we found available agents
+                ...(availableAgents.length > 0 && { agent_ids: [availableAgents[0].agent_id] })
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Chat creation error:', errorText);
+            throw new Error('Failed to create chat with proper structure');
         }
+
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created successfully with proper structure:', chatData);
         
         // Send initial message
-        try {
-            await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${agentCredentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    chat_id: chatData.chat_id,
-                    event: {
-                        type: 'message',
-                        text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
-                        visibility: 'all'
-                    }
-                })
-            });
-        } catch (messageError) {
-            console.warn('\n⚠️ Could not send initial message, continuing anyway:', messageError.message);
-        }
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                    visibility: 'all'
+                }
+            })
+        });
         
         // Add a tag for higher visibility
-        try {
-            await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${agentCredentials}`,
-                    'X-Region': 'fra'
-                },
-                body: JSON.stringify({
-                    chat_id: chatData.chat_id,
-                    tag: "urgent_ai_transfer"
-                })
-            });
-        } catch (tagError) {
-            console.warn('\n⚠️ Could not add tag, continuing anyway:', tagError.message);
-        }
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                tag: "urgent_ai_transfer"
+            })
+        });
         
         return {
             chat_id: chatData.chat_id,
-            thread_id: chatData.thread_id || null,
+            thread_id: chatData.thread_id,
             agent_credentials: agentCredentials
         };
     } catch (error) {
