@@ -65,7 +65,8 @@ import {
     shouldTransferToHumanAgent,  // Add this missing import
     createChatAsCustomer, // Add the new customer chat function
     sendCustomerMessageToLiveChat, // Add the new customer message function
-    createEnhancedVisibleChat  
+    createEnhancedVisibleChat,
+    createProperChat, // Add this new import  
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
@@ -920,22 +921,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
                 confidence: languageDecision.confidence
             }
         });
-
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================
 
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
@@ -2552,15 +2537,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create enhanced visible chat
-                console.log('\n📝 Creating new LiveChat chat with enhanced visibility:', sessionId);
-                const chatData = await createEnhancedVisibleChat(sessionId, languageDecision.isIcelandic);
+                // Create chat with CORRECT API STRUCTURE (verified by LiveChat Tech Support)
+                console.log('\n📝 Creating new LiveChat chat with correct API structure:', sessionId);
+                const chatData = await createProperChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData || !chatData.chat_id) {
                     throw new Error('Failed to create chat or get chat ID');
                 }
                 
-                console.log('\n✅ Chat created successfully with enhanced visibility:', chatData.chat_id);
+                console.log('\n✅ Chat created successfully with correct API structure:', chatData.chat_id);
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -2585,19 +2570,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseType: 'direct_response'
                 });
                 
-                // Simplified verification (now checking chat as a customer)
+                // Verification check using agent credentials
                 setTimeout(async () => {
                     try {
-                        console.log('\n⏱️ Running simple visibility verification check...');
-                        // Use the customer token to check chat status
-                        const customerToken = chatData.customer_token;
+                        console.log('\n⏱️ Running visibility verification check with agent credentials...');
                         
-                        // Verify the chat exists and is active
-                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_chat', {
+                        // Verify the chat exists and is active using agent credentials
+                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${customerToken}`,
+                                'Authorization': `Basic ${chatData.agent_credentials}`,
                                 'X-Region': 'fra'
                             },
                             body: JSON.stringify({
@@ -2618,19 +2601,20 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             if (!chatStatus.active || !chatStatus.thread?.events?.length) {
                                 console.log('\n⚠️ Chat visibility check - sending reminder message...');
                                 
-                                // Send a reminder message AS THE CUSTOMER
-                                await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+                                // Send a reminder message using agent credentials
+                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${customerToken}`,
+                                        'Authorization': `Basic ${chatData.agent_credentials}`,
                                         'X-Region': 'fra'
                                     },
                                     body: JSON.stringify({
                                         chat_id: chatData.chat_id,
                                         event: {
                                             type: 'message',
-                                            text: '🚨🚨 REMINDER: Customer waiting for assistance'
+                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
+                                            visibility: 'all'
                                         }
                                     })
                                 });

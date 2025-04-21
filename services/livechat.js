@@ -319,6 +319,153 @@ export async function diagnosticBotStatus() {
 }
 
 /**
+ * Creates a LiveChat chat using the correct API structure per LiveChat Tech Support
+ * @param {string} customerId - Customer ID (session ID)
+ * @param {boolean} isIcelandic - Whether to use Icelandic group
+ * @returns {Promise<Object>} Chat information
+ */
+export async function createProperChat(customerId, isIcelandic = false) {
+    try {
+        console.log('\n👤 Creating chat with CORRECT API STRUCTURE (Tech Support verified)...');
+        
+        // Agent credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Get available agents first to assign directly
+        console.log('\n👥 Finding available agents...');
+        const agentResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/list_routing_statuses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                filters: {
+                    group_ids: [isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN]
+                }
+            })
+        });
+        
+        const agentStatuses = await agentResponse.json();
+        
+        // Find available agents
+        const availableAgents = agentStatuses.filter(agent => 
+            agent.status === 'accepting_chats' || agent.status === 'online');
+            
+        if (availableAgents.length === 0) {
+            throw new Error('No agents available to take chat');
+        }
+        
+        // Target specific agent
+        const targetAgent = availableAgents[0];
+        console.log('\n✅ Target agent found:', targetAgent.agent_id);
+        
+        // FIXED: Using the correct structure as specified by LiveChat Tech Support
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/start_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat: {
+                    users: [{
+                        id: customerId,
+                        type: "customer",
+                        name: `User ${customerId.substring(0, 8)}...`,
+                        email: `${customerId.substring(0, 8)}@skylagoon.com`
+                    }],
+                    // We can still use properties inside the chat object
+                    properties: {
+                        routing: {
+                            status: "assigned",
+                            agent_id: targetAgent.agent_id
+                        },
+                        source: {
+                            type: "widget",
+                            url: "https://www.skylagoon.com/"
+                        }
+                    }
+                },
+                // These should be outside the chat object
+                active: true,
+                continuous: true,
+                group_id: isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN,
+                agent_ids: [targetAgent.agent_id]
+            })
+        });
+
+        if (!chatResponse.ok) {
+            const errorText = await chatResponse.text();
+            console.error('\n❌ Chat creation error:', errorText);
+            throw new Error('Failed to create chat with proper structure');
+        }
+
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Chat created successfully with proper structure:', chatData);
+        
+        // Explicitly activate the chat for the agent (resume chat)
+        console.log('\n👤 Explicitly activating chat for agent...');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/activate_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatData.chat_id,
+                agent_id: targetAgent.agent_id
+            })
+        });
+        
+        // Send initial message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                event: {
+                    type: 'message',
+                    text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        // Add a tag for higher visibility
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/tag_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatData.chat_id,
+                tag: "urgent_ai_transfer"
+            })
+        });
+        
+        return {
+            chat_id: chatData.chat_id,
+            thread_id: chatData.thread_id,
+            agent_credentials: agentCredentials,
+            assigned_agent: targetAgent.agent_id
+        };
+    } catch (error) {
+        console.error('\n❌ Error in createProperChat:', error);
+        throw error;
+    }
+}
+
+/**
  * Ensures a chat is visible in the LiveChat agent interface
  * Completely revised to use proper agent credentials and correct API formats
  * @param {string} chatId - LiveChat chat ID
