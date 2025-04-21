@@ -48,6 +48,7 @@ import {
     diagnosticLiveChat, // Add this line 
     diagnosticGroupConfiguration, // Add this line
     diagnosticBotStatus, // Add this line
+    forceChatVisibility, // Add this line
     createBotTransferChat, // Add this line
     createDirectAgentNameTransfer, // Add this line
     createDirectChatNoGroup, // Add this line
@@ -2532,8 +2533,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat using improved bot transfer function
-                console.log('\n📝 Creating new LiveChat chat for human transfer:', sessionId);
+                // Create chat using enhanced bot transfer function with visibility enforcement
+                console.log('\n📝 Creating new LiveChat chat with visibility enforcement:', sessionId);
                 const chatData = await createBotTransferChat(sessionId, languageDecision.isIcelandic);
                 
                 if (!chatData || !chatData.chat_id) {
@@ -2541,9 +2542,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
                 
                 console.log('\n✅ Chat created successfully:', chatData.chat_id);
-                
-                // CRITICAL: DO NOT send any additional messages after creating the chat
-                // The bot already sent the necessary messages during createBotTransferChat
                 
                 // Prepare transfer message based on language
                 const transferMessage = languageDecision.isIcelandic ?
@@ -2553,7 +2551,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: transferMessage });
                 
-                // Use the unified broadcast system but don't send additional messages to LiveChat
+                // Use the unified broadcast system to update the UI
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: transferMessage,
                     transferred: true,
@@ -2567,6 +2565,47 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     topicType: 'transfer',
                     responseType: 'direct_response'
                 });
+                
+                // Add a verification after 2 seconds to double-check visibility
+                setTimeout(async () => {
+                    try {
+                        // Get agent credentials
+                        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                        
+                        // Check if chat is visible in the system
+                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${agentCredentials}`,
+                                'X-Region': 'fra'
+                            },
+                            body: JSON.stringify({
+                                chat_id: chatData.chat_id
+                            })
+                        });
+                        
+                        if (verifyResponse.ok) {
+                            const chatStatus = await verifyResponse.json();
+                            console.log('\n🔍 Visibility check:', {
+                                id: chatData.chat_id,
+                                active: chatStatus.active,
+                                status: chatStatus.status || 'unknown',
+                                users: chatStatus.users?.length || 0
+                            });
+                            
+                            // If chat is not properly assigned, try force visibility again
+                            if (!chatStatus.active || !chatStatus.users || chatStatus.users.length < 2) {
+                                console.log('\n⚠️ Chat may not be visible - enforcing visibility again...');
+                                await forceChatVisibility(chatData.chat_id, 
+                                    languageDecision.isIcelandic ? SKY_LAGOON_GROUPS.IS : SKY_LAGOON_GROUPS.EN);
+                            }
+                        }
+                    } catch (verifyError) {
+                        console.error('\n⚠️ Verification error:', verifyError);
+                        // Don't throw - this is just an additional check
+                    }
+                }, 2000);
                 
                 return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
