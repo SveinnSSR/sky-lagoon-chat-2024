@@ -3184,27 +3184,34 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             return false;
         }
         
-        // Improved credential handling that handles possible prefixes
+        // Improved detection for different credential types
         let authHeader;
         
-        // Check if credentials already have an auth prefix
+        // Check for explicit prefixes first
         if (credentials.startsWith('Basic ')) {
             authHeader = credentials;
             console.log('\n📨 Sending message to LiveChat with prefixed agent credentials...');
         } else if (credentials.startsWith('Bearer ')) {
             authHeader = credentials;
             console.log('\n📨 Sending message to LiveChat with prefixed bot token...');
-        } else if (credentials.includes(':')) {
-            // Agent credentials (contains colon) - needs Basic prefix
+        }
+        // Check for Base64 encoded agent credentials (typically long strings with = at the end)
+        else if (credentials.length > 40 && /^[A-Za-z0-9+/=]+$/.test(credentials)) {
+            authHeader = `Basic ${credentials}`;
+            console.log('\n📨 Sending message to LiveChat with agent credentials (Base64)...');
+        }
+        // Check for visible colons (unencoded agent credentials)
+        else if (credentials.includes(':')) {
             authHeader = `Basic ${credentials}`;
             console.log('\n📨 Sending message to LiveChat with agent credentials...');
-        } else {
-            // Bot token - needs Bearer prefix
+        }
+        // Default to bot token as last resort
+        else {
             authHeader = `Bearer ${credentials}`;
             console.log('\n📨 Sending message to LiveChat with bot token...');
         }
         
-        // Step 1: Check if chat is accessible with current credentials
+        // Step 1: Check if chat is accessible
         try {
             console.log('\n🔍 Verifying chat access before sending...');
             const chatCheckResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
@@ -3222,6 +3229,30 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             if (!chatCheckResponse.ok) {
                 const errorText = await chatCheckResponse.text();
                 console.warn(`\n⚠️ Chat access check failed. ${chatCheckResponse.status}: ${errorText}`);
+                
+                // If first attempt fails with Bearer token, try with Basic auth as fallback
+                if (authHeader.startsWith('Bearer ')) {
+                    console.log('\n🔄 First attempt failed, trying with Basic auth instead...');
+                    authHeader = `Basic ${credentials}`;
+                    
+                    const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authHeader,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            id: chatId
+                        })
+                    });
+                    
+                    if (retryResponse.ok) {
+                        console.log('\n✅ Retry with Basic auth succeeded - using agent credentials');
+                    } else {
+                        console.warn('\n⚠️ Both auth methods failed for chat access check');
+                    }
+                }
             } else {
                 const chatData = await chatCheckResponse.json();
                 console.log('\n✅ Chat is accessible. Active:', chatData.active);
@@ -3252,6 +3283,59 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('\n❌ Error sending message:', errorText);
+            
+            // Try the other auth type if first one fails
+            if (authHeader.startsWith('Bearer ') && errorText.includes('authentication')) {
+                console.log('\n🔄 Bearer token failed, trying with Basic auth...');
+                const retryAuthHeader = `Basic ${credentials}`;
+                
+                const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': retryAuthHeader,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        event: {
+                            type: 'message',
+                            text: message,
+                            visibility: 'all'
+                        }
+                    })
+                });
+                
+                if (retryResponse.ok) {
+                    console.log('\n✅ Message sent successfully with Basic auth');
+                    return true;
+                }
+            } else if (authHeader.startsWith('Basic ') && errorText.includes('authentication')) {
+                console.log('\n🔄 Basic auth failed, trying with Bearer token...');
+                const retryAuthHeader = `Bearer ${credentials}`;
+                
+                const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': retryAuthHeader,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        event: {
+                            type: 'message',
+                            text: message,
+                            visibility: 'all'
+                        }
+                    })
+                });
+                
+                if (retryResponse.ok) {
+                    console.log('\n✅ Message sent successfully with Bearer token');
+                    return true;
+                }
+            }
             
             // Special handling for authentication errors
             if (errorText.includes('authentication') || errorText.includes('authorization') || 
