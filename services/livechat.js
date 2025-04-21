@@ -3186,34 +3186,49 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
         
         // Improved detection for different credential types
         let authHeader;
+        let isAgentCredentials = false;
         
         // Check for explicit prefixes first
         if (credentials.startsWith('Basic ')) {
             authHeader = credentials;
+            isAgentCredentials = true;
             console.log('\n📨 Sending message to LiveChat with prefixed agent credentials...');
         } else if (credentials.startsWith('Bearer ')) {
             authHeader = credentials;
+            isAgentCredentials = false;
             console.log('\n📨 Sending message to LiveChat with prefixed bot token...');
         }
         // Check for Base64 encoded agent credentials (typically long strings with = at the end)
         else if (credentials.length > 40 && /^[A-Za-z0-9+/=]+$/.test(credentials)) {
             authHeader = `Basic ${credentials}`;
+            isAgentCredentials = true;
             console.log('\n📨 Sending message to LiveChat with agent credentials (Base64)...');
         }
         // Check for visible colons (unencoded agent credentials)
         else if (credentials.includes(':')) {
             authHeader = `Basic ${credentials}`;
+            isAgentCredentials = true;
             console.log('\n📨 Sending message to LiveChat with agent credentials...');
         }
         // Default to bot token as last resort
         else {
             authHeader = `Bearer ${credentials}`;
+            isAgentCredentials = false;
             console.log('\n📨 Sending message to LiveChat with bot token...');
         }
         
         // Step 1: Check if chat is accessible
         try {
             console.log('\n🔍 Verifying chat access before sending...');
+            
+            // The get_chat endpoint has different field name requirements based on credential type
+            // For agent credentials, it expects chat_id, for bot token it expects id
+            const chatCheckBody = isAgentCredentials ? 
+                { chat_id: chatId } :  // Agent credentials use chat_id
+                { id: chatId };        // Bot token uses id
+                
+            console.log(`\n🔍 Using ${Object.keys(chatCheckBody)[0]} field for chat access check`);
+            
             const chatCheckResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                 method: 'POST',
                 headers: {
@@ -3221,19 +3236,22 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                     'Authorization': authHeader,
                     'X-Region': 'fra'
                 },
-                body: JSON.stringify({
-                    id: chatId // Use id for agent API
-                })
+                body: JSON.stringify(chatCheckBody)
             });
             
             if (!chatCheckResponse.ok) {
                 const errorText = await chatCheckResponse.text();
                 console.warn(`\n⚠️ Chat access check failed. ${chatCheckResponse.status}: ${errorText}`);
                 
-                // If first attempt fails with Bearer token, try with Basic auth as fallback
-                if (authHeader.startsWith('Bearer ')) {
-                    console.log('\n🔄 First attempt failed, trying with Basic auth instead...');
-                    authHeader = `Basic ${credentials}`;
+                // If using wrong field name, try the other field name
+                if (errorText.includes('chat_id is required') || errorText.includes('id is required')) {
+                    console.log('\n🔄 Field name error, trying alternative field name...');
+                    
+                    const alternativeBody = isAgentCredentials ? 
+                        { id: chatId } :        // Try id instead of chat_id
+                        { chat_id: chatId };    // Try chat_id instead of id
+                        
+                    console.log(`\n🔍 Trying with ${Object.keys(alternativeBody)[0]} field instead`);
                     
                     const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                         method: 'POST',
@@ -3242,15 +3260,13 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                             'Authorization': authHeader,
                             'X-Region': 'fra'
                         },
-                        body: JSON.stringify({
-                            id: chatId
-                        })
+                        body: JSON.stringify(alternativeBody)
                     });
                     
                     if (retryResponse.ok) {
-                        console.log('\n✅ Retry with Basic auth succeeded - using agent credentials');
+                        console.log('\n✅ Chat access check succeeded with alternative field name');
                     } else {
-                        console.warn('\n⚠️ Both auth methods failed for chat access check');
+                        console.warn('\n⚠️ Both field names failed for chat access check');
                     }
                 }
             } else {
@@ -3263,6 +3279,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
         }
         
         // Step 2: Send message using appropriate credentials
+        // The send_event endpoint consistently uses chat_id for all credential types
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -3271,7 +3288,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                 'X-Region': 'fra'
             },
             body: JSON.stringify({
-                chat_id: chatId,
+                chat_id: chatId,  // Always use chat_id for send_event
                 event: {
                     type: 'message',
                     text: message,
@@ -3283,59 +3300,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('\n❌ Error sending message:', errorText);
-            
-            // Try the other auth type if first one fails
-            if (authHeader.startsWith('Bearer ') && errorText.includes('authentication')) {
-                console.log('\n🔄 Bearer token failed, trying with Basic auth...');
-                const retryAuthHeader = `Basic ${credentials}`;
-                
-                const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': retryAuthHeader,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        event: {
-                            type: 'message',
-                            text: message,
-                            visibility: 'all'
-                        }
-                    })
-                });
-                
-                if (retryResponse.ok) {
-                    console.log('\n✅ Message sent successfully with Basic auth');
-                    return true;
-                }
-            } else if (authHeader.startsWith('Basic ') && errorText.includes('authentication')) {
-                console.log('\n🔄 Basic auth failed, trying with Bearer token...');
-                const retryAuthHeader = `Bearer ${credentials}`;
-                
-                const retryResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': retryAuthHeader,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        event: {
-                            type: 'message',
-                            text: message,
-                            visibility: 'all'
-                        }
-                    })
-                });
-                
-                if (retryResponse.ok) {
-                    console.log('\n✅ Message sent successfully with Bearer token');
-                    return true;
-                }
-            }
             
             // Special handling for authentication errors
             if (errorText.includes('authentication') || errorText.includes('authorization') || 
