@@ -332,8 +332,10 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
         // Get agent credentials
         const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
         
-        // Step 1: Update chat properties to force assignment
+        // Step 1: Update chat properties to force assignment - SIMPLIFIED STRUCTURE
         console.log('\n📝 Updating chat properties for visibility...');
+        
+        // Create a properly structured properties object
         const updateResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/update_chat_properties', {
             method: 'POST',
             headers: {
@@ -344,18 +346,18 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
             body: JSON.stringify({
                 chat_id: chatId,
                 properties: {
-                    // Force assignment through manual properties
-                    routing: {
-                        status: "assigned",
-                        agents: [agentEmail],
-                        group_id: groupId, // Using the groupId parameter here
-                        priority: "urgent",
-                        source: "manual",
-                        force: true
+                    // Properly structured properties object
+                    assigned_group: { 
+                        id: groupId,
+                        type: "group" 
                     },
-                    visibility: "high",
-                    priority: "urgent",
-                    group: { id: groupId } // Also using groupId here
+                    routing: {
+                        strategy: "manual",
+                        group: { 
+                            id: groupId,
+                            type: "group" 
+                        }
+                    }
                 }
             })
         });
@@ -363,10 +365,10 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
         if (!updateResponse.ok) {
             const errorText = await updateResponse.text();
             console.error('\n❌ Failed to update chat properties:', errorText);
-            throw new Error(`Properties update failed: ${updateResponse.status}`);
+            // Continue with fallback methods even if this step fails
+        } else {
+            console.log('\n✅ Chat properties updated successfully');
         }
-        
-        console.log('\n✅ Chat properties updated successfully');
         
         // Step 2: Direct agent assignment
         console.log('\n👤 Explicitly assigning chat to agent:', agentEmail);
@@ -391,7 +393,7 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
             console.log('\n✅ Chat explicitly assigned to agent');
         }
         
-        // Step 3: Try direct group transfer (this is another way to make the chat visible)
+        // Step 3: Try direct group transfer as fallback
         console.log('\n🔄 Explicitly transferring chat to group:', groupId);
         await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
             method: 'POST',
@@ -412,7 +414,7 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
         }).catch(err => console.warn('\n⚠️ Group transfer notice:', err.message));
         
         // Step 4: Send high-priority alert message
-        console.log('\n🚨 Sending alert message to ensure visibility...');
+        console.log('\n🚨 Sending high-visibility alert message...');
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
             headers: {
@@ -451,7 +453,7 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
                 active: chatData.active,
                 users: chatData.users?.length || 0,
                 access: chatData.access,
-                group_id: chatData.group_id || groupId // Log the group assignment
+                group_id: chatData.group_id || groupId
             });
         }
         
@@ -463,7 +465,89 @@ export async function forceChatVisibility(chatId, groupId, agentEmail = 'david@s
 }
 
 /**
- * Creates a chat using LiveChat bot with visibility enforcement
+ * Fallback method to fix chat visibility when primary method fails
+ * @param {string} chatId - LiveChat chat ID
+ * @param {number} groupId - Target group ID
+ * @returns {Promise<boolean>} Success status
+ */
+export async function fallbackVisibilityFix(chatId, groupId) {
+    try {
+        console.log('\n🔄 Using fallback visibility method for chat:', chatId, 'group:', groupId);
+        
+        // Get agent credentials
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        // Step 1: Force direct transfer to group
+        console.log('\n🔄 Forcing chat transfer to group:', groupId);
+        const transferResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/transfer_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                id: chatId,
+                target: {
+                    type: "group",
+                    ids: [groupId]
+                },
+                force: true
+            })
+        });
+        
+        if (!transferResponse.ok) {
+            const errorText = await transferResponse.text();
+            console.warn('\n⚠️ Fallback transfer warning:', errorText);
+            // Continue even if this fails
+        } else {
+            console.log('\n✅ Fallback transfer succeeded');
+        }
+        
+        // Step 2: Try to manually assign to a specific agent
+        console.log('\n👤 Manually assigning chat to david@svorumstrax.is');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/assign_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                agent_id: 'david@svorumstrax.is'
+            })
+        }).catch(err => console.warn('\n⚠️ Assignment warning:', err.message));
+        
+        // Step 3: Send very urgent notification to alert agent
+        console.log('\n🚨 Sending very urgent alert message');
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                event: {
+                    type: 'message',
+                    text: '🔴🔴🔴 CRITICAL: URGENT AGENT ACTION REQUIRED - Customer waiting!',
+                    visibility: 'all'
+                }
+            })
+        });
+        
+        console.log('\n✅ Fallback visibility fix completed');
+        return true;
+    } catch (error) {
+        console.error('\n❌ Error in fallback visibility fix:', error);
+        return false;
+    }
+}
+
+/**
+ * Creates a chat using LiveChat bot with visibility enforcement and fallback
  * @param {string} customerId - Customer ID (session ID)
  * @param {boolean} isIcelandic - Whether to use Icelandic group
  * @returns {Promise<Object>} Chat information
@@ -645,9 +729,16 @@ export async function createBotTransferChat(customerId, isIcelandic = false) {
             })
         });
         
-        // Step 7: CRITICAL - Force chat visibility using direct assignment
+        // Step 7: CRITICAL - Force chat visibility using improved method
         console.log('\n🔍 Enforcing chat visibility in agent interface...');
-        await forceChatVisibility(chatData.chat_id, groupId);
+        try {
+            await forceChatVisibility(chatData.chat_id, groupId);
+        } catch (visibilityError) {
+            console.error('\n❌ Primary visibility method failed:', visibilityError);
+            // Try fallback method if primary method fails
+            console.log('\n🔄 Trying fallback visibility method...');
+            await fallbackVisibilityFix(chatData.chat_id, groupId);
+        }
         
         // Return chat data with bot token for future message sending
         return {
