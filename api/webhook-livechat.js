@@ -191,6 +191,13 @@ export default async function handler(req, res) {
           const storedSessionId = global.liveChatSessionMappings.get(chatId);
           console.log(`\n🔍 Verification check: ${storedSessionId === sessionId ? 'PASSED ✓' : 'FAILED ✗'}`);
           
+          // Add to recent sessions for fallback
+          if (!global.recentSessions) {
+            global.recentSessions = new Set();
+          }
+          global.recentSessions.add(sessionId);
+          console.log(`\n📝 Added to recent sessions: ${sessionId}`);
+          
           // Try to store in MongoDB
           try {
             const { db } = await connectToDatabase();
@@ -241,6 +248,12 @@ export default async function handler(req, res) {
               }
               global.liveChatSessionMappings.set(chatId, sessionId);
               
+              // Add to recent sessions
+              if (!global.recentSessions) {
+                global.recentSessions = new Set();
+              }
+              global.recentSessions.add(sessionId);
+              
               // Store in MongoDB
               try {
                 const { db } = await connectToDatabase();
@@ -257,6 +270,11 @@ export default async function handler(req, res) {
         }
       } catch (error) {
         console.error('\n❌ Error processing incoming_chat webhook:', error);
+        // Always return success for incoming_chat events
+        return res.status(200).json({ 
+          success: true, 
+          preventCrash: true
+        });
       }
     }
     
@@ -287,9 +305,50 @@ export default async function handler(req, res) {
       
       // Find the session ID for this chat
       const sessionId = await findSessionIdForChat(chatId);
+      
+      // MODIFIED: Added fallback to recent sessions to prevent UI crashes
       if (!sessionId) {
         console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
-        return res.status(404).json({ success: false, error: 'Session not found' });
+        
+        // FALLBACK: Try to use most recent session
+        if (global.recentSessions && global.recentSessions.size > 0) {
+          const fallbackSessionId = [...global.recentSessions].pop();
+          console.log(`\n⚠️ Using fallback session ID: ${fallbackSessionId}`);
+          
+          // Extract agent name (for better UX)
+          let authorName = "Agent";
+          if (authorId.includes('@')) {
+            authorName = authorId.split('@')[0];
+            // Capitalize first letter
+            authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
+          }
+          
+          // Create agent message
+          const agentMessage = {
+            role: 'agent',
+            content: messageText,
+            author: authorName,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Send to frontend via Pusher
+          console.log(`\n📤 Broadcasting agent message to fallback session: ${fallbackSessionId}`);
+          await pusher.trigger('chat-channel', 'agent-message', {
+            sessionId: fallbackSessionId,
+            message: agentMessage,
+            chatId: chatId
+          });
+          
+          console.log('\n✅ Agent message broadcast to fallback session');
+          return res.status(200).json({ success: true });
+        }
+        
+        // If no fallback, return error but prevent UI crashes
+        return res.status(200).json({ 
+          success: false, 
+          error: 'Session not found',
+          preventCrash: true  // Add this flag to signal the UI not to crash
+        });
       }
       
       // Extract agent name (for better UX)
@@ -324,6 +383,14 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('\n❌ Webhook processing error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    
+    // CRITICAL: Always return a 200 response to prevent LiveChat from retrying
+    // This prevents the UI from potentially crashing on retry attempts
+    return res.status(200).json({ 
+      success: false, 
+      error: error.message,
+      // Flag to tell frontend not to crash if it receives this error
+      preventCrash: true
+    });
   }
 }
