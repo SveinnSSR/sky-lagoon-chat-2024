@@ -1002,39 +1002,93 @@ async function processLiveChatMessage(payload) {
       return { success: true };
     }
     
-    // Find the session ID associated with this chat
-    const sessionId = await findSessionIdForChat(chatId);
+    // Try to get session ID directly from memory cache first (fastest)
+    let sessionId = null;
+    if (global.liveChatSessionMappings && global.liveChatSessionMappings.has(chatId)) {
+      sessionId = global.liveChatSessionMappings.get(chatId);
+      console.log(`\n✅ Found session mapping in memory: ${chatId} -> ${sessionId}`);
+    }
+    
+    // If not in memory, try direct API lookup to get customer email
+    if (!sessionId) {
+      try {
+        console.log('\n🔍 Direct API lookup of chat data to extract session ID...');
+        
+        // Get agent credentials
+        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
+        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${agentCredentials}`,
+            'X-Region': 'fra'
+          },
+          body: JSON.stringify({ chat_id: chatId })
+        });
+        
+        if (chatResponse.ok) {
+          const chatData = await chatResponse.json();
+          
+          // Find customer and extract session ID from email
+          const customer = chatData.users?.find(user => user.type === 'customer');
+          
+          // CRITICAL PART: Extract session ID from email
+          if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
+            sessionId = customer.email.replace('@skylagoon.com', '');
+            console.log(`\n✅ DIRECT API: Extracted session ID from email: ${chatId} -> ${sessionId}`);
+            
+            // Store for future use
+            if (!global.liveChatSessionMappings) {
+              global.liveChatSessionMappings = new Map();
+            }
+            global.liveChatSessionMappings.set(chatId, sessionId);
+            
+            // Try to store in MongoDB too as backup
+            try {
+              await storeChatSessionMapping(chatId, sessionId);
+            } catch (storageError) {
+              console.warn('\n⚠️ Could not store in MongoDB:', storageError.message);
+            }
+          } else if (customer && customer.session_fields && customer.session_fields.length > 0) {
+            // Fallback to session_fields
+            const sessionField = customer.session_fields.find(field => field.session_id);
+            if (sessionField && sessionField.session_id) {
+              sessionId = sessionField.session_id;
+              console.log(`\n✅ DIRECT API: Extracted session ID from session_fields: ${chatId} -> ${sessionId}`);
+            }
+          }
+        } else {
+          console.warn('\n⚠️ Failed to get chat data:', await chatResponse.text());
+        }
+      } catch (error) {
+        console.error('\n❌ Error in direct API lookup:', error);
+      }
+    }
+    
+    // If still no session ID, try the fallback function
+    if (!sessionId) {
+      sessionId = await findSessionIdForChat(chatId);
+    }
     
     if (!sessionId) {
       console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
       return { success: false, error: 'Session not found' };
     }
     
-    // Get agent name if available
+    // Get agent name for better UX
     let authorName = "Agent";
     try {
-      // Try to get author details from the LiveChat API
-      const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-      
-      const authorResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_agent_details', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${agentCredentials}`,
-          'X-Region': 'fra'
-        },
-        body: JSON.stringify({
-          id: authorId
-        })
-      });
-      
-      if (authorResponse.ok) {
-        const authorData = await authorResponse.json();
-        authorName = authorData.name || "Agent";
+      // Extract name from email if possible
+      if (authorId.includes('@')) {
+        authorName = authorId.split('@')[0];
+        // Capitalize first letter
+        authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
       }
     } catch (error) {
-      console.warn('\n⚠️ Could not get agent name:', error.message);
-      // Continue with default name
+      console.warn('\n⚠️ Could not extract agent name:', error.message);
     }
     
     // Create agent message
@@ -1055,7 +1109,7 @@ async function processLiveChatMessage(payload) {
     
     console.log('\n✅ Agent message broadcast successfully');
     
-    // Also update context if needed
+    // Also update context if available
     try {
       const context = await getPersistentSessionContext(sessionId);
       if (context) {
@@ -1064,7 +1118,7 @@ async function processLiveChatMessage(payload) {
           content: messageText,
           author: authorName
         });
-        console.log('\n✅ Context updated with agent message');
+        console.log('\n✅ Updated conversation context with agent message');
       }
     } catch (contextError) {
       console.warn('\n⚠️ Could not update context:', contextError.message);
@@ -1094,9 +1148,13 @@ async function findSessionIdForChat(chatId) {
       return sessionId;
     }
     
-    // 2. NEW APPROACH: Try to get customer information and extract session ID from email
+    // 2. DIRECT API LOOKUP - Most reliable method for email extraction
     try {
-      console.log('\n🔍 Trying to retrieve customer email from chat...');
+      console.log('\n🔍 Direct API lookup to get customer email...');
+      
+      // Get agent credentials - hardcoded for reliability
+      const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; // From your livechat.js
+      const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc'; // From your livechat.js
       const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
       
       const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
@@ -1111,14 +1169,15 @@ async function findSessionIdForChat(chatId) {
       
       if (chatResponse.ok) {
         const chatData = await chatResponse.json();
+        console.log('\n✅ Successfully retrieved chat data from LiveChat API');
         
         // Find customer in the users array
         const customer = chatData.users?.find(user => user.type === 'customer');
         
         if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
-          // Extract session ID from email
+          // Extract session ID from email - THIS IS THE KEY PART
           const sessionId = customer.email.replace('@skylagoon.com', '');
-          console.log(`\n✅ Successfully extracted session ID from email: ${chatId} -> ${sessionId}`);
+          console.log(`\n✅ Extracted session ID from email: ${chatId} -> ${sessionId}`);
           
           // Store for future use
           if (!global.liveChatSessionMappings) {
@@ -1126,15 +1185,51 @@ async function findSessionIdForChat(chatId) {
           }
           global.liveChatSessionMappings.set(chatId, sessionId);
           
+          // Also try to store in persistent storage
+          try {
+            await storeChatSessionMapping(chatId, sessionId);
+          } catch (storageError) {
+            console.warn(`\n⚠️ Could not store in persistent storage: ${storageError.message}`);
+          }
+          
           return sessionId;
         } else {
-          console.log('\n⚠️ Customer found but email does not contain session ID');
+          console.log('\n⚠️ Customer found but email does not contain session ID:', 
+                     customer ? customer.email : 'No customer found');
+                     
+          // Try session_fields as fallback
+          if (customer && customer.session_fields && customer.session_fields.length > 0) {
+            let sessionId = null;
+            
+            // First try direct index
+            if (customer.session_fields[0].session_id) {
+              sessionId = customer.session_fields[0].session_id;
+            } else {
+              // Then try finding session_id field
+              const sessionField = customer.session_fields.find(field => field.session_id);
+              if (sessionField) {
+                sessionId = sessionField.session_id;
+              }
+            }
+            
+            if (sessionId) {
+              console.log(`\n✅ Found session ID in LiveChat session_fields: ${chatId} -> ${sessionId}`);
+              
+              // Store for future use
+              if (!global.liveChatSessionMappings) {
+                global.liveChatSessionMappings = new Map();
+              }
+              global.liveChatSessionMappings.set(chatId, sessionId);
+              
+              return sessionId;
+            }
+          }
         }
       } else {
-        console.warn('\n⚠️ Failed to get chat information:', await chatResponse.text());
+        console.warn('\n⚠️ Failed to get chat:', await chatResponse.text());
       }
-    } catch (chatError) {
-      console.warn('\n⚠️ Error trying to extract email from chat:', chatError.message);
+    } catch (apiError) {
+      console.warn('\n⚠️ Error in direct API lookup:', apiError.message);
     }
     
     // 3. Check webhooks cache for customer email
@@ -1158,12 +1253,35 @@ async function findSessionIdForChat(chatId) {
           
           return sessionId;
         }
+        
+        // Try session_fields as fallback
+        if (customer && customer.session_fields && customer.session_fields.length > 0) {
+          let sessionId = null;
+          
+          // Try to find session_id
+          for (const field of customer.session_fields) {
+            if (field.session_id) {
+              sessionId = field.session_id;
+              break;
+            }
+          }
+          
+          if (sessionId) {
+            console.log(`\n✅ Found session ID in webhook session_fields: ${chatId} -> ${sessionId}`);
+            
+            // Store for future use
+            if (!global.liveChatSessionMappings) {
+              global.liveChatSessionMappings = new Map();
+            }
+            global.liveChatSessionMappings.set(chatId, sessionId);
+            
+            return sessionId;
+          }
+        }
       }
     }
     
-    // FALLBACK METHODS (keeping these as backup)
-    
-    // 4. Try file-based API store
+    // 4. Try file-based API store (fallback)
     try {
       console.log('\n🔍 Trying file-based storage API...');
       const response = await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store?chatId=${chatId}`);
@@ -1188,24 +1306,34 @@ async function findSessionIdForChat(chatId) {
     try {
       console.log('\n🔍 Trying MongoDB as last fallback...');
       const { db } = await connectToDatabase();
-      const mapping = await db.collection('livechat_mappings').findOne({ chatId: chatId });
       
-      if (mapping && mapping.sessionId) {
-        console.log(`\n✅ Found session mapping in MongoDB: ${chatId} -> ${mapping.sessionId}`);
-        
-        // Cache for future
-        if (!global.liveChatSessionMappings) {
-          global.liveChatSessionMappings = new Map();
+      // Try multiple collection names for robustness
+      const collectionNames = ['livechat_mappings', 'livechatMappings'];
+      
+      for (const collName of collectionNames) {
+        try {
+          const mapping = await db.collection(collName).findOne({ chatId: chatId });
+          
+          if (mapping && mapping.sessionId) {
+            console.log(`\n✅ Found session mapping in MongoDB (${collName}): ${chatId} -> ${mapping.sessionId}`);
+            
+            // Cache for future
+            if (!global.liveChatSessionMappings) {
+              global.liveChatSessionMappings = new Map();
+            }
+            global.liveChatSessionMappings.set(chatId, mapping.sessionId);
+            
+            return mapping.sessionId;
+          }
+        } catch (collError) {
+          console.warn(`\n⚠️ Error checking ${collName}: ${collError.message}`);
         }
-        global.liveChatSessionMappings.set(chatId, mapping.sessionId);
-        
-        return mapping.sessionId;
       }
     } catch (dbError) {
       console.warn(`\n⚠️ MongoDB lookup error: ${dbError.message}`);
     }
     
-    console.log(`\n⚠️ No mapping found for chat ID: ${chatId}`);
+    console.log(`\n❌ No mapping found for chat ID: ${chatId} after trying all methods`);
     return null;
   } catch (error) {
     console.error('\n❌ Error retrieving mapping:', error);
@@ -4394,6 +4522,9 @@ app.post('/webhook/livechat', async (req, res) => {
       } catch (error) {
         console.error('\n❌ Error processing incoming_chat webhook:', error);
       }
+      
+      // Always return success for incoming_chat events
+      return res.status(200).json({ success: true });
     }
     
     // Handle incoming message events
@@ -4405,6 +4536,10 @@ app.post('/webhook/livechat', async (req, res) => {
       if (!global.liveChatSessionMappings || !global.liveChatSessionMappings.has(chatId)) {
         try {
           console.log('\n🔍 Chat mapping not found for message, fetching chat data...');
+          
+          // Get agent credentials from your existing variables
+          const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; // From your livechat.js
+          const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc'; // From your livechat.js
           const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
           
           const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
@@ -4419,6 +4554,7 @@ app.post('/webhook/livechat', async (req, res) => {
           
           if (chatResponse.ok) {
             const chatData = await chatResponse.json();
+            console.log('\n✅ Successfully fetched chat data from LiveChat API');
             
             // Store chat data for future reference
             if (!global.recentWebhooks) {
@@ -4437,6 +4573,7 @@ app.post('/webhook/livechat', async (req, res) => {
                 global.liveChatSessionMappings = new Map();
               }
               global.liveChatSessionMappings.set(chatId, sessionId);
+              console.log(`\n🔗 Stored mapping in memory: ${chatId} -> ${sessionId}`);
               
               // Also try to store in persistent storage
               try {
@@ -4444,7 +4581,12 @@ app.post('/webhook/livechat', async (req, res) => {
               } catch (storageError) {
                 console.warn('\n⚠️ Could not store in persistent storage:', storageError.message);
               }
+            } else {
+              console.warn('\n⚠️ Customer found but email does not contain session ID:', 
+                         customer ? customer.email : 'No customer found');
             }
+          } else {
+            console.warn('\n⚠️ Failed to get chat data:', await chatResponse.text());
           }
         } catch (chatError) {
           console.warn('\n⚠️ Error fetching chat data:', chatError.message);
