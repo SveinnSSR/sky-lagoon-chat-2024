@@ -6,11 +6,32 @@
             "use": "@vercel/node"
         },
         {
+            "src": "api/*.js",
+            "use": "@vercel/node"
+        },
+        {
             "src": "public/**",
             "use": "@vercel/static"
         }
     ],
     "routes": [
+        {
+            "src": "/api/webhook-livechat",
+            "dest": "/api/webhook-livechat.js",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key"
+            }
+        },
+        {
+            "src": "/api/webhook-debug",
+            "dest": "/api/webhook-debug.js"
+        },
+        {
+            "src": "/api/webhook-test",
+            "dest": "/api/webhook-test.js"
+        },
         {
             "src": "/ws",
             "dest": "index.js",

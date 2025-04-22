@@ -911,22 +911,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================    
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
@@ -4129,7 +4113,7 @@ app.post('/webhook/livechat', async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Production URL (can be overridden with environment variable)
-    const webhookUrl = process.env.WEBHOOK_URL || 'https://sky-lagoon-chat-2024.vercel.app/webhook/livechat';
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://sky-lagoon-chat-2024.vercel.app/api/webhook-livechat';
     
     console.log('\n🔄 Registering LiveChat webhook at:', webhookUrl);
     
@@ -4145,8 +4129,8 @@ app.post('/webhook/livechat', async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     const debugWebhookUrl = process.env.WEBHOOK_URL
-      ? process.env.WEBHOOK_URL.replace('/webhook/livechat', '/webhook-debug')
-      : 'https://sky-lagoon-chat-2024.vercel.app/webhook-debug';
+      ? process.env.WEBHOOK_URL.replace('/api/webhook-livechat', '/api/webhook-debug')
+      : 'https://sky-lagoon-chat-2024.vercel.app/api/webhook-debug';
     
     console.log('\n🔄 Registering DEBUG webhook at:', debugWebhookUrl);
     
