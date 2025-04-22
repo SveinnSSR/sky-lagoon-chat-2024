@@ -96,24 +96,6 @@ if (!global.recentSessions) {
   global.recentSessions = new Set();
 }
 
-// Add session tracker middleware to keep track of active sessions
-app.use((req, res, next) => {
-  if (req.body && req.body.sessionId) {
-    // Store this session ID
-    if (!global.recentSessions) {
-      global.recentSessions = new Set();
-    }
-    global.recentSessions.add(req.body.sessionId);
-    
-    // Keep only the last 10 sessions
-    if (global.recentSessions.size > 10) {
-      const oldestSession = [...global.recentSessions][0];
-      global.recentSessions.delete(oldestSession);
-    }
-  }
-  next();
-});
-
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
     appId: process.env.PUSHER_APP_ID,
@@ -2583,6 +2565,24 @@ const verifyApiKey = (req, res, next) => {
 app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json());
+
+// Add session tracker middleware to keep track of active sessions
+app.use((req, res, next) => {
+  if (req.body && req.body.sessionId) {
+    // Store this session ID
+    if (!global.recentSessions) {
+      global.recentSessions = new Set();
+    }
+    global.recentSessions.add(req.body.sessionId);
+    
+    // Keep only the last 10 sessions
+    if (global.recentSessions.size > 10) {
+      const oldestSession = [...global.recentSessions][0];
+      global.recentSessions.delete(oldestSession);
+    }
+  }
+  next();
+});
 
 // Health check endpoint for root path
 app.get('/', (req, res) => {
