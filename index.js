@@ -1058,53 +1058,34 @@ async function findSessionIdForChat(chatId) {
   try {
     console.log(`\n🔍 Looking up mapping for chat ID: ${chatId}`);
     
-    // First check in-memory
+    // 1. First check in-memory (fastest)
     if (global.liveChatSessionMappings && global.liveChatSessionMappings.has(chatId)) {
       const sessionId = global.liveChatSessionMappings.get(chatId);
       console.log(`\n✅ Found session mapping in memory: ${chatId} -> ${sessionId}`);
       return sessionId;
     }
     
-    // If we're here, check the recentWebhooks cache
-    if (global.recentWebhooks && global.recentWebhooks.has(chatId)) {
-      console.log('\n🔍 Checking recentWebhooks cache...');
-      const chat = global.recentWebhooks.get(chatId);
+    // 2. Try file-based API store (most reliable across function instances)
+    try {
+      const response = await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store?chatId=${chatId}`);
+      const data = await response.json();
       
-      if (chat && chat.users) {
-        const customer = chat.users.find(user => user.type === 'customer');
+      if (data.success && data.sessionId) {
+        console.log(`\n✅ Found session mapping via API: ${chatId} -> ${data.sessionId}`);
         
-        if (customer && customer.session_fields && customer.session_fields.length > 0) {
-          // Try to find the session_id field
-          let sessionId = null;
-          
-          // First try accessing directly via index
-          if (customer.session_fields[0].session_id) {
-            sessionId = customer.session_fields[0].session_id;
-          } 
-          // Then try finding the session_id field
-          else {
-            const sessionField = customer.session_fields.find(field => field.session_id);
-            if (sessionField) {
-              sessionId = sessionField.session_id;
-            }
-          }
-          
-          if (sessionId) {
-            console.log(`\n✅ Found session mapping in webhook cache: ${chatId} -> ${sessionId}`);
-            
-            // Store for future lookups
-            if (!global.liveChatSessionMappings) {
-              global.liveChatSessionMappings = new Map();
-            }
-            global.liveChatSessionMappings.set(chatId, sessionId);
-            
-            return sessionId;
-          }
+        // Cache for future lookups
+        if (!global.liveChatSessionMappings) {
+          global.liveChatSessionMappings = new Map();
         }
+        global.liveChatSessionMappings.set(chatId, data.sessionId);
+        
+        return data.sessionId;
       }
+    } catch (apiError) {
+      console.warn(`\n⚠️ API lookup error: ${apiError.message}`);
     }
     
-    // As a last resort, try MongoDB (but directly without collection checking)
+    // 3. Try MongoDB as fallback
     try {
       const { db } = await connectToDatabase();
       const mapping = await db.collection('livechat_mappings').findOne({ chatId: chatId });
@@ -1121,8 +1102,7 @@ async function findSessionIdForChat(chatId) {
         return mapping.sessionId;
       }
     } catch (dbError) {
-      console.warn('\n⚠️ Error checking MongoDB:', dbError.message);
-      // Continue - this is just a fallback
+      console.warn(`\n⚠️ MongoDB lookup error: ${dbError.message}`);
     }
     
     console.log(`\n⚠️ No mapping found for chat ID: ${chatId}`);
@@ -1137,37 +1117,44 @@ async function findSessionIdForChat(chatId) {
 async function storeChatSessionMapping(chatId, sessionId) {
   try {
     console.log(`\n🔗 Storing mapping: ${chatId} -> ${sessionId}`);
-    const { db } = await connectToDatabase();
     
-    // Store in-memory for immediate use
+    // 1. Store in-memory for immediate use
     if (!global.liveChatSessionMappings) {
       global.liveChatSessionMappings = new Map();
     }
     global.liveChatSessionMappings.set(chatId, sessionId);
     
-    // Also store in MongoDB for persistence
-    const result = await db.collection('livechat_mappings').updateOne(
-      { chatId: chatId },
-      { $set: { 
-          sessionId: sessionId, 
-          updatedAt: new Date() 
-      }},
-      { upsert: true }
-    );
+    // 2. Store via API endpoint (reliable across function instances)
+    try {
+      await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ chatId, sessionId })
+      });
+      console.log(`\n🔗 Mapping stored via API`);
+    } catch (apiError) {
+      console.warn(`\n⚠️ Could not store mapping via API: ${apiError.message}`);
+    }
     
-    console.log(`\n🔗 Mapped LiveChat chat ID ${chatId} to session ID ${sessionId} (in memory and MongoDB)`, result.acknowledged ? "Success" : "Failed");
+    // 3. Also try MongoDB as fallback
+    try {
+      const { db } = await connectToDatabase();
+      await db.collection('livechat_mappings').updateOne(
+        { chatId: chatId },
+        { $set: { sessionId: sessionId, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      console.log(`\n🔗 Mapping stored in MongoDB`);
+    } catch (dbError) {
+      console.warn(`\n⚠️ Could not store in MongoDB: ${dbError.message}`);
+    }
     
-    // Verify storage immediately
-    const verification = await db.collection('livechat_mappings').findOne({ chatId: chatId });
-    console.log(`\n✅ Verification: ${verification ? "Mapping found" : "Mapping not found"}`);
-    
+    return true;
   } catch (error) {
     console.error('\n❌ Error storing chat mapping:', error);
-    // Still set the in-memory mapping even if MongoDB fails
-    if (!global.liveChatSessionMappings) {
-      global.liveChatSessionMappings = new Map();
-    }
-    global.liveChatSessionMappings.set(chatId, sessionId);
+    return false;
   }
 }
 
