@@ -2,8 +2,8 @@ export default async function handler(req, res) {
   try {
     console.log('\n📩 Received webhook from LiveChat:', {
       action: req.body.action,
-      type: req.body.payload?.event?.type,
-      author: req.body.payload?.event?.author?.type,
+      text: req.body.payload?.event?.text?.substring(0, 30) + '...',
+      author_id: req.body.payload?.event?.author_id,
       chat_id: req.body.payload?.chat_id
     });
     
@@ -16,9 +16,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
     }
     
-    // We're only interested in new messages
+    // Process incoming events
     if (req.body.action === 'incoming_event' && req.body.payload.event?.type === 'message') {
-      // Simple inline processing function for agent messages
+      // Process the incoming message
       const result = await processWebhookMessage(req.body.payload);
       
       if (result.success) {
@@ -39,29 +39,36 @@ export default async function handler(req, res) {
   }
 }
 
-// Minimal inline implementation of message processing
+// Updated to handle the actual LiveChat webhook format
 async function processWebhookMessage(payload) {
   try {
     // Extract info from payload
     const chatId = payload.chat_id;
     const event = payload.event;
-    const author = event.author;
+    const authorId = event.author_id;
+    const messageText = event.text;
     
-    // Check if the message is from an agent
-    if (author.type !== 'agent') {
-      console.log('\n📝 Ignoring non-agent message from:', author.type);
+    console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
+    
+    // Ignore our own system messages
+    if (messageText.includes('URGENT: AI CHATBOT TRANSFER')) {
+      console.log('\n📝 Ignoring our own system message');
       return { success: true };
     }
     
-    // Get message content
-    const messageText = event.text;
-    const authorName = author.name || 'Agent';
+    // Check if this is an agent message by looking at the author ID
+    const isAgentMessage = authorId && 
+                          (authorId.includes('@') || 
+                           authorId === 'david@svorumstrax.is' ||
+                           authorId === 'bryndis@svorumstrax.is');
     
-    console.log(`\n📨 Processing agent message: "${messageText}" from ${authorName}`);
+    if (!isAgentMessage) {
+      console.log('\n📝 Ignoring non-agent message from:', authorId);
+      return { success: true };
+    }
     
-    // In production this would trigger your Pusher notification
-    // For now, just log that we received it
-    console.log('\n✅ Agent message received and logged');
+    // Here you would broadcast the message via Pusher
+    console.log('\n✅ Agent message would be broadcast to frontend');
     
     return { success: true };
   } catch (error) {
