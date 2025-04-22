@@ -1082,6 +1082,7 @@ async function findSessionIdForChat(chatId) {
 // Add this as a new function after your existing helper functions
 async function storeChatSessionMapping(chatId, sessionId) {
   try {
+    console.log(`\n🔗 Storing mapping: ${chatId} -> ${sessionId}`);
     const { db } = await connectToDatabase();
     
     // Store in-memory for immediate use
@@ -1091,13 +1092,21 @@ async function storeChatSessionMapping(chatId, sessionId) {
     global.liveChatSessionMappings.set(chatId, sessionId);
     
     // Also store in MongoDB for persistence
-    await db.collection('livechat_mappings').updateOne(
+    const result = await db.collection('livechat_mappings').updateOne(
       { chatId: chatId },
-      { $set: { sessionId: sessionId, updatedAt: new Date() } },
+      { $set: { 
+          sessionId: sessionId, 
+          updatedAt: new Date() 
+      }},
       { upsert: true }
     );
     
-    console.log(`\n🔗 Mapped LiveChat chat ID ${chatId} to session ID ${sessionId} (in memory and MongoDB)`);
+    console.log(`\n🔗 Mapped LiveChat chat ID ${chatId} to session ID ${sessionId} (in memory and MongoDB)`, result.acknowledged ? "Success" : "Failed");
+    
+    // Verify storage immediately
+    const verification = await db.collection('livechat_mappings').findOne({ chatId: chatId });
+    console.log(`\n✅ Verification: ${verification ? "Mapping found" : "Mapping not found"}`);
+    
   } catch (error) {
     console.error('\n❌ Error storing chat mapping:', error);
     // Still set the in-memory mapping even if MongoDB fails
@@ -1105,6 +1114,27 @@ async function storeChatSessionMapping(chatId, sessionId) {
       global.liveChatSessionMappings = new Map();
     }
     global.liveChatSessionMappings.set(chatId, sessionId);
+  }
+}
+
+/**
+ * Ensures the livechat_mappings collection exists in MongoDB
+ * @returns {Promise<void>}
+ */
+async function ensureMappingCollection() {
+  try {
+    const { db } = await connectToDatabase();
+    const collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
+    
+    if (collections.length === 0) {
+      console.log('\n📊 Creating livechat_mappings collection...');
+      await db.createCollection('livechat_mappings');
+      console.log('\n✅ livechat_mappings collection created');
+    } else {
+      console.log('\n✅ livechat_mappings collection already exists');
+    }
+  } catch (error) {
+    console.error('\n❌ Error ensuring mapping collection:', error);
   }
 }
 
@@ -2671,7 +2701,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (context.transferStatus && context.transferStatus.transferred) {
             console.log('\n📝 User already transferred to agent, skipping transfer');
             
-            // Send a message reminding them they're already connected
+            // IMPORTANT: For agent mode messages, just forward to LiveChat without bot response
+            if (req.body.isAgentMode) {
+                // Send the message to LiveChat using the stored credentials
+                await sendMessageToLiveChat(
+                    context.transferStatus.chatId, 
+                    userMessage, 
+                    req.body.agent_credentials || req.body.bot_token
+                );
+                
+                // Return success but suppress any bot message
+                return res.status(200).json({
+                    success: true,
+                    chatId: context.transferStatus.chatId,
+                    agent_credentials: req.body.agent_credentials || req.body.bot_token,
+                    suppressMessage: true,
+                    transferred: true
+                });
+            }
+            
+            // For non-agent messages, still show the reminder
             const alreadyTransferredMessage = languageDecision.isIcelandic ?
                 "Þú ert þegar tengd(ur) við þjónustufulltrúa. Vinsamlegast haltu áfram samtalinu." :
                 "You are already connected with a live agent. Please continue your conversation here.";
@@ -4176,6 +4225,11 @@ app.post('/webhook/livechat', async (req, res) => {
     } else {
       console.error('\n❌ DEBUG webhook registration failed:', debugResult.error);
     }
+
+    // NEW CODE: Ensure the livechat_mappings collection exists
+    console.log('\n🔄 Ensuring livechat_mappings collection exists...');
+    await ensureMappingCollection();
+
   } catch (error) {
     console.error('\n❌ Error during webhook registration:', error);
   }
