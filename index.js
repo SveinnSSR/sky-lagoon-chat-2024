@@ -3190,7 +3190,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
+                // When in agent mode, we need to send the message as the customer
+                // Extract customer ID from session ID
+                const customerId = sessionId || req.body.sessionId;
+                
+                // Send message as customer
+                await sendMessageToLiveChat(
+                    req.body.chatId, 
+                    userMessage, 
+                    credentials, 
+                    customerId, 
+                    true  // isFromCustomer = true
+                );
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({

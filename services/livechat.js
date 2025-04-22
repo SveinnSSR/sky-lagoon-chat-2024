@@ -1447,9 +1447,11 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
  * @param {string} chatId - LiveChat chat ID
  * @param {string} message - Message to send
  * @param {string} credentials - Bot token or agent credentials
+ * @param {string} customerId - Customer ID for attribution (optional)
+ * @param {boolean} isFromCustomer - Whether this message is from the customer (default: false)
  * @returns {Promise<boolean>} Success status
  */
-export async function sendMessageToLiveChat(chatId, message, credentials) {
+export async function sendMessageToLiveChat(chatId, message, credentials, customerId = null, isFromCustomer = false) {
     try {
         if (!chatId || !message || !credentials) {
             console.error('\n❌ Missing required parameters:', { 
@@ -1498,7 +1500,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             console.log('\n🔍 Verifying chat access before sending...');
             
             // The get_chat endpoint has different field name requirements based on credential type
-            // For agent credentials, it expects chat_id, for bot token it expects id
             const chatCheckBody = isAgentCredentials ? 
                 { chat_id: chatId } :  // Agent credentials use chat_id
                 { id: chatId };        // Bot token uses id
@@ -1541,20 +1542,87 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
                     
                     if (retryResponse.ok) {
                         console.log('\n✅ Chat access check succeeded with alternative field name');
+                        
+                        // If missing customerId but we need it and got chat data, try to extract it
+                        if (isFromCustomer && !customerId) {
+                            try {
+                                const chatData = await retryResponse.json();
+                                const customer = chatData.users?.find(user => user.type === 'customer');
+                                if (customer && customer.id) {
+                                    customerId = customer.id;
+                                    console.log(`\n✅ Extracted customer ID from chat data: ${customerId}`);
+                                }
+                            } catch (err) {
+                                console.warn('\n⚠️ Failed to extract customer ID:', err.message);
+                            }
+                        }
                     } else {
                         console.warn('\n⚠️ Both field names failed for chat access check');
+                    }
+                } else if (isFromCustomer && !customerId) {
+                    // One more try to get the customerId
+                    try {
+                        console.log('\n🔍 Trying direct API lookup to get customer ID...');
+                        
+                        // Use hardcoded credentials as fallback
+                        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+                        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+                        const fallbackCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                        
+                        const fallbackResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${fallbackCredentials}`,
+                                'X-Region': 'fra'
+                            },
+                            body: JSON.stringify({ chat_id: chatId })
+                        });
+                        
+                        if (fallbackResponse.ok) {
+                            const chatData = await fallbackResponse.json();
+                            const customer = chatData.users?.find(user => user.type === 'customer');
+                            if (customer && customer.id) {
+                                customerId = customer.id;
+                                console.log(`\n✅ Extracted customer ID using fallback credentials: ${customerId}`);
+                            }
+                        }
+                    } catch (idError) {
+                        console.warn('\n⚠️ Failed to get customer ID with fallback:', idError.message);
                     }
                 }
             } else {
                 const chatData = await chatCheckResponse.json();
                 console.log('\n✅ Chat is accessible. Active:', chatData.active);
+                
+                // Extract customer ID if needed
+                if (isFromCustomer && !customerId) {
+                    const customer = chatData.users?.find(user => user.type === 'customer');
+                    if (customer && customer.id) {
+                        customerId = customer.id;
+                        console.log(`\n✅ Extracted customer ID from chat data: ${customerId}`);
+                    }
+                }
             }
         } catch (checkError) {
             console.warn('\n⚠️ Error checking chat access:', checkError.message);
             // Continue to message sending attempt
         }
         
-        // Step 2: Send message using appropriate credentials
+        // Step 2: Prepare message event with the correct author attribution
+        const messageEvent = {
+            type: 'message',
+            text: message,
+            visibility: 'all'
+        };
+        
+        // IMPORTANT FIX: Add customer_id as author_id for customer messages
+        if (isFromCustomer && customerId) {
+            messageEvent.author_id = customerId;
+            console.log(`\n👤 Setting message author to customer: ${customerId}`);
+        }
+        
+        // Step 3: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
@@ -1565,11 +1633,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials) {
             },
             body: JSON.stringify({
                 chat_id: chatId,  // Always use chat_id for send_event
-                event: {
-                    type: 'message',
-                    text: message,
-                    visibility: 'all'
-                }
+                event: messageEvent
             })
         });
         
