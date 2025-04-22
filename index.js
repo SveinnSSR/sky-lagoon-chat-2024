@@ -2667,6 +2667,34 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             availableAgents: transferCheck.agents?.length || 0
         });
 
+        // Check if user is already transferred to prevent duplicate transfers
+        if (context.transferStatus && context.transferStatus.transferred) {
+            console.log('\n📝 User already transferred to agent, skipping transfer');
+            
+            // Send a message reminding them they're already connected
+            const alreadyTransferredMessage = languageDecision.isIcelandic ?
+                "Þú ert þegar tengd(ur) við þjónustufulltrúa. Vinsamlegast haltu áfram samtalinu." :
+                "You are already connected with a live agent. Please continue your conversation here.";
+            
+            // Add response to context
+            addMessageToContext(context, { role: 'assistant', content: alreadyTransferredMessage });
+            
+            // Use the unified broadcast system to update the UI without creating a new transfer
+            const responseData = await sendBroadcastAndPrepareResponse({
+                message: alreadyTransferredMessage,
+                transferred: true,
+                chatId: context.transferStatus.chatId,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence
+                },
+                topicType: 'transfer_reminder',
+                responseType: 'direct_response'
+            });
+            
+            return res.status(responseData.status || 200).json(responseData);
+        }
+        
         if (transferCheck.shouldTransfer) {
             try {
                 // Create chat with CORRECT API STRUCTURE (verified by LiveChat Tech Support)
@@ -2763,6 +2791,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         // Don't throw - this is just an additional check
                     }
                 }, 2000);
+
+                // Mark user as transferred to prevent duplicate transfers
+                context.transferStatus = {
+                    transferred: true,
+                    chatId: chatData.chat_id,
+                    timestamp: new Date().toISOString()
+                };
                 
                 return res.status(responseData.status || 200).json(responseData);
             } catch (error) {

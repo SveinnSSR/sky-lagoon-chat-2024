@@ -26,19 +26,39 @@ async function connectToDatabase() {
 // Find sessionId for a given chatId
 async function findSessionIdForChat(chatId) {
   try {
+    console.log(`\n🔍 Looking up mapping for chat ID: ${chatId}`);
+    
+    // First check in-memory
+    if (global.liveChatSessionMappings && global.liveChatSessionMappings.has(chatId)) {
+      const sessionId = global.liveChatSessionMappings.get(chatId);
+      console.log(`\n✅ Found session mapping in memory: ${chatId} -> ${sessionId}`);
+      return sessionId;
+    }
+    
+    console.log(`\n🔍 Not found in memory, checking MongoDB...`);
+    
+    // Then check MongoDB
     const { client, db } = await connectToDatabase();
+    // Log the collection existence
+    const collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
+    console.log(`\n🔍 'livechat_mappings' collection exists: ${collections.length > 0}`);
+    
     const mapping = await db.collection('livechat_mappings').findOne({ chatId: chatId });
-    client.close();
     
     if (mapping && mapping.sessionId) {
-      console.log(`\n🔍 Found session mapping in MongoDB: ${chatId} -> ${mapping.sessionId}`);
+      console.log(`\n✅ Found session mapping in MongoDB: ${chatId} -> ${mapping.sessionId}`);
+      // Also update memory cache
+      if (!global.liveChatSessionMappings) {
+        global.liveChatSessionMappings = new Map();
+      }
+      global.liveChatSessionMappings.set(chatId, mapping.sessionId);
       return mapping.sessionId;
     }
     
-    console.warn(`\n⚠️ No session mapping found for chat ID: ${chatId}`);
+    console.log(`\n⚠️ No mapping found in MongoDB for chat ID: ${chatId}`);
     return null;
   } catch (error) {
-    console.error('\n❌ Error retrieving session mapping:', error);
+    console.error('\n❌ Error retrieving mapping:', error);
     return null;
   }
 }
