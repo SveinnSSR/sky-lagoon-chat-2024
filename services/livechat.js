@@ -343,8 +343,8 @@ export async function createProperChat(customerId, isIcelandic = false) {
             },
             body: JSON.stringify({
                 name: `User ${customerId.substring(0, 8)}...`,
-                email: `${customerId.substring(0, 8)}@skylagoon.com`,
-                // FIXED: Each session_fields item must contain a single key-value pair
+                email: `${customerId}@skylagoon.com`, // UPDATED: Store FULL session ID in email
+                // Keep session_fields as fallback
                 session_fields: [
                     { "session_id": customerId }
                 ]
@@ -408,13 +408,11 @@ export async function createProperChat(customerId, isIcelandic = false) {
                 ...(availableAgents.length > 0 && { agent_ids: [availableAgents[0].agent_id] })
             })
         });
-
         if (!chatResponse.ok) {
             const errorText = await chatResponse.text();
             console.error('\n❌ Chat creation error:', errorText);
             throw new Error('Failed to create chat with proper structure');
         }
-
         const chatData = await chatResponse.json();
         console.log('\n✅ Chat created successfully with proper structure:', chatData);
         
@@ -492,7 +490,7 @@ export async function createDirectAgentChat(customerId, isIcelandic = false) {
                 customers: [{
                     id: customerId,
                     name: `User ${customerId.substring(0, 8)}...`,
-                    email: `${customerId.substring(0, 8)}@skylagoon.com`
+                    email: `${customerId}@skylagoon.com` // UPDATED: Store FULL session ID in email
                 }]
             })
         });
@@ -1215,8 +1213,8 @@ export async function createBookingChangeRequest(customerId, isIcelandic = false
                 group_id: groupId,
                 customers: [{
                     id: customerId,
-                    name: `User ${customerId}`,
-                    email: `${customerId}@skylagoon.com`
+                    name: `User ${customerId.substring(0, 8)}...`,
+                    email: `${customerId}@skylagoon.com` // UPDATED: Store FULL session ID in email
                 }],
                 properties: {
                     source: {
