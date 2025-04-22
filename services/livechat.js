@@ -1766,7 +1766,7 @@ export async function registerLiveChatWebhook(webhookUrl) {
         'X-Region': 'fra'
       },
       body: JSON.stringify({
-        owner_client_id: CLIENT_ID  // Add this required parameter
+        owner_client_id: CLIENT_ID
       })
     });
     
@@ -1789,7 +1789,7 @@ export async function registerLiveChatWebhook(webhookUrl) {
       return { success: true, webhookId: existingWebhook.id, exists: true };
     }
     
-    // Register a new webhook
+    // Register a new webhook with SPECIFIC EVENT TYPES
     const registerResponse = await fetch('https://api.livechatinc.com/v3.5/configuration/action/register_webhook', {
       method: 'POST',
       headers: {
@@ -1801,9 +1801,16 @@ export async function registerLiveChatWebhook(webhookUrl) {
         url: webhookUrl,
         description: 'Sky Lagoon AI Chatbot Integration',
         action: 'incoming_event',
-        secret_key: 'sky-lagoon-webhook-key-2025', // You can use a more secure secret
+        secret_key: 'sky-lagoon-webhook-key-2025',
         type: 'license',
-        owner_client_id: CLIENT_ID  // Add this required parameter
+        owner_client_id: CLIENT_ID,
+        events: [
+          'incoming_chat',
+          'incoming_event',
+          'chat_deactivated',
+          'message',
+          'event'
+        ]
       })
     });
     

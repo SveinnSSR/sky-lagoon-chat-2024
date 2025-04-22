@@ -911,22 +911,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================   
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
@@ -4063,25 +4047,44 @@ app.post('/analytics-proxy', async (req, res) => {
     }
 });
 
+// Simple test endpoint to check if webhook is reachable
+app.get('/webhook/test', (req, res) => {
+  console.log('\n✅ Webhook test endpoint reached');
+  res.status(200).send('Webhook endpoint is reachable');
+});
+
+// Debug webhook to capture all incoming webhook data
+app.post('/webhook-debug', (req, res) => {
+  console.log('\n📝 DEBUG WEBHOOK RECEIVED:', {
+    headers: req.headers,
+    body: req.body
+  });
+  res.status(200).send('OK');
+});
+
 // Add this AFTER your existing endpoints but BEFORE app.listen
 // ===============================================================
 // LiveChat webhook endpoint for receiving agent messages
 app.post('/webhook/livechat', async (req, res) => {
   try {
     console.log('\n📩 Received webhook from LiveChat:', {
-      type: req.body.action,
-      payload: req.body
+      action: req.body.action,
+      type: req.body.payload?.event?.type,
+      author: req.body.payload?.event?.author?.type,
+      chat_id: req.body.payload?.chat_id
     });
     
-    // Verify the webhook is authentic (you can add more security later)
-    // For now we'll just check if the payload follows expected structure
+    // Log full payload for debugging
+    console.log('\n🔍 Full webhook payload:', JSON.stringify(req.body, null, 2));
+    
+    // Verify the webhook is authentic
     if (!req.body.action || !req.body.payload) {
       console.warn('\n⚠️ Invalid webhook format');
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
     }
     
     // We're only interested in new messages
-    if (req.body.action === 'incoming_event' && req.body.payload.event.type === 'message') {
+    if (req.body.action === 'incoming_event' && req.body.payload.event?.type === 'message') {
       // Process the incoming message
       const result = await processLiveChatMessage(req.body.payload);
       
@@ -4103,22 +4106,6 @@ app.post('/webhook/livechat', async (req, res) => {
   }
 });
 
-// Start server with enhanced logging
-const PORT = config.PORT;
-const server = app.listen(PORT, () => {
-    console.log('\n🚀 Server Status:');
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Port: ${PORT}`);
-    console.log(`Time: ${new Date().toLocaleString()}`);
-    console.log('\n⚙️ Configuration:');
-    console.log(`OpenAI API Key configured: ${!!config.OPENAI_API_KEY}`);
-    console.log(`API Key configured: ${!!config.API_KEY}`);
-    console.log('\n🔒 Security:');
-    console.log('CORS origins:', corsOptions.origin);
-    console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
-});
-
-// Add this webhook registration code here
 // Register LiveChat webhook on server startup
 (async () => {
   try {
@@ -4137,10 +4124,42 @@ const server = app.listen(PORT, () => {
     } else {
       console.error('\n❌ LiveChat webhook registration failed:', result.error);
     }
+    
+    // Register a secondary debug webhook
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const debugWebhookUrl = process.env.WEBHOOK_URL
+      ? process.env.WEBHOOK_URL.replace('/webhook/livechat', '/webhook-debug')
+      : 'https://sky-lagoon-chat-2024.vercel.app/webhook-debug';
+    
+    console.log('\n🔄 Registering DEBUG webhook at:', debugWebhookUrl);
+    
+    const debugResult = await registerLiveChatWebhook(debugWebhookUrl);
+    
+    if (debugResult.success) {
+      console.log('\n✅ DEBUG webhook registration successful:', debugResult.webhookId);
+    } else {
+      console.error('\n❌ DEBUG webhook registration failed:', debugResult.error);
+    }
   } catch (error) {
     console.error('\n❌ Error during webhook registration:', error);
   }
 })();
+
+// Start server with enhanced logging
+const PORT = config.PORT;
+const server = app.listen(PORT, () => {
+    console.log('\n🚀 Server Status:');
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Port: ${PORT}`);
+    console.log(`Time: ${new Date().toLocaleString()}`);
+    console.log('\n⚙️ Configuration:');
+    console.log(`OpenAI API Key configured: ${!!config.OPENAI_API_KEY}`);
+    console.log(`API Key configured: ${!!config.API_KEY}`);
+    console.log('\n🔒 Security:');
+    console.log('CORS origins:', corsOptions.origin);
+    console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
+});
 
 // Enhanced error handling for server startup
 server.on('error', (error) => {
