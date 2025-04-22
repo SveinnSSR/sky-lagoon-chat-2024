@@ -4450,6 +4450,7 @@ app.post('/webhook-debug', (req, res) => {
 // Add this AFTER your existing endpoints but BEFORE app.listen
 // ===============================================================
 // LiveChat webhook endpoint for receiving agent messages
+// This route is currently not being used, but kept for reference
 app.post('/webhook/livechat', async (req, res) => {
   // Add these constants at the top of your webhook handler for direct access
   const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 

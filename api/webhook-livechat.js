@@ -2,11 +2,15 @@
 import { MongoClient } from 'mongodb';
 import Pusher from 'pusher';
 
-// MongoDB connection - make sure these environment variables are set in Vercel
+// MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB || 'skylagoon-chat-db';
 
-// Pusher configuration - make sure these environment variables are set in Vercel
+// LiveChat credentials for direct API access
+const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
+const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+
+// Pusher configuration
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -35,9 +39,73 @@ async function findSessionIdForChat(chatId) {
       return sessionId;
     }
     
-    console.log(`\n🔍 Not found in memory, checking MongoDB...`);
+    // Check global webhook cache
+    if (global.recentWebhooks && global.recentWebhooks.has(chatId)) {
+      console.log('\n🔍 Checking recent webhooks for customer email...');
+      const chat = global.recentWebhooks.get(chatId);
+      
+      if (chat && chat.users) {
+        const customer = chat.users.find(user => user.type === 'customer');
+        
+        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
+          // Extract session ID from email
+          const sessionId = customer.email.replace('@skylagoon.com', '');
+          console.log(`\n✅ Found session ID in webhook email: ${chatId} -> ${sessionId}`);
+          
+          // Store for future use
+          if (!global.liveChatSessionMappings) {
+            global.liveChatSessionMappings = new Map();
+          }
+          global.liveChatSessionMappings.set(chatId, sessionId);
+          
+          return sessionId;
+        }
+      }
+    }
     
-    // Then check MongoDB
+    // Direct API lookup if not found in memory
+    try {
+      console.log('\n🔍 Direct API lookup to get customer email...');
+      const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+      
+      const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${agentCredentials}`,
+          'X-Region': 'fra'
+        },
+        body: JSON.stringify({ chat_id: chatId })
+      });
+      
+      if (chatResponse.ok) {
+        const chatData = await chatResponse.json();
+        console.log('\n✅ Successfully retrieved chat data from LiveChat API');
+        
+        // Find customer in the users array
+        const customer = chatData.users?.find(user => user.type === 'customer');
+        
+        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
+          // Extract session ID from email - THIS IS THE KEY PART
+          const sessionId = customer.email.replace('@skylagoon.com', '');
+          console.log(`\n✅ Extracted session ID from email: ${chatId} -> ${sessionId}`);
+          
+          // Store for future use
+          if (!global.liveChatSessionMappings) {
+            global.liveChatSessionMappings = new Map();
+          }
+          global.liveChatSessionMappings.set(chatId, sessionId);
+          
+          return sessionId;
+        }
+      }
+    } catch (apiError) {
+      console.warn('\n⚠️ Error in direct API lookup:', apiError.message);
+    }
+    
+    console.log(`\n🔍 Not found in memory or API, checking MongoDB...`);
+    
+    // Then check MongoDB as last resort
     const { client, db } = await connectToDatabase();
     // Log the collection existence
     const collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
@@ -67,7 +135,9 @@ export default async function handler(req, res) {
   try {
     console.log('\n📩 Received webhook from LiveChat:', {
       action: req.body.action,
-      chat_id: req.body.payload?.chat?.id || req.body.payload?.chat_id
+      type: req.body.payload?.event?.type,
+      author: req.body.payload?.event?.author_id,
+      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id
     });
     
     // Log full payload for debugging
@@ -77,6 +147,117 @@ export default async function handler(req, res) {
     if (!req.body.action || !req.body.payload) {
       console.warn('\n⚠️ Invalid webhook format');
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
+    }
+    
+    // Handle incoming_chat events - EXTRACT SESSION ID FROM EMAIL
+    if (req.body.action === 'incoming_chat') {
+      try {
+        console.log('\n📝 Processing incoming_chat webhook...');
+        
+        // Extract chat data
+        const chat = req.body.payload.chat;
+        if (!chat || !chat.id) {
+          console.warn('\n⚠️ Invalid chat payload in incoming_chat webhook');
+          return res.status(200).json({ success: true });
+        }
+        
+        const chatId = chat.id;
+        console.log('\n🔍 Processing incoming_chat for chat ID:', chatId);
+        
+        // Store chat data for future reference
+        if (!global.recentWebhooks) {
+          global.recentWebhooks = new Map();
+        }
+        global.recentWebhooks.set(chatId, chat);
+        console.log('\n💾 Stored webhook in memory cache');
+        
+        // Find the customer in the users array
+        const users = chat.users || [];
+        const customer = users.find(user => user.type === 'customer');
+        
+        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
+          // CRITICAL STEP: Extract session ID from email
+          const sessionId = customer.email.replace('@skylagoon.com', '');
+          console.log(`\n✅ CRITICAL: Extracted session ID from email: ${chatId} -> ${sessionId}`);
+          
+          // Store this mapping in memory
+          if (!global.liveChatSessionMappings) {
+            global.liveChatSessionMappings = new Map();
+          }
+          global.liveChatSessionMappings.set(chatId, sessionId);
+          console.log(`\n🔗 Stored mapping in memory: ${chatId} -> ${sessionId}`);
+          
+          // Test that the mapping was stored correctly
+          const storedSessionId = global.liveChatSessionMappings.get(chatId);
+          console.log(`\n🔍 Verification check: ${storedSessionId === sessionId ? 'PASSED ✓' : 'FAILED ✗'}`);
+          
+          // Try to store in MongoDB
+          try {
+            const { db } = await connectToDatabase();
+            
+            // Ensure the collection exists
+            const collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
+            if (collections.length === 0) {
+              await db.createCollection('livechat_mappings');
+            }
+            
+            // Store mapping
+            await db.collection('livechat_mappings').updateOne(
+              { chatId: chatId },
+              { $set: { sessionId: sessionId, updatedAt: new Date() } },
+              { upsert: true }
+            );
+            
+            console.log('\n✅ Mapping stored in MongoDB');
+          } catch (dbError) {
+            console.warn('\n⚠️ MongoDB error:', dbError.message);
+          }
+        } else {
+          console.warn('\n⚠️ Customer email not found or does not contain session ID');
+          
+          // Try getting session ID from session_fields as fallback
+          if (customer && customer.session_fields && customer.session_fields.length > 0) {
+            let sessionId = null;
+            
+            // First try direct index
+            if (customer.session_fields[0] && customer.session_fields[0].session_id) {
+              sessionId = customer.session_fields[0].session_id;
+            } else {
+              // Then try finding session_id field
+              for (const field of customer.session_fields) {
+                if (field.session_id) {
+                  sessionId = field.session_id;
+                  break;
+                }
+              }
+            }
+            
+            if (sessionId) {
+              console.log(`\n✅ Found session ID in session_fields: ${chatId} -> ${sessionId}`);
+              
+              // Store in memory
+              if (!global.liveChatSessionMappings) {
+                global.liveChatSessionMappings = new Map();
+              }
+              global.liveChatSessionMappings.set(chatId, sessionId);
+              
+              // Store in MongoDB
+              try {
+                const { db } = await connectToDatabase();
+                await db.collection('livechat_mappings').updateOne(
+                  { chatId: chatId },
+                  { $set: { sessionId: sessionId, updatedAt: new Date() } },
+                  { upsert: true }
+                );
+              } catch (dbError) {
+                console.warn('\n⚠️ MongoDB error:', dbError.message);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('\n❌ Error processing incoming_chat webhook:', error);
+      }
     }
     
     // For incoming_event with message, process agent messages
@@ -91,7 +272,8 @@ export default async function handler(req, res) {
       console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
       
       // Ignore system messages
-      if (messageText.includes('URGENT: AI CHATBOT TRANSFER')) {
+      if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
+          messageText.includes('REMINDER: Customer waiting')) {
         console.log('\n📝 Ignoring system message');
         return res.status(200).json({ success: true });
       }
@@ -110,11 +292,19 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, error: 'Session not found' });
       }
       
+      // Extract agent name (for better UX)
+      let authorName = "Agent";
+      if (authorId.includes('@')) {
+        authorName = authorId.split('@')[0];
+        // Capitalize first letter
+        authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
+      }
+      
       // Create agent message
       const agentMessage = {
         role: 'agent',
         content: messageText,
-        author: authorId,
+        author: authorName,
         timestamp: new Date().toISOString()
       };
       
