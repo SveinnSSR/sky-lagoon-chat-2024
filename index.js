@@ -1065,69 +1065,67 @@ async function findSessionIdForChat(chatId) {
       return sessionId;
     }
     
-    console.log(`\n🔍 Not found in memory, checking MongoDB...`);
-    
-    // Connect to MongoDB
-    const { db } = await connectToDatabase();
-    
-    // IMPORTANT: Create a more robust check that also tries multiple collection names
-    const collectionNames = ['livechat_mappings', 'livechatMappings', 'livechat_sessions'];
-    let sessionId = null;
-    
-    // Try each possible collection name
-    for (const collName of collectionNames) {
-      try {
-        console.log(`\n🔍 Checking collection: ${collName}`);
+    // If we're here, check the recentWebhooks cache
+    if (global.recentWebhooks && global.recentWebhooks.has(chatId)) {
+      console.log('\n🔍 Checking recentWebhooks cache...');
+      const chat = global.recentWebhooks.get(chatId);
+      
+      if (chat && chat.users) {
+        const customer = chat.users.find(user => user.type === 'customer');
         
-        // First check if collection exists
-        const collections = await db.listCollections({name: collName}).toArray();
-        const collectionExists = collections.length > 0;
-        console.log(`\n🔍 Collection ${collName} exists: ${collectionExists}`);
-        
-        if (collectionExists) {
-          // Look for mapping in this collection
-          const mapping = await db.collection(collName).findOne({ chatId: chatId });
+        if (customer && customer.session_fields && customer.session_fields.length > 0) {
+          // Try to find the session_id field
+          let sessionId = null;
           
-          if (mapping && mapping.sessionId) {
-            console.log(`\n✅ Found session mapping in ${collName}: ${chatId} -> ${mapping.sessionId}`);
-            sessionId = mapping.sessionId;
+          // First try accessing directly via index
+          if (customer.session_fields[0].session_id) {
+            sessionId = customer.session_fields[0].session_id;
+          } 
+          // Then try finding the session_id field
+          else {
+            const sessionField = customer.session_fields.find(field => field.session_id);
+            if (sessionField) {
+              sessionId = sessionField.session_id;
+            }
+          }
+          
+          if (sessionId) {
+            console.log(`\n✅ Found session mapping in webhook cache: ${chatId} -> ${sessionId}`);
             
-            // Cache for future use
+            // Store for future lookups
             if (!global.liveChatSessionMappings) {
               global.liveChatSessionMappings = new Map();
             }
-            global.liveChatSessionMappings.set(chatId, mapping.sessionId);
+            global.liveChatSessionMappings.set(chatId, sessionId);
             
             return sessionId;
           }
-        } 
-      } catch (err) {
-        console.log(`\n⚠️ Error checking collection ${collName}: ${err.message}`);
-      }
-    }
-    
-    // If we got here, check for session fields in incoming_chat webhook
-    console.log(`\n🔍 Checking recent webhooks for session_fields...`);
-    if (global.recentWebhooks && global.recentWebhooks.has(chatId)) {
-      const webhook = global.recentWebhooks.get(chatId);
-      const sessionFields = webhook?.chat?.users?.[0]?.session_fields;
-      
-      if (sessionFields && sessionFields.length > 0 && sessionFields[0].session_id) {
-        sessionId = sessionFields[0].session_id;
-        console.log(`\n✅ Found session mapping in recent webhooks: ${chatId} -> ${sessionId}`);
-        
-        // Store for future
-        try {
-          await storeChatSessionMapping(chatId, sessionId);
-        } catch (err) {
-          console.log(`\n⚠️ Could not store mapping: ${err.message}`);
         }
-        
-        return sessionId;
       }
     }
     
-    console.log(`\n⚠️ No mapping found in any collection for chat ID: ${chatId}`);
+    // As a last resort, try MongoDB (but directly without collection checking)
+    try {
+      const { db } = await connectToDatabase();
+      const mapping = await db.collection('livechat_mappings').findOne({ chatId: chatId });
+      
+      if (mapping && mapping.sessionId) {
+        console.log(`\n✅ Found session mapping in MongoDB: ${chatId} -> ${mapping.sessionId}`);
+        
+        // Cache for future
+        if (!global.liveChatSessionMappings) {
+          global.liveChatSessionMappings = new Map();
+        }
+        global.liveChatSessionMappings.set(chatId, mapping.sessionId);
+        
+        return mapping.sessionId;
+      }
+    } catch (dbError) {
+      console.warn('\n⚠️ Error checking MongoDB:', dbError.message);
+      // Continue - this is just a fallback
+    }
+    
+    console.log(`\n⚠️ No mapping found for chat ID: ${chatId}`);
     return null;
   } catch (error) {
     console.error('\n❌ Error retrieving mapping:', error);
@@ -4211,7 +4209,7 @@ app.post('/webhook/livechat', async (req, res) => {
       action: req.body.action,
       type: req.body.payload?.event?.type,
       author: req.body.payload?.event?.author?.type,
-      chat_id: req.body.payload?.chat_id
+      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id
     });
     
     // Log full payload for debugging
@@ -4223,36 +4221,76 @@ app.post('/webhook/livechat', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
     }
     
-    // ADD THE NEW CODE HERE - This is for incoming_chat events
+    // Handle incoming_chat events
     if (req.body.action === 'incoming_chat') {
       try {
-        // Store the webhook payload in memory for retrieving session fields later
-        if (req.body.payload && req.body.payload.chat && req.body.payload.chat.id) {
-          const chatId = req.body.payload.chat.id;
-          if (!global.recentWebhooks) {
-            global.recentWebhooks = new Map();
-          }
-          global.recentWebhooks.set(chatId, req.body.payload.chat);
-          console.log(`\n📝 Stored incoming_chat webhook for chat ID: ${chatId}`);
+        console.log('\n📝 Processing incoming_chat webhook...');
+        
+        // Extract chat ID and customer info
+        const chat = req.body.payload.chat;
+        if (!chat || !chat.id) {
+          console.warn('\n⚠️ Invalid chat payload in incoming_chat webhook');
+          return res.status(200).json({ success: true }); // Still return success
+        }
+        
+        const chatId = chat.id;
+        console.log('\n🔍 Processing incoming_chat for chat ID:', chatId);
+        
+        // Store in global cache
+        if (!global.recentWebhooks) {
+          global.recentWebhooks = new Map();
+        }
+        global.recentWebhooks.set(chatId, chat);
+        console.log('\n💾 Stored webhook in memory cache');
+        
+        // Extract session ID from customer session fields
+        const users = chat.users || [];
+        const customer = users.find(user => user.type === 'customer');
+        
+        if (customer && customer.session_fields && customer.session_fields.length > 0) {
+          // Try to find the session_id field
+          let sessionId = null;
           
-          // While we're here, check for session_fields and store mapping if present
-          const users = req.body.payload.chat.users;
-          const customer = users.find(user => user.type === 'customer');
-          
-          if (customer && customer.session_fields && customer.session_fields.length > 0) {
-            const sessionId = customer.session_fields[0].session_id;
-            if (sessionId) {
-              console.log(`\n🔍 Found session_id in webhook: ${sessionId}`);
-              await storeChatSessionMapping(chatId, sessionId);
+          // First try accessing directly via index
+          if (customer.session_fields[0].session_id) {
+            sessionId = customer.session_fields[0].session_id;
+          } 
+          // Then try finding the session_id field
+          else {
+            const sessionField = customer.session_fields.find(field => field.session_id);
+            if (sessionField) {
+              sessionId = sessionField.session_id;
             }
           }
+          
+          if (sessionId) {
+            console.log('\n✅ Found session ID in webhook:', sessionId);
+            
+            // CRITICAL: Store this mapping in memory for immediate use
+            if (!global.liveChatSessionMappings) {
+              global.liveChatSessionMappings = new Map();
+            }
+            global.liveChatSessionMappings.set(chatId, sessionId);
+            console.log(`\n🔗 Stored mapping in memory: ${chatId} -> ${sessionId}`);
+            
+            // Also try to store in MongoDB for persistence
+            try {
+              await storeChatSessionMapping(chatId, sessionId);
+            } catch (storageError) {
+              console.warn('\n⚠️ Could not store in MongoDB, but in-memory mapping is set:', storageError.message);
+            }
+          } else {
+            console.warn('\n⚠️ No session_id found in session_fields');
+          }
+        } else {
+          console.warn('\n⚠️ No customer or session_fields found in users array');
         }
       } catch (error) {
         console.error('\n❌ Error processing incoming_chat webhook:', error);
       }
     }
     
-    // We're only interested in new messages - YOUR EXISTING CODE
+    // Handle incoming message events
     if (req.body.action === 'incoming_event' && req.body.payload.event?.type === 'message') {
       // Process the incoming message
       const result = await processLiveChatMessage(req.body.payload);
