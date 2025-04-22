@@ -1,4 +1,4 @@
-import { processLiveChatMessage } from '../services/livechat';
+import { processLiveChatMessage } from '../../services/livechat.js';
 
 export default async function handler(req, res) {
   try {
