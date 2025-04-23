@@ -1355,7 +1355,12 @@ async function findSessionIdForChat(chatId) {
   }
 }
 
-// Add this as a new function after your existing helper functions
+/**
+ * Stores a mapping between LiveChat chat ID and session ID
+ * @param {string} chatId - LiveChat chat ID
+ * @param {string} sessionId - Chatbot session ID
+ * @returns {Promise<boolean>} - Success status
+ */
 async function storeChatSessionMapping(chatId, sessionId) {
   try {
     console.log(`\n🔗 Storing mapping: ${chatId} -> ${sessionId}`);
@@ -1368,26 +1373,45 @@ async function storeChatSessionMapping(chatId, sessionId) {
     
     // 2. Store via API endpoint (reliable across function instances)
     try {
-      await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store`, {
+      const response = await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ chatId, sessionId })
       });
-      console.log(`\n🔗 Mapping stored via API`);
+      
+      if (response.ok) {
+        console.log(`\n🔗 Mapping stored via API`);
+      } else {
+        console.warn(`\n⚠️ API storage failed: ${await response.text()}`);
+      }
     } catch (apiError) {
       console.warn(`\n⚠️ Could not store mapping via API: ${apiError.message}`);
     }
     
-    // 3. Also try MongoDB as fallback
+    // 3. Also try MongoDB
     try {
       const { db } = await connectToDatabase();
+      
+      // Ensure the collection exists
+      let collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
+      if (collections.length === 0) {
+        await db.createCollection('livechat_mappings');
+        console.log('\n✅ Created livechat_mappings collection');
+      }
+      
+      // Store the mapping
       await db.collection('livechat_mappings').updateOne(
-        { chatId: chatId },
-        { $set: { sessionId: sessionId, updatedAt: new Date() } },
+        { chatId },
+        { $set: { 
+            sessionId,
+            updatedAt: new Date()
+          }
+        },
         { upsert: true }
       );
+      
       console.log(`\n🔗 Mapping stored in MongoDB`);
     } catch (dbError) {
       console.warn(`\n⚠️ Could not store in MongoDB: ${dbError.message}`);
