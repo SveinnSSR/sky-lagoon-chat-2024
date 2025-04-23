@@ -3198,25 +3198,71 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log(`\n🔍 Customer ID for attribution: ${customerId}`);
                 console.log(`\n🔍 Message to send: "${userMessage}"`);
                 
+                // Modify the message to make it clear it's from the customer
+                let enhancedMessage = userMessage;
+                if (userMessage.length < 30 && !userMessage.startsWith('[Customer]')) {
+                    enhancedMessage = `[Customer] ${userMessage}`;
+                    console.log(`\n✏️ Enhanced message with customer prefix: "${enhancedMessage}"`);
+                }
+                
                 // Send message as customer with explicit attribution
-                await sendMessageToLiveChat(
+                const sendResult = await sendMessageToLiveChat(
                     req.body.chatId, 
-                    userMessage, 
+                    enhancedMessage, // Use enhanced message for clarity
                     credentials, 
                     customerId, 
                     true  // isFromCustomer = true
                 );
                 
-                // IMPORTANT: Add a verification request to see how the message was processed
+                if (!sendResult) {
+                    console.warn('\n⚠️ Initial send attempt failed, trying emergency path...');
+                    
+                    // Try emergency send as direct backup
+                    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+                    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+                    const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                    
+                    // Double-check for proper format
+                    const eventObj = {
+                        type: 'message',
+                        text: enhancedMessage,
+                        visibility: 'all',
+                    };
+                    
+                    // Always include author_id when available
+                    if (customerId) {
+                        eventObj.author_id = customerId;
+                        // Add properties in correct format
+                        eventObj.properties = {
+                            customer_message: true,
+                            source: {
+                                client_id: 'sky_lagoon_chatbot'
+                            }
+                        };
+                    }
+                    
+                    await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Basic ${emergencyCredentials}`,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            chat_id: req.body.chatId,
+                            event: eventObj
+                        })
+                    });
+                }
+                
+                // IMPORTANT: Verify the message was sent with correct attribution
                 try {
                     // Wait a moment for the message to be processed
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     
                     // Check the last events in this chat
-                    const agentCredentials = credentials.startsWith('Basic ') ? 
-                        credentials : 
-                        `Basic ${Buffer.from('e3a3d41a-203f-46bc-a8b0-94ef5b3e378e:fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc').toString('base64')}`;
-                        
+                    const agentCredentials = `Basic ${Buffer.from('e3a3d41a-203f-46bc-a8b0-94ef5b3e378e:fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc').toString('base64')}`;
+                    
                     const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
                         method: 'POST',
                         headers: {
