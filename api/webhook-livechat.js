@@ -10,6 +10,27 @@ const MONGODB_DB = process.env.MONGODB_DB || 'skylagoon-chat-db';
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
+// Sky Lagoon Organization ID for filtering
+const SKY_LAGOON_ORG_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
+
+// Message deduplication cache - NEW
+if (!global.recentSentMessages) {
+  global.recentSentMessages = new Map(); // Use Map to store timestamp with message
+}
+
+// Clean up old entries every few minutes to prevent memory leaks - NEW
+setInterval(() => {
+  if (global.recentSentMessages) {
+    const now = Date.now();
+    for (const [key, timestamp] of global.recentSentMessages.entries()) {
+      // Remove entries older than 30 seconds
+      if (now - timestamp > 30000) {
+        global.recentSentMessages.delete(key);
+      }
+    }
+  }
+}, 300000); // Clean every 5 minutes
+
 // Pusher configuration
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -137,7 +158,8 @@ export default async function handler(req, res) {
       action: req.body.action,
       type: req.body.payload?.event?.type,
       author: req.body.payload?.event?.author_id,
-      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id
+      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id,
+      organization_id: req.body.organization_id // NEW: Log organization ID
     });
     
     // Log full payload for debugging
@@ -147,6 +169,12 @@ export default async function handler(req, res) {
     if (!req.body.action || !req.body.payload) {
       console.warn('\n⚠️ Invalid webhook format');
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
+    }
+    
+    // NEW: Filter out unrelated organizations
+    if (req.body.organization_id && req.body.organization_id !== SKY_LAGOON_ORG_ID) {
+      console.log(`\n⚠️ Ignoring webhook from unrelated organization: ${req.body.organization_id}`);
+      return res.status(200).json({ success: true });
     }
     
     // Handle incoming_chat events - EXTRACT SESSION ID FROM EMAIL
@@ -288,6 +316,13 @@ export default async function handler(req, res) {
       const messageText = event.text;
       
       console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
+      
+      // NEW: Check if this message is an echo of something we just sent
+      const messageKey = `${chatId}:${messageText.slice(0, 50)}`;
+      if (global.recentSentMessages && global.recentSentMessages.has(messageKey)) {
+        console.log('\n🔄 Ignoring echoed message that we just sent');
+        return res.status(200).json({ success: true });
+      }
       
       // Ignore system messages
       if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 

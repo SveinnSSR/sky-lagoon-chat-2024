@@ -1622,6 +1622,14 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             console.log(`\n👤 Setting message author to customer: ${customerId}`);
         }
         
+        // NEW: Add message to deduplication cache to prevent echo
+        if (!global.recentSentMessages) {
+            global.recentSentMessages = new Map();
+        }
+        const messageKey = `${chatId}:${message.slice(0, 50)}`;
+        global.recentSentMessages.set(messageKey, Date.now());
+        console.log(`\n🔒 Added message to deduplication cache: ${messageKey}`);
+        
         // Step 3: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
@@ -1665,6 +1673,14 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
                 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
                 const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                
+                // Track this message in the deduplication cache even for emergency send
+                if (!global.recentSentMessages) {
+                    global.recentSentMessages = new Map();
+                }
+                const messageKey = `${chatId}:${message.slice(0, 50)}`;
+                global.recentSentMessages.set(messageKey, Date.now());
+                console.log(`\n🔒 Added emergency message to deduplication cache: ${messageKey}`);
                 
                 // Simple message send with minimal complexity
                 await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
