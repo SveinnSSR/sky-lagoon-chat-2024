@@ -1542,67 +1542,12 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                     
                     if (retryResponse.ok) {
                         console.log('\n✅ Chat access check succeeded with alternative field name');
-                        
-                        // If missing customerId but we need it and got chat data, try to extract it
-                        if (isFromCustomer && !customerId) {
-                            try {
-                                const chatData = await retryResponse.json();
-                                const customer = chatData.users?.find(user => user.type === 'customer');
-                                if (customer && customer.id) {
-                                    customerId = customer.id;
-                                    console.log(`\n✅ Extracted customer ID from chat data: ${customerId}`);
-                                }
-                            } catch (err) {
-                                console.warn('\n⚠️ Failed to extract customer ID:', err.message);
-                            }
-                        }
                     } else {
                         console.warn('\n⚠️ Both field names failed for chat access check');
                     }
-                } else if (isFromCustomer && !customerId) {
-                    // One more try to get the customerId
-                    try {
-                        console.log('\n🔍 Trying direct API lookup to get customer ID...');
-                        
-                        // Use hardcoded credentials as fallback
-                        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-                        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-                        const fallbackCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-                        
-                        const fallbackResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Basic ${fallbackCredentials}`,
-                                'X-Region': 'fra'
-                            },
-                            body: JSON.stringify({ chat_id: chatId })
-                        });
-                        
-                        if (fallbackResponse.ok) {
-                            const chatData = await fallbackResponse.json();
-                            const customer = chatData.users?.find(user => user.type === 'customer');
-                            if (customer && customer.id) {
-                                customerId = customer.id;
-                                console.log(`\n✅ Extracted customer ID using fallback credentials: ${customerId}`);
-                            }
-                        }
-                    } catch (idError) {
-                        console.warn('\n⚠️ Failed to get customer ID with fallback:', idError.message);
-                    }
                 }
             } else {
-                const chatData = await chatCheckResponse.json();
-                console.log('\n✅ Chat is accessible. Active:', chatData.active);
-                
-                // Extract customer ID if needed
-                if (isFromCustomer && !customerId) {
-                    const customer = chatData.users?.find(user => user.type === 'customer');
-                    if (customer && customer.id) {
-                        customerId = customer.id;
-                        console.log(`\n✅ Extracted customer ID from chat data: ${customerId}`);
-                    }
-                }
+                console.log('\n✅ Chat is accessible');
             }
         } catch (checkError) {
             console.warn('\n⚠️ Error checking chat access:', checkError.message);
@@ -1616,46 +1561,8 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             visibility: 'all'
         };
         
-        // IMPORTANT FIX: Add customer_id as author_id for customer messages
-        if (isFromCustomer && customerId) {
-            messageEvent.author_id = customerId;
-            console.log(`\n👤 Setting message author to customer: ${customerId}`);
-        }
-        
-        // NEW: Enhanced deduplication tracking with multiple signatures
-        if (!global.recentSentMessages) {
-            global.recentSentMessages = new Map();
-        }
-        
-        // Create multiple deduplication keys with different levels of specificity
-        const exactSignature = `${chatId}:${message}`;
-        const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
-        const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
-        
-        // Track all signature variations
-        const now = Date.now();
-        global.recentSentMessages.set(exactSignature, now);
-        global.recentSentMessages.set(trimmedSignature, now);
-        global.recentSentMessages.set(strippedSignature, now);
-        
-        console.log(`\n🔒 Added message to deduplication cache with multiple signatures`);
-        
-        // NEW: Track this message source for additional deduplication
-        if (!global.messageSourceTracker) {
-            global.messageSourceTracker = new Map();
-        }
-        global.messageSourceTracker.set(chatId, {
-            message: message,
-            isFromCustomer: isFromCustomer,
-            timestamp: now
-        });
-        
-        // DEBUGGING: Log the exact payload being sent
-        const sendPayload = {
-            chat_id: chatId,
-            event: messageEvent
-        };
-        console.log(`\n📦 Sending payload: ${JSON.stringify(sendPayload)}`);
+        // CRITICAL CHANGE: Don't try to set author_id when using Agent API
+        // The Agent API will always use the authenticated agent as the author
         
         // Step 3: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
@@ -1666,7 +1573,10 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 'Authorization': authHeader,
                 'X-Region': 'fra'
             },
-            body: JSON.stringify(sendPayload)
+            body: JSON.stringify({
+                chat_id: chatId,  // Always use chat_id for send_event
+                event: messageEvent
+            })
         });
         
         if (!response.ok) {
@@ -1698,25 +1608,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
                 const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
                 
-                // Track this message in the deduplication cache even for emergency send
-                if (!global.recentSentMessages) {
-                    global.recentSentMessages = new Map();
-                }
-                
-                // Create multiple deduplication keys with different levels of specificity
-                const exactSignature = `${chatId}:${message}`;
-                const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
-                const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
-                
-                // Track all signature variations
-                const now = Date.now();
-                global.recentSentMessages.set(exactSignature, now);
-                global.recentSentMessages.set(trimmedSignature, now);
-                global.recentSentMessages.set(strippedSignature, now);
-                
-                console.log(`\n🔒 Added emergency message to deduplication cache with multiple signatures`);
-                
-                // CRITICAL FIX: Simplified payload to avoid validation errors
+                // SIMPLIFIED: Just send the message without trying to set author
                 const emergencyPayload = {
                     chat_id: chatId,
                     event: {
@@ -1726,14 +1618,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                     }
                 };
                 
-                // Add author_id if we have a customer ID
-                if (customerId) {
-                    emergencyPayload.event.author_id = customerId;
-                }
-                
-                console.log(`\n📦 Emergency payload: ${JSON.stringify(emergencyPayload)}`);
-                
-                const emergencyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1742,12 +1627,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                     },
                     body: JSON.stringify(emergencyPayload)
                 });
-                
-                if (!emergencyResponse.ok) {
-                    const errorText = await emergencyResponse.text();
-                    console.error('\n❌ Emergency send error:', errorText);
-                    throw new Error(`Emergency send failed: ${errorText}`);
-                }
                 
                 console.log('\n✅ Emergency fallback message sent successfully');
             } catch (emergencyError) {

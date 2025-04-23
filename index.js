@@ -3190,21 +3190,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                // When in agent mode, we need to send the message as the customer
-                // Extract customer ID from session ID
                 const customerId = sessionId || req.body.sessionId;
                 
-                // IMPORTANT: Add these diagnostic logs to troubleshoot
                 console.log(`\n🔍 Customer ID for attribution: ${customerId}`);
                 console.log(`\n🔍 Message to send: "${userMessage}"`);
                 
-                // SIMPLEST SOLUTION: Directly send the message with minimal properties
+                // SIMPLEST SOLUTION: Directly send the message without trying to set author_id
                 try {
                     const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
                     const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
                     const directCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
                     
-                    // Create a very simple payload
+                    // Create a very simple payload WITHOUT author_id
                     const simplePayload = {
                         chat_id: req.body.chatId,
                         event: {
@@ -3214,10 +3211,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         }
                     };
                     
-                    // Add author_id if we have a customer ID
-                    if (customerId) {
-                        simplePayload.event.author_id = customerId;
-                    }
+                    // CRITICAL CHANGE: Don't set author_id - Agent API will always attribute
+                    // messages to the authenticated agent regardless of this setting
                     
                     console.log(`\n📦 Direct payload: ${JSON.stringify(simplePayload)}`);
                     
@@ -3241,13 +3236,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 } catch (directError) {
                     console.error('\n❌ Direct send failed, trying standard function:', directError.message);
                     
-                    // Fallback to standard function
+                    // Fallback to standard function - also don't try to set customer as author
                     await sendMessageToLiveChat(
                         req.body.chatId, 
                         userMessage, 
                         credentials, 
-                        customerId, 
-                        true  // isFromCustomer = true
+                        null,  // Don't pass customerId
+                        false  // Don't try to set customer as author
                     );
                 }
                 
