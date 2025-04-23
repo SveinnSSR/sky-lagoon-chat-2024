@@ -1621,6 +1621,10 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             messageEvent.author_id = customerId;
             console.log(`\n👤 Setting message author to customer: ${customerId}`);
         }
+
+        // NEW: Add extra properties to force customer attribution more strongly
+            messageEvent.properties = messageEvent.properties || {};
+            messageEvent.properties.customer_message = true;
         
         // NEW: Enhanced deduplication tracking with multiple signatures
         if (!global.recentSentMessages) {

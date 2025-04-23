@@ -3194,7 +3194,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Extract customer ID from session ID
                 const customerId = sessionId || req.body.sessionId;
                 
-                // Send message as customer
+                // IMPORTANT: Add these diagnostic logs to troubleshoot
+                console.log(`\n🔍 Customer ID for attribution: ${customerId}`);
+                console.log(`\n🔍 Message to send: "${userMessage}"`);
+                
+                // Send message as customer with explicit attribution
                 await sendMessageToLiveChat(
                     req.body.chatId, 
                     userMessage, 
@@ -3202,6 +3206,41 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     customerId, 
                     true  // isFromCustomer = true
                 );
+                
+                // IMPORTANT: Add a verification request to see how the message was processed
+                try {
+                    // Wait a moment for the message to be processed
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Check the last events in this chat
+                    const agentCredentials = credentials.startsWith('Basic ') ? 
+                        credentials : 
+                        `Basic ${Buffer.from('e3a3d41a-203f-46bc-a8b0-94ef5b3e378e:fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc').toString('base64')}`;
+                        
+                    const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': agentCredentials,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({ chat_id: req.body.chatId })
+                    });
+                    
+                    if (verifyResponse.ok) {
+                        const chatData = await verifyResponse.json();
+                        // Get the last few events
+                        const events = chatData.thread?.events?.slice(-5) || [];
+                        console.log('\n✅ Recent chat events:', JSON.stringify(events.map(e => ({
+                            id: e.id,
+                            author: e.author_id,
+                            text: e.text,
+                            type: e.type
+                        })), null, 2));
+                    }
+                } catch (verifyError) {
+                    console.error('\n⚠️ Verification check failed:', verifyError);
+                }
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({
