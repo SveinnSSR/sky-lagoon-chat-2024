@@ -921,22 +921,6 @@ const shouldTransferToAgent = async (message, languageDecision, context) => {
             }
         });
 
-        // TEMPORARY TRANSFER DISABLER - Add this block
-        // =============================================
-        // Return transfer disabled message regardless of what the AI detection says
-        const transferDisabledMessage = languageDecision.isIcelandic ? 
-            "Því miður er beint spjall við þjónustufulltrúa ekki í boði eins og er. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð. Ég mun gera mitt besta til að aðstoða þig." :
-            "I'm sorry, live chat with our customer service team is currently not available. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance. I'll do my best to help you with your questions.";
-            
-        console.log('\n⚠️ TRANSFERS DISABLED: Returning standard message');
-        
-        return {
-            shouldTransfer: false,
-            reason: 'transfers_disabled',
-            response: transferDisabledMessage
-        };
-        // =============================================  
-
         // Use the AI-powered detection from livechat.js
         const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
         
@@ -3206,94 +3190,39 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
+                // When in agent mode, we need to send the message as the customer
+                // Extract customer ID from session ID
                 const customerId = sessionId || req.body.sessionId;
                 
-                console.log(`\n🔍 Customer ID for attribution: ${customerId}`);
-                console.log(`\n🔍 Message to send: "${userMessage}"`);
+                // Don't try to set author to customer - LiveChat agent API doesn't support this
+                // Just send the message as the agent
+                await sendMessageToLiveChat(
+                    req.body.chatId, 
+                    userMessage, 
+                    credentials
+                );
                 
-                // SIMPLEST SOLUTION: Directly send the message without trying to set author_id
-                try {
-                    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-                    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-                    const directCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-                    
-                    // Create a very simple payload WITHOUT author_id
-                    const simplePayload = {
-                        chat_id: req.body.chatId,
-                        event: {
-                            type: 'message',
-                            text: userMessage,
-                            visibility: 'all'
-                        }
-                    };
-                    
-                    // CRITICAL CHANGE: Don't set author_id - Agent API will always attribute
-                    // messages to the authenticated agent regardless of this setting
-                    
-                    console.log(`\n📦 Direct payload: ${JSON.stringify(simplePayload)}`);
-                    
-                    const directResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Basic ${directCredentials}`,
-                            'X-Region': 'fra'
-                        },
-                        body: JSON.stringify(simplePayload)
-                    });
-                    
-                    if (!directResponse.ok) {
-                        const errorText = await directResponse.text();
-                        console.error('\n❌ Direct send error:', errorText);
-                        throw new Error(`Direct send failed: ${directResponse.status}`);
-                    }
-                    
-                    console.log('\n✅ Message sent successfully via direct approach');
-                } catch (directError) {
-                    console.error('\n❌ Direct send failed, trying standard function:', directError.message);
-                    
-                    // Fallback to standard function - also don't try to set customer as author
-                    await sendMessageToLiveChat(
-                        req.body.chatId, 
-                        userMessage, 
-                        credentials, 
-                        null,  // Don't pass customerId
-                        false  // Don't try to set customer as author
-                    );
+                // Track this message to detect echoes later
+                if (!global.recentCustomerMessages) {
+                    global.recentCustomerMessages = new Map();
                 }
                 
-                // IMPORTANT: Verify the message was sent with correct attribution
-                try {
-                    // Wait a moment for the message to be processed
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    // Check the last events in this chat
-                    const agentCredentials = `Basic ${Buffer.from('e3a3d41a-203f-46bc-a8b0-94ef5b3e378e:fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc').toString('base64')}`;
-                        
-                    const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': agentCredentials,
-                            'X-Region': 'fra'
-                        },
-                        body: JSON.stringify({ chat_id: req.body.chatId })
-                    });
-                    
-                    if (verifyResponse.ok) {
-                        const chatData = await verifyResponse.json();
-                        // Get the last few events
-                        const events = chatData.thread?.events?.slice(-5) || [];
-                        console.log('\n✅ Recent chat events:', JSON.stringify(events.map(e => ({
-                            id: e.id,
-                            author: e.author_id,
-                            text: e.text,
-                            type: e.type
-                        })), null, 2));
-                    }
-                } catch (verifyError) {
-                    console.error('\n⚠️ Verification check failed:', verifyError);
+                // Get or create array for this chat
+                const chatMessages = global.recentCustomerMessages.get(req.body.chatId) || [];
+                
+                // Add this message
+                chatMessages.push({
+                    text: userMessage,
+                    timestamp: Date.now()
+                });
+                
+                // Limit to last 10 messages
+                while (chatMessages.length > 10) {
+                    chatMessages.shift();
                 }
+                
+                // Store updated list
+                global.recentCustomerMessages.set(req.body.chatId, chatMessages);
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({

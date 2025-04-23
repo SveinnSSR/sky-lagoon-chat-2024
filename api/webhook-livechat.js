@@ -23,6 +23,11 @@ if (!global.messageSourceTracker) {
   global.messageSourceTracker = new Map(); // Track where messages originated
 }
 
+// Customer message tracking for echo detection - NEW
+if (!global.recentCustomerMessages) {
+  global.recentCustomerMessages = new Map(); // Track customer messages by chat
+}
+
 // Clean up old entries every few minutes to prevent memory leaks
 setInterval(() => {
   if (global.recentSentMessages) {
@@ -41,6 +46,20 @@ setInterval(() => {
     for (const [key, data] of global.messageSourceTracker.entries()) {
       if (now - data.timestamp > 60000) { // 1 minute
         global.messageSourceTracker.delete(key);
+      }
+    }
+  }
+  
+  // Clean up customer message tracker
+  if (global.recentCustomerMessages) {
+    const now = Date.now();
+    for (const [chatId, messages] of global.recentCustomerMessages.entries()) {
+      // Keep only messages from last 2 minutes
+      const recentMessages = messages.filter(msg => now - msg.timestamp < 120000);
+      if (recentMessages.length === 0) {
+        global.recentCustomerMessages.delete(chatId);
+      } else if (recentMessages.length < messages.length) {
+        global.recentCustomerMessages.set(chatId, recentMessages);
       }
     }
   }
@@ -186,7 +205,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
     }
     
-    // NEW: Filter out unrelated organizations
+    // Filter out unrelated organizations
     if (req.body.organization_id && req.body.organization_id !== SKY_LAGOON_ORG_ID) {
       console.log(`\n⚠️ Ignoring webhook from unrelated organization: ${req.body.organization_id}`);
       return res.status(200).json({ success: true });
@@ -333,8 +352,37 @@ export default async function handler(req, res) {
       
       console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
       
-      // NEW: Much stronger deduplication logic
-      // Create multiple signatures to catch different variations of the same message
+      // Ignore system messages
+      if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
+          messageText.includes('REMINDER: Customer waiting')) {
+        console.log('\n📝 Ignoring system message');
+        return res.status(200).json({ success: true });
+      }
+      
+      // NEW ECHO DETECTION: Check for recent messages from the chatbot in this chat
+      // This catches agent echoes of customer messages
+      try {
+        // Check if we've seen a user message with this exact text recently (within 10 seconds)
+        const now = Date.now();
+        
+        // Get the recent messages for this chat
+        const chatMessages = global.recentCustomerMessages?.get(chatId) || [];
+        const matchingMessage = chatMessages.find(msg => 
+          msg.text === messageText && (now - msg.timestamp < 10000)
+        );
+        
+        if (matchingMessage) {
+          console.log('\n🔄 Agent message matches recent customer message - likely an echo');
+          console.log(`\n🔍 Customer sent "${messageText}" at ${new Date(matchingMessage.timestamp).toISOString()}`);
+          console.log(`\n🔍 Agent echoed it at ${new Date().toISOString()}`);
+          return res.status(200).json({ success: true });
+        }
+      } catch (echoError) {
+        console.error('\n❌ Error in echo detection:', echoError);
+        // Continue processing - don't block on error
+      }
+      
+      // Continue with existing deduplication checks
       const exactSignature = `${chatId}:${messageText}`;
       const trimmedSignature = `${chatId}:${messageText.slice(0, 50)}`;
       const strippedSignature = `${chatId}:${messageText.replace(/\s+/g, '').slice(0, 30)}`;
@@ -346,29 +394,6 @@ export default async function handler(req, res) {
            global.recentSentMessages.has(strippedSignature))) {
         console.log('\n🔄 Ignoring echoed message that we just sent - SIGNATURE MATCH');
         console.log(`\n🔍 Matched signatures: exact=${global.recentSentMessages.has(exactSignature)}, trimmed=${global.recentSentMessages.has(trimmedSignature)}, stripped=${global.recentSentMessages.has(strippedSignature)}`);
-        return res.status(200).json({ success: true });
-      }
-      
-      // NEW: Check if message came from our system originally
-      if (global.messageSourceTracker && global.messageSourceTracker.has(chatId)) {
-        const sourceInfo = global.messageSourceTracker.get(chatId);
-        // If we have recent outgoing messages to this chat, check for potential echoes
-        if (Date.now() - sourceInfo.timestamp < 5000) { // Within last 5 seconds
-          const outgoingText = sourceInfo.message;
-          // Check for high similarity (could be fuzzy match)
-          const similarity = calculateSimilarity(outgoingText, messageText);
-          if (similarity > 0.8) { // 80% similarity threshold
-            console.log(`\n🔄 Ignoring likely echo with ${similarity.toFixed(2)} similarity score`);
-            console.log(`\n🔍 Original: "${outgoingText}", Echo: "${messageText}"`);
-            return res.status(200).json({ success: true });
-          }
-        }
-      }
-      
-      // Ignore system messages
-      if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
-          messageText.includes('REMINDER: Customer waiting')) {
-        console.log('\n📝 Ignoring system message');
         return res.status(200).json({ success: true });
       }
       
@@ -471,7 +496,7 @@ export default async function handler(req, res) {
   }
 }
 
-// NEW: Helper function to calculate similarity between two strings (0-1 scale)
+// Helper function to calculate similarity between two strings (0-1 scale)
 function calculateSimilarity(str1, str2) {
   if (!str1 || !str2) return 0;
   
