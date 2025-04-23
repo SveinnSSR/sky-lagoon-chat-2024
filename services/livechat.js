@@ -1462,13 +1462,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             return false;
         }
         
-        // For short customer messages, enhance with a prefix to make it clear in LiveChat
-        let enhancedMessage = message;
-        if (isFromCustomer && message.length < 30 && !message.startsWith('[Customer]')) {
-            enhancedMessage = `[Customer] ${message}`;
-            console.log(`\n✏️ Enhanced message with customer prefix: "${enhancedMessage}"`);
-        }
-        
         // Improved detection for different credential types
         let authHeader;
         let isAgentCredentials = false;
@@ -1499,7 +1492,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         else {
             authHeader = `Bearer ${credentials}`;
             isAgentCredentials = false;
-            console.log('\n📨 Sending message to LiveChat with bot token...');
+            console.log('\n📨 Sending message to LiveChat with prefixed bot token...');
         }
         
         // Step 1: Check if chat is accessible
@@ -1619,7 +1612,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         // Step 2: Prepare message event with the correct author attribution
         const messageEvent = {
             type: 'message',
-            text: enhancedMessage,
+            text: message,
             visibility: 'all'
         };
         
@@ -1627,14 +1620,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         if (isFromCustomer && customerId) {
             messageEvent.author_id = customerId;
             console.log(`\n👤 Setting message author to customer: ${customerId}`);
-            
-            // FIXED: Ensure properties is a valid JSON object structure
-            messageEvent.properties = {
-                customer_message: true,
-                source: {
-                    client_id: 'sky_lagoon_chatbot'
-                }
-            };
         }
         
         // NEW: Enhanced deduplication tracking with multiple signatures
@@ -1643,9 +1628,9 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         }
         
         // Create multiple deduplication keys with different levels of specificity
-        const exactSignature = `${chatId}:${enhancedMessage}`;
-        const trimmedSignature = `${chatId}:${enhancedMessage.slice(0, 50)}`;
-        const strippedSignature = `${chatId}:${enhancedMessage.replace(/\s+/g, '').slice(0, 30)}`;
+        const exactSignature = `${chatId}:${message}`;
+        const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
+        const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
         
         // Track all signature variations
         const now = Date.now();
@@ -1660,10 +1645,17 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             global.messageSourceTracker = new Map();
         }
         global.messageSourceTracker.set(chatId, {
-            message: enhancedMessage,
+            message: message,
             isFromCustomer: isFromCustomer,
             timestamp: now
         });
+        
+        // DEBUGGING: Log the exact payload being sent
+        const sendPayload = {
+            chat_id: chatId,
+            event: messageEvent
+        };
+        console.log(`\n📦 Sending payload: ${JSON.stringify(sendPayload)}`);
         
         // Step 3: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
@@ -1674,10 +1666,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 'Authorization': authHeader,
                 'X-Region': 'fra'
             },
-            body: JSON.stringify({
-                chat_id: chatId,  // Always use chat_id for send_event
-                event: messageEvent
-            })
+            body: JSON.stringify(sendPayload)
         });
         
         if (!response.ok) {
@@ -1709,22 +1698,15 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
                 const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
                 
-                // For short customer messages, add prefix if not already there
-                let enhancedMessage = message;
-                if (message.length < 30 && !message.startsWith('[Customer]')) {
-                    enhancedMessage = `[Customer] ${message}`;
-                    console.log(`\n✏️ Emergency enhanced message with customer prefix: "${enhancedMessage}"`);
-                }
-                
                 // Track this message in the deduplication cache even for emergency send
                 if (!global.recentSentMessages) {
                     global.recentSentMessages = new Map();
                 }
                 
                 // Create multiple deduplication keys with different levels of specificity
-                const exactSignature = `${chatId}:${enhancedMessage}`;
-                const trimmedSignature = `${chatId}:${enhancedMessage.slice(0, 50)}`;
-                const strippedSignature = `${chatId}:${enhancedMessage.replace(/\s+/g, '').slice(0, 30)}`;
+                const exactSignature = `${chatId}:${message}`;
+                const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
+                const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
                 
                 // Track all signature variations
                 const now = Date.now();
@@ -1734,34 +1716,40 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 
                 console.log(`\n🔒 Added emergency message to deduplication cache with multiple signatures`);
                 
-                // CRITICAL FIX: Ensure author_id is set in emergency path too
-                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                // CRITICAL FIX: Simplified payload to avoid validation errors
+                const emergencyPayload = {
+                    chat_id: chatId,
+                    event: {
+                        type: 'message',
+                        text: message,
+                        visibility: 'all'
+                    }
+                };
+                
+                // Add author_id if we have a customer ID
+                if (customerId) {
+                    emergencyPayload.event.author_id = customerId;
+                }
+                
+                console.log(`\n📦 Emergency payload: ${JSON.stringify(emergencyPayload)}`);
+                
+                const emergencyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Basic ${emergencyCredentials}`,
                         'X-Region': 'fra'
                     },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        event: {
-                            type: 'message',
-                            text: enhancedMessage,
-                            visibility: 'all',
-                            // CRITICAL FIX: Add author_id for customer
-                            author_id: customerId,
-                            // CRITICAL FIX: Ensure properties is properly structured
-                            properties: {
-                                customer_message: true,
-                                source: {
-                                    client_id: 'sky_lagoon_chatbot'
-                                }
-                            }
-                        }
-                    })
+                    body: JSON.stringify(emergencyPayload)
                 });
                 
-                console.log('\n✅ Emergency fallback message sent with proper attribution');
+                if (!emergencyResponse.ok) {
+                    const errorText = await emergencyResponse.text();
+                    console.error('\n❌ Emergency send error:', errorText);
+                    throw new Error(`Emergency send failed: ${errorText}`);
+                }
+                
+                console.log('\n✅ Emergency fallback message sent successfully');
             } catch (emergencyError) {
                 console.error('\n❌ Even emergency send failed:', emergencyError.message);
                 // Still return true to prevent UI crashes
