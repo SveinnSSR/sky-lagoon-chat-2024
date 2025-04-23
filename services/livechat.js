@@ -1622,13 +1622,33 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             console.log(`\n👤 Setting message author to customer: ${customerId}`);
         }
         
-        // NEW: Add message to deduplication cache to prevent echo
+        // NEW: Enhanced deduplication tracking with multiple signatures
         if (!global.recentSentMessages) {
             global.recentSentMessages = new Map();
         }
-        const messageKey = `${chatId}:${message.slice(0, 50)}`;
-        global.recentSentMessages.set(messageKey, Date.now());
-        console.log(`\n🔒 Added message to deduplication cache: ${messageKey}`);
+        
+        // Create multiple deduplication keys with different levels of specificity
+        const exactSignature = `${chatId}:${message}`;
+        const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
+        const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
+        
+        // Track all signature variations
+        const now = Date.now();
+        global.recentSentMessages.set(exactSignature, now);
+        global.recentSentMessages.set(trimmedSignature, now);
+        global.recentSentMessages.set(strippedSignature, now);
+        
+        console.log(`\n🔒 Added message to deduplication cache with multiple signatures`);
+        
+        // NEW: Track this message source for additional deduplication
+        if (!global.messageSourceTracker) {
+            global.messageSourceTracker = new Map();
+        }
+        global.messageSourceTracker.set(chatId, {
+            message: message,
+            isFromCustomer: isFromCustomer,
+            timestamp: now
+        });
         
         // Step 3: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
@@ -1678,9 +1698,19 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 if (!global.recentSentMessages) {
                     global.recentSentMessages = new Map();
                 }
-                const messageKey = `${chatId}:${message.slice(0, 50)}`;
-                global.recentSentMessages.set(messageKey, Date.now());
-                console.log(`\n🔒 Added emergency message to deduplication cache: ${messageKey}`);
+                
+                // Create multiple deduplication keys with different levels of specificity
+                const exactSignature = `${chatId}:${message}`;
+                const trimmedSignature = `${chatId}:${message.slice(0, 50)}`;
+                const strippedSignature = `${chatId}:${message.replace(/\s+/g, '').slice(0, 30)}`;
+                
+                // Track all signature variations
+                const now = Date.now();
+                global.recentSentMessages.set(exactSignature, now);
+                global.recentSentMessages.set(trimmedSignature, now);
+                global.recentSentMessages.set(strippedSignature, now);
+                
+                console.log(`\n🔒 Added emergency message to deduplication cache with multiple signatures`);
                 
                 // Simple message send with minimal complexity
                 await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {

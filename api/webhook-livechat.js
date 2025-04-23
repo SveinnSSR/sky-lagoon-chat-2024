@@ -18,7 +18,12 @@ if (!global.recentSentMessages) {
   global.recentSentMessages = new Map(); // Use Map to store timestamp with message
 }
 
-// Clean up old entries every few minutes to prevent memory leaks - NEW
+// Message source tracking - NEW
+if (!global.messageSourceTracker) {
+  global.messageSourceTracker = new Map(); // Track where messages originated
+}
+
+// Clean up old entries every few minutes to prevent memory leaks
 setInterval(() => {
   if (global.recentSentMessages) {
     const now = Date.now();
@@ -26,6 +31,16 @@ setInterval(() => {
       // Remove entries older than 30 seconds
       if (now - timestamp > 30000) {
         global.recentSentMessages.delete(key);
+      }
+    }
+  }
+  
+  // Clean up message source tracker too
+  if (global.messageSourceTracker) {
+    const now = Date.now();
+    for (const [key, data] of global.messageSourceTracker.entries()) {
+      if (now - data.timestamp > 60000) { // 1 minute
+        global.messageSourceTracker.delete(key);
       }
     }
   }
@@ -159,7 +174,7 @@ export default async function handler(req, res) {
       type: req.body.payload?.event?.type,
       author: req.body.payload?.event?.author_id,
       chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id,
-      organization_id: req.body.organization_id // NEW: Log organization ID
+      organization_id: req.body.organization_id // Log organization ID
     });
     
     // Log full payload for debugging
@@ -314,14 +329,40 @@ export default async function handler(req, res) {
       const event = req.body.payload.event;
       const authorId = event.author_id;
       const messageText = event.text;
+      const messageId = event.id;
       
-      console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
+      console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
       
-      // NEW: Check if this message is an echo of something we just sent
-      const messageKey = `${chatId}:${messageText.slice(0, 50)}`;
-      if (global.recentSentMessages && global.recentSentMessages.has(messageKey)) {
-        console.log('\n🔄 Ignoring echoed message that we just sent');
+      // NEW: Much stronger deduplication logic
+      // Create multiple signatures to catch different variations of the same message
+      const exactSignature = `${chatId}:${messageText}`;
+      const trimmedSignature = `${chatId}:${messageText.slice(0, 50)}`;
+      const strippedSignature = `${chatId}:${messageText.replace(/\s+/g, '').slice(0, 30)}`;
+      
+      // Check if we've seen this message before (exact or approximate match)
+      if (global.recentSentMessages && 
+          (global.recentSentMessages.has(exactSignature) || 
+           global.recentSentMessages.has(trimmedSignature) || 
+           global.recentSentMessages.has(strippedSignature))) {
+        console.log('\n🔄 Ignoring echoed message that we just sent - SIGNATURE MATCH');
+        console.log(`\n🔍 Matched signatures: exact=${global.recentSentMessages.has(exactSignature)}, trimmed=${global.recentSentMessages.has(trimmedSignature)}, stripped=${global.recentSentMessages.has(strippedSignature)}`);
         return res.status(200).json({ success: true });
+      }
+      
+      // NEW: Check if message came from our system originally
+      if (global.messageSourceTracker && global.messageSourceTracker.has(chatId)) {
+        const sourceInfo = global.messageSourceTracker.get(chatId);
+        // If we have recent outgoing messages to this chat, check for potential echoes
+        if (Date.now() - sourceInfo.timestamp < 5000) { // Within last 5 seconds
+          const outgoingText = sourceInfo.message;
+          // Check for high similarity (could be fuzzy match)
+          const similarity = calculateSimilarity(outgoingText, messageText);
+          if (similarity > 0.8) { // 80% similarity threshold
+            console.log(`\n🔄 Ignoring likely echo with ${similarity.toFixed(2)} similarity score`);
+            console.log(`\n🔍 Original: "${outgoingText}", Echo: "${messageText}"`);
+            return res.status(200).json({ success: true });
+          }
+        }
       }
       
       // Ignore system messages
@@ -428,4 +469,31 @@ export default async function handler(req, res) {
       preventCrash: true
     });
   }
+}
+
+// NEW: Helper function to calculate similarity between two strings (0-1 scale)
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  
+  // Convert both to lowercase and trim
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  // Exact match
+  if (s1 === s2) return 1;
+  
+  // Length difference check
+  if (Math.abs(s1.length - s2.length) / Math.max(s1.length, s2.length) > 0.5) {
+    return 0; // Too different in length
+  }
+  
+  // Simple character-based similarity
+  let matches = 0;
+  const minLength = Math.min(s1.length, s2.length);
+  
+  for (let i = 0; i < minLength; i++) {
+    if (s1[i] === s2[i]) matches++;
+  }
+  
+  return matches / minLength;
 }
