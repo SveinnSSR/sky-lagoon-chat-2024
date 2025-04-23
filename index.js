@@ -3214,6 +3214,36 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
+                // CRITICAL NEW CODE: Track this message for echo detection
+                try {
+                    if (!global.customerMessageTracker) {
+                        global.customerMessageTracker = new Map();
+                    }
+                    
+                    // Get or create array for this chat
+                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
+                    
+                    // Add this message with timestamp
+                    chatMessages.push({
+                        text: userMessage,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Limit to last 10 messages
+                    while (chatMessages.length > 10) {
+                        chatMessages.shift();
+                    }
+                    
+                    // Store updated list
+                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
+                    
+                    console.log(`\n🔒 Tracked customer message for echo detection: "${userMessage}"`);
+                } catch (trackError) {
+                    console.error('\n⚠️ Error tracking customer message:', trackError);
+                    // Continue anyway - don't block on tracking error
+                }
+                
+                // Send message to LiveChat (no need to set author_id)
                 await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 // No broadcast needed for agent mode messages - just forward them

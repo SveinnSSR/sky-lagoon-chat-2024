@@ -10,6 +10,26 @@ const MONGODB_DB = process.env.MONGODB_DB || 'skylagoon-chat-db';
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
+// Initialize customer message tracker for echo detection
+if (!global.customerMessageTracker) {
+  global.customerMessageTracker = new Map();
+}
+
+// Clean up old tracked messages every 5 minutes to prevent memory leaks
+setInterval(() => {
+  if (global.customerMessageTracker) {
+    const now = Date.now();
+    for (const [chatId, messages] of global.customerMessageTracker.entries()) {
+      const recentMessages = messages.filter(msg => now - msg.timestamp < 120000); // 2 minutes
+      if (recentMessages.length === 0) {
+        global.customerMessageTracker.delete(chatId);
+      } else if (recentMessages.length < messages.length) {
+        global.customerMessageTracker.set(chatId, recentMessages);
+      }
+    }
+  }
+}, 300000);
+
 // Pusher configuration
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -257,6 +277,8 @@ export default async function handler(req, res) {
         }
       } catch (error) {
         console.error('\n❌ Error processing incoming_chat webhook:', error);
+        // Always return success for incoming_chat events
+        return res.status(200).json({ success: true, preventCrash: true });
       }
     }
     
@@ -268,14 +290,37 @@ export default async function handler(req, res) {
       const event = req.body.payload.event;
       const authorId = event.author_id;
       const messageText = event.text;
+      const messageId = event.id;
       
-      console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
+      console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
       
       // Ignore system messages
       if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
           messageText.includes('REMINDER: Customer waiting')) {
         console.log('\n📝 Ignoring system message');
         return res.status(200).json({ success: true });
+      }
+      
+      // NEW ECHO DETECTION: Check if this message matches a recent customer message
+      try {
+        if (global.customerMessageTracker) {
+          const chatMessages = global.customerMessageTracker.get(chatId) || [];
+          
+          // Look for matching messages sent in the last 10 seconds
+          const now = Date.now();
+          const matchingMessage = chatMessages.find(msg => 
+            msg.text === messageText && (now - msg.timestamp < 10000)
+          );
+          
+          if (matchingMessage) {
+            console.log(`\n🔄 ECHO DETECTED: "${messageText}" was sent by customer ${(now - matchingMessage.timestamp)/1000}s ago`);
+            console.log('\n⚠️ Skipping to prevent duplication');
+            return res.status(200).json({ success: true });
+          }
+        }
+      } catch (echoError) {
+        console.error('\n❌ Error in echo detection:', echoError);
+        // Continue processing even if echo detection fails
       }
       
       // Check if this is an agent message
@@ -289,7 +334,12 @@ export default async function handler(req, res) {
       const sessionId = await findSessionIdForChat(chatId);
       if (!sessionId) {
         console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
-        return res.status(404).json({ success: false, error: 'Session not found' });
+        // CRITICAL CHANGE: Return 200 with preventCrash flag instead of 404
+        return res.status(200).json({ 
+          success: false, 
+          error: 'Session not found',
+          preventCrash: true
+        });
       }
       
       // Extract agent name (for better UX)
@@ -324,6 +374,11 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('\n❌ Webhook processing error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    // CRITICAL CHANGE: Return 200 with preventCrash flag instead of 500
+    return res.status(200).json({ 
+      success: false, 
+      error: error.message,
+      preventCrash: true 
+    });
   }
 }
