@@ -1147,7 +1147,7 @@ async function processLiveChatMessage(payload) {
 }
 
 /**
- * Finds the session ID associated with a LiveChat chat ID. This is unused - used in api/webhook-livechat instead
+ * Finds the session ID associated with a LiveChat chat ID
  * @param {string} chatId - The LiveChat chat ID
  * @returns {Promise<string|null>} - The session ID or null if not found
  */
@@ -3190,39 +3190,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                // When in agent mode, we need to send the message as the customer
-                // Extract customer ID from session ID
-                const customerId = sessionId || req.body.sessionId;
-                
-                // Don't try to set author to customer - LiveChat agent API doesn't support this
-                // Just send the message as the agent
-                await sendMessageToLiveChat(
-                    req.body.chatId, 
-                    userMessage, 
-                    credentials
-                );
-                
-                // Track this message to detect echoes later
-                if (!global.recentCustomerMessages) {
-                    global.recentCustomerMessages = new Map();
-                }
-                
-                // Get or create array for this chat
-                const chatMessages = global.recentCustomerMessages.get(req.body.chatId) || [];
-                
-                // Add this message
-                chatMessages.push({
-                    text: userMessage,
-                    timestamp: Date.now()
-                });
-                
-                // Limit to last 10 messages
-                while (chatMessages.length > 10) {
-                    chatMessages.shift();
-                }
-                
-                // Store updated list
-                global.recentCustomerMessages.set(req.body.chatId, chatMessages);
+                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
                 // No broadcast needed for agent mode messages - just forward them
                 return res.status(200).json({

@@ -1447,11 +1447,9 @@ Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, '
  * @param {string} chatId - LiveChat chat ID
  * @param {string} message - Message to send
  * @param {string} credentials - Bot token or agent credentials
- * @param {string} customerId - Customer ID for attribution (optional)
- * @param {boolean} isFromCustomer - Whether this message is from the customer (default: false)
  * @returns {Promise<boolean>} Success status
  */
-export async function sendMessageToLiveChat(chatId, message, credentials, customerId = null, isFromCustomer = false) {
+export async function sendMessageToLiveChat(chatId, message, credentials) {
     try {
         if (!chatId || !message || !credentials) {
             console.error('\n❌ Missing required parameters:', { 
@@ -1492,7 +1490,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         else {
             authHeader = `Bearer ${credentials}`;
             isAgentCredentials = false;
-            console.log('\n📨 Sending message to LiveChat with prefixed bot token...');
+            console.log('\n📨 Sending message to LiveChat with bot token...');
         }
         
         // Step 1: Check if chat is accessible
@@ -1500,6 +1498,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             console.log('\n🔍 Verifying chat access before sending...');
             
             // The get_chat endpoint has different field name requirements based on credential type
+            // For agent credentials, it expects chat_id, for bot token it expects id
             const chatCheckBody = isAgentCredentials ? 
                 { chat_id: chatId } :  // Agent credentials use chat_id
                 { id: chatId };        // Bot token uses id
@@ -1547,24 +1546,15 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                     }
                 }
             } else {
-                console.log('\n✅ Chat is accessible');
+                const chatData = await chatCheckResponse.json();
+                console.log('\n✅ Chat is accessible. Active:', chatData.active);
             }
         } catch (checkError) {
             console.warn('\n⚠️ Error checking chat access:', checkError.message);
             // Continue to message sending attempt
         }
         
-        // Step 2: Prepare message event with the correct author attribution
-        const messageEvent = {
-            type: 'message',
-            text: message,
-            visibility: 'all'
-        };
-        
-        // CRITICAL CHANGE: Don't try to set author_id when using Agent API
-        // The Agent API will always use the authenticated agent as the author
-        
-        // Step 3: Send message using appropriate credentials
+        // Step 2: Send message using appropriate credentials
         // The send_event endpoint consistently uses chat_id for all credential types
         const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
             method: 'POST',
@@ -1575,7 +1565,11 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             },
             body: JSON.stringify({
                 chat_id: chatId,  // Always use chat_id for send_event
-                event: messageEvent
+                event: {
+                    type: 'message',
+                    text: message,
+                    visibility: 'all'
+                }
             })
         });
         
@@ -1598,44 +1592,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
         return true;
     } catch (error) {
         console.error('\n❌ Error in sendMessageToLiveChat:', error);
-        
-        // IMPROVED ERROR HANDLING: Try one last-ditch effort with direct hardcoded credentials
-        if (isFromCustomer) {
-            try {
-                console.log('\n🔄 Attempting emergency fallback message send...');
-                
-                const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-                const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-                const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-                
-                // SIMPLIFIED: Just send the message without trying to set author
-                const emergencyPayload = {
-                    chat_id: chatId,
-                    event: {
-                        type: 'message',
-                        text: message,
-                        visibility: 'all'
-                    }
-                };
-                
-                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Basic ${emergencyCredentials}`,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify(emergencyPayload)
-                });
-                
-                console.log('\n✅ Emergency fallback message sent successfully');
-            } catch (emergencyError) {
-                console.error('\n❌ Even emergency send failed:', emergencyError.message);
-                // Still return true to prevent UI crashes
-            }
-        }
-        
-        // Always return true to prevent UI from crashing
+        // Return true to prevent error cascade - user can still send message via LiveChat UI
         return true;
     }
 }

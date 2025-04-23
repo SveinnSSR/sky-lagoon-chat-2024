@@ -10,61 +10,6 @@ const MONGODB_DB = process.env.MONGODB_DB || 'skylagoon-chat-db';
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
-// Sky Lagoon Organization ID for filtering
-const SKY_LAGOON_ORG_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
-
-// Message deduplication cache - NEW
-if (!global.recentSentMessages) {
-  global.recentSentMessages = new Map(); // Use Map to store timestamp with message
-}
-
-// Message source tracking - NEW
-if (!global.messageSourceTracker) {
-  global.messageSourceTracker = new Map(); // Track where messages originated
-}
-
-// Customer message tracking for echo detection - NEW
-if (!global.recentCustomerMessages) {
-  global.recentCustomerMessages = new Map(); // Track customer messages by chat
-}
-
-// Clean up old entries every few minutes to prevent memory leaks
-setInterval(() => {
-  if (global.recentSentMessages) {
-    const now = Date.now();
-    for (const [key, timestamp] of global.recentSentMessages.entries()) {
-      // Remove entries older than 30 seconds
-      if (now - timestamp > 30000) {
-        global.recentSentMessages.delete(key);
-      }
-    }
-  }
-  
-  // Clean up message source tracker too
-  if (global.messageSourceTracker) {
-    const now = Date.now();
-    for (const [key, data] of global.messageSourceTracker.entries()) {
-      if (now - data.timestamp > 60000) { // 1 minute
-        global.messageSourceTracker.delete(key);
-      }
-    }
-  }
-  
-  // Clean up customer message tracker
-  if (global.recentCustomerMessages) {
-    const now = Date.now();
-    for (const [chatId, messages] of global.recentCustomerMessages.entries()) {
-      // Keep only messages from last 2 minutes
-      const recentMessages = messages.filter(msg => now - msg.timestamp < 120000);
-      if (recentMessages.length === 0) {
-        global.recentCustomerMessages.delete(chatId);
-      } else if (recentMessages.length < messages.length) {
-        global.recentCustomerMessages.set(chatId, recentMessages);
-      }
-    }
-  }
-}, 300000); // Clean every 5 minutes
-
 // Pusher configuration
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -192,8 +137,7 @@ export default async function handler(req, res) {
       action: req.body.action,
       type: req.body.payload?.event?.type,
       author: req.body.payload?.event?.author_id,
-      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id,
-      organization_id: req.body.organization_id // Log organization ID
+      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id
     });
     
     // Log full payload for debugging
@@ -203,12 +147,6 @@ export default async function handler(req, res) {
     if (!req.body.action || !req.body.payload) {
       console.warn('\n⚠️ Invalid webhook format');
       return res.status(400).json({ success: false, error: 'Invalid webhook format' });
-    }
-    
-    // Filter out unrelated organizations
-    if (req.body.organization_id && req.body.organization_id !== SKY_LAGOON_ORG_ID) {
-      console.log(`\n⚠️ Ignoring webhook from unrelated organization: ${req.body.organization_id}`);
-      return res.status(200).json({ success: true });
     }
     
     // Handle incoming_chat events - EXTRACT SESSION ID FROM EMAIL
@@ -252,13 +190,6 @@ export default async function handler(req, res) {
           // Test that the mapping was stored correctly
           const storedSessionId = global.liveChatSessionMappings.get(chatId);
           console.log(`\n🔍 Verification check: ${storedSessionId === sessionId ? 'PASSED ✓' : 'FAILED ✗'}`);
-          
-          // Add to recent sessions for fallback
-          if (!global.recentSessions) {
-            global.recentSessions = new Set();
-          }
-          global.recentSessions.add(sessionId);
-          console.log(`\n📝 Added to recent sessions: ${sessionId}`);
           
           // Try to store in MongoDB
           try {
@@ -310,12 +241,6 @@ export default async function handler(req, res) {
               }
               global.liveChatSessionMappings.set(chatId, sessionId);
               
-              // Add to recent sessions
-              if (!global.recentSessions) {
-                global.recentSessions = new Set();
-              }
-              global.recentSessions.add(sessionId);
-              
               // Store in MongoDB
               try {
                 const { db } = await connectToDatabase();
@@ -332,11 +257,6 @@ export default async function handler(req, res) {
         }
       } catch (error) {
         console.error('\n❌ Error processing incoming_chat webhook:', error);
-        // Always return success for incoming_chat events
-        return res.status(200).json({ 
-          success: true, 
-          preventCrash: true
-        });
       }
     }
     
@@ -348,52 +268,13 @@ export default async function handler(req, res) {
       const event = req.body.payload.event;
       const authorId = event.author_id;
       const messageText = event.text;
-      const messageId = event.id;
       
-      console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
+      console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
       
       // Ignore system messages
       if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
           messageText.includes('REMINDER: Customer waiting')) {
         console.log('\n📝 Ignoring system message');
-        return res.status(200).json({ success: true });
-      }
-      
-      // NEW ECHO DETECTION: Check for recent messages from the chatbot in this chat
-      // This catches agent echoes of customer messages
-      try {
-        // Check if we've seen a user message with this exact text recently (within 10 seconds)
-        const now = Date.now();
-        
-        // Get the recent messages for this chat
-        const chatMessages = global.recentCustomerMessages?.get(chatId) || [];
-        const matchingMessage = chatMessages.find(msg => 
-          msg.text === messageText && (now - msg.timestamp < 10000)
-        );
-        
-        if (matchingMessage) {
-          console.log('\n🔄 Agent message matches recent customer message - likely an echo');
-          console.log(`\n🔍 Customer sent "${messageText}" at ${new Date(matchingMessage.timestamp).toISOString()}`);
-          console.log(`\n🔍 Agent echoed it at ${new Date().toISOString()}`);
-          return res.status(200).json({ success: true });
-        }
-      } catch (echoError) {
-        console.error('\n❌ Error in echo detection:', echoError);
-        // Continue processing - don't block on error
-      }
-      
-      // Continue with existing deduplication checks
-      const exactSignature = `${chatId}:${messageText}`;
-      const trimmedSignature = `${chatId}:${messageText.slice(0, 50)}`;
-      const strippedSignature = `${chatId}:${messageText.replace(/\s+/g, '').slice(0, 30)}`;
-      
-      // Check if we've seen this message before (exact or approximate match)
-      if (global.recentSentMessages && 
-          (global.recentSentMessages.has(exactSignature) || 
-           global.recentSentMessages.has(trimmedSignature) || 
-           global.recentSentMessages.has(strippedSignature))) {
-        console.log('\n🔄 Ignoring echoed message that we just sent - SIGNATURE MATCH');
-        console.log(`\n🔍 Matched signatures: exact=${global.recentSentMessages.has(exactSignature)}, trimmed=${global.recentSentMessages.has(trimmedSignature)}, stripped=${global.recentSentMessages.has(strippedSignature)}`);
         return res.status(200).json({ success: true });
       }
       
@@ -406,50 +287,9 @@ export default async function handler(req, res) {
       
       // Find the session ID for this chat
       const sessionId = await findSessionIdForChat(chatId);
-      
-      // MODIFIED: Added fallback to recent sessions to prevent UI crashes
       if (!sessionId) {
         console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
-        
-        // FALLBACK: Try to use most recent session
-        if (global.recentSessions && global.recentSessions.size > 0) {
-          const fallbackSessionId = [...global.recentSessions].pop();
-          console.log(`\n⚠️ Using fallback session ID: ${fallbackSessionId}`);
-          
-          // Extract agent name (for better UX)
-          let authorName = "Agent";
-          if (authorId.includes('@')) {
-            authorName = authorId.split('@')[0];
-            // Capitalize first letter
-            authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
-          }
-          
-          // Create agent message
-          const agentMessage = {
-            role: 'agent',
-            content: messageText,
-            author: authorName,
-            timestamp: new Date().toISOString()
-          };
-          
-          // Send to frontend via Pusher
-          console.log(`\n📤 Broadcasting agent message to fallback session: ${fallbackSessionId}`);
-          await pusher.trigger('chat-channel', 'agent-message', {
-            sessionId: fallbackSessionId,
-            message: agentMessage,
-            chatId: chatId
-          });
-          
-          console.log('\n✅ Agent message broadcast to fallback session');
-          return res.status(200).json({ success: true });
-        }
-        
-        // If no fallback, return error but prevent UI crashes
-        return res.status(200).json({ 
-          success: false, 
-          error: 'Session not found',
-          preventCrash: true  // Add this flag to signal the UI not to crash
-        });
+        return res.status(404).json({ success: false, error: 'Session not found' });
       }
       
       // Extract agent name (for better UX)
@@ -484,41 +324,6 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('\n❌ Webhook processing error:', error);
-    
-    // CRITICAL: Always return a 200 response to prevent LiveChat from retrying
-    // This prevents the UI from potentially crashing on retry attempts
-    return res.status(200).json({ 
-      success: false, 
-      error: error.message,
-      // Flag to tell frontend not to crash if it receives this error
-      preventCrash: true
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
-}
-
-// Helper function to calculate similarity between two strings (0-1 scale)
-function calculateSimilarity(str1, str2) {
-  if (!str1 || !str2) return 0;
-  
-  // Convert both to lowercase and trim
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
-  
-  // Exact match
-  if (s1 === s2) return 1;
-  
-  // Length difference check
-  if (Math.abs(s1.length - s2.length) / Math.max(s1.length, s2.length) > 0.5) {
-    return 0; // Too different in length
-  }
-  
-  // Simple character-based similarity
-  let matches = 0;
-  const minLength = Math.min(s1.length, s2.length);
-  
-  for (let i = 0; i < minLength; i++) {
-    if (s1[i] === s2[i]) matches++;
-  }
-  
-  return matches / minLength;
 }
