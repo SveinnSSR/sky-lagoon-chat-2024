@@ -301,19 +301,48 @@ export default async function handler(req, res) {
     // For incoming_event with message, process agent messages
     if (req.body.action === 'incoming_event' && 
         req.body.payload.event?.type === 'message') {
-      
+    
       const chatId = req.body.payload.chat_id;
       const event = req.body.payload.event;
       const authorId = event.author_id;
       const messageText = event.text;
+      const messageId = event.id; // Add message ID tracking
       
-      console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
+      console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
       
       // Ignore system messages
       if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
           messageText.includes('REMINDER: Customer waiting')) {
         console.log('\n📝 Ignoring system message');
         return res.status(200).json({ success: true });
+      }
+      
+      // SIMPLE GLOBAL MESSAGE TRACKING - More reliable across serverless executions
+      // Use a very simple approach that doesn't require complex Map structures
+      if (!global.recentMessages) {
+        global.recentMessages = [];
+      }
+      
+      // Check if this exact message text was recently processed (last 15 seconds)
+      const isDuplicate = global.recentMessages.some(msg => 
+        msg.text === messageText && (Date.now() - msg.timestamp < 15000)
+      );
+      
+      if (isDuplicate) {
+        console.log(`\n🔄 DUPLICATE DETECTED: "${messageText}" was recently processed`);
+        console.log('\n⚠️ Skipping to prevent duplication');
+        return res.status(200).json({ success: true });
+      }
+      
+      // Add this message to tracking
+      global.recentMessages.push({
+        text: messageText,
+        timestamp: Date.now()
+      });
+      
+      // Keep only the most recent 20 messages to prevent memory issues
+      if (global.recentMessages.length > 20) {
+        global.recentMessages.shift();
       }
       
       // Check if this is an agent message
@@ -323,79 +352,69 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       
-      // Find the session ID for this chat
-      const sessionId = await findSessionIdForChat(chatId);
-      
-      // MODIFIED: Added fallback to recent sessions to prevent UI crashes
-      if (!sessionId) {
-        console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
+      // Find the session ID for this chat - with defensive error handling
+      try {
+        const sessionId = await findSessionIdForChat(chatId);
         
-        // FALLBACK: Try to use most recent session
-        if (global.recentSessions && global.recentSessions.size > 0) {
-          const fallbackSessionId = [...global.recentSessions].pop();
-          console.log(`\n⚠️ Using fallback session ID: ${fallbackSessionId}`);
-          
-          // Extract agent name (for better UX)
-          let authorName = "Agent";
-          if (authorId.includes('@')) {
+        if (!sessionId) {
+          console.log(`\n⚠️ Could not find sessionId for chatId: ${chatId}`);
+          // CRITICAL: Return success instead of error to prevent webhook retries
+          return res.status(200).json({ 
+            success: false, 
+            error: 'Session not found',
+            preventCrash: true  // Signal to frontend not to crash
+          });
+        }
+        
+        // Extract agent name (for better UX)
+        let authorName = "Agent";
+        if (authorId && authorId.includes('@')) {
+          try {
             authorName = authorId.split('@')[0];
             // Capitalize first letter
             authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
+          } catch (nameError) {
+            console.log('\n⚠️ Could not extract agent name:', nameError.message);
+            // Continue with default name
           }
-          
-          // Create agent message
-          const agentMessage = {
-            role: 'agent',
-            content: messageText,
-            author: authorName,
-            timestamp: new Date().toISOString()
-          };
-          
-          // Send to frontend via Pusher
-          console.log(`\n📤 Broadcasting agent message to fallback session: ${fallbackSessionId}`);
+        }
+        
+        // Create agent message with defensive default values
+        const agentMessage = {
+          role: 'agent',
+          content: messageText || '',
+          author: authorName || 'Agent',
+          timestamp: new Date().toISOString()
+        };
+        
+        // Send to frontend via Pusher with try/catch
+        try {
+          console.log(`\n📤 Broadcasting agent message to session: ${sessionId}`);
           await pusher.trigger('chat-channel', 'agent-message', {
-            sessionId: fallbackSessionId,
+            sessionId: sessionId,
             message: agentMessage,
             chatId: chatId
           });
           
-          console.log('\n✅ Agent message broadcast to fallback session');
-          return res.status(200).json({ success: true });
+          console.log('\n✅ Agent message broadcast successfully');
+        } catch (pusherError) {
+          console.error('\n❌ Pusher broadcast error:', pusherError);
+          // Still return success to prevent webhook retries
+          return res.status(200).json({ 
+            success: false,
+            error: 'Broadcast error',
+            preventCrash: true
+          });
         }
-        
-        // If no fallback, return error but prevent UI crashes
+      } catch (error) {
+        console.error('\n❌ Error processing agent message:', error);
+        // CRITICAL: Return success status to prevent webhook retries
         return res.status(200).json({ 
           success: false, 
-          error: 'Session not found',
-          preventCrash: true  // Add this flag to signal the UI not to crash
+          error: error.message,
+          preventCrash: true
         });
       }
-      
-      // Extract agent name (for better UX)
-      let authorName = "Agent";
-      if (authorId.includes('@')) {
-        authorName = authorId.split('@')[0];
-        // Capitalize first letter
-        authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
-      }
-      
-      // Create agent message
-      const agentMessage = {
-        role: 'agent',
-        content: messageText,
-        author: authorName,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Send to frontend via Pusher
-      console.log(`\n📤 Broadcasting agent message to session: ${sessionId}`);
-      await pusher.trigger('chat-channel', 'agent-message', {
-        sessionId: sessionId,
-        message: agentMessage,
-        chatId: chatId
-      });
-      
-      console.log('\n✅ Agent message broadcast successfully');
     }
     
     // Always return success to acknowledge receipt

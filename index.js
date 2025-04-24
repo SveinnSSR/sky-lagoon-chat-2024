@@ -3214,44 +3214,39 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                // CRITICAL NEW CODE: Track this message for echo detection
+                // SIMPLIFIED MESSAGE TRACKING
                 try {
-                    if (!global.customerMessageTracker) {
-                        global.customerMessageTracker = new Map();
+                    // Use a simpler global array for tracking
+                    if (!global.recentMessages) {
+                        global.recentMessages = [];
                     }
                     
-                    // Get or create array for this chat
-                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
-                    
-                    // Add this message with timestamp
-                    chatMessages.push({
+                    // Add this message to tracking
+                    global.recentMessages.push({
                         text: userMessage,
                         timestamp: Date.now()
                     });
                     
-                    // Limit to last 10 messages
-                    while (chatMessages.length > 10) {
-                        chatMessages.shift();
+                    // Keep only recent messages
+                    if (global.recentMessages.length > 20) {
+                        global.recentMessages.shift();
                     }
-                    
-                    // Store updated list
-                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
                     
                     console.log(`\n🔒 Tracked customer message for echo detection: "${userMessage}"`);
                 } catch (trackError) {
-                    console.error('\n⚠️ Error tracking customer message:', trackError);
-                    // Continue anyway - don't block on tracking error
+                    console.error('\n⚠️ Error tracking message:', trackError);
+                    // Continue anyway
                 }
                 
-                // Send message to LiveChat (no need to set author_id)
+                // Send message to LiveChat
                 await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
                 
-                // No broadcast needed for agent mode messages - just forward them
+                // No broadcast needed for agent mode messages
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
                     agent_credentials: req.body.agent_credentials,
-                    bot_token: req.body.bot_token, // Keep bot_token for backward compatibility
+                    bot_token: req.body.bot_token,
                     suppressMessage: true,
                     language: {
                         detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
