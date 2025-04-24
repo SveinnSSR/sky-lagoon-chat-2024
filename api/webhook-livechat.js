@@ -10,6 +10,9 @@ const MONGODB_DB = process.env.MONGODB_DB || 'skylagoon-chat-db';
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
 
+// IMPROVED: Message tracking for duplicate detection
+const recentMessageHashes = new Map();
+
 // Initialize customer message tracker for echo detection
 if (!global.customerMessageTracker) {
   global.customerMessageTracker = new Map();
@@ -26,6 +29,14 @@ setInterval(() => {
       } else if (recentMessages.length < messages.length) {
         global.customerMessageTracker.set(chatId, recentMessages);
       }
+    }
+  }
+  
+  // Also clean up message hashes older than 30 seconds
+  const now = Date.now();
+  for (const [hash, timestamp] of recentMessageHashes.entries()) {
+    if (now - timestamp > 30000) { // 30 seconds
+      recentMessageHashes.delete(hash);
     }
   }
 }, 300000);
@@ -305,7 +316,7 @@ export default async function handler(req, res) {
       const chatId = req.body.payload.chat_id;
       const event = req.body.payload.event;
       const authorId = event.author_id;
-      const messageText = event.text;
+      const messageText = event.text || '';
       const messageId = event.id; // Add message ID tracking
       
       console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
@@ -317,8 +328,31 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       
-      // SIMPLE GLOBAL MESSAGE TRACKING - More reliable across serverless executions
-      // Use a very simple approach that doesn't require complex Map structures
+      // ENHANCED: Improved duplicate detection with simple hash-based approach
+      const messageHash = messageText.trim(); // Use trimmed text as a simple "hash"
+      const now = Date.now();
+      
+      // Check if we've seen this message recently (within 15 seconds)
+      if (recentMessageHashes.has(messageHash)) {
+        const timestamp = recentMessageHashes.get(messageHash);
+        if (now - timestamp < 15000) { // 15 seconds
+          console.log(`\n🔄 ENHANCED DUPLICATE DETECTION: "${messageText}" sent in last 15 seconds`);
+          console.log('\n⚠️ Skipping to prevent duplication');
+          return res.status(200).json({ success: true });
+        }
+      }
+      
+      // Store this message hash
+      recentMessageHashes.set(messageHash, now);
+      
+      // Clean up old hashes if we have too many (keep Map size manageable)
+      if (recentMessageHashes.size > 50) {
+        // Delete the oldest entry (first key)
+        const oldestKey = [...recentMessageHashes.keys()][0];
+        recentMessageHashes.delete(oldestKey);
+      }
+      
+      // ORIGINAL: Backup duplicate detection with global.recentMessages
       if (!global.recentMessages) {
         global.recentMessages = [];
       }
