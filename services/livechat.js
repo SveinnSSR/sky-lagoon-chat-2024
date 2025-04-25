@@ -1468,7 +1468,6 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
             }
         }
         
-
         if (!chatId || !message || !credentials) {
             console.error('\n❌ Missing required parameters:', { 
                 hasChatId: !!chatId, 

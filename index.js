@@ -3238,8 +3238,46 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // Continue anyway
                 }
                 
-                // Send message to LiveChat
-                await sendMessageToLiveChat(req.body.chatId, userMessage, credentials);
+                // NEW: Find customer ID for proper message attribution
+                let customerId = null;
+                try {
+                    // Use hardcoded admin credentials for reliable lookup
+                    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+                    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+                    const agentCreds = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+                    
+                    console.log('\n🔍 Getting customer ID for message attribution...');
+                    const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Basic ${agentCreds}`,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({ chat_id: req.body.chatId })
+                    });
+                    
+                    if (chatResponse.ok) {
+                        const chatData = await chatResponse.json();
+                        const customer = chatData.users?.find(user => user.type === 'customer');
+                        if (customer && customer.id) {
+                            customerId = customer.id;
+                            console.log(`\n✅ Found customer ID for attribution: ${customerId}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('\n⚠️ Error getting customer ID:', error);
+                    // Continue anyway, will fall back to agent attribution
+                }
+                
+                // Send message to LiveChat WITH PROPER ATTRIBUTION
+                await sendMessageToLiveChat(
+                    req.body.chatId, 
+                    userMessage, 
+                    credentials, 
+                    customerId,  // Pass the customer ID
+                    true        // Indicate this is from the customer
+                );
                 
                 // No broadcast needed for agent mode messages
                 return res.status(200).json({
