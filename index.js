@@ -59,6 +59,7 @@ import {
 } from './services/livechat.js';
 // MongoDB integration - add this after imports but before Pusher initialization
 import { connectToDatabase } from './database.js';
+import { storeRecentMessage } from './database.js';
 // Import from Data Models - You can safely remove these imports as it's handled inside messageProcessor.js
 import { normalizeConversation, normalizeMessage } from './dataModels.js';
 // Import from sessionManager
@@ -3241,6 +3242,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 } catch (trackError) {
                     console.error('\n⚠️ Error tracking message by chat ID:', trackError);
                     // Continue anyway
+                }
+                
+                // NEW: Store message in MongoDB for reliable echo detection
+                try {
+                    await storeRecentMessage(req.body.chatId, userMessage);
+                } catch (storeError) {
+                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
+                    // Continue anyway - fall back to other echo detection methods
                 }
                 
                 // Find customer ID for proper message attribution

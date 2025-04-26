@@ -38,3 +38,64 @@ export async function connectToDatabase() {
     throw error;
   }
 }
+
+// Message tracking for echo detection
+export async function storeRecentMessage(chatId, messageText) {
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Store the message with expiration
+    await db.collection('recent_messages').insertOne({
+      chatId,
+      messageText,
+      timestamp: new Date(),
+      expiresAt: new Date(Date.now() + 60000) // 1 minute expiration
+    });
+    
+    console.log(`\n✅ Stored message in MongoDB for echo detection: "${messageText.substring(0, 30)}..."`);
+    
+    // Create TTL index if it doesn't exist (only needs to be done once)
+    try {
+      const indexExists = await db.collection('recent_messages').indexExists('expiresAt_1');
+      if (!indexExists) {
+        console.log('\n📊 Creating TTL index for recent_messages collection');
+        await db.collection('recent_messages').createIndex(
+          { "expiresAt": 1 },
+          { expireAfterSeconds: 0 }
+        );
+      }
+    } catch (indexError) {
+      console.error('\n⚠️ Error checking/creating index:', indexError);
+      // Continue anyway
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('\n❌ Error storing message for echo detection:', error);
+    return false;
+  }
+}
+
+export async function checkForDuplicateMessage(chatId, messageText) {
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Look for a matching message in the last 30 seconds
+    const recentTimestamp = new Date(Date.now() - 30000);
+    
+    const match = await db.collection('recent_messages').findOne({
+      chatId,
+      messageText,
+      timestamp: { $gte: recentTimestamp }
+    });
+    
+    if (match) {
+      console.log(`\n🔄 Found duplicate message in MongoDB: "${messageText.substring(0, 30)}..."`);
+    }
+    
+    return !!match;
+  } catch (error) {
+    console.error('\n❌ Error checking for duplicate message:', error);
+    return false; // On error, let message through
+  }
+}

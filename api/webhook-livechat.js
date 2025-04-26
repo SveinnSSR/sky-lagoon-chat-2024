@@ -1,6 +1,7 @@
 // /api/webhook-livechat.js
 import { MongoClient } from 'mongodb';
 import Pusher from 'pusher';
+import { checkForDuplicateMessage } from './database.js';
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -319,6 +320,18 @@ export default async function handler(req, res) {
       const messageText = event.text || '';
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
+
+      // NEW: Check MongoDB for duplicate messages - this works across function instances
+      try {
+        const isDuplicate = await checkForDuplicateMessage(chatId, messageText);
+        if (isDuplicate) {
+          console.log(`\n🔄 MONGODB ECHO DETECTED: Message "${messageText.substring(0, 30)}..." is a duplicate`);
+          return res.status(200).json({ success: true });
+        }
+      } catch (mongoError) {
+        console.error('\n⚠️ Error checking MongoDB for duplicates:', mongoError);
+        // Continue with local checks on error
+      }      
     
       // ADD THESE DEBUG LOGS HERE
       console.log('\n🔍 ECHO CHECK: Inspecting customerMessageTracker...');
@@ -354,10 +367,10 @@ export default async function handler(req, res) {
             msg.text === messageText && 
             (Date.now() - msg.timestamp < 30000) // Within 30 seconds
           ))
-    ) {
-        console.log(`\n🔄 ECHO DETECTED: Message "${messageText.substring(0, 30)}..." originated from UI or matches recent customer message`);
-        return res.status(200).json({ success: true });
-    }
+      ) {
+          console.log(`\n🔄 ECHO DETECTED: Message "${messageText.substring(0, 30)}..." originated from UI or matches recent customer message`);
+          return res.status(200).json({ success: true });
+      }
 
       // EXTENSIVE DEBUG LOGGING
       console.log('\n🔍 DETAILED MESSAGE DEBUG:', {
