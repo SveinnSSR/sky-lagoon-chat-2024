@@ -3214,7 +3214,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                // ENHANCED: Track customer messages by chat ID for better echo detection
+                // Track message in customerMessageTracker for backup echo detection
                 try {
                     if (!global.customerMessageTracker) {
                         global.customerMessageTracker = new Map();
@@ -3243,7 +3243,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // Continue anyway
                 }
                 
-                // ENHANCED: Find customer ID for proper message attribution
+                // Find customer ID for proper message attribution
                 let customerId = null;
                 try {
                     // Use hardcoded admin credentials for reliable lookup
@@ -3283,7 +3283,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // Continue anyway, will fall back to agent attribution
                 }
                 
-                // CRITICAL: Always create a valid customerId if lookup failed
+                // Create fallback customer ID if lookup failed
                 if (!customerId && req.body.chatId) {
                     try {
                         // Try to extract from session mapping
@@ -3306,26 +3306,55 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     }
                 }
                 
-                // Send message to LiveChat WITH PROPER ATTRIBUTION
-                await sendMessageToLiveChat(
-                    req.body.chatId, 
-                    userMessage, 
-                    credentials, 
-                    customerId,  // Always pass the customer ID
-                    true        // CRITICAL: Always true for messages from chatbot UI
-                );
+                // NEW: Define custom properties to tag message as coming from chatbot UI
+                const customProperties = {
+                    source: 'chatbot_ui', // Tag indicating message came from our UI
+                    original_author_id: customerId, // Store the customer ID for reference
+                    timestamp: Date.now() // Add timestamp for tracking
+                };
                 
-                // Verify attribution after a short delay to let LiveChat process the message
-                setTimeout(async () => {
-                    try {
-                        // Import the function at the top of your file or use directly if already imported
-                        const { verifyMessageAttribution } = await import('./livechat.js');
-                        await verifyMessageAttribution(req.body.chatId);
-                    } catch (verifyError) {
-                        console.error('\n⚠️ Verification error:', verifyError);
-                        // Don't throw - this is just for debugging
-                    }
-                }, 1000);
+                console.log('\n🔍 Sending message with custom properties to identify source:', customProperties);
+                
+                // Determine auth and create proper headers
+                let authHeader;
+                if (credentials.startsWith('Basic ')) {
+                    authHeader = credentials;
+                } else if (credentials.startsWith('Bearer ')) {
+                    authHeader = credentials;
+                } else if (credentials.includes(':')) {
+                    authHeader = `Basic ${credentials}`;
+                } else if (req.body.agent_credentials && !req.body.agent_credentials.startsWith('Bearer')) {
+                    authHeader = `Basic ${credentials}`;
+                } else {
+                    authHeader = `Bearer ${credentials}`;
+                }
+                
+                // Send message directly to LiveChat API with custom properties
+                const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: req.body.chatId,
+                        event: {
+                            type: 'message',
+                            text: userMessage,
+                            properties: customProperties, // Add custom properties here
+                            visibility: 'all'
+                        }
+                    })
+                });
+                
+                if (!sendResponse.ok) {
+                    const errorText = await sendResponse.text();
+                    console.error('\n❌ Error sending message to LiveChat:', errorText);
+                    throw new Error(`LiveChat API error: ${sendResponse.status}`);
+                }
+                
+                console.log('\n✅ Message sent successfully to LiveChat with custom source properties');
                 
                 // No broadcast needed for agent mode messages
                 return res.status(200).json({

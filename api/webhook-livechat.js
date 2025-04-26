@@ -318,6 +318,13 @@ export default async function handler(req, res) {
       const authorId = event.author_id;
       const messageText = event.text || '';
       const messageId = event.id; // Add message ID tracking
+      const properties = event.properties || {}; // Extract custom properties
+    
+      // CRUCIAL NEW CHECK: If message has our custom property, it's from our UI - ignore it
+      if (properties && properties.source === 'chatbot_ui') {
+          console.log(`\n🔄 ECHO DETECTED: Message "${messageText.substring(0, 30)}..." originated from our chatbot UI. Skipping to prevent duplication.`);
+          return res.status(200).json({ success: true });
+      }
 
       // EXTENSIVE DEBUG LOGGING
       console.log('\n🔍 DETAILED MESSAGE DEBUG:', {
