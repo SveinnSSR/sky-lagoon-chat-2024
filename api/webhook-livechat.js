@@ -327,13 +327,6 @@ export default async function handler(req, res) {
         console.log('\n📝 Ignoring system message');
         return res.status(200).json({ success: true });
       }
-
-      // NEW: Check if this is a customer message - if so, ignore it to prevent echo
-      const isCustomerMessage = !authorId || !authorId.includes('@');
-      if (isCustomerMessage) {
-          console.log('\n📝 Ignoring customer message to prevent echo');
-          return res.status(200).json({ success: true });
-      }      
       
       // ENHANCED: Improved duplicate detection with simple hash-based approach
       const messageHash = messageText.trim(); // Use trimmed text as a simple "hash"
