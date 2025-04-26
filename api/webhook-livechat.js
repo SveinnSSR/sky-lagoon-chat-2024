@@ -318,6 +318,18 @@ export default async function handler(req, res) {
       const authorId = event.author_id;
       const messageText = event.text || '';
       const messageId = event.id; // Add message ID tracking
+
+      // EXTENSIVE DEBUG LOGGING
+      console.log('\n🔍 DETAILED MESSAGE DEBUG:', {
+          messageText,
+          authorId,
+          isAgentAuthor: authorId && authorId.includes('@'),
+          customerId: event.authorId, // Check the exact field names
+          hasVisibility: !!event.visibility,
+          visibility: event.visibility,
+          messageId,
+          eventType: event.type
+      }); 
       
       console.log(`\n📨 Processing message: "${messageText}" from ${authorId} (ID: ${messageId})`);
       
@@ -424,6 +436,16 @@ export default async function handler(req, res) {
         // Send to frontend via Pusher with try/catch
         try {
           console.log(`\n📤 Broadcasting agent message to session: ${sessionId}`);
+          // FINAL DEBUG LOG
+          console.log('\n🔍 FINAL MESSAGE STATE:', {
+            sessionId,
+            role: 'agent',
+            author: authorName,
+            content: messageText.substring(0, 30) + (messageText.length > 30 ? '...' : ''),
+            isAgentMessage,
+            timestamp: new Date().toISOString()
+          });
+
           await pusher.trigger('chat-channel', 'agent-message', {
             sessionId: sessionId,
             message: agentMessage,
