@@ -1943,3 +1943,62 @@ export async function registerLiveChatWebhook(webhookUrl) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Verifies message attribution in a LiveChat conversation
+ * @param {string} chatId - The LiveChat chat ID
+ * @returns {Promise<Object>} - Verification results
+ */
+export async function verifyMessageAttribution(chatId) {
+    try {
+        console.log('\n🔍 Verifying message attribution for chat:', chatId);
+        
+        // Get agent credentials for API access
+        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+        
+        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${agentCredentials}`,
+                'X-Region': 'fra'
+            },
+            body: JSON.stringify({ chat_id: chatId })
+        });
+        
+        if (!chatResponse.ok) {
+            console.error('\n❌ Get chat failed:', await chatResponse.text());
+            return { success: false, error: 'Failed to get chat' };
+        }
+        
+        const chatData = await chatResponse.json();
+        
+        // Filter for message events and analyze
+        const events = chatData.thread?.events || [];
+        const messageEvents = events.filter(event => event.type === 'message');
+        
+        console.log('\n📊 Message Attribution Analysis:');
+        messageEvents.forEach((message, index) => {
+            // Find user details for this author
+            const author = chatData.users?.find(user => user.id === message.author_id);
+            const authorType = author?.type || 'unknown';
+            
+            console.log(`\n✉️ Message ${index + 1}:`, {
+                text: message.text.substring(0, 30) + (message.text.length > 30 ? '...' : ''),
+                author_id: message.author_id,
+                author_type: authorType,
+                timestamp: message.created_at
+            });
+        });
+        
+        return {
+            success: true,
+            messages: messageEvents.length
+        };
+    } catch (error) {
+        console.error('\n❌ Message attribution verification failed:', error);
+        return { success: false, error: error.message };
+    }
+}

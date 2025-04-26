@@ -340,6 +340,23 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       
+      // ENHANCED: Check if this is an echo of a customer message
+      if (global.customerMessageTracker && global.customerMessageTracker.has(chatId)) {
+        const chatMessages = global.customerMessageTracker.get(chatId);
+        
+        // Check if this message text matches any recent customer messages
+        const isCustomerEcho = chatMessages.some(msg => 
+            msg.text === messageText && 
+            (Date.now() - msg.timestamp) < 30000 // Within 30 seconds
+        );
+        
+        if (isCustomerEcho) {
+            console.log(`\n🔄 ECHO DETECTED: "${messageText}" was recently sent by customer`);
+            console.log('\n⚠️ Skipping to prevent duplication');
+            return res.status(200).json({ success: true });
+        }
+      }
+
       // ENHANCED: Improved duplicate detection with simple hash-based approach
       const messageHash = messageText.trim(); // Use trimmed text as a simple "hash"
       const now = Date.now();

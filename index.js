@@ -3214,31 +3214,36 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n📨 Agent mode using credentials type:', 
                     req.body.agent_credentials ? 'agent_credentials' : 'bot_token');
                 
-                // SIMPLIFIED MESSAGE TRACKING
+                // ENHANCED: Track customer messages by chat ID for better echo detection
                 try {
-                    // Use a simpler global array for tracking
-                    if (!global.recentMessages) {
-                        global.recentMessages = [];
+                    if (!global.customerMessageTracker) {
+                        global.customerMessageTracker = new Map();
                     }
                     
+                    // Get or initialize messages array for this chat
+                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
+                    
                     // Add this message to tracking
-                    global.recentMessages.push({
+                    chatMessages.push({
                         text: userMessage,
                         timestamp: Date.now()
                     });
                     
-                    // Keep only recent messages
-                    if (global.recentMessages.length > 20) {
-                        global.recentMessages.shift();
+                    // Update the tracker
+                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
+                    
+                    // Keep only recent messages (last 10)
+                    if (chatMessages.length > 10) {
+                        chatMessages.shift();
                     }
                     
-                    console.log(`\n🔒 Tracked customer message for echo detection: "${userMessage}"`);
+                    console.log(`\n🔒 Tracked customer message by chat ID for echo detection: "${userMessage}"`);
                 } catch (trackError) {
-                    console.error('\n⚠️ Error tracking message:', trackError);
+                    console.error('\n⚠️ Error tracking message by chat ID:', trackError);
                     // Continue anyway
                 }
                 
-                // NEW: Find customer ID for proper message attribution
+                // ENHANCED: Find customer ID for proper message attribution
                 let customerId = null;
                 try {
                     // Use hardcoded admin credentials for reliable lookup
@@ -3263,6 +3268,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         if (customer && customer.id) {
                             customerId = customer.id;
                             console.log(`\n✅ Found customer ID for attribution: ${customerId}`);
+                        } else {
+                            // Try with alternate case - sometimes LiveChat returns 'Customer' instead of 'customer'
+                            const altCustomer = chatData.users?.find(user => 
+                                (user.type || '').toLowerCase() === 'customer');
+                            if (altCustomer && altCustomer.id) {
+                                customerId = altCustomer.id;
+                                console.log(`\n✅ Found customer ID using alternative case: ${customerId}`);
+                            }
                         }
                     }
                 } catch (error) {
@@ -3270,14 +3283,49 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // Continue anyway, will fall back to agent attribution
                 }
                 
+                // CRITICAL: Always create a valid customerId if lookup failed
+                if (!customerId && req.body.chatId) {
+                    try {
+                        // Try to extract from session mapping
+                        const sessionMappings = global.liveChatSessionMappings || new Map();
+                        const sessionId = sessionMappings.get(req.body.chatId);
+                        
+                        if (sessionId) {
+                            // Create a synthetic customer ID from the sessionId
+                            customerId = `customer_${sessionId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                            console.log(`\n✅ Created synthetic customer ID from session: ${customerId}`);
+                        } else {
+                            // Final fallback - generate a random ID
+                            customerId = `customer_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+                            console.log(`\n⚠️ Using generated customer ID as final fallback: ${customerId}`);
+                        }
+                    } catch (fallbackError) {
+                        // Absolute final fallback
+                        customerId = `customer_${Date.now()}`;
+                        console.error('\n⚠️ Error creating fallback customer ID:', fallbackError);
+                    }
+                }
+                
                 // Send message to LiveChat WITH PROPER ATTRIBUTION
                 await sendMessageToLiveChat(
                     req.body.chatId, 
                     userMessage, 
                     credentials, 
-                    customerId,  // Pass the customer ID
-                    true        // Indicate this is from the customer
+                    customerId,  // Always pass the customer ID
+                    true        // CRITICAL: Always true for messages from chatbot UI
                 );
+                
+                // Verify attribution after a short delay to let LiveChat process the message
+                setTimeout(async () => {
+                    try {
+                        // Import the function at the top of your file or use directly if already imported
+                        const { verifyMessageAttribution } = await import('./livechat.js');
+                        await verifyMessageAttribution(req.body.chatId);
+                    } catch (verifyError) {
+                        console.error('\n⚠️ Verification error:', verifyError);
+                        // Don't throw - this is just for debugging
+                    }
+                }, 1000);
                 
                 // No broadcast needed for agent mode messages
                 return res.status(200).json({
