@@ -320,11 +320,24 @@ export default async function handler(req, res) {
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
     
-      // CRUCIAL NEW CHECK: If message has our custom property, it's from our UI - ignore it
-      if (properties && properties.source === 'chatbot_ui') {
-          console.log(`\n🔄 ECHO DETECTED: Message "${messageText.substring(0, 30)}..." originated from our chatbot UI. Skipping to prevent duplication.`);
-          return res.status(200).json({ success: true });
-      }
+      // ENHANCED ECHO DETECTION: Check multiple conditions to catch echo messages
+      if (
+        // Check for our custom property (in case LiveChat preserves it)
+        (properties && properties.source === 'chatbot_ui') ||
+        // Check for custom property as nested object (common LiveChat structure)
+        (properties && properties.chatbot_ui) ||
+        // Check message tracker as a reliable fallback
+        (authorId && authorId.includes('@') && 
+          global.customerMessageTracker && 
+          global.customerMessageTracker.has(chatId) &&
+          global.customerMessageTracker.get(chatId).some(msg => 
+            msg.text === messageText && 
+            (Date.now() - msg.timestamp < 30000) // Within 30 seconds
+          ))
+    ) {
+        console.log(`\n🔄 ECHO DETECTED: Message "${messageText.substring(0, 30)}..." originated from UI or matches recent customer message`);
+        return res.status(200).json({ success: true });
+    }
 
       // EXTENSIVE DEBUG LOGGING
       console.log('\n🔍 DETAILED MESSAGE DEBUG:', {
