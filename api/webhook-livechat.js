@@ -320,6 +320,26 @@ export default async function handler(req, res) {
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
     
+      // ADD THESE DEBUG LOGS HERE
+      console.log('\n🔍 ECHO CHECK: Inspecting customerMessageTracker...');
+      if (global.customerMessageTracker) {
+          console.log(`customerMessageTracker exists with ${global.customerMessageTracker.size} chats`);
+          if (global.customerMessageTracker.has(chatId)) {
+              const msgs = global.customerMessageTracker.get(chatId);
+              console.log(`Found ${msgs.length} tracked messages for chatId ${chatId}`);
+              msgs.forEach((msg, i) => {
+                  console.log(`Message ${i}: "${msg.text.substring(0, 20)}...", age: ${(Date.now() - msg.timestamp)/1000}s`);
+                  if (msg.text === messageText) {
+                      console.log(`📣 MATCH FOUND: "${messageText}" matches tracked message!`);
+                  }
+              });
+          } else {
+              console.log(`No messages tracked for chatId ${chatId}`);
+          }
+      } else {
+          console.log('customerMessageTracker does not exist in this context!');
+      }
+      
       // ENHANCED ECHO DETECTION: Check multiple conditions to catch echo messages
       if (
         // Check for our custom property (in case LiveChat preserves it)
