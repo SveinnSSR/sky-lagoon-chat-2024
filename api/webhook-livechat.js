@@ -1,7 +1,7 @@
 // /api/webhook-livechat.js
 import { MongoClient } from 'mongodb';
 import Pusher from 'pusher';
-import { checkForDuplicateMessage } from './database.js';
+import { checkForDuplicateMessage } from '../database.js';
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI;
