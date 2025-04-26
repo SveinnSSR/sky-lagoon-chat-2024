@@ -3204,6 +3204,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Handle messages when in agent mode
         if (req.body.chatId && req.body.isAgentMode) {
+            console.log('\n🚨 AGENT MODE HANDLER TRIGGERED:', {
+                chatId: req.body.chatId,
+                message: userMessage,
+                isAgentMode: req.body.isAgentMode
+            });
+
             try {
                 // Use agent_credentials that are being passed in
                 const credentials = req.body.agent_credentials || req.body.bot_token;
@@ -3245,8 +3251,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
                 
                 // NEW: Store message in MongoDB for reliable echo detection
+                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', req.body.chatId, userMessage);
                 try {
                     await storeRecentMessage(req.body.chatId, userMessage);
+                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
                 } catch (storeError) {
                     console.error('\n⚠️ Error storing message in MongoDB:', storeError);
                     // Continue anyway - fall back to other echo detection methods
