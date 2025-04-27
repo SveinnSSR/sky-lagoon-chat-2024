@@ -1948,51 +1948,97 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
  */
 export async function sendDualApiMessage(chatId, message, credentials, isFromCustomer = true) {
   try {
-    // Get customer ID from storage
+    // Get customer ID and credentials from storage
     const dualCreds = await getDualCredentials(chatId);
     const customerId = dualCreds?.entityId;
     
-    // Always use agent credentials
-    const agentCredentials = credentials.agentCredentials || 
-                             dualCreds?.agentCredentials || 
-                             Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-    
     if (isFromCustomer && customerId) {
-      // Send as customer (with author_id set to customer ID)
-      console.log('\n📨 Sending message with customer attribution...');
+      console.log('\n📨 Attempting to send message with Customer WebAPI...');
       
-      const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+      // Use agent credentials to get a token for the customer
+      const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+      const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+      const agentAuth = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+      
+      // Try to send using the Customer WebAPI endpoint (different from the API we tried before)
+      const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${agentCredentials}`,
-          'X-Region': 'fra'
+          'X-API-Version': '3.5',
+          'Authorization': `Basic ${agentAuth}`
         },
         body: JSON.stringify({
           chat_id: chatId,
           event: {
             type: 'message',
             text: message,
-            author_id: customerId, // Set author to customer for proper styling
-            visibility: 'all'
+            custom_id: `customer-${Date.now()}`,
+            author_id: customerId
           }
         })
       });
       
-      if (!response.ok) {
-        throw new Error(`Error sending message: ${await response.text()}`);
+      if (response.ok) {
+        console.log('\n✅ Message sent successfully via Customer WebAPI');
+        return true;
       }
       
-      console.log('\n✅ Message sent with customer attribution (will be left-aligned)');
-      return true;
+      console.log('\n⚠️ Customer WebAPI failed, falling back to Agent API with prefix');
+      // Fall back to agent API with prefix
+      return await sendCustomerMessageWithPrefix(chatId, message, customerId, credentials);
     } else {
       // Send as agent (will be right-aligned in LiveChat interface)
-      return await sendMessageToLiveChat(chatId, message, agentCredentials, null, false);
+      return await sendMessageToLiveChat(chatId, message, 
+        credentials.agentCredentials || dualCreds?.agentCredentials, 
+        null, false);
     }
   } catch (error) {
     console.error('\n❌ Error in sendDualApiMessage:', error);
-    return await sendMessageToLiveChat(chatId, message, credentials.agentCredentials || credentials);
+    // Fall back to prefixed message as last resort
+    if (isFromCustomer) {
+      return await sendCustomerMessageWithPrefix(chatId, message, 
+        dualCreds?.entityId, credentials);
+    }
+    return await sendMessageToLiveChat(chatId, message, 
+      credentials.agentCredentials || credentials);
   }
+}
+
+// Helper function for sending customer messages with prefix
+async function sendCustomerMessageWithPrefix(chatId, message, customerId, credentials) {
+  // Add prefix to customer messages for better visibility
+  const prefixedMessage = `[Customer] ${message}`;
+  
+  // Get agent credentials
+  const agentCreds = credentials.agentCredentials || 
+    Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+  
+  const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${agentCreds}`,
+      'X-Region': 'fra'
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      event: {
+        type: 'message',
+        text: prefixedMessage,
+        author_id: customerId,
+        visibility: 'all'
+      }
+    })
+  });
+  
+  if (!response.ok) {
+    console.error('\n❌ Error sending prefixed message:', await response.text());
+    return false;
+  }
+  
+  console.log('\n✅ Message sent with prefix');
+  return true;
 }
 
 /**
