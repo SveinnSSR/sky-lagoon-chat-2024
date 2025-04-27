@@ -19,6 +19,11 @@ if (!global.customerMessageTracker) {
   global.customerMessageTracker = new Map();
 }
 
+// Initialize recentMessages array if it doesn't exist
+if (!global.recentMessages) {
+  global.recentMessages = [];
+}
+
 // Clean up old tracked messages every 5 minutes to prevent memory leaks
 setInterval(() => {
   if (global.customerMessageTracker) {
@@ -341,17 +346,17 @@ export default async function handler(req, res) {
         // Extract the original message for comparison
         const originalText = messageText.replace('👤 [CUSTOMER]:', '').trim();
         
-        // Check if the original text matches any recent messages
-        const isDuplicate = global.recentMessages.some(msg => 
+        // Make sure recentMessages exists and use optional chaining for safety
+        const isDuplicate = global.recentMessages?.some?.(msg => 
           msg.text === originalText && (Date.now() - msg.timestamp < 15000)
-        );
+        ) || false;
         
         if (isDuplicate) {
           console.log(`\n🔄 ECHO DETECTED: Prefixed message "${messageText.substring(0, 30)}..." is an echo of a recent message`);
           return res.status(200).json({ success: true });
         }
         
-        // Also check MongoDB for the original text
+        // Also check MongoDB for the original text (with error handling)
         try {
           const isOriginalDuplicate = await checkForDuplicateMessage(chatId, originalText);
           if (isOriginalDuplicate) {
@@ -360,8 +365,9 @@ export default async function handler(req, res) {
           }
         } catch (mongoError) {
           console.error('\n⚠️ Error checking MongoDB for original text:', mongoError);
+          // Continue processing - don't crash on MongoDB errors
         }
-      } 
+      }
       
       // Just before MongoDB check
       console.log('\n🔎 ECHO DEBUG - About to check MongoDB for:', req.body.payload.chat_id, req.body.payload.event?.text);

@@ -59,6 +59,13 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
   try {
     console.log('\n👤 Creating chat with proper customer attribution...');
     
+    // Log credentials info for debugging
+    console.log('\n🔍 LiveChat Credentials Check:', {
+      ACCOUNT_ID_length: ACCOUNT_ID.length,
+      PAT_prefix: PAT.substring(0, 4) + '...',
+      org_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
+    });
+    
     // Use agent credentials
     const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
     
@@ -121,7 +128,12 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
     try {
       console.log('\n🔑 Step 3: Generating customer token for Customer API...');
       customerToken = await generateCustomerToken(customerId);
-      console.log('\n✅ Successfully obtained customer token for Customer API');
+      
+      if (customerToken) {
+        console.log('\n✅ Customer token obtained, length:', customerToken.length);
+      } else {
+        console.log('\n⚠️ No customer token was generated');
+      }
     } catch (tokenError) {
       console.error('\n⚠️ Could not generate customer token:', tokenError.message);
       // Continue without token - we'll fall back to Agent API with author_id
@@ -155,7 +167,7 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
       } catch (messageError) {
         console.error('\n⚠️ Could not send initial message through Customer API:', messageError);
         
-        // Fall back to Agent API for initial message
+        // Fall back to Agent API for initial message with styling
         await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
           method: 'POST',
           headers: {
@@ -168,13 +180,20 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
             event: {
               type: 'message',
               text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
-              visibility: 'all'
+              visibility: 'all',
+              author_id: customerId,
+              properties: {
+                styling: {
+                  color: '#FFFFFF',
+                  align: 'left'
+                }
+              }
             }
           })
         });
       }
     } else {
-      // Just use Agent API for the message
+      // Just use Agent API for the message with styling
       await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
         method: 'POST',
         headers: {
@@ -187,7 +206,14 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
           event: {
             type: 'message',
             text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
-            visibility: 'all'
+            visibility: 'all',
+            author_id: customerId,
+            properties: {
+              styling: {
+                color: '#FFFFFF',
+                align: 'left'
+              }
+            }
           }
         })
       });
@@ -215,7 +241,7 @@ export async function generateCustomerToken(customerId) {
   try {
     console.log('\n🔑 Generating customer token for:', customerId);
     
-    // Use the correct endpoint with Basic Auth
+    // Use the correct endpoint with organization_id
     const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
       method: 'POST',
       headers: {
@@ -224,7 +250,8 @@ export async function generateCustomerToken(customerId) {
         'X-Region': 'fra'
       },
       body: JSON.stringify({
-        customer_id: customerId
+        customer_id: customerId,
+        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'  // Add this required field
       })
     });
 
@@ -238,7 +265,7 @@ export async function generateCustomerToken(customerId) {
     console.log('\n✅ Generated customer token successfully');
     return data.token;
   } catch (error) {
-    console.error('\n❌ Failed to generate customer token:', error);
+    console.error('\n❌ Critical error generating customer token:', error);
     throw error;
   }
 }
@@ -2120,8 +2147,6 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
       
       if (!agentCredentials) {
         // Get default credentials
-        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
         agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
       }
       
@@ -2139,11 +2164,17 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
       const prefixedMessage = isFromCustomer ? 
         `👤 [CUSTOMER]: ${message}` : message;
       
-      // Create event object
+      // Create event object with styling properties to force customer appearance
       const eventObject = {
         type: 'message',
         text: prefixedMessage,
-        visibility: 'all'
+        visibility: 'all',
+        properties: {
+          styling: {
+            color: '#FFFFFF', // Force white color
+            align: 'left'     // Force left alignment
+          }
+        }
       };
       
       // Add customer ID as author_id if available (may not work for styling)
@@ -2169,7 +2200,7 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
         throw new Error(`Agent API error: ${response.status}`);
       }
       
-      console.log('\n✅ Message sent using Agent API (with prefix for visibility)');
+      console.log('\n✅ Message sent using Agent API (with styling and prefix)');
       return true;
     }
   } catch (error) {
