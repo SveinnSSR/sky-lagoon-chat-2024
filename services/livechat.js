@@ -1948,60 +1948,75 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
  */
 export async function sendDualApiMessage(chatId, message, credentials, isFromCustomer = true) {
   try {
-    // Get customer ID and credentials from storage
-    const dualCreds = await getDualCredentials(chatId);
-    const customerId = dualCreds?.entityId;
+    // For debugging - verify this function is called
+    console.log('\n🔍 DEBUG: sendDualApiMessage called with:', { 
+      chatId, 
+      messagePreview: message.substring(0, 20), 
+      isFromCustomer 
+    });
     
-    if (isFromCustomer && customerId) {
-      console.log('\n📨 Attempting to send message with Customer WebAPI...');
-      
-      // Use agent credentials to get a token for the customer
+    // Always use agent credentials
+    const agentCredentials = typeof credentials === 'object' && credentials.agentCredentials 
+      ? credentials.agentCredentials 
+      : (typeof credentials === 'string' ? credentials : undefined);
+    
+    if (!agentCredentials) {
+      // Get default credentials
       const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
       const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-      const agentAuth = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+      credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+    }
+    
+    if (isFromCustomer) {
+      // ALWAYS add customer prefix for visibility
+      const prefixedMessage = `👤 [CUSTOMER]: ${message}`;
+      console.log('\n📨 Adding customer prefix to message for visibility');
       
-      // Try to send using the Customer WebAPI endpoint (different from the API we tried before)
-      const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+      // Determine auth and create proper headers
+      let authHeader;
+      if (agentCredentials.startsWith('Basic ')) {
+        authHeader = agentCredentials;
+      } else if (agentCredentials.includes(':')) {
+        authHeader = `Basic ${agentCredentials}`;
+      } else {
+        authHeader = `Basic ${agentCredentials}`;
+      }
+      
+      // Create simple message event
+      const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Version': '3.5',
-          'Authorization': `Basic ${agentAuth}`
+          'Authorization': authHeader,
+          'X-Region': 'fra'
         },
         body: JSON.stringify({
           chat_id: chatId,
           event: {
             type: 'message',
-            text: message,
-            custom_id: `customer-${Date.now()}`,
-            author_id: customerId
+            text: prefixedMessage,
+            visibility: 'all'
           }
         })
       });
       
-      if (response.ok) {
-        console.log('\n✅ Message sent successfully via Customer WebAPI');
-        return true;
+      if (!response.ok) {
+        throw new Error(`Error sending prefixed message: ${await response.text()}`);
       }
       
-      console.log('\n⚠️ Customer WebAPI failed, falling back to Agent API with prefix');
-      // Fall back to agent API with prefix
-      return await sendCustomerMessageWithPrefix(chatId, message, customerId, credentials);
+      console.log('\n✅ Customer message sent with prefix');
+      return true;
     } else {
       // Send as agent (will be right-aligned in LiveChat interface)
-      return await sendMessageToLiveChat(chatId, message, 
-        credentials.agentCredentials || dualCreds?.agentCredentials, 
-        null, false);
+      return await sendMessageToLiveChat(chatId, message, agentCredentials, null, false);
     }
   } catch (error) {
     console.error('\n❌ Error in sendDualApiMessage:', error);
-    // Fall back to prefixed message as last resort
-    if (isFromCustomer) {
-      return await sendCustomerMessageWithPrefix(chatId, message, 
-        dualCreds?.entityId, credentials);
-    }
+    console.log('\n🔄 Falling back to basic message send without prefix');
+    
+    // Last resort fallback - send without prefix
     return await sendMessageToLiveChat(chatId, message, 
-      credentials.agentCredentials || credentials);
+      typeof credentials === 'object' ? credentials.agentCredentials : credentials);
   }
 }
 
