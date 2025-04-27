@@ -3240,6 +3240,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
                 } catch (storeError) {
                     console.error('\n⚠️ Error storing message in MongoDB:', storeError);
+                    // Continue anyway - fall back to other echo detection methods
                 }
                 
                 // Get dual credentials for this chat
@@ -3249,120 +3250,109 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     throw new Error('Missing credentials for agent mode');
                 }
                 
-                // Try direct Customer API approach if we have a customer ID
-                if (dualCreds && dualCreds.entityId) {
-                    console.log('\n🔑 Attempting direct Customer API message with entityId:', dualCreds.entityId);
+                // Send message using Customer API if we have customer token
+                if (dualCreds && dualCreds.customerToken) {
+                    console.log('\n🔑 Using Customer API for better message styling');
                     
-                    // Try our new direct approach
-                    const sent = await sendCustomerApiMessage(
+                    // Send using dual API approach
+                    const sent = await sendDualApiMessage(
                         req.body.chatId,
                         userMessage,
-                        dualCreds.entityId
+                        dualCreds,
+                        true // Send as customer for proper styling
                     );
                     
-                    if (sent) {
-                        console.log('\n✅ Message sent via Customer API successfully!');
+                    if (!sent) {
+                        throw new Error('Failed to send message via Customer API');
+                    }
+                } else {
+                    // Fall back to original approach
+                    console.log('\n🔑 Falling back to Agent API (messages will be right-aligned)');
+                    
+                    // Use agent_credentials that are being passed in
+                    const credentials = req.body.agent_credentials || req.body.bot_token;
+                    
+                    if (!credentials) {
+                        throw new Error('Missing credentials for agent mode');
+                    }
+                    
+                    // Track message in customerMessageTracker for backup echo detection
+                    try {
+                        if (!global.customerMessageTracker) {
+                            global.customerMessageTracker = new Map();
+                        }
                         
-                        return res.status(200).json({
-                            success: true,
-                            chatId: req.body.chatId,
-                            suppressMessage: true,
-                            language: {
-                                detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                                confidence: languageDecision.confidence
-                            }
+                        // Get or initialize messages array for this chat
+                        const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
+                        
+                        // Add this message to tracking
+                        chatMessages.push({
+                            text: userMessage,
+                            timestamp: Date.now()
                         });
+                        
+                        // Update the tracker
+                        global.customerMessageTracker.set(req.body.chatId, chatMessages);
+                        
+                        // Keep only recent messages (last 10)
+                        if (chatMessages.length > 10) {
+                            chatMessages.shift();
+                        }
+                        
+                        console.log(`\n🔒 Tracked customer message by chat ID for echo detection: "${userMessage}"`);
+                    } catch (trackError) {
+                        console.error('\n⚠️ Error tracking message by chat ID:', trackError);
+                        // Continue anyway
                     }
                     
-                    console.log('\n⚠️ Customer API message failed, falling back to Agent API with prefix');
-                }
-                
-                // Fall back to Agent API with prefix
-                console.log('\n🔑 Using Agent API with customer prefix');
-                
-                // Add clear prefix to customer messages
-                const prefixedMessage = `👤 [CUSTOMER]: ${userMessage}`;
-                
-                // Use agent_credentials that are being passed in
-                const credentials = req.body.agent_credentials || req.body.bot_token;
-                
-                if (!credentials) {
-                    throw new Error('Missing credentials for agent mode');
-                }
-                
-                // Track message in customerMessageTracker for backup echo detection
-                try {
-                    // [existing tracking code]
-                    if (!global.customerMessageTracker) {
-                        global.customerMessageTracker = new Map();
+                    // Determine auth and create proper headers
+                    let authHeader;
+                    if (credentials.startsWith('Basic ')) {
+                        authHeader = credentials;
+                    } else if (credentials.startsWith('Bearer ')) {
+                        authHeader = credentials;
+                    } else if (credentials.includes(':')) {
+                        authHeader = `Basic ${credentials}`;
+                    } else if (req.body.agent_credentials && !req.body.agent_credentials.startsWith('Bearer')) {
+                        authHeader = `Basic ${credentials}`;
+                    } else {
+                        authHeader = `Bearer ${credentials}`;
                     }
                     
-                    // Get or initialize messages array for this chat
-                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
-                    
-                    // Add this message to tracking
-                    chatMessages.push({
+                    // FIXED: Create a simpler event object without complex custom properties
+                    const eventObject = {
+                        type: 'message',
                         text: userMessage,
-                        timestamp: Date.now()
+                        visibility: 'all'
+                    };
+                    
+                    // Log the exact JSON we're sending for debugging
+                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
+                    
+                    // FIXED: Send event with simpler structure to avoid validation errors
+                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authHeader,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            chat_id: req.body.chatId,
+                            event: eventObject
+                        })
                     });
                     
-                    // Update the tracker
-                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
-                    
-                    // Keep only recent messages (last 10)
-                    if (chatMessages.length > 10) {
-                        chatMessages.shift();
+                    if (!sendResponse.ok) {
+                        const errorText = await sendResponse.text();
+                        console.error('\n❌ Error sending message to LiveChat:', errorText);
+                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
                     }
-                    
-                    console.log(`\n🔒 Tracked customer message by chat ID for echo detection: "${userMessage}"`);
-                } catch (trackError) {
-                    console.error('\n⚠️ Error tracking message by chat ID:', trackError);
                 }
                 
-                // Determine auth and create proper headers
-                let authHeader;
-                if (credentials.startsWith('Basic ')) {
-                    authHeader = credentials;
-                } else if (credentials.startsWith('Bearer ')) {
-                    authHeader = credentials;
-                } else if (credentials.includes(':')) {
-                    authHeader = `Basic ${credentials}`;
-                } else if (req.body.agent_credentials && !req.body.agent_credentials.startsWith('Bearer')) {
-                    authHeader = `Basic ${credentials}`;
-                } else {
-                    authHeader = `Bearer ${credentials}`;
-                }
+                console.log('\n✅ Message sent successfully to LiveChat');
                 
-                // Create event with prefixed message
-                const eventObject = {
-                    type: 'message',
-                    text: prefixedMessage,
-                    visibility: 'all'
-                };
-                
-                console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                
-                const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authHeader,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: req.body.chatId,
-                        event: eventObject
-                    })
-                });
-                
-                if (!sendResponse.ok) {
-                    const errorText = await sendResponse.text();
-                    console.error('\n❌ Error sending message to LiveChat:', errorText);
-                    throw new Error(`LiveChat API error: ${sendResponse.status}`);
-                }
-                
-                console.log('\n✅ Message sent successfully to LiveChat with prefix');
-                
+                // No broadcast needed for agent mode messages
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
