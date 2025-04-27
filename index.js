@@ -57,8 +57,9 @@ import {
     shouldTransferToHumanAgent,
     registerLiveChatWebhook,
     // Add these new functions:
-    generateCustomerToken, // Used internally inside livechat.js by createCustomerChat and sendDualApiMessage
-    createCustomerChat,
+    generateCustomerToken, // Used internally inside livechat.js by createCustomerChat and sendDualApiMessage - Unused at the moment (use createAttributedChat instead)
+    createCustomerChat, // Unusued - used createAttributedChat instead now
+    createAttributedChat,
     sendDualApiMessage
 } from './services/livechat.js';
 // Mongo DB integration:
@@ -3092,9 +3093,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         if (transferCheck.shouldTransfer) {
             try {
-                // Create chat as customer for proper message styling
-                console.log('\n📝 Creating new LiveChat chat as customer:', sessionId);
-                const chatData = await createCustomerChat(sessionId, languageDecision.isIcelandic);
+                // Create chat with correct customer attribution
+                console.log('\n📝 Creating new LiveChat chat with customer attribution:', sessionId);
+                const chatData = await createAttributedChat(sessionId, languageDecision.isIcelandic);
 
                 // Store mapping between LiveChat chat ID and our session ID in memory and MongoDB
                 if (chatData && chatData.chat_id) {
