@@ -3304,6 +3304,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         // Continue anyway
                     }
                     
+                    // Add a clear prefix to customer messages for visual distinction
+                    const prefixedMessage = `👤 [CUSTOMER]: ${userMessage}`;
+                    console.log('\n📝 Adding customer prefix for visual distinction');
+                    
                     // Determine auth and create proper headers
                     let authHeader;
                     if (credentials.startsWith('Basic ')) {
@@ -3321,7 +3325,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     // FIXED: Create a simpler event object without complex custom properties
                     const eventObject = {
                         type: 'message',
-                        text: userMessage,
+                        text: prefixedMessage, // Use prefixed message instead of original
                         visibility: 'all'
                     };
                     
