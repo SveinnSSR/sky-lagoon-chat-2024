@@ -116,31 +116,60 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
     
     const chatData = await chatResponse.json();
     
-    // Store the customer ID for message attribution
-    await storeDualCredentials(chatData.chat_id, sessionId, null, customerId);
+    // STEP 3: GENERATE CUSTOMER TOKEN FOR CUSTOMER API (NEW!)
+    console.log('\n🔑 Step 3: Generating customer token for Customer API...');
+    const customerToken = await generateCustomerToken(customerId);
     
-    // Send initial message
-    await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${agentCredentials}`,
-        'X-Region': 'fra'
-      },
-      body: JSON.stringify({
-        chat_id: chatData.chat_id,
-        event: {
-          type: 'message',
-          text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
-          visibility: 'all'
-        }
-      })
-    });
+    // Store both customer ID and token for future use
+    await storeDualCredentials(chatData.chat_id, sessionId, customerToken, customerId);
+    
+    // Send initial message using the Customer API (NEW!)
+    try {
+      console.log('\n📨 Sending initial message through Customer API...');
+      
+      await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${customerToken}`
+        },
+        body: JSON.stringify({
+          chat_id: chatData.chat_id,
+          event: {
+            type: 'message',
+            text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance'
+          }
+        })
+      });
+      
+      console.log('\n✅ Initial message sent through Customer API');
+    } catch (messageError) {
+      console.error('\n⚠️ Could not send initial message through Customer API:', messageError);
+      
+      // Fall back to Agent API for initial message
+      await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${agentCredentials}`,
+          'X-Region': 'fra'
+        },
+        body: JSON.stringify({
+          chat_id: chatData.chat_id,
+          event: {
+            type: 'message',
+            text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+            visibility: 'all'
+          }
+        })
+      });
+    }
     
     return {
       chat_id: chatData.chat_id,
       thread_id: chatData.thread_id,
       customer_id: customerId,
+      customer_token: customerToken, // NEW: Return customer token
       agent_credentials: agentCredentials
     };
   } catch (error) {
@@ -150,48 +179,60 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
 }
 
 /**
- * Generates a customer token using the Agent Token Grant
- * @param {string} sessionId - Session ID for reference (not used in token generation)
- * @returns {Promise<Object>} Customer token information
+ * Generates a customer token for a specific LiveChat customer
+ * @param {string} customerId - LiveChat customer ID
+ * @returns {Promise<string>} Customer access token
  */
-export async function generateCustomerToken(sessionId) {
+export async function generateCustomerToken(customerId) {
   try {
-    console.log('\n🔑 Generating customer token via Agent Token Grant...');
+    console.log('\n🔑 Generating customer token for Customer API...');
     
-    // Use existing PAT credentials 
-    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+    // First, get agent access token using PAT
+    const agentTokenResponse = await fetch('https://accounts.livechat.com/v2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        grant_type: 'personal_access_token',
+        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f',
+        token: PAT
+      })
+    });
     
-    // Create Basic Auth header directly from the PAT
-    const basicAuth = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+    if (!agentTokenResponse.ok) {
+      throw new Error(`Failed to get agent token: ${await agentTokenResponse.text()}`);
+    }
     
-    // Use basic auth to generate customer token directly
-    const customerResponse = await fetch('https://accounts.livechat.com/v2/customer/token', {
+    const agentTokenData = await agentTokenResponse.json();
+    const agentToken = agentTokenData.access_token;
+    
+    console.log('\n✅ Successfully obtained agent bearer token');
+    
+    // Now use agent token to get customer token
+    const customerTokenResponse = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${basicAuth}`
+        'Authorization': `Bearer ${agentToken}`
       },
       body: JSON.stringify({
         grant_type: 'agent_token',
         client_id: 'b4c686ea4c4caa04e6ea921bf45f516f',
         response_type: 'token',
+        entity_id: customerId, // Associate with specific customer
         organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
       })
     });
     
-    if (!customerResponse.ok) {
-      throw new Error(`Failed to generate customer token: ${await customerResponse.text()}`);
+    if (!customerTokenResponse.ok) {
+      throw new Error(`Failed to generate customer token: ${await customerTokenResponse.text()}`);
     }
     
-    const customerData = await customerResponse.json();
+    const customerData = await customerTokenResponse.json();
     
     console.log('\n✅ Successfully generated customer token');
-    return {
-      customerToken: customerData.access_token,
-      entityId: customerData.entity_id,
-      expiresIn: customerData.expires_in
-    };
+    return customerData.access_token;
   } catch (error) {
     console.error('\n❌ Error generating customer token:', error);
     throw error;
@@ -2026,42 +2067,87 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
     console.log('\n🔍 DEBUG: sendDualApiMessage called with:', { 
       chatId, 
       messagePreview: message.substring(0, 20), 
-      isFromCustomer 
+      isFromCustomer,
+      hasCustomerToken: credentials && typeof credentials === 'object' && !!credentials.customerToken
     });
     
-    // Always use agent credentials
-    const agentCredentials = typeof credentials === 'object' && credentials.agentCredentials 
-      ? credentials.agentCredentials 
-      : (typeof credentials === 'string' ? credentials : undefined);
+    // Extract credentials
+    let customerToken = null, agentCredentials = null, customerId = null;
     
-    if (!agentCredentials) {
-      // Get default credentials
-      const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-      const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-      credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+    if (typeof credentials === 'object') {
+      customerToken = credentials.customerToken;
+      agentCredentials = credentials.agentCredentials;
+      customerId = credentials.entityId;
+    } else {
+      agentCredentials = credentials;
     }
     
-    // Get customer ID from credentials if available
-    const customerId = typeof credentials === 'object' ? credentials.entityId : null;
-    
-    if (isFromCustomer && customerId) {
-      // Send message with customer attribution
-      console.log(`\n📨 Sending message with customer attribution (ID: ${customerId})`);
+    // If we have a customer token and this is a customer message, use the Customer API
+    if (isFromCustomer && customerToken) {
+      console.log('\n📨 Sending message using Customer API with token...');
       
-      // Determine auth and create proper headers
+      const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${customerToken}`
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          event: {
+            type: 'message',
+            text: message
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('\n❌ Customer API error:', errorText);
+        throw new Error(`Customer API error: ${response.status}`);
+      }
+      
+      console.log('\n✅ Message sent using Customer API (will be left-aligned)');
+      return true;
+    } 
+    // Fall back to Agent API
+    else {
+      console.log('\n📨 Falling back to Agent API...');
+      
+      if (!agentCredentials) {
+        // Get default credentials
+        const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+        const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+        agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+      }
+      
+      // Determine auth header format
       let authHeader;
       if (agentCredentials.startsWith('Basic ')) {
         authHeader = agentCredentials;
       } else if (agentCredentials.includes(':')) {
-        authHeader = `Basic ${agentCredentials}`;
+        authHeader = `Basic ${Buffer.from(agentCredentials).toString('base64')}`;
       } else {
         authHeader = `Basic ${agentCredentials}`;
       }
       
-      // Option to add prefix for visual backup - keep for now
-      const prefixedMessage = `👤 [CUSTOMER]: ${message}`;
+      // Add visual prefix to message as fallback for better visibility
+      const prefixedMessage = isFromCustomer ? 
+        `👤 [CUSTOMER]: ${message}` : message;
       
-      // Create message event with customer attribution
+      // Create event object
+      const eventObject = {
+        type: 'message',
+        text: prefixedMessage,
+        visibility: 'all'
+      };
+      
+      // Add customer ID as author_id if available (may not work for styling)
+      if (isFromCustomer && customerId) {
+        eventObject.author_id = customerId;
+        console.log(`\n📝 Adding customer ID attribution: ${customerId}`);
+      }
+      
       const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
         method: 'POST',
         headers: {
@@ -2071,32 +2157,35 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
         },
         body: JSON.stringify({
           chat_id: chatId,
-          event: {
-            type: 'message',
-            text: prefixedMessage, // Use prefixed message for now
-            author_id: customerId, // This is the key for proper attribution
-            visibility: 'all'
-          }
+          event: eventObject
         })
       });
       
       if (!response.ok) {
-        throw new Error(`Error sending message with customer attribution: ${await response.text()}`);
+        throw new Error(`Agent API error: ${response.status}`);
       }
       
-      console.log('\n✅ Message sent with customer attribution');
+      console.log('\n✅ Message sent using Agent API (with prefix for visibility)');
       return true;
-    } else {
-      // Send as agent (will be right-aligned in LiveChat interface)
-      return await sendMessageToLiveChat(chatId, message, agentCredentials, null, false);
     }
   } catch (error) {
     console.error('\n❌ Error in sendDualApiMessage:', error);
-    console.log('\n🔄 Falling back to basic message send without attribution');
     
-    // Last resort fallback - send without attribution
-    return await sendMessageToLiveChat(chatId, message, 
-      typeof credentials === 'object' ? credentials.agentCredentials : credentials);
+    // Last resort fallback - try sendMessageToLiveChat
+    try {
+      console.log('\n🔄 Falling back to sendMessageToLiveChat...');
+      
+      return await sendMessageToLiveChat(
+        chatId, 
+        message, 
+        typeof credentials === 'object' ? credentials.agentCredentials : credentials,
+        typeof credentials === 'object' ? credentials.entityId : null,
+        isFromCustomer
+      );
+    } catch (fallbackError) {
+      console.error('\n❌ Even fallback sending failed:', fallbackError);
+      return false;
+    }
   }
 }
 

@@ -3242,29 +3242,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.error('\n⚠️ Error storing message in MongoDB:', storeError);
                 }
                 
-                // Find the customer entity ID for this chat directly from MongoDB
-                const chatId = req.body.chatId;
-                let customerId = null;
+                // Get dual credentials for this chat
+                console.log(`\n🔍 Looking up dual credentials for chat: ${req.body.chatId}`);
+                const dualCreds = await getDualCredentials(req.body.chatId);
                 
-                try {
-                    console.log(`\n🔍 Looking up customer ID for chat: ${chatId}`);
-                    const { db } = await connectToDatabase();
-                    const dualCreds = await db.collection('dual_credentials').findOne({ chatId });
-                    
-                    if (dualCreds && dualCreds.entityId) {
-                        customerId = dualCreds.entityId;
-                        console.log(`\n✅ Found customer ID: ${customerId}`);
-                    } else {
-                        console.log('\n⚠️ No customer ID found in dual_credentials');
-                    }
-                } catch (dbError) {
-                    console.error('\n❌ Error looking up customer ID:', dbError);
-                }
+                // ENHANCED: Log what we found
+                console.log('\n🔍 Dual credentials lookup result:', {
+                    found: !!dualCreds,
+                    hasCustomerToken: dualCreds?.customerToken ? true : false,
+                    hasEntityId: dualCreds?.entityId ? true : false
+                });
                 
-                // Always use agent credentials for sending
-                const credentials = req.body.agent_credentials || req.body.bot_token;
+                // Always use agent credentials as fallback
+                const agentCredentials = req.body.agent_credentials || req.body.bot_token;
                 
-                if (!credentials) {
+                if (!dualCreds && !agentCredentials) {
                     throw new Error('Missing credentials for agent mode');
                 }
                 
@@ -3291,55 +3283,134 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.error('\n⚠️ Error tracking message:', trackError);
                 }
                 
-                // Determine auth and create proper headers
-                let authHeader;
-                if (credentials.startsWith('Basic ')) {
-                    authHeader = credentials;
-                } else if (credentials.startsWith('Bearer ')) {
-                    authHeader = credentials;
-                } else if (credentials.includes(':')) {
-                    authHeader = `Basic ${credentials}`;
-                } else {
-                    authHeader = `Basic ${credentials}`;
+                // ENHANCED: Use Customer API if we have customer token
+                if (dualCreds && dualCreds.customerToken) {
+                    console.log('\n🔑 Using Customer API with token for proper message styling');
+                    
+                    try {
+                        const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${dualCreds.customerToken}`
+                            },
+                            body: JSON.stringify({
+                                chat_id: req.body.chatId,
+                                event: {
+                                    type: 'message',
+                                    text: userMessage
+                                }
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error('\n❌ Customer API error:', errorText);
+                            throw new Error(`Customer API error: ${response.status}`);
+                        }
+                        
+                        console.log('\n✅ Message sent using Customer API (will be left-aligned)');
+                    } catch (customerApiError) {
+                        console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
+                        throw customerApiError; // Let the error fall through to the fallback
+                    }
                 }
-                
-                // Create message event with customer attribution if we have a customer ID
-                const eventObject = {
-                    type: 'message',
-                    text: userMessage,
-                    visibility: 'all'
-                };
-                
-                // Add customer ID if available - THIS IS THE KEY CHANGE
-                if (customerId) {
-                    eventObject.author_id = customerId;
-                    console.log(`\n📝 Adding customer attribution (author_id: ${customerId})`);
+                // Fallback to Agent API with customer ID attribution
+                else if (dualCreds && dualCreds.entityId) {
+                    console.log('\n🔑 Using Agent API with customer ID attribution');
+                    
+                    // Determine auth and create proper headers
+                    let authHeader;
+                    if (agentCredentials.startsWith('Basic ')) {
+                        authHeader = agentCredentials;
+                    } else if (agentCredentials.startsWith('Bearer ')) {
+                        authHeader = agentCredentials;
+                    } else if (agentCredentials.includes(':')) {
+                        authHeader = `Basic ${agentCredentials}`;
+                    } else {
+                        authHeader = `Basic ${agentCredentials}`;
+                    }
+                    
+                    // Create message event with customer attribution if we have a customer ID
+                    const eventObject = {
+                        type: 'message',
+                        text: `👤 [CUSTOMER]: ${userMessage}`, // Add prefix for visual indication
+                        visibility: 'all',
+                        author_id: dualCreds.entityId // Set author to customer for attribution
+                    };
+                    
+                    console.log(`\n📝 Adding customer attribution (author_id: ${dualCreds.entityId})`);
+                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
+                    
+                    // Send the message with proper attribution
+                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authHeader,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            chat_id: req.body.chatId,
+                            event: eventObject
+                        })
+                    });
+                    
+                    if (!sendResponse.ok) {
+                        const errorText = await sendResponse.text();
+                        console.error('\n❌ Error sending message to LiveChat:', errorText);
+                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
+                    }
+                    
+                    console.log('\n✅ Message sent with customer ID attribution');
                 }
-                
-                // Log the exact request structure
-                console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                
-                // Send the message with proper attribution
-                const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authHeader,
-                        'X-Region': 'fra'
-                    },
-                    body: JSON.stringify({
-                        chat_id: req.body.chatId,
-                        event: eventObject
-                    })
-                });
-                
-                if (!sendResponse.ok) {
-                    const errorText = await sendResponse.text();
-                    console.error('\n❌ Error sending message to LiveChat:', errorText);
-                    throw new Error(`LiveChat API error: ${sendResponse.status}`);
+                // Final fallback - just use Agent API normally
+                else {
+                    console.log('\n🔑 Falling back to Agent API without customer attribution');
+                    
+                    // Determine auth and create proper headers
+                    let authHeader;
+                    if (agentCredentials.startsWith('Basic ')) {
+                        authHeader = agentCredentials;
+                    } else if (agentCredentials.startsWith('Bearer ')) {
+                        authHeader = agentCredentials;
+                    } else if (agentCredentials.includes(':')) {
+                        authHeader = `Basic ${agentCredentials}`;
+                    } else {
+                        authHeader = `Basic ${agentCredentials}`;
+                    }
+                    
+                    // Create basic message event
+                    const eventObject = {
+                        type: 'message',
+                        text: `👤 [CUSTOMER]: ${userMessage}`, // At least add prefix for visibility
+                        visibility: 'all'
+                    };
+                    
+                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
+                    
+                    // Send the message
+                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authHeader,
+                            'X-Region': 'fra'
+                        },
+                        body: JSON.stringify({
+                            chat_id: req.body.chatId,
+                            event: eventObject
+                        })
+                    });
+                    
+                    if (!sendResponse.ok) {
+                        const errorText = await sendResponse.text();
+                        console.error('\n❌ Error sending message to LiveChat:', errorText);
+                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
+                    }
+                    
+                    console.log('\n✅ Message sent with prefix only (no attribution)');
                 }
-                
-                console.log('\n✅ Message sent successfully to LiveChat');
                 
                 // Return success response
                 return res.status(200).json({
