@@ -61,40 +61,22 @@ export async function generateCustomerToken(sessionId) {
     // Use existing PAT credentials 
     const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
     const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+    
+    // Create Basic Auth header directly from the PAT
     const basicAuth = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
     
-    // Convert Basic Auth to Bearer token
-    const tokenResponse = await fetch('https://accounts.livechat.com/v2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        grant_type: 'personal_access_token',
-        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f', // Use your LiveChat Client ID 
-        token: PAT
-      })
-    });
-    
-    if (!tokenResponse.ok) {
-      throw new Error(`Failed to get Bearer token: ${await tokenResponse.text()}`);
-    }
-    
-    const tokenData = await tokenResponse.json();
-    const bearerToken = tokenData.access_token;
-    
-    // Use bearer token to generate customer token
+    // Use basic auth to generate customer token directly
     const customerResponse = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${bearerToken}`
+        'Authorization': `Basic ${basicAuth}`
       },
       body: JSON.stringify({
         grant_type: 'agent_token',
-        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f', // Use your LiveChat Client ID
+        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f',
         response_type: 'token',
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737' // Your Organization ID
+        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
       })
     });
     
