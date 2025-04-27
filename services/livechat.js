@@ -774,6 +774,80 @@ export async function createCustomerChat(sessionId, isIcelandic = false) {
 }
 
 /**
+ * Sends a message directly through Customer API
+ * @param {string} chatId - LiveChat chat ID
+ * @param {string} message - Message to send
+ * @param {string} customerId - Customer entity ID from LiveChat
+ * @returns {Promise<boolean>} Success status
+ */
+export async function sendCustomerApiMessage(chatId, message, customerId) {
+  try {
+    console.log('\n🔍 Attempting direct Customer API message with WebToken approach');
+    
+    // Get LiveChat organization ID and client ID
+    const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
+    const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
+    
+    // Get admin credentials for token exchange
+    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+    
+    // First, obtain a proper token for Customer API
+    console.log('\n🔑 Requesting Customer access_token via Identity Token approach');
+    
+    // Step 1: Get WebToken for customer identity
+    const webTokenResponse = await fetch('https://accounts.livechat.com/customer/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        grant_type: 'cookie',
+        response_type: 'token',
+        client_id: CLIENT_ID,
+        organization_id: ORGANIZATION_ID,
+        redirect_uri: 'https://sky-lagoon-chat-2024.vercel.app/' // Your app URL
+      })
+    });
+    
+    if (!webTokenResponse.ok) {
+      console.error('\n❌ WebToken error:', await webTokenResponse.text());
+      return false;
+    }
+    
+    const webTokenData = await webTokenResponse.json();
+    const accessToken = webTokenData.access_token;
+    
+    // Step 2: Use the token to send a message as the customer
+    const messageResponse = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        event: {
+          type: 'message',
+          text: message
+        }
+      })
+    });
+    
+    if (!messageResponse.ok) {
+      console.error('\n❌ Customer API message error:', await messageResponse.text());
+      return false;
+    }
+    
+    console.log('\n✅ Message sent successfully via Customer API!');
+    return true;
+  } catch (error) {
+    console.error('\n❌ Error in sendCustomerApiMessage:', error);
+    return false;
+  }
+}
+
+/**
  * Specialized diagnostic for group configuration issues
  * @returns {Promise<Object>} Diagnostic results
  */
