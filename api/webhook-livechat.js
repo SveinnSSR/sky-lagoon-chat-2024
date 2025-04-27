@@ -329,6 +329,13 @@ export default async function handler(req, res) {
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
 
+      // Check if this is a message with customer attribution (non-email author_id)
+      if (authorId && !authorId.includes('@')) {
+        console.log(`\n🔍 Message appears to have customer attribution (ID: ${authorId})`);
+        console.log('\n✅ Allowing message with customer attribution to pass through');
+        // Continue processing normally - we want to avoid blocking these messages
+      }
+      
       // Check if this is a prefixed message we sent earlier
       if (messageText.startsWith('👤 [CUSTOMER]:')) {
         // Extract the original message for comparison
@@ -354,7 +361,7 @@ export default async function handler(req, res) {
         } catch (mongoError) {
           console.error('\n⚠️ Error checking MongoDB for original text:', mongoError);
         }
-      }      
+      } 
       
       // Just before MongoDB check
       console.log('\n🔎 ECHO DEBUG - About to check MongoDB for:', req.body.payload.chat_id, req.body.payload.event?.text);

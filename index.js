@@ -3240,119 +3240,108 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
                 } catch (storeError) {
                     console.error('\n⚠️ Error storing message in MongoDB:', storeError);
-                    // Continue anyway - fall back to other echo detection methods
                 }
                 
-                // Get dual credentials for this chat
-                const dualCreds = await getDualCredentials(req.body.chatId);
+                // Find the customer entity ID for this chat directly from MongoDB
+                const chatId = req.body.chatId;
+                let customerId = null;
                 
-                if (!dualCreds && !req.body.agent_credentials) {
+                try {
+                    console.log(`\n🔍 Looking up customer ID for chat: ${chatId}`);
+                    const { db } = await connectToDatabase();
+                    const dualCreds = await db.collection('dual_credentials').findOne({ chatId });
+                    
+                    if (dualCreds && dualCreds.entityId) {
+                        customerId = dualCreds.entityId;
+                        console.log(`\n✅ Found customer ID: ${customerId}`);
+                    } else {
+                        console.log('\n⚠️ No customer ID found in dual_credentials');
+                    }
+                } catch (dbError) {
+                    console.error('\n❌ Error looking up customer ID:', dbError);
+                }
+                
+                // Always use agent credentials for sending
+                const credentials = req.body.agent_credentials || req.body.bot_token;
+                
+                if (!credentials) {
                     throw new Error('Missing credentials for agent mode');
                 }
                 
-                // UPDATED: Check for customer ID instead of customer token
-                if (dualCreds && dualCreds.entityId) {
-                    console.log('\n🔑 Using Agent API with customer attribution');
-                    
-                    // Send using dual API approach with customer attribution
-                    const sent = await sendDualApiMessage(
-                        req.body.chatId,
-                        userMessage,
-                        dualCreds,
-                        true // Send as customer for proper styling
-                    );
-                    
-                    if (!sent) {
-                        throw new Error('Failed to send message with customer attribution');
-                    }
-                } else {
-                    // Fall back to original approach
-                    console.log('\n🔑 Falling back to Agent API without attribution (messages will be right-aligned)');
-                    
-                    // Use agent_credentials that are being passed in
-                    const credentials = req.body.agent_credentials || req.body.bot_token;
-                    
-                    if (!credentials) {
-                        throw new Error('Missing credentials for agent mode');
+                // Track message for echo detection
+                try {
+                    if (!global.customerMessageTracker) {
+                        global.customerMessageTracker = new Map();
                     }
                     
-                    // Track message in customerMessageTracker for backup echo detection
-                    try {
-                        if (!global.customerMessageTracker) {
-                            global.customerMessageTracker = new Map();
-                        }
-                        
-                        // Get or initialize messages array for this chat
-                        const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
-                        
-                        // Add this message to tracking
-                        chatMessages.push({
-                            text: userMessage,
-                            timestamp: Date.now()
-                        });
-                        
-                        // Update the tracker
-                        global.customerMessageTracker.set(req.body.chatId, chatMessages);
-                        
-                        // Keep only recent messages (last 10)
-                        if (chatMessages.length > 10) {
-                            chatMessages.shift();
-                        }
-                        
-                        console.log(`\n🔒 Tracked customer message by chat ID for echo detection: "${userMessage}"`);
-                    } catch (trackError) {
-                        console.error('\n⚠️ Error tracking message by chat ID:', trackError);
-                        // Continue anyway
-                    }
-                    
-                    // Determine auth and create proper headers
-                    let authHeader;
-                    if (credentials.startsWith('Basic ')) {
-                        authHeader = credentials;
-                    } else if (credentials.startsWith('Bearer ')) {
-                        authHeader = credentials;
-                    } else if (credentials.includes(':')) {
-                        authHeader = `Basic ${credentials}`;
-                    } else if (req.body.agent_credentials && !req.body.agent_credentials.startsWith('Bearer')) {
-                        authHeader = `Basic ${credentials}`;
-                    } else {
-                        authHeader = `Bearer ${credentials}`;
-                    }
-                    
-                    // FIXED: Create a simpler event object without complex custom properties
-                    const eventObject = {
-                        type: 'message',
+                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
+                    chatMessages.push({
                         text: userMessage,
-                        visibility: 'all'
-                    };
-                    
-                    // Log the exact JSON we're sending for debugging
-                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                    
-                    // FIXED: Send event with simpler structure to avoid validation errors
-                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': authHeader,
-                            'X-Region': 'fra'
-                        },
-                        body: JSON.stringify({
-                            chat_id: req.body.chatId,
-                            event: eventObject
-                        })
+                        timestamp: Date.now()
                     });
                     
-                    if (!sendResponse.ok) {
-                        const errorText = await sendResponse.text();
-                        console.error('\n❌ Error sending message to LiveChat:', errorText);
-                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
+                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
+                    
+                    if (chatMessages.length > 10) {
+                        chatMessages.shift();
                     }
+                    
+                    console.log(`\n🔒 Tracked customer message for echo detection: "${userMessage}"`);
+                } catch (trackError) {
+                    console.error('\n⚠️ Error tracking message:', trackError);
+                }
+                
+                // Determine auth and create proper headers
+                let authHeader;
+                if (credentials.startsWith('Basic ')) {
+                    authHeader = credentials;
+                } else if (credentials.startsWith('Bearer ')) {
+                    authHeader = credentials;
+                } else if (credentials.includes(':')) {
+                    authHeader = `Basic ${credentials}`;
+                } else {
+                    authHeader = `Basic ${credentials}`;
+                }
+                
+                // Create message event with customer attribution if we have a customer ID
+                const eventObject = {
+                    type: 'message',
+                    text: userMessage,
+                    visibility: 'all'
+                };
+                
+                // Add customer ID if available - THIS IS THE KEY CHANGE
+                if (customerId) {
+                    eventObject.author_id = customerId;
+                    console.log(`\n📝 Adding customer attribution (author_id: ${customerId})`);
+                }
+                
+                // Log the exact request structure
+                console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
+                
+                // Send the message with proper attribution
+                const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader,
+                        'X-Region': 'fra'
+                    },
+                    body: JSON.stringify({
+                        chat_id: req.body.chatId,
+                        event: eventObject
+                    })
+                });
+                
+                if (!sendResponse.ok) {
+                    const errorText = await sendResponse.text();
+                    console.error('\n❌ Error sending message to LiveChat:', errorText);
+                    throw new Error(`LiveChat API error: ${sendResponse.status}`);
                 }
                 
                 console.log('\n✅ Message sent successfully to LiveChat');
                 
-                // No broadcast needed for agent mode messages
+                // Return success response
                 return res.status(200).json({
                     success: true,
                     chatId: req.body.chatId,
