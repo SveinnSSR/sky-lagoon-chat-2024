@@ -314,12 +314,23 @@ export default async function handler(req, res) {
     if (req.body.action === 'incoming_event' && 
         req.body.payload.event?.type === 'message') {
     
+      // Add these detailed logs
+      console.log('\n🔎 ECHO DEBUG - Webhook message received:', {
+        chatId: req.body.payload.chat_id,
+        messageText: req.body.payload.event?.text?.substring(0, 30),
+        authorId: req.body.payload.event?.author_id,
+        messageId: req.body.payload.event?.id
+      });
+            
       const chatId = req.body.payload.chat_id;
       const event = req.body.payload.event;
       const authorId = event.author_id;
       const messageText = event.text || '';
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
+
+      // Just before MongoDB check
+      console.log('\n🔎 ECHO DEBUG - About to check MongoDB for:', req.body.payload.chat_id, req.body.payload.event?.text);
 
       // NEW: Check MongoDB for duplicate messages - this works across function instances
       try {

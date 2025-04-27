@@ -78,10 +78,18 @@ export async function storeRecentMessage(chatId, messageText) {
 
 export async function checkForDuplicateMessage(chatId, messageText) {
   try {
+    console.log('\n🔎 ECHO DEBUG - MongoDB check called for:', chatId, messageText);
+    
     const { db } = await connectToDatabase();
     
     // Look for a matching message in the last 30 seconds
     const recentTimestamp = new Date(Date.now() - 30000);
+    
+    console.log('\n🔎 ECHO DEBUG - MongoDB query:', {
+      chatId,
+      messageText,
+      timestamp: { $gte: recentTimestamp }
+    });
     
     const match = await db.collection('recent_messages').findOne({
       chatId,
@@ -89,8 +97,26 @@ export async function checkForDuplicateMessage(chatId, messageText) {
       timestamp: { $gte: recentTimestamp }
     });
     
+    console.log('\n🔎 ECHO DEBUG - MongoDB match result:', !!match);
+    
     if (match) {
       console.log(`\n🔄 Found duplicate message in MongoDB: "${messageText.substring(0, 30)}..."`);
+    } else {
+      console.log(`\n⚠️ No matching message found in MongoDB for: "${messageText.substring(0, 30)}..."`);
+      
+      // Add a debug query to check what messages exist for this chat
+      const recentMessages = await db.collection('recent_messages')
+        .find({ chatId })
+        .sort({ timestamp: -1 })
+        .limit(5)
+        .toArray();
+      
+      console.log('\n🔎 ECHO DEBUG - Recent messages in MongoDB for this chat:', 
+        recentMessages.map(msg => ({
+          text: msg.messageText.substring(0, 20),
+          age: Math.round((Date.now() - new Date(msg.timestamp).getTime())/1000) + 's ago'
+        }))
+      );
     }
     
     return !!match;
