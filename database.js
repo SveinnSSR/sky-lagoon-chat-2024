@@ -39,6 +39,11 @@ export async function connectToDatabase() {
   }
 }
 
+// ---------------------------------------------------------
+// Echo and Duplicate Message Prevention for LiveChat Customer API integration
+// message is stored in MongoDB for echo detection
+// ---------------------------------------------------------
+
 // Message tracking for echo detection
 export async function storeRecentMessage(chatId, messageText) {
   try {
@@ -123,5 +128,110 @@ export async function checkForDuplicateMessage(chatId, messageText) {
   } catch (error) {
     console.error('\n❌ Error checking for duplicate message:', error);
     return false; // On error, let message through
+  }
+}
+
+// ---------------------------------------------------------
+// Dual-credentials storage for LiveChat Customer API integration
+// ---------------------------------------------------------
+
+/**
+ * Stores both agent and customer credentials for a chat
+ * @param {string} chatId - LiveChat chat ID
+ * @param {string} sessionId - Session ID
+ * @param {string} customerToken - Customer API token
+ * @param {string} entityId - Customer entity ID
+ * @returns {Promise<boolean>} Success status
+ */
+export async function storeDualCredentials(chatId, sessionId, customerToken, entityId) {
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Get agent credentials
+    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
+    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+    
+    // Store both agent credentials and customer token
+    await db.collection('dual_credentials').updateOne(
+      { chatId },
+      { 
+        $set: { 
+          sessionId,
+          customerToken,
+          entityId,
+          agentCredentials: Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64'),
+          expiresAt: new Date(Date.now() + 28800000), // 8 hours
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    
+    // Also cache in memory
+    if (!global.dualCredentials) {
+      global.dualCredentials = new Map();
+    }
+    
+    global.dualCredentials.set(chatId, {
+      customerToken,
+      entityId,
+      agentCredentials: Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64'),
+      expiresAt: new Date(Date.now() + 28800000)
+    });
+    
+    console.log(`\n💾 Stored dual credentials for chat ${chatId}`);
+    return true;
+  } catch (error) {
+    console.error('\n❌ Error storing dual credentials:', error);
+    return false;
+  }
+}
+
+/**
+ * Retrieves dual credentials for a chat
+ * @param {string} chatId - LiveChat chat ID
+ * @returns {Promise<Object|null>} Credentials or null if not found
+ */
+export async function getDualCredentials(chatId) {
+  try {
+    // Check memory cache first
+    if (global.dualCredentials && global.dualCredentials.has(chatId)) {
+      const creds = global.dualCredentials.get(chatId);
+      
+      // Check expiration
+      if (creds.expiresAt > new Date()) {
+        return creds;
+      }
+    }
+    
+    // Then check database
+    const { db } = await connectToDatabase();
+    const creds = await db.collection('dual_credentials').findOne({ chatId });
+    
+    if (creds && creds.expiresAt > new Date()) {
+      // Cache in memory
+      if (!global.dualCredentials) {
+        global.dualCredentials = new Map();
+      }
+      
+      global.dualCredentials.set(chatId, {
+        customerToken: creds.customerToken,
+        entityId: creds.entityId,
+        agentCredentials: creds.agentCredentials,
+        expiresAt: creds.expiresAt
+      });
+      
+      return {
+        customerToken: creds.customerToken,
+        entityId: creds.entityId,
+        agentCredentials: creds.agentCredentials,
+        expiresAt: creds.expiresAt
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('\n❌ Error getting dual credentials:', error);
+    return null;
   }
 }
