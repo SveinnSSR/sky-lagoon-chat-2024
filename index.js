@@ -3250,11 +3250,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     throw new Error('Missing credentials for agent mode');
                 }
                 
-                // Send message using Customer API if we have customer token
-                if (dualCreds && dualCreds.customerToken) {
-                    console.log('\n🔑 Using Customer API for better message styling');
+                // UPDATED: Check for customer ID instead of customer token
+                if (dualCreds && dualCreds.entityId) {
+                    console.log('\n🔑 Using Agent API with customer attribution');
                     
-                    // Send using dual API approach
+                    // Send using dual API approach with customer attribution
                     const sent = await sendDualApiMessage(
                         req.body.chatId,
                         userMessage,
@@ -3263,11 +3263,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     );
                     
                     if (!sent) {
-                        throw new Error('Failed to send message via Customer API');
+                        throw new Error('Failed to send message with customer attribution');
                     }
                 } else {
                     // Fall back to original approach
-                    console.log('\n🔑 Falling back to Agent API (messages will be right-aligned)');
+                    console.log('\n🔑 Falling back to Agent API without attribution (messages will be right-aligned)');
                     
                     // Use agent_credentials that are being passed in
                     const credentials = req.body.agent_credentials || req.body.bot_token;

@@ -329,6 +329,33 @@ export default async function handler(req, res) {
       const messageId = event.id; // Add message ID tracking
       const properties = event.properties || {}; // Extract custom properties
 
+      // Check if this is a prefixed message we sent earlier
+      if (messageText.startsWith('👤 [CUSTOMER]:')) {
+        // Extract the original message for comparison
+        const originalText = messageText.replace('👤 [CUSTOMER]:', '').trim();
+        
+        // Check if the original text matches any recent messages
+        const isDuplicate = global.recentMessages.some(msg => 
+          msg.text === originalText && (Date.now() - msg.timestamp < 15000)
+        );
+        
+        if (isDuplicate) {
+          console.log(`\n🔄 ECHO DETECTED: Prefixed message "${messageText.substring(0, 30)}..." is an echo of a recent message`);
+          return res.status(200).json({ success: true });
+        }
+        
+        // Also check MongoDB for the original text
+        try {
+          const isOriginalDuplicate = await checkForDuplicateMessage(chatId, originalText);
+          if (isOriginalDuplicate) {
+            console.log(`\n🔄 MONGODB ECHO DETECTED: Prefixed message "${messageText.substring(0, 30)}..." matches original text in MongoDB`);
+            return res.status(200).json({ success: true });
+          }
+        } catch (mongoError) {
+          console.error('\n⚠️ Error checking MongoDB for original text:', mongoError);
+        }
+      }      
+      
       // Just before MongoDB check
       console.log('\n🔎 ECHO DEBUG - About to check MongoDB for:', req.body.payload.chat_id, req.body.payload.event?.text);
 

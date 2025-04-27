@@ -2041,10 +2041,12 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
       credentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
     }
     
-    if (isFromCustomer) {
-      // ALWAYS add customer prefix for visibility
-      const prefixedMessage = `👤 [CUSTOMER]: ${message}`;
-      console.log('\n📨 Adding customer prefix to message for visibility');
+    // Get customer ID from credentials if available
+    const customerId = typeof credentials === 'object' ? credentials.entityId : null;
+    
+    if (isFromCustomer && customerId) {
+      // Send message with customer attribution
+      console.log(`\n📨 Sending message with customer attribution (ID: ${customerId})`);
       
       // Determine auth and create proper headers
       let authHeader;
@@ -2056,7 +2058,10 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
         authHeader = `Basic ${agentCredentials}`;
       }
       
-      // Create simple message event
+      // Option to add prefix for visual backup - keep for now
+      const prefixedMessage = `👤 [CUSTOMER]: ${message}`;
+      
+      // Create message event with customer attribution
       const response = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
         method: 'POST',
         headers: {
@@ -2068,17 +2073,18 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
           chat_id: chatId,
           event: {
             type: 'message',
-            text: prefixedMessage,
+            text: prefixedMessage, // Use prefixed message for now
+            author_id: customerId, // This is the key for proper attribution
             visibility: 'all'
           }
         })
       });
       
       if (!response.ok) {
-        throw new Error(`Error sending prefixed message: ${await response.text()}`);
+        throw new Error(`Error sending message with customer attribution: ${await response.text()}`);
       }
       
-      console.log('\n✅ Customer message sent with prefix');
+      console.log('\n✅ Message sent with customer attribution');
       return true;
     } else {
       // Send as agent (will be right-aligned in LiveChat interface)
@@ -2086,9 +2092,9 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
     }
   } catch (error) {
     console.error('\n❌ Error in sendDualApiMessage:', error);
-    console.log('\n🔄 Falling back to basic message send without prefix');
+    console.log('\n🔄 Falling back to basic message send without attribution');
     
-    // Last resort fallback - send without prefix
+    // Last resort fallback - send without attribution
     return await sendMessageToLiveChat(chatId, message, 
       typeof credentials === 'object' ? credentials.agentCredentials : credentials);
   }
