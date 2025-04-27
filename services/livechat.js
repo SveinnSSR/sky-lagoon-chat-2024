@@ -116,37 +116,65 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
     
     const chatData = await chatResponse.json();
     
-    // STEP 3: GENERATE CUSTOMER TOKEN FOR CUSTOMER API (NEW!)
-    console.log('\n🔑 Step 3: Generating customer token for Customer API...');
-    const customerToken = await generateCustomerToken(customerId);
+    // STEP 3: TRY TO GENERATE CUSTOMER TOKEN FOR CUSTOMER API
+    let customerToken = null;
+    try {
+      console.log('\n🔑 Step 3: Generating customer token for Customer API...');
+      customerToken = await generateCustomerToken(customerId);
+      console.log('\n✅ Successfully obtained customer token for Customer API');
+    } catch (tokenError) {
+      console.error('\n⚠️ Could not generate customer token:', tokenError.message);
+      // Continue without token - we'll fall back to Agent API with author_id
+    }
     
     // Store both customer ID and token for future use
     await storeDualCredentials(chatData.chat_id, sessionId, customerToken, customerId);
     
-    // Send initial message using the Customer API (NEW!)
-    try {
-      console.log('\n📨 Sending initial message through Customer API...');
-      
-      await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${customerToken}`
-        },
-        body: JSON.stringify({
-          chat_id: chatData.chat_id,
-          event: {
-            type: 'message',
-            text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance'
-          }
-        })
-      });
-      
-      console.log('\n✅ Initial message sent through Customer API');
-    } catch (messageError) {
-      console.error('\n⚠️ Could not send initial message through Customer API:', messageError);
-      
-      // Fall back to Agent API for initial message
+    // Send initial message
+    if (customerToken) {
+      // Try to use Customer API if we have a token
+      try {
+        console.log('\n📨 Sending initial message through Customer API...');
+        
+        await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${customerToken}`
+          },
+          body: JSON.stringify({
+            chat_id: chatData.chat_id,
+            event: {
+              type: 'message',
+              text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance'
+            }
+          })
+        });
+        
+        console.log('\n✅ Initial message sent through Customer API');
+      } catch (messageError) {
+        console.error('\n⚠️ Could not send initial message through Customer API:', messageError);
+        
+        // Fall back to Agent API for initial message
+        await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${agentCredentials}`,
+            'X-Region': 'fra'
+          },
+          body: JSON.stringify({
+            chat_id: chatData.chat_id,
+            event: {
+              type: 'message',
+              text: '🚨 URGENT: AI CHATBOT TRANSFER - Customer has requested human assistance',
+              visibility: 'all'
+            }
+          })
+        });
+      }
+    } else {
+      // Just use Agent API for the message
       await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
         method: 'POST',
         headers: {
@@ -169,7 +197,7 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
       chat_id: chatData.chat_id,
       thread_id: chatData.thread_id,
       customer_id: customerId,
-      customer_token: customerToken, // NEW: Return customer token
+      customer_token: customerToken,
       agent_credentials: agentCredentials
     };
   } catch (error) {
@@ -185,56 +213,32 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
  */
 export async function generateCustomerToken(customerId) {
   try {
-    console.log('\n🔑 Generating customer token for Customer API...');
+    console.log('\n🔑 Generating customer token for:', customerId);
     
-    // First, get agent access token using PAT
-    const agentTokenResponse = await fetch('https://accounts.livechat.com/v2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        grant_type: 'personal_access_token',
-        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f',
-        token: PAT
-      })
-    });
-    
-    if (!agentTokenResponse.ok) {
-      throw new Error(`Failed to get agent token: ${await agentTokenResponse.text()}`);
-    }
-    
-    const agentTokenData = await agentTokenResponse.json();
-    const agentToken = agentTokenData.access_token;
-    
-    console.log('\n✅ Successfully obtained agent bearer token');
-    
-    // Now use agent token to get customer token
-    const customerTokenResponse = await fetch('https://accounts.livechat.com/v2/customer/token', {
+    // Use the correct endpoint with Basic Auth
+    const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${agentToken}`
+        'Authorization': `Basic ${Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64')}`,
+        'X-Region': 'fra'
       },
       body: JSON.stringify({
-        grant_type: 'agent_token',
-        client_id: 'b4c686ea4c4caa04e6ea921bf45f516f',
-        response_type: 'token',
-        entity_id: customerId, // Associate with specific customer
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
+        customer_id: customerId
       })
     });
-    
-    if (!customerTokenResponse.ok) {
-      throw new Error(`Failed to generate customer token: ${await customerTokenResponse.text()}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('\n❌ Customer token API error:', errorText);
+      throw new Error(`Customer token API error: ${response.status}`);
     }
-    
-    const customerData = await customerTokenResponse.json();
-    
-    console.log('\n✅ Successfully generated customer token');
-    return customerData.access_token;
+
+    const data = await response.json();
+    console.log('\n✅ Generated customer token successfully');
+    return data.token;
   } catch (error) {
-    console.error('\n❌ Error generating customer token:', error);
+    console.error('\n❌ Failed to generate customer token:', error);
     throw error;
   }
 }
