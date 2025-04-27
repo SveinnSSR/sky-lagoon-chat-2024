@@ -3029,6 +3029,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             // IMPORTANT: For agent mode messages, just forward to LiveChat without bot response
             if (req.body.isAgentMode) {
+                // Store message in MongoDB for echo detection
+                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', context.transferStatus.chatId, userMessage);
+                try {
+                    await storeRecentMessage(context.transferStatus.chatId, userMessage);
+                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
+                } catch (storeError) {
+                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
+                }
+                
                 // Send the message to LiveChat using the stored credentials
                 await sendMessageToLiveChat(
                     context.transferStatus.chatId, 
