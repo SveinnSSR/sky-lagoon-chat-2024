@@ -3359,7 +3359,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     if (!sendResponse.ok) {
                         const errorText = await sendResponse.text();
                         console.error('\n❌ Error sending message to LiveChat:', errorText);
-                        throw new Error(`LiveChat API error: ${response.status}`);
+                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
                     }
                     
                     console.log('\n✅ Message sent with customer ID attribution');
@@ -3406,7 +3406,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     if (!sendResponse.ok) {
                         const errorText = await sendResponse.text();
                         console.error('\n❌ Error sending message to LiveChat:', errorText);
-                        throw new Error(`LiveChat API error: ${response.status}`);
+                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
                     }
                     
                     console.log('\n✅ Message sent with prefix only (no attribution)');

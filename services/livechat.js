@@ -233,7 +233,7 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
 }
 
 /**
- * Generates a customer token for a specific LiveChat customer
+ * Generates a customer token for a specific LiveChat customer using the Agent Token Grant flow
  * @param {string} customerId - LiveChat customer ID
  * @returns {Promise<string>} Customer access token
  */
@@ -241,29 +241,57 @@ export async function generateCustomerToken(customerId) {
   try {
     console.log('\n🔑 Generating customer token for:', customerId);
     
-    // Use the correct endpoint with organization_id
-    const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
+    // Step 1: Get agent access token (OAuth)
+    console.log('\n🔑 Step 1: Getting agent access token...');
+    const oauthResponse = await fetch('https://accounts.livechatinc.com/v2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        scope: 'customers--all:rw chats--all:rw' // Critical permissions
+      })
+    });
+    
+    if (!oauthResponse.ok) {
+      const errorText = await oauthResponse.text();
+      console.error('\n❌ OAuth token error:', errorText);
+      throw new Error(`OAuth token error: ${oauthResponse.status}`);
+    }
+    
+    const oauthData = await oauthResponse.json();
+    const agentToken = oauthData.access_token;
+    console.log('\n✅ Successfully obtained agent access token');
+    
+    // Step 2: Get customer token using agent token (Agent Token Grant)
+    console.log('\n🔑 Step 2: Getting customer token with Agent Token Grant...');
+    const response = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64')}`,
-        'X-Region': 'fra'
+        'Authorization': `Bearer ${agentToken}`
       },
       body: JSON.stringify({
-        customer_id: customerId,
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'  // Add this required field
+        grant_type: 'agent_token',
+        client_id: CLIENT_ID,
+        entity_id: customerId,  // For an existing customer
+        response_type: 'token',
+        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
       })
     });
-
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('\n❌ Customer token API error:', errorText);
-      throw new Error(`Customer token API error: ${response.status}`);
+      console.error('\n❌ Customer token error:', errorText);
+      throw new Error(`Customer token error: ${response.status}`);
     }
-
+    
     const data = await response.json();
     console.log('\n✅ Generated customer token successfully');
-    return data.token;
+    return data.access_token;  // According to the docs, it's access_token
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
     throw error;
