@@ -243,17 +243,21 @@ export async function generateCustomerToken(customerId) {
     
     // Step 1: Get agent access token (OAuth)
     console.log('\n🔑 Step 1: Getting agent access token...');
-    const oauthResponse = await fetch('https://accounts.livechatinc.com/v2/token', {
+    
+    // Create proper URL-encoded parameters (CRITICAL FIX)
+    const oauthParams = new URLSearchParams();
+    oauthParams.append('grant_type', 'client_credentials');
+    oauthParams.append('client_id', CLIENT_ID);
+    oauthParams.append('client_secret', CLIENT_SECRET);
+    oauthParams.append('scope', 'customers--all:rw chats--all:rw');
+
+    // Use correct domain and content-type (CRITICAL FIXES)
+    const oauthResponse = await fetch('https://accounts.livechat.com/v2/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        scope: 'customers--all:rw chats--all:rw' // Critical permissions
-      })
+      body: oauthParams
     });
     
     if (!oauthResponse.ok) {
@@ -268,19 +272,23 @@ export async function generateCustomerToken(customerId) {
     
     // Step 2: Get customer token using agent token (Agent Token Grant)
     console.log('\n🔑 Step 2: Getting customer token with Agent Token Grant...');
+    
+    // Use URL-encoded parameters for customer token too (CRITICAL FIX)
+    const customerParams = new URLSearchParams();
+    customerParams.append('grant_type', 'agent_token');
+    customerParams.append('client_id', CLIENT_ID);
+    customerParams.append('entity_id', customerId);
+    customerParams.append('response_type', 'token');
+    customerParams.append('organization_id', '10d9b2c9-311a-41b4-94ae-b0c4562d7737');
+
+    // Use correct customer token endpoint with proper content-type (CRITICAL FIX)
     const response = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Bearer ${agentToken}`
       },
-      body: JSON.stringify({
-        grant_type: 'agent_token',
-        client_id: CLIENT_ID,
-        entity_id: customerId,  // For an existing customer
-        response_type: 'token',
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
-      })
+      body: customerParams
     });
     
     if (!response.ok) {
