@@ -238,40 +238,75 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
  */
 async function getAgentToken() {
   try {
-    console.log('\n🔑 Getting agent token with OAuth client credentials...');
+    console.log('\n🔑 Getting agent token...');
     
-    // Use environment variables or fallback to hardcoded values (for testing only)
     const CLIENT_ID = process.env.LIVECHAT_CLIENT_ID || 'b4c686ea4c4caa04e6ea921bf45f516f';
     const CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET || 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt';
     
-    // Create URL parameters
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
     params.append('client_id', CLIENT_ID);
     params.append('client_secret', CLIENT_SECRET);
-    params.append('scope', 'customers--all:rw chats--all:rw');
+    params.append('scope', 'customers--all:rw');
+
+    // Try BOTH endpoints with error handling
+    const endpoints = [
+      'https://accounts.livechat.com/v2/token',
+      'https://accounts.livechat.com/oauth/token'
+    ];
     
-    // Use the correct OAuth endpoint
-    const response = await fetch('https://accounts.livechat.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: params
-    });
+    let lastError;
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('\n❌ OAuth token error details:', errorText);
-      throw new Error(`OAuth token error: ${response.status}`);
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`\n🔍 Trying OAuth endpoint: ${endpoint}`);
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
+          body: params
+        });
+        
+        // Get the response as text first to check if it's HTML
+        const responseText = await response.text();
+        
+        // Log the first 100 characters to see what we're getting
+        console.log(`\n🔍 Response preview: ${responseText.substring(0, 100)}...`);
+        
+        // Check if response is HTML (starts with <!doctype or <html)
+        if (responseText.toLowerCase().includes('<!doctype') || responseText.toLowerCase().includes('<html')) {
+          console.error(`\n❌ Received HTML from ${endpoint} instead of JSON`);
+          continue; // Try the next endpoint
+        }
+        
+        // Parse as JSON if it looks like JSON
+        try {
+          const data = JSON.parse(responseText);
+          
+          // Check if we got an access token
+          if (data.access_token) {
+            console.log(`\n✅ Successfully got token from ${endpoint}`);
+            return data.access_token;
+          } else {
+            console.error(`\n❌ Response did not contain access_token:`, data);
+          }
+        } catch (parseError) {
+          console.error(`\n❌ Failed to parse response as JSON:`, parseError);
+          lastError = parseError;
+        }
+      } catch (error) {
+        lastError = error;
+        console.error(`\n❌ Request failed for ${endpoint}:`, error.message);
+      }
     }
     
-    const data = await response.json();
-    console.log('\n✅ Successfully obtained agent token');
-    return data.access_token;
+    // If we get here, all endpoints failed
+    throw lastError || new Error('All OAuth endpoints failed');
   } catch (error) {
-    console.error('\n❌ Error getting agent token:', error);
+    console.error('\n❌ Final OAuth error:', error);
     throw error;
   }
 }
@@ -288,6 +323,10 @@ export async function generateCustomerToken(customerId) {
     // Step 1: Get agent access token
     const agentToken = await getAgentToken();
     
+    if (!agentToken) {
+      throw new Error('Failed to obtain agent token');
+    }
+    
     // Step 2: Get customer token using agent token
     console.log('\n🔑 Step 2: Getting customer token with Agent Token Grant...');
     
@@ -298,6 +337,7 @@ export async function generateCustomerToken(customerId) {
     customerParams.append('grant_type', 'agent_token');
     customerParams.append('client_id', CLIENT_ID);
     customerParams.append('entity_id', customerId);
+    customerParams.append('response_type', 'token');
     customerParams.append('organization_id', '10d9b2c9-311a-41b4-94ae-b0c4562d7737');
     
     const customerTokenResponse = await fetch('https://accounts.livechat.com/v2/customer/token', {
@@ -309,17 +349,30 @@ export async function generateCustomerToken(customerId) {
       body: customerParams
     });
     
-    if (!customerTokenResponse.ok) {
-      const errorText = await customerTokenResponse.text();
-      console.error('\n❌ Customer token error details:', errorText);
-      throw new Error(`Customer token error: ${customerTokenResponse.status}`);
+    // Get response as text first to check content type
+    const responseText = await customerTokenResponse.text();
+    
+    // Check for HTML response
+    if (responseText.toLowerCase().includes('<!doctype') || responseText.toLowerCase().includes('<html')) {
+      console.error('\n❌ Received HTML from customer token endpoint instead of JSON');
+      throw new Error('Customer token endpoint returned HTML');
     }
     
-    const customerData = await customerTokenResponse.json();
-    console.log('\n✅ Generated customer token successfully');
-    
-    // Return the customer access token
-    return customerData.access_token;
+    // Try to parse as JSON
+    try {
+      const customerData = JSON.parse(responseText);
+      
+      if (customerData.access_token) {
+        console.log('\n✅ Generated customer token successfully');
+        return customerData.access_token;
+      } else {
+        console.error('\n❌ Response did not contain access_token:', customerData);
+        throw new Error('Customer token response missing access_token');
+      }
+    } catch (parseError) {
+      console.error('\n❌ Failed to parse customer token response as JSON:', parseError);
+      throw parseError;
+    }
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
     throw error;
