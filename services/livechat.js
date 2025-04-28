@@ -233,26 +233,26 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
 }
 
 /**
- * Gets an agent token using LiveChat's v3.5 API
- * @returns {Promise<string>} Agent token
+ * Gets an agent token using LiveChat's v2 OAuth endpoint
+ * @returns {Promise<string>} Agent access token
  */
 async function getAgentToken() {
   try {
-    console.log('\n🔑 Getting agent token...');
+    console.log('\n🔑 Getting agent token with client_credentials grant...');
     
     // Use environment variables or fallback to hardcoded values
     const CLIENT_ID = process.env.LIVECHAT_CLIENT_ID || 'b4c686ea4c4caa04e6ea921bf45f516f';
     const CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET || 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt';
     
-    // Create URL parameters
+    // Create URL parameters - using URLSearchParams for proper encoding
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
     params.append('client_id', CLIENT_ID);
     params.append('client_secret', CLIENT_SECRET);
     params.append('scope', 'customers--all:rw chats--all:rw');
     
-    // Use the CORRECT v3.5 API endpoint
-    const response = await fetch('https://accounts.livechat.com/v3.5/agent/action/get_token', {
+    // Use the CORRECT v2 OAuth endpoint
+    const response = await fetch('https://accounts.livechat.com/v2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -261,28 +261,35 @@ async function getAgentToken() {
       body: params
     });
     
+    // Get response as text first for debugging
     const responseText = await response.text();
-    console.log('\n🔍 Agent token response:', response.status, responseText.substring(0, 100));
+    console.log('\n🔍 Agent token response preview:', responseText.substring(0, 100));
     
-    if (!response.ok) {
-      throw new Error(`OAuth failed: ${response.status} - ${responseText}`);
+    try {
+      // Parse response as JSON
+      const data = JSON.parse(responseText);
+      
+      if (data.access_token) {
+        console.log('\n✅ Successfully obtained agent token');
+        return data.access_token; // Note: v2 returns access_token, not token
+      } else {
+        console.error('\n❌ Response missing access_token:', data);
+        throw new Error('Missing access_token in response');
+      }
+    } catch (parseError) {
+      console.error('\n❌ Failed to parse response as JSON:', parseError);
+      throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
     }
-    
-    const data = JSON.parse(responseText);
-    console.log('\n✅ Successfully obtained agent token');
-    
-    // Note: LiveChat returns 'token', NOT 'access_token'
-    return data.token;
   } catch (error) {
-    console.error('\n❌ OAuth error:', error);
-    throw new Error(`Token generation failed: ${error.message}`);
+    console.error('\n❌ Agent token error:', error);
+    throw error;
   }
 }
 
 /**
- * Generates a customer token for a specific LiveChat customer using the v3.5 API
+ * Generates a customer token for a specific LiveChat customer
  * @param {string} customerId - LiveChat customer ID
- * @returns {Promise<string>} Customer token
+ * @returns {Promise<string>} Customer access token
  */
 export async function generateCustomerToken(customerId) {
   try {
@@ -295,38 +302,48 @@ export async function generateCustomerToken(customerId) {
       throw new Error('Failed to obtain agent token');
     }
     
-    // Step 2: Get customer token using agent token and v3.5 API
-    console.log('\n🔑 Step 2: Getting customer token using v3.5 API...');
+    // Step 2: Get customer token using agent token and agent_token grant
+    console.log('\n🔑 Step 2: Getting customer token with agent_token grant...');
     
-    // Note: This endpoint uses JSON, not form data
-    const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
+    const CLIENT_ID = process.env.LIVECHAT_CLIENT_ID || 'b4c686ea4c4caa04e6ea921bf45f516f';
+    
+    // Create URL parameters - using URLSearchParams for proper encoding
+    const params = new URLSearchParams();
+    params.append('grant_type', 'agent_token');
+    params.append('client_id', CLIENT_ID);
+    params.append('entity_id', customerId);
+    params.append('response_type', 'token');
+    params.append('organization_id', '10d9b2c9-311a-41b4-94ae-b0c4562d7737');
+    
+    // Use the v2 customer token endpoint
+    const response = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Bearer ${agentToken}`
       },
-      body: JSON.stringify({
-        customer_id: customerId,
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
-      })
+      body: params
     });
     
+    // Get response as text first for debugging
     const responseText = await response.text();
-    console.log('\n🔍 Customer token response:', response.status, responseText.substring(0, 100));
+    console.log('\n🔍 Customer token response preview:', responseText.substring(0, 100));
     
-    if (!response.ok) {
-      throw new Error(`Customer token failed: ${response.status} - ${responseText}`);
+    try {
+      // Parse response as JSON
+      const data = JSON.parse(responseText);
+      
+      if (data.access_token) {
+        console.log('\n✅ Generated customer token successfully');
+        return data.access_token; // The v2 endpoint returns access_token
+      } else {
+        console.error('\n❌ Response missing access_token:', data);
+        throw new Error('Missing access_token in customer token response');
+      }
+    } catch (parseError) {
+      console.error('\n❌ Failed to parse customer token response as JSON:', parseError);
+      throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
     }
-    
-    const data = JSON.parse(responseText);
-    
-    if (!data.token) {
-      console.error('\n❌ Response did not contain token:', data);
-      throw new Error('Customer token response missing token');
-    }
-    
-    console.log('\n✅ Generated customer token successfully');
-    return data.token;  // Note: It's 'token', not 'access_token'
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
     throw error;
