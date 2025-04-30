@@ -412,6 +412,17 @@ PRICING REFERENCE INFORMATION:
   * Saman Youth: 6,495 ISK weekdays / 7,495 ISK weekends
   * Sér Youth: 7,995 ISK weekdays / 8,995 ISK weekends
 
+CURRENCY SELECTION INFORMATION:
+- The website offers multiple currency options (EUR, USD, GBP, CAD)
+- Users can change currency by clicking the currency dropdown in the top-right corner of the website
+- For currency questions, always inform users about this website feature
+- When asked about prices in specific currencies, mention this option
+
+For questions about currency or non-ISK prices:
+1. First provide the standard ISK pricing
+2. Then explain: "You can view prices in other currencies (USD, EUR, GBP, CAD) by using the currency selector in the top-right corner of our website, next to the Book Now button."
+3. Add the main website link: "[Visit Sky Lagoon] (https://www.skylagoon.com)"
+
 Use these exact prices when discussing packages, but incorporate them naturally into conversational responses.
 Do not invent or approximate prices if knowledge base retrieval fails.
 `;
