@@ -3693,7 +3693,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         while (attempt < MAX_RETRIES) {
             try {
                 completion = await openai.chat.completions.create({
-                    model: "gpt-4-1106-preview",
+                    // Updated to newer model with improved latency and performance
+                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
                     messages: messages,
                     temperature: 0.7,
                     max_tokens: getMaxTokens(userMessage)
@@ -3707,11 +3708,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     attempt: attempt,
                     maxRetries: MAX_RETRIES
                 });
-
                 if (attempt === MAX_RETRIES) {
                     throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
                 }
-
                 const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
                 console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
