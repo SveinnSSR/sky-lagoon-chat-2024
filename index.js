@@ -3283,8 +3283,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.error('\n⚠️ Error tracking message:', trackError);
                 }
                 
+                // Attempt to send message with all available methods, trying each in turn
+                let messageSent = false;
+                
                 // ENHANCED: Use Customer API if we have customer token
-                if (dualCreds && dualCreds.customerToken) {
+                if (!messageSent && dualCreds && dualCreds.customerToken) {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
@@ -3298,7 +3301,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                organization_id: ORGANIZATION_ID, // ADDED: Required for Customer API
+                                organization_id: ORGANIZATION_ID, // Added for Customer API
                                 event: {
                                     type: 'message',
                                     text: userMessage
@@ -3309,66 +3312,75 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error('\n❌ Customer API error:', errorText);
-                            throw new Error(`Customer API error: ${response.status}`);
+                            console.log('\n🔄 Will try next fallback method...');
+                        } else {
+                            console.log('\n✅ Message sent using Customer API (will be left-aligned)');
+                            messageSent = true;
                         }
-                        
-                        console.log('\n✅ Message sent using Customer API (will be left-aligned)');
                     } catch (customerApiError) {
                         console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
-                        throw customerApiError; // Let the error fall through to the fallback
+                        // Continue to next fallback - no throw here
                     }
                 }
+                
                 // Fallback to Agent API with customer ID attribution
-                else if (dualCreds && dualCreds.entityId) {
+                if (!messageSent && dualCreds && dualCreds.entityId) {
                     console.log('\n🔑 Using Agent API with customer ID attribution');
                     
-                    // Determine auth and create proper headers
-                    let authHeader;
-                    if (agentCredentials.startsWith('Basic ')) {
-                        authHeader = agentCredentials;
-                    } else if (agentCredentials.startsWith('Bearer ')) {
-                        authHeader = agentCredentials;
-                    } else if (agentCredentials.includes(':')) {
-                        authHeader = `Basic ${agentCredentials}`;
-                    } else {
-                        authHeader = `Basic ${agentCredentials}`;
+                    try {
+                        // Determine auth and create proper headers
+                        let authHeader;
+                        if (agentCredentials.startsWith('Basic ')) {
+                            authHeader = agentCredentials;
+                        } else if (agentCredentials.startsWith('Bearer ')) {
+                            authHeader = agentCredentials;
+                        } else if (agentCredentials.includes(':')) {
+                            authHeader = `Basic ${agentCredentials}`;
+                        } else {
+                            authHeader = `Basic ${agentCredentials}`;
+                        }
+                        
+                        // Create message event with customer attribution if we have a customer ID
+                        const eventObject = {
+                            type: 'message',
+                            text: `👤 [CUSTOMER]: ${userMessage}`, // Add prefix for visual indication
+                            visibility: 'all',
+                            author_id: dualCreds.entityId // Set author to customer for attribution
+                        };
+                        
+                        console.log(`\n📝 Adding customer attribution (author_id: ${dualCreds.entityId})`);
+                        console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
+                        
+                        // Send the message with proper attribution
+                        const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': authHeader,
+                                'X-Region': 'fra'
+                            },
+                            body: JSON.stringify({
+                                chat_id: req.body.chatId,
+                                event: eventObject
+                            })
+                        });
+                        
+                        if (!sendResponse.ok) {
+                            const errorText = await sendResponse.text();
+                            console.error('\n❌ Error sending message to LiveChat:', errorText);
+                            console.log('\n🔄 Will try final fallback method...');
+                        } else {
+                            console.log('\n✅ Message sent with customer ID attribution');
+                            messageSent = true;
+                        }
+                    } catch (attributionError) {
+                        console.error('\n❌ Attribution approach failed:', attributionError.message);
+                        // Continue to final fallback - no throw here
                     }
-                    
-                    // Create message event with customer attribution if we have a customer ID
-                    const eventObject = {
-                        type: 'message',
-                        text: `👤 [CUSTOMER]: ${userMessage}`, // Add prefix for visual indication
-                        visibility: 'all',
-                        author_id: dualCreds.entityId // Set author to customer for attribution
-                    };
-                    
-                    console.log(`\n📝 Adding customer attribution (author_id: ${dualCreds.entityId})`);
-                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                    
-                    // Send the message with proper attribution
-                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': authHeader,
-                            'X-Region': 'fra'
-                        },
-                        body: JSON.stringify({
-                            chat_id: req.body.chatId,
-                            event: eventObject
-                        })
-                    });
-                    
-                    if (!sendResponse.ok) {
-                        const errorText = await sendResponse.text();
-                        console.error('\n❌ Error sending message to LiveChat:', errorText);
-                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
-                    }
-                    
-                    console.log('\n✅ Message sent with customer ID attribution');
                 }
+                
                 // Final fallback - just use Agent API normally
-                else {
+                if (!messageSent) {
                     console.log('\n🔑 Falling back to Agent API without customer attribution');
                     
                     // Determine auth and create proper headers
@@ -3413,6 +3425,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     }
                     
                     console.log('\n✅ Message sent with prefix only (no attribution)');
+                    messageSent = true;
                 }
                 
                 // Return success response
