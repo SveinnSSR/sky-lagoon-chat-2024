@@ -3291,10 +3291,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
-                        const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
+                        // KEY CHANGE 1: Use license ID directly (no ORGANIZATION_ID)
+                        const LICENSE_ID = 12638850; // From your widget code
                         
-                        // Convert to Basic Auth format (username:entityId, password:customerToken)
+                        // KEY CHANGE 2: Verify auth format with LiveChat
+                        // Option A (current): entityId:customerToken
                         const basicAuthToken = `Basic ${Buffer.from(`${dualCreds.entityId}:${dualCreds.customerToken}`).toString('base64')}`;
+                        
+                        // Option B (if Option A fails): licenseId:customerToken
+                        // const basicAuthToken = `Basic ${Buffer.from(`${LICENSE_ID}:${dualCreds.customerToken}`).toString('base64')}`;
                         
                         const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
                             method: 'POST',
@@ -3304,10 +3309,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                organization_id: ORGANIZATION_ID, // Now at top level only
+                                license_id: LICENSE_ID, // ✅ Confirmed by LiveChat
                                 event: {
                                     type: 'message',
-                                    text: userMessage
+                                    text: userMessage,
+                                    // Optional: Add if needed for tracking
+                                    custom_parameters: {
+                                        sender: 'bot' 
+                                    }
                                 }
                             })
                         });
