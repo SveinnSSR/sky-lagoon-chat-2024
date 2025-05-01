@@ -3292,13 +3292,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     
                     try {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
-                        const LICENSE_ID = 12638850;
                         
                         // KEY FIX 1: Verify chat_id format (remove prefixes if needed)
                         const cleanChatId = req.body.chatId.replace(/^[a-zA-Z]+_/, ''); // Remove "SV4LZ9H1TB_" if present
                         
-                        // KEY FIX 2: Use Basic Auth with license_id:customerToken
-                        const basicAuthToken = `Basic ${Buffer.from(`${LICENSE_ID}:${dualCreds.customerToken}`).toString('base64')}`;
+                        // KEY FIX 2: Use Bearer token instead of Basic Auth
+                        const bearerToken = `Bearer ${dualCreds.customerToken}`;
                         
                         const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
                         
@@ -3306,11 +3305,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': basicAuthToken // Confirmed by LiveChat
+                                'Authorization': bearerToken // Changed to Bearer token per LiveChat
                             },
                             body: JSON.stringify({
                                 chat_id: cleanChatId, // Use sanitized chat ID
-                                license_id: LICENSE_ID,
+                                // KEY FIX 3: Removed license_id from body per LiveChat
                                 event: {
                                     type: 'message',
                                     text: userMessage,
