@@ -3288,6 +3288,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
+                        const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
+                        
                         const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
                             method: 'POST',
                             headers: {
@@ -3296,6 +3298,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
+                                organization_id: ORGANIZATION_ID, // ADDED: Required for Customer API
                                 event: {
                                     type: 'message',
                                     text: userMessage
