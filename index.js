@@ -3291,17 +3291,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
-                        // KEY CHANGE 1: Use license ID directly (no ORGANIZATION_ID)
-                        const LICENSE_ID = 12638850; // From your widget code
+                        const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
+                        const LICENSE_ID = 12638850;
                         
-                        // KEY CHANGE 2: Verify auth format with LiveChat
-                        // Option A (current): entityId:customerToken
+                        // KEY FIX: organization_id in URL
+                        const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
+                        
+                        // Basic Auth (entityId:customerToken)
                         const basicAuthToken = `Basic ${Buffer.from(`${dualCreds.entityId}:${dualCreds.customerToken}`).toString('base64')}`;
                         
-                        // Option B (if Option A fails): licenseId:customerToken
-                        // const basicAuthToken = `Basic ${Buffer.from(`${LICENSE_ID}:${dualCreds.customerToken}`).toString('base64')}`;
-                        
-                        const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
+                        const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -3309,14 +3308,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                license_id: LICENSE_ID, // ✅ Confirmed by LiveChat
+                                license_id: LICENSE_ID, // Still required in body
                                 event: {
                                     type: 'message',
-                                    text: userMessage,
-                                    // Optional: Add if needed for tracking
-                                    custom_parameters: {
-                                        sender: 'bot' 
-                                    }
+                                    text: userMessage
                                 }
                             })
                         });
@@ -3326,11 +3321,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             console.error('\n❌ Customer API error:', errorText);
                             console.log('\n🔄 Will try next fallback method...');
                         } else {
-                            console.log('\n✅ Message sent using Customer API (will be left-aligned)');
+                            console.log('\n✅ Message sent using Customer API');
                             messageSent = true;
                         }
                     } catch (customerApiError) {
-                        console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
+                        console.error('\n❌ Customer API failed:', customerApiError.message);
                     }
                 }
                 
