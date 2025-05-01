@@ -3287,7 +3287,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 let messageSent = false;
                 
                 // ENHANCED: Use Customer API if we have customer token
-                if (!messageSent && dualCreds && dualCreds.customerToken) {
+                if (dualCreds && dualCreds.customerToken) {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
@@ -3301,10 +3301,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                organization_id: ORGANIZATION_ID, // Added for Customer API
+                                organization_id: ORGANIZATION_ID,
                                 event: {
                                     type: 'message',
-                                    text: userMessage
+                                    text: userMessage,
+                                    // Try adding these fields explicitly
+                                    author_id: dualCreds.entityId,
+                                    visibility: 'all'
                                 }
                             })
                         });
@@ -3312,14 +3315,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error('\n❌ Customer API error:', errorText);
-                            console.log('\n🔄 Will try next fallback method...');
+                            // Fall through to next method without throwing
                         } else {
                             console.log('\n✅ Message sent using Customer API (will be left-aligned)');
                             messageSent = true;
                         }
                     } catch (customerApiError) {
                         console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
-                        // Continue to next fallback - no throw here
+                        // Continue to next fallback
                     }
                 }
                 
