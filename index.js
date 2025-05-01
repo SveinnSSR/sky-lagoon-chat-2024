@@ -3293,10 +3293,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     try {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
                         
-                        // KEY FIX 1: Verify chat_id format (remove prefixes if needed)
-                        const cleanChatId = req.body.chatId.replace(/^[a-zA-Z]+_/, ''); // Remove "SV4LZ9H1TB_" if present
+                        // KEY FIX: Use the chat_id exactly as provided by LiveChat
+                        // Don't modify it - the API is sensitive about format
+                        const chatId = req.body.chatId;
                         
-                        // KEY FIX 2: Use Bearer token instead of Basic Auth
+                        // Debug the exact chat ID we're using
+                        console.log(`\n🔍 Using exact chat ID: "${chatId}" for Customer API`);
+                        
+                        // Use Bearer token as instructed by LiveChat
                         const bearerToken = `Bearer ${dualCreds.customerToken}`;
                         
                         const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
@@ -3305,15 +3309,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': bearerToken // Changed to Bearer token per LiveChat
+                                'Authorization': bearerToken 
                             },
                             body: JSON.stringify({
-                                chat_id: cleanChatId, // Use sanitized chat ID
-                                // KEY FIX 3: Removed license_id from body per LiveChat
+                                chat_id: chatId,
                                 event: {
                                     type: 'message',
                                     text: userMessage,
-                                    author_id: dualCreds.entityId,
+                                    custom_id: `customer_msg_${Date.now()}`,
                                     visibility: 'all'
                                 }
                             })
@@ -3324,7 +3327,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             console.error('\n❌ Customer API error:', errorText);
                             console.log('\n🔄 Will try next fallback method...');
                         } else {
-                            console.log('\n✅ Message sent using Customer API');
+                            console.log('\n✅ Message sent using Customer API (customer styling)');
                             messageSent = true;
                         }
                     } catch (customerApiError) {
