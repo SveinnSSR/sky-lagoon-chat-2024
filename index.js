@@ -3294,25 +3294,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
                         const LICENSE_ID = 12638850;
                         
-                        // KEY FIX 1: Use Bearer token (not Basic Auth)
-                        const bearerToken = `Bearer ${dualCreds.customerToken}`;
+                        // KEY FIX 1: Verify chat_id format (remove prefixes if needed)
+                        const cleanChatId = req.body.chatId.replace(/^[a-zA-Z]+_/, ''); // Remove "SV4LZ9H1TB_" if present
                         
-                        // KEY FIX 2: organization_id in URL
+                        // KEY FIX 2: Use Basic Auth with license_id:customerToken
+                        const basicAuthToken = `Basic ${Buffer.from(`${LICENSE_ID}:${dualCreds.customerToken}`).toString('base64')}`;
+                        
                         const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
                         
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': bearerToken  // Changed to Bearer
+                                'Authorization': basicAuthToken // Confirmed by LiveChat
                             },
                             body: JSON.stringify({
-                                chat_id: req.body.chatId,
+                                chat_id: cleanChatId, // Use sanitized chat ID
                                 license_id: LICENSE_ID,
                                 event: {
                                     type: 'message',
                                     text: userMessage,
-                                    author_id: dualCreds.entityId  // Added author_id
+                                    author_id: dualCreds.entityId,
+                                    visibility: 'all'
                                 }
                             })
                         });
