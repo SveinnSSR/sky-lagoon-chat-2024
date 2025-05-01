@@ -372,51 +372,66 @@ async function getAccessToken() {
 }
 
 /**
- * Generates a customer token for a specific LiveChat customer
- * @param {string} customerId - LiveChat customer ID
+ * Generates a customer token using the cookie grant type
+ * @param {string} customerId - Optional existing customer ID
  * @returns {Promise<string>} Customer token
  */
 export async function generateCustomerToken(customerId) {
   try {
-    console.log('\n🔑 Generating customer token for:', customerId);
+    console.log(`\n🔑 Generating customer token ${customerId ? 'for existing customer' : 'for new customer'}...`);
     
-    // Step 1: Get access token using refresh token flow
-    const accessToken = await getAccessToken();
-    
-    if (!accessToken) {
-      throw new Error('Failed to obtain access token');
-    }
-    
-    // Step 2: Use access token to get customer token
-    console.log('\n🔑 Step 2: Getting customer token with access token...');
-    
+    const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
     const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
     
-    const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
+    // Following the exact format from LiveChat documentation
+    const requestBody = {
+      grant_type: "cookie",
+      client_id: CLIENT_ID,
+      organization_id: ORGANIZATION_ID,
+      response_type: "token",
+      redirect_uri: "http://localhost"
+    };
+    
+    // If we have a customerId, add it as entity_id for existing customer
+    if (customerId) {
+      requestBody.entity_id = customerId;
+    }
+    
+    // Log the exact request we're making
+    console.log('\n📝 Customer token request:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch('https://accounts.livechat.com/v2/customer/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        customer_id: customerId,
-        organization_id: ORGANIZATION_ID
-      })
+      body: JSON.stringify(requestBody)
     });
     
     if (!response.ok) {
       const errorText = await response.text();
       console.error('\n❌ Customer token error:', errorText);
-      throw new Error(`Customer token error: ${response.status}`);
+      
+      // If that fails, fall back to attribution approach
+      console.log('\n⚠️ Could not get customer token, using author_id attribution instead');
+      return null;
     }
     
     const data = await response.json();
     console.log('\n✅ Generated customer token successfully');
     
-    return data.token;
+    // For new customers, store the entity_id for future use
+    if (!customerId && data.entity_id) {
+      // Store this mapping for future use
+      console.log(`\n📝 New customer created with ID: ${data.entity_id}`);
+    }
+    
+    return data.access_token;
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
-    throw error;
+    
+    // Return null to fall back to attribution approach
+    return null;
   }
 }
 
