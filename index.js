@@ -3287,27 +3287,27 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 let messageSent = false;
                 
                 // ENHANCED: Use Customer API if we have customer token
-                if (dualCreds && dualCreds.customerToken) {
+                if (!messageSent && dualCreds && dualCreds.customerToken) {
                     console.log('\n🔑 Using Customer API with token for proper message styling');
                     
                     try {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
                         
+                        // Convert to Basic Auth format (username:entityId, password:customerToken)
+                        const basicAuthToken = `Basic ${Buffer.from(`${dualCreds.entityId}:${dualCreds.customerToken}`).toString('base64')}`;
+                        
                         const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/send_event', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${dualCreds.customerToken}`
+                                'Authorization': basicAuthToken  // Now using Basic Auth
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
                                 organization_id: ORGANIZATION_ID,
                                 event: {
                                     type: 'message',
-                                    text: userMessage,
-                                    // Try adding these fields explicitly
-                                    author_id: dualCreds.entityId,
-                                    visibility: 'all'
+                                    text: userMessage
                                 }
                             })
                         });
@@ -3315,14 +3315,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error('\n❌ Customer API error:', errorText);
-                            // Fall through to next method without throwing
+                            console.log('\n🔄 Will try next fallback method...');
                         } else {
                             console.log('\n✅ Message sent using Customer API (will be left-aligned)');
                             messageSent = true;
                         }
                     } catch (customerApiError) {
                         console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
-                        // Continue to next fallback
+                        // Continue to next fallback - no throw here
                     }
                 }
                 
