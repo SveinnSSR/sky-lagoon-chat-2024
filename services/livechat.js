@@ -17,6 +17,88 @@ const openai = new OpenAI({
 // Optional debugging line to verify API key is available
 console.log('OpenAI API Key available in livechat.js:', !!process.env.OPENAI_API_KEY);
 
+/**
+ * ONE-TIME TOKEN EXCHANGE FUNCTION
+ * 
+ * This function exchanges an authorization code for access/refresh tokens.
+ * Should be run manually once to get initial tokens, then commented out.
+ * Save the returned tokens in your environment variables.
+ */
+
+// One-time code exchange function - we'll call this once manually and then comment it out
+async function exchangeCodeForTokens() {
+  try {
+    // =============================================
+    // STEP 1: Paste your fresh authorization code here
+    // - Get this by completing the OAuth flow in browser
+    // - Will look like: RdJYmGOuGkebPq12IzcHrJPbBQU
+    // =============================================
+    const code = 'RdJYmGOuGkebPq12IzcHrJPbBQU'; 
+    
+    // =============================================
+    // STEP 2: Prepare the token request payload
+    // - Uses URLSearchParams for proper x-www-form-urlencoded formatting
+    // - Includes all required OAuth 2.1 parameters
+    // =============================================
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');  // Must be 'authorization_code'
+    params.append('code', code);                        // The code from browser redirect
+    params.append('client_id', 'b4c686ea4c4caa04e6ea921bf45f516f');  // Your app's client ID
+    params.append('client_secret', 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt');  // Your app's secret
+    params.append('redirect_uri', 'http://localhost');  // Must match your app's configured URI
+    
+    // =============================================
+    // STEP 3: Make the token request to LiveChat
+    // - Uses the v2 token endpoint
+    // - Requires application/x-www-form-urlencoded content type
+    // =============================================
+    const response = await fetch('https://accounts.livechat.com/v2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'  // Required by OAuth spec
+      },
+      body: params
+    });
+    
+    // =============================================
+    // STEP 4: Handle the response
+    // - Check for errors
+    // - Extract and save tokens if successful
+    // =============================================
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Token exchange error:', errorText);
+      return;
+    }
+    
+    // Parse successful response
+    const tokens = await response.json();
+    
+    // =============================================
+    // STEP 5: Save these values securely!
+    // - Store in environment variables
+    // - Never commit to version control
+    // =============================================
+    console.log('==== SAVE THESE VALUES ====');
+    console.log('Access Token:', tokens.access_token);    // Short-lived (hours)
+    console.log('Refresh Token:', tokens.refresh_token);  // Long-lived (months)
+    console.log('============================');
+    
+    return tokens;
+  } catch (error) {
+    console.error('Error exchanging code:', error);
+  }
+}
+
+/**
+ * EXECUTION INSTRUCTIONS:
+ * 1. Uncomment the function call below
+ * 2. Run this file once (node exchangeTokens.js)
+ * 3. Copy the tokens to your environment variables
+ * 4. Re-comment this function call
+ */
+// exchangeCodeForTokens();
+
 // LiveChat credentials - kept from the original
 const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
@@ -232,52 +314,65 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
   }
 }
 
+// Cache the access token in memory
+let cachedAccessToken = null;
+let tokenExpiry = 0;
+
 /**
- * Gets an agent token using OAuth client credentials
- * @returns {Promise<string>} Agent access token
+ * Gets an access token using the refresh token flow
+ * @returns {Promise<string>} Access token
  */
-async function getAgentToken() {
+async function getAccessToken() {
   try {
-    console.log('\n🔑 Getting agent token with OAuth...');
+    // Use cached token if it's still valid
+    if (cachedAccessToken && Date.now() < tokenExpiry) {
+      console.log('\n🔑 Using cached access token');
+      return cachedAccessToken;
+    }
+
+    console.log('\n🔑 Getting fresh access token with refresh token...');
     
-    // Your OAuth app credentials
+    // Your refresh token from the logs
+    const REFRESH_TOKEN = 'Zux-GIjChfFDK6mWGpLVB5d7Tgc';
     const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
     const CLIENT_SECRET = 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt';
     
-    // Create URL parameters - MUST use URLSearchParams for OAuth
     const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials');
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', REFRESH_TOKEN);
     params.append('client_id', CLIENT_ID);
     params.append('client_secret', CLIENT_SECRET);
-    params.append('scope', 'customers--all:rw chats--all:rw');
     
-    // Use the OAuth token endpoint
-    const response = await fetch('https://accounts.livechat.com/oauth/token', {
+    const response = await fetch('https://accounts.livechat.com/v2/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: params
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('\n❌ OAuth token error:', errorText);
-      throw new Error(`OAuth token error: ${response.status}`);
+      console.error('\n❌ Refresh token error:', errorText);
+      throw new Error(`Refresh token error: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('\n✅ Successfully obtained agent OAuth token');
+    
+    // Cache the new access token
+    cachedAccessToken = data.access_token;
+    tokenExpiry = Date.now() + (data.expires_in * 1000) - 300000; // 5 minutes buffer
+    
+    console.log('\n✅ Successfully obtained fresh access token');
     return data.access_token;
   } catch (error) {
-    console.error('\n❌ OAuth token error:', error);
+    console.error('\n❌ Error getting access token:', error);
     throw error;
   }
 }
 
 /**
- * Generates a customer token for a specific LiveChat customer using OAuth
+ * Generates a customer token for a specific LiveChat customer
  * @param {string} customerId - LiveChat customer ID
  * @returns {Promise<string>} Customer token
  */
@@ -285,15 +380,15 @@ export async function generateCustomerToken(customerId) {
   try {
     console.log('\n🔑 Generating customer token for:', customerId);
     
-    // Step 1: Get agent token with OAuth
-    const agentToken = await getAgentToken();
+    // Step 1: Get access token using refresh token flow
+    const accessToken = await getAccessToken();
     
-    if (!agentToken) {
-      throw new Error('Failed to obtain OAuth agent token');
+    if (!accessToken) {
+      throw new Error('Failed to obtain access token');
     }
     
-    // Step 2: Use agent token to get customer token
-    console.log('\n🔑 Step 2: Getting customer token with agent token...');
+    // Step 2: Use access token to get customer token
+    console.log('\n🔑 Step 2: Getting customer token with access token...');
     
     const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
     
@@ -301,7 +396,7 @@ export async function generateCustomerToken(customerId) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${agentToken}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         customer_id: customerId,
@@ -318,7 +413,7 @@ export async function generateCustomerToken(customerId) {
     const data = await response.json();
     console.log('\n✅ Generated customer token successfully');
     
-    return data.token; // LiveChat API v3.5 returns 'token', not 'access_token'
+    return data.token;
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
     throw error;
