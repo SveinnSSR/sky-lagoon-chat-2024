@@ -3300,14 +3300,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': basicAuthToken  // Now using Basic Auth
+                                'Authorization': basicAuthToken
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                organization_id: ORGANIZATION_ID,
+                                organization_id: ORGANIZATION_ID, // Must be at top level
                                 event: {
                                     type: 'message',
-                                    text: userMessage
+                                    text: userMessage,
+                                    custom_parameters: {
+                                        organization_id: ORGANIZATION_ID // Also include in event if needed
+                                    }
                                 }
                             })
                         });
@@ -3322,7 +3325,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         }
                     } catch (customerApiError) {
                         console.error('\n❌ Customer API failed, falling back to Agent API:', customerApiError.message);
-                        // Continue to next fallback - no throw here
                     }
                 }
                 
