@@ -3304,13 +3304,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                organization_id: ORGANIZATION_ID, // Must be at top level
+                                organization_id: ORGANIZATION_ID, // Now at top level only
                                 event: {
                                     type: 'message',
-                                    text: userMessage,
-                                    custom_parameters: {
-                                        organization_id: ORGANIZATION_ID // Also include in event if needed
-                                    }
+                                    text: userMessage
                                 }
                             })
                         });
