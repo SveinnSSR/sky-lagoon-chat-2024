@@ -233,26 +233,26 @@ export async function createAttributedChat(sessionId, isIcelandic = false) {
 }
 
 /**
- * Gets an agent token using LiveChat's v2 OAuth endpoint
+ * Gets an agent token using OAuth client credentials
  * @returns {Promise<string>} Agent access token
  */
 async function getAgentToken() {
   try {
-    console.log('\n🔑 Getting agent token with client_credentials grant...');
+    console.log('\n🔑 Getting agent token with OAuth...');
     
-    // Use environment variables or fallback to hardcoded values
-    const CLIENT_ID = process.env.LIVECHAT_CLIENT_ID || 'b4c686ea4c4caa04e6ea921bf45f516f';
-    const CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET || 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt';
+    // Your OAuth app credentials
+    const CLIENT_ID = 'b4c686ea4c4caa04e6ea921bf45f516f';
+    const CLIENT_SECRET = 'EqQrfvLTdvH7MJW37FW0c2UPkUHzCwDt';
     
-    // Create URL parameters - using URLSearchParams for proper encoding
+    // Create URL parameters - MUST use URLSearchParams for OAuth
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
     params.append('client_id', CLIENT_ID);
     params.append('client_secret', CLIENT_SECRET);
     params.append('scope', 'customers--all:rw chats--all:rw');
     
-    // Use the CORRECT v2 OAuth endpoint
-    const response = await fetch('https://accounts.livechat.com/v2/token', {
+    // Use the OAuth token endpoint
+    const response = await fetch('https://accounts.livechat.com/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -261,33 +261,23 @@ async function getAgentToken() {
       body: params
     });
     
-    // Get response as text first for debugging
-    const responseText = await response.text();
-    console.log('\n🔍 Agent token response preview:', responseText.substring(0, 100));
-    
-    try {
-      // Parse response as JSON
-      const data = JSON.parse(responseText);
-      
-      if (data.access_token) {
-        console.log('\n✅ Successfully obtained agent token');
-        return data.access_token; // Note: v2 returns access_token, not token
-      } else {
-        console.error('\n❌ Response missing access_token:', data);
-        throw new Error('Missing access_token in response');
-      }
-    } catch (parseError) {
-      console.error('\n❌ Failed to parse response as JSON:', parseError);
-      throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('\n❌ OAuth token error:', errorText);
+      throw new Error(`OAuth token error: ${response.status}`);
     }
+    
+    const data = await response.json();
+    console.log('\n✅ Successfully obtained agent OAuth token');
+    return data.access_token;
   } catch (error) {
-    console.error('\n❌ Agent token error:', error);
+    console.error('\n❌ OAuth token error:', error);
     throw error;
   }
 }
 
 /**
- * Generates a customer token for a specific LiveChat customer using the correct OAuth flow
+ * Generates a customer token for a specific LiveChat customer using OAuth
  * @param {string} customerId - LiveChat customer ID
  * @returns {Promise<string>} Customer token
  */
@@ -295,26 +285,27 @@ export async function generateCustomerToken(customerId) {
   try {
     console.log('\n🔑 Generating customer token for:', customerId);
     
-    // Get agent credentials instead of using client_credentials OAuth flow
-    // This is a simpler approach that should work well with your existing code
-    const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e';
-    const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
+    // Step 1: Get agent token with OAuth
+    const agentToken = await getAgentToken();
     
-    // First try the v3.5 Customer API directly with agent credentials
-    // This simpler approach might work without OAuth complexity
-    console.log('\n🔑 Trying direct Customer API with agent credentials...');
-    const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
+    if (!agentToken) {
+      throw new Error('Failed to obtain OAuth agent token');
+    }
+    
+    // Step 2: Use agent token to get customer token
+    console.log('\n🔑 Step 2: Getting customer token with agent token...');
+    
+    const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
     
     const response = await fetch('https://api.livechatinc.com/v3.5/customer/action/get_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${agentCredentials}`,
-        'X-Region': 'fra'
+        'Authorization': `Bearer ${agentToken}`
       },
       body: JSON.stringify({
         customer_id: customerId,
-        organization_id: '10d9b2c9-311a-41b4-94ae-b0c4562d7737'
+        organization_id: ORGANIZATION_ID
       })
     });
     
@@ -327,8 +318,7 @@ export async function generateCustomerToken(customerId) {
     const data = await response.json();
     console.log('\n✅ Generated customer token successfully');
     
-    // The v3.5 API returns 'token', not 'access_token'
-    return data.token;
+    return data.token; // LiveChat API v3.5 returns 'token', not 'access_token'
   } catch (error) {
     console.error('\n❌ Critical error generating customer token:', error);
     throw error;
