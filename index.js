@@ -3293,11 +3293,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     try {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
                         
-                        // KEY FIX: Use the chat_id exactly as provided by LiveChat
-                        // Don't modify it - the API is sensitive about format
+                        // Use the chat_id exactly as provided by LiveChat
                         const chatId = req.body.chatId;
                         
-                        // Debug the exact chat ID we're using
                         console.log(`\n🔍 Using exact chat ID: "${chatId}" for Customer API`);
                         
                         // Use Bearer token as instructed by LiveChat
@@ -3308,7 +3306,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
+                                'Content-Type': 'application/json', // Explicitly confirmed by Tomasz
                                 'Authorization': bearerToken 
                             },
                             body: JSON.stringify({
@@ -3317,7 +3315,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                                     type: 'message',
                                     text: userMessage,
                                     custom_id: `customer_msg_${Date.now()}`,
-                                    visibility: 'all'
+                                    recipients: 'all' // KEY CHANGE: 'recipients' instead of 'visibility' per Tomasz
                                 }
                             })
                         });
