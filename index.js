@@ -3294,24 +3294,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
                         const LICENSE_ID = 12638850;
                         
-                        // KEY FIX: organization_id in URL
-                        const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
+                        // KEY FIX 1: Use Bearer token (not Basic Auth)
+                        const bearerToken = `Bearer ${dualCreds.customerToken}`;
                         
-                        // Basic Auth (entityId:customerToken)
-                        const basicAuthToken = `Basic ${Buffer.from(`${dualCreds.entityId}:${dualCreds.customerToken}`).toString('base64')}`;
+                        // KEY FIX 2: organization_id in URL
+                        const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
                         
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': basicAuthToken
+                                'Authorization': bearerToken  // Changed to Bearer
                             },
                             body: JSON.stringify({
                                 chat_id: req.body.chatId,
-                                license_id: LICENSE_ID, // Still required in body
+                                license_id: LICENSE_ID,
                                 event: {
                                     type: 'message',
-                                    text: userMessage
+                                    text: userMessage,
+                                    author_id: dualCreds.entityId  // Added author_id
                                 }
                             })
                         });
