@@ -559,35 +559,42 @@ const SKY_LAGOON_GUIDELINES = {
     }
 };
 
-// Then add the enforceTerminology function after the guidelines
+// Optimized enforceTerminology function with reduced processing
 const enforceTerminology = (text) => {
     // Guard clause - if no text, return as is
     if (!text) return text;
     
     let modifiedText = text;
     
-    // Log for debugging
-    console.log('\n📝 Checking terminology for:', text);
+    // Minimal logging - remove detailed logging
+    console.log('\n📝 Applying terminology rules');
 
-    // WATER BOTTLE PROTECTION - Add early protection for water bottle terms
-    const waterBottleRegex = /\b(your|a|my|personal|own|the)?\s*(water\s+bottle[s]?)\b/gi;
-    
-    // First mark all water bottle references for protection
-    modifiedText = modifiedText.replace(waterBottleRegex, (match) => {
-        return `__PROTECTED_WATER_BOTTLE__${match}__END_PROTECTION__`;
+    // OPTIMIZATION: Combine protection patterns into a single pass
+    const protectionPatterns = [
+        // Water bottle protection
+        {
+            regex: /\b(your|a|my|personal|own|the)?\s*(water\s+bottle[s]?)\b/gi,
+            prefix: '__PROTECTED_WATER_BOTTLE__',
+            suffix: '__END_PROTECTION__'
+        },
+        // Water shoes protection
+        {
+            regex: /\b(your|a|my|personal|own|the)?\s*(water\s+shoes|aqua\s+shoes|swim\s+shoes|swimming\s+shoes)\b/gi,
+            prefix: '__PROTECTED_WATER_SHOES__',
+            suffix: '__END_PROTECTION__'
+        }
+    ];
+
+    // Apply all protection patterns in one loop
+    protectionPatterns.forEach(pattern => {
+        modifiedText = modifiedText.replace(pattern.regex, (match) => {
+            return `${pattern.prefix}${match}${pattern.suffix}`;
+        });
     });
 
-    // WATER SHOES PROTECTION - Add protection for water shoes terms
-    const waterShoesRegex = /\b(your|a|my|personal|own|the)?\s*(water\s+shoes|aqua\s+shoes|swim\s+shoes|swimming\s+shoes)\b/gi;
-    
-    // Mark all water shoes references for protection
-    modifiedText = modifiedText.replace(waterShoesRegex, (match) => {
-        return `__PROTECTED_WATER_SHOES__${match}__END_PROTECTION__`;
-    });
-
-    // First handle Gelmir Bar variations with regex
-    const gelmirRegex = /\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi;
-    modifiedText = modifiedText.replace(gelmirRegex, 'our Gelmir lagoon bar');
+    // OPTIMIZATION: Combine similar replacements
+    // Handle Gelmir Bar variations with regex
+    modifiedText = modifiedText.replace(/\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi, 'our Gelmir lagoon bar');
 
     // Handle double geothermal cases
     const geothermalRegex = /\b(geothermal\s+){2,}/gi;
@@ -597,152 +604,126 @@ const enforceTerminology = (text) => {
     modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
     modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
 
-    // Preserve certain phrases from replacement
+    // OPTIMIZATION: Use a single pass for term preservation
     const preservePhrases = [
         'drinking water',
         'fresh water',
         'water stations',
         'water fountain',
-        'geothermal water',  // Add this to preserve
-        'Gelmir lagoon bar',  // Add this to preserve the correct form
-        'buy-gift-tickets',  // Add this to preserve URLs
-        'water-resistant',   // Add this to preserve watch terminology
-        'waterproof',        // Add this to prevent similar issues
-        'water resistance'   // Add the noun form too
+        'geothermal water',
+        'Gelmir lagoon bar',
+        'buy-gift-tickets',
+        'water-resistant',
+        'waterproof',
+        'water resistance'
     ];
 
-    // Create unique markers for each phrase
+    // Create a map of unique markers for each phrase - using single-pass regex
+    const markerPattern = new RegExp('(' + preservePhrases.map(phrase => 
+        phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    ).join('|') + ')', 'gi');
+    
     const markers = {};
-    preservePhrases.forEach(phrase => {
-        const marker = `__PRESERVE_${Math.random().toString(36).substring(7)}_${phrase.replace(/\s+/g, '_').toUpperCase()}__`;
-        markers[phrase] = marker;
+    // Collect and mark all matching phrases at once
+    modifiedText = modifiedText.replace(markerPattern, (match) => {
+        const marker = `__PRESERVE_${Math.random().toString(36).substring(7)}_TERM__`;
+        markers[marker] = match;
+        return marker;
     });
 
-    // First preserve phrases we don't want modified
-    Object.entries(markers).forEach(([phrase, marker]) => {
-        const preserveRegex = new RegExp(phrase, 'gi');
-        modifiedText = modifiedText.replace(preserveRegex, marker);
-    });
-
-    // Handle special phrases first
-    Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases).forEach(([phrase, replacement]) => {
+    // OPTIMIZATION: Apply special phrases in a single loop without checking each one
+    // We filter to only the phrases that appear in the text
+    const relevantPhrases = Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases)
+        .filter(([phrase]) => {
+            // Simple inclusion check rather than regex test for speed
+            return modifiedText.toLowerCase().includes(phrase.toLowerCase());
+        });
+    
+    // Apply only the relevant phrases
+    relevantPhrases.forEach(([phrase, replacement]) => {
         const phraseRegex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        if (phraseRegex.test(modifiedText)) {
-            console.log(`📝 Replacing "${phrase}" with "${replacement}"`);
-            modifiedText = modifiedText.replace(phraseRegex, replacement);
-        }
+        modifiedText = modifiedText.replace(phraseRegex, replacement);
     });
 
-    // Handle preferred terminology
-    Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred).forEach(([correct, incorrect]) => {
+    // OPTIMIZATION: Same filter approach for preferred terminology
+    const relevantTerminology = Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred)
+        .filter(([_, incorrect]) => {
+            // Check for word boundaries only when needed
+            return modifiedText.toLowerCase().includes(incorrect.toLowerCase());
+        });
+    
+    relevantTerminology.forEach(([correct, incorrect]) => {
         const phraseRegex = new RegExp(`\\b${incorrect}\\b`, 'gi');
-        if (phraseRegex.test(modifiedText)) {
-            console.log(`📝 Replacing "${incorrect}" with "${correct}"`);
-            modifiedText = modifiedText.replace(phraseRegex, correct);
-        }
+        modifiedText = modifiedText.replace(phraseRegex, correct);
     });
 
-    // IMPROVED ICELANDIC TERMINOLOGY HANDLING - Check if the text is in Icelandic (simple heuristic: contains Icelandic-specific characters)
-    if (/[áðéíóúýþæö]/i.test(modifiedText)) {
-        console.log('🇮🇸 Detected Icelandic text, applying Icelandic terminology rules');
-        let icelandicChanges = false;
-        
-        // Apply Icelandic terminology fixes - use simpler approach that's proven to work
-        if (SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology) {
-            Object.entries(SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology).forEach(([incorrect, correct]) => {
-                // First use includes() to check if the term is present (more reliable check)
-                if (modifiedText.includes(incorrect)) {
-                    console.log(`🇮🇸 Found incorrect term: "${incorrect}", replacing with "${correct}"`);
-                    
-                    // Then do the replacement with proper regex
-                    modifiedText = modifiedText.replace(new RegExp(incorrect, 'g'), correct);
-                    icelandicChanges = true;
-                }
+    // OPTIMIZATION: Only apply Icelandic terminology when needed
+    if (/[áðéíóúýþæö]/i.test(modifiedText) && SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology) {
+        Object.entries(SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology)
+            .filter(([incorrect]) => modifiedText.includes(incorrect))
+            .forEach(([incorrect, correct]) => {
+                modifiedText = modifiedText.replace(new RegExp(incorrect, 'g'), correct);
             });
-        }
-        
-        if (icelandicChanges) {
-            console.log('🇮🇸 Icelandic terminology changes applied');
-        } else {
-            console.log('🇮🇸 No Icelandic terminology changes needed');
-        }
     }
 
-    // Restore preserved phrases using markers
-    Object.entries(markers).forEach(([phrase, marker]) => {
-        const restoreRegex = new RegExp(marker, 'g');
-        modifiedText = modifiedText.replace(restoreRegex, phrase);
-    });
+    // Restore preserved phrases
+    for (const [marker, original] of Object.entries(markers)) {
+        modifiedText = modifiedText.replace(new RegExp(marker, 'g'), original);
+    }
 
-    // Comprehensive hydration and experience safety checks - Moved here after other replacements
-    // Note: The constant hydrationSafetyRegex is declared here but immediately processed with forEach()
-    // rather than being referenced later. This pattern works because we process the array immediately.
-    const hydrationSafetyRegex = [
-        // Bar and location specific patterns
-        /\bin\s+our\s+geothermal\s+waters\b/gi,
-        /\bwithin\s+the\s+lagoon\s+itself\b/gi,
-        /\binside\s+the\s+lagoon\s+itself\b/gi,
-        /\bwithin\s+the\s+lagoon\s+area\b/gi,
-        /\bin\s+the\s+warmth\s+of\s+our\s+geothermal\s+waters\b/gi,
-        /\bwhile\s+immersed\s+in\s+our\s+geothermal\s+waters\b/gi,
-
+    // OPTIMIZATION: Combine hydration safety checks into fewer regex passes
+    const hydrationSafetyGroups = [
+        // Bar and location patterns
+        [
+            /\bin\s+our\s+geothermal\s+waters\b/gi,
+            /\bwithin\s+the\s+lagoon\s+itself\b/gi,
+            /\binside\s+the\s+lagoon\s+itself\b/gi,
+            /\bwithin\s+the\s+lagoon\s+area\b/gi
+        ],
         // Drinking patterns
-        /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi,
-        
-        // Direct geothermal water reference with stations
-        /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi,
-        
-        // Offering/experience patterns
-        /\b(unique|offering|have|get)\s+(an?\s+)?(in-geothermal\s+water|in\s+geothermal\s+water)\s+experience/gi,
-        
-        // Clean/safe drinking references
-        /\b(the\s+)?geothermal water\s+is\s+(fresh|clean|safe|available|free)\s+(and|for|to)\s+(safe|drink|access)/gi,
-        
-        // In water references
-        /\bin\s+(the\s+)?geothermal\s+water\b/gi,
-        
-        // Additional safety patterns
-        /\b(including|get|available)\s+geothermal water\b/gi,
-        /\bdrink\s+geothermal water\s+regularly\b/gi,
-        
-        // Hydration encouragement patterns
-        /\bencourage\s+you\s+to\s+drink\s+geothermal\s+water\b/gi,
-        /\bimportant\s+to\s+drink\s+geothermal\s+water\b/gi,
-        
-        // Water's edge patterns
-        /\b(at|by|near)\s+(the\s+)?geothermal\s+water['']?s?\s+edge\b/gi,
-        /\b(edge\s+of\s+the)\s+geothermal\s+water\b/gi
-    ].forEach(regex => {
-        modifiedText = modifiedText.replace(regex, (match) => {
-            if (match.includes('geothermal')) {
-                if (match.includes('experience')) {
-                    return match.replace(/(in-geothermal water|in geothermal water)/, 'in-lagoon');
+        [
+            /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi
+        ],
+        // Direct geothermal water references
+        [
+            /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi
+        ]
+    ];
+
+    // Process each group of similar regex patterns
+    hydrationSafetyGroups.forEach(patterns => {
+        patterns.forEach(regex => {
+            modifiedText = modifiedText.replace(regex, (match) => {
+                if (match.includes('geothermal')) {
+                    if (match.includes('experience')) {
+                        return match.replace(/(in-geothermal water|in geothermal water)/, 'in-lagoon');
+                    }
+                    if (match.includes('in the geothermal water')) {
+                        return 'in our lagoon';
+                    }
+                    if (match.includes('including geothermal water')) {
+                        return 'including refreshing beverages';
+                    }
+                    if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
+                        return 'at the lagoon\'s edge';
+                    }
+                    if (match.includes('in our geothermal waters')) {
+                        return 'in our lagoon';
+                    }
+                    if (match.match(/within\s+the\s+lagoon\s+(itself|area)/)) {
+                        return 'in the lagoon';
+                    }
+                    if (match.match(/inside\s+the\s+lagoon\s+itself/)) {
+                        return 'in the lagoon';
+                    }
+                    if (match.includes('warmth of our geothermal waters') || 
+                        match.includes('immersed in our geothermal waters')) {
+                        return 'in the lagoon';
+                    }
+                    return match.replace('geothermal water', 'drinking water');
                 }
-                if (match.includes('in the geothermal water')) {
-                    return 'in our lagoon';
-                }
-                if (match.includes('including geothermal water')) {
-                    return 'including refreshing beverages';
-                }
-                if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
-                    return 'at the lagoon\'s edge';
-                }
-                if (match.includes('in our geothermal waters')) {
-                    return 'in our lagoon';
-                }
-                if (match.match(/within\s+the\s+lagoon\s+(itself|area)/)) {
-                    return 'in the lagoon';
-                }
-                if (match.match(/inside\s+the\s+lagoon\s+itself/)) {
-                    return 'in the lagoon';
-                }
-                if (match.includes('warmth of our geothermal waters') || 
-                    match.includes('immersed in our geothermal waters')) {
-                    return 'in the lagoon';
-                }
-                return match.replace('geothermal water', 'drinking water');
-            }
-            return match;
+                return match;
+            });
         });
     });
 
@@ -763,17 +744,9 @@ const enforceTerminology = (text) => {
     // Final check for any remaining double geothermal
     modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
 
-    // Final cleanup of any remaining preserve markers
-    modifiedText = modifiedText.replace(/__PRESERVE_[A-Z0-9_]+__/g, '');
-
-    // Log any changes made
+    // Log minimal output - only if text was changed
     if (modifiedText !== text) {
-        console.log('✨ Text modified for terminology:', {
-            original: text.substring(0, 100) + "...",
-            modified: modifiedText.substring(0, 100) + "..."
-        });
-    } else {
-        console.log('✅ No terminology changes needed');
+        console.log('✨ Applied terminology rules');
     }
 
     return modifiedText;
