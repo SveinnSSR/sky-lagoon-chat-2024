@@ -924,6 +924,22 @@ const shouldShowBookingForm = async (message, languageDecision, context = null) 
  */
 const shouldTransferToAgent = async (message, languageDecision, context) => {
     try {
+        // ADDED: First check if within operating hours before proceeding
+        if (!isWithinOperatingHours()) {
+            console.log('\n⏰ Outside operating hours (9am-4pm), preventing transfer');
+            
+            // Create message for outside hours
+            const outsideHoursMessage = languageDecision.isIcelandic ? 
+                "Þjónustuver okkar er opið daglega frá kl. 9-16. Ég get þó reynt að aðstoða þig með spurningar þínar." :
+                "Our customer service team is available daily from 9 AM to 4 PM. I'll do my best to assist you with your questions.";
+            
+            return {
+                shouldTransfer: false,
+                reason: 'outside_operating_hours',
+                response: outsideHoursMessage
+            };
+        }
+        
         // Log transfer check
         console.log('\n👥 Agent Transfer Check:', {
             message: message.substring(0, 30) + '...',
