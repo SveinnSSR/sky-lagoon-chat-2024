@@ -799,7 +799,7 @@ const CONFIDENCE_THRESHOLDS = {
 // Open every day of the week from 9am to 4pm
 const LIVECHAT_HOURS = {
     START: 9,    // 9 AM
-    END: 16,     // 4 PM (24-hour format)
+    END: 22,     // 4 PM (24-hour format) // changed from 16
 };
 
 /**
