@@ -796,24 +796,22 @@ const CONFIDENCE_THRESHOLDS = {
 
 // LiveChat Constants
 // Hours during which agents may be available
-// Normally this would be from 9-16
-// For testing, let's extend the hours:
+// Open every day of the week from 9am to 4pm
 const LIVECHAT_HOURS = {
-    START: 0,    // Midnight
-    END: 23.99,     // 11 PM
+    START: 9,    // 9 AM
+    END: 16,     // 4 PM (24-hour format)
 };
 
 /**
  * Helper function to check if current time is within operating hours
- * KEPT FOR BACKWARD COMPATIBILITY with existing functions
  * @returns {boolean} Whether current time is within operating hours
  */
 const isWithinOperatingHours = () => {
     const now = new Date();
-    const hours = now.getHours(); // Use local time instead of UTC
+    const hours = now.getHours(); // Use local time
     const dayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
     
-    // For testing: include weekends in operating hours
+    // We're open every day of the week from 9am-4pm
     const isWithinHours = hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
     
     console.log('\n⏰ Hours Check:', {
@@ -825,7 +823,7 @@ const isWithinOperatingHours = () => {
         isWithin: isWithinHours
     });
     
-    // Only check the hours, ignore weekends
+    // Only check hours, since we're open every day
     return isWithinHours;
 };
 
@@ -3350,10 +3348,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             authHeader = `Basic ${agentCredentials}`;
                         }
                         
+                        // ENHANCED: Create message with prominent customer formatting
+                        const enhancedMessage = `══════ 👤 CUSTOMER MESSAGE ══════\n${userMessage}\n═══════════════════════════════`;
+                        
                         // Create message event with customer attribution if we have a customer ID
                         const eventObject = {
                             type: 'message',
-                            text: `👤 [CUSTOMER]: ${userMessage}`, // Add prefix for visual indication
+                            text: enhancedMessage, // Enhanced formatting
                             visibility: 'all',
                             author_id: dualCreds.entityId // Set author to customer for attribution
                         };
@@ -3405,10 +3406,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         authHeader = `Basic ${agentCredentials}`;
                     }
                     
+                    // ENHANCED: Create message with prominent customer formatting
+                    const enhancedMessage = `══════ 👤 CUSTOMER MESSAGE ══════\n${userMessage}\n═══════════════════════════════`;
+                    
                     // Create basic message event
                     const eventObject = {
                         type: 'message',
-                        text: `👤 [CUSTOMER]: ${userMessage}`, // At least add prefix for visibility
+                        text: enhancedMessage, // Enhanced formatting
                         visibility: 'all'
                     };
                     
