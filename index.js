@@ -559,7 +559,13 @@ const SKY_LAGOON_GUIDELINES = {
     }
 };
 
-// Optimized enforceTerminology function with reduced processing
+/**
+ * Improved enforceTerminology function that uses the existing SKY_LAGOON_GUIDELINES structure
+ * - Maintains compatibility with other code that uses the guidelines
+ * - More efficient processing approach
+ * - Better exception handling for water terms
+ * - Clearer processing phases
+ */
 const enforceTerminology = (text) => {
     // Guard clause - if no text, return as is
     if (!text) return text;
@@ -569,97 +575,175 @@ const enforceTerminology = (text) => {
     // Minimal logging - remove detailed logging
     console.log('\n📝 Applying terminology rules');
 
-    // OPTIMIZATION: Combine protection patterns into a single pass
-    const protectionPatterns = [
-        // Water bottle protection
-        {
-            regex: /\b(your|a|my|personal|own|the)?\s*(water\s+bottle[s]?)\b/gi,
-            prefix: '__PROTECTED_WATER_BOTTLE__',
-            suffix: '__END_PROTECTION__'
-        },
-        // Water shoes protection
-        {
-            regex: /\b(your|a|my|personal|own|the)?\s*(water\s+shoes|aqua\s+shoes|swim\s+shoes|swimming\s+shoes)\b/gi,
-            prefix: '__PROTECTED_WATER_SHOES__',
-            suffix: '__END_PROTECTION__'
-        }
-    ];
-
-    // Apply all protection patterns in one loop
-    protectionPatterns.forEach(pattern => {
-        modifiedText = modifiedText.replace(pattern.regex, (match) => {
-            return `${pattern.prefix}${match}${pattern.suffix}`;
-        });
-    });
-
-    // OPTIMIZATION: Combine similar replacements
-    // Handle Gelmir Bar variations with regex
-    modifiedText = modifiedText.replace(/\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi, 'our Gelmir lagoon bar');
-
-    // Handle double geothermal cases
-    const geothermalRegex = /\b(geothermal\s+){2,}/gi;
-    modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
-
-    // Handle redundant bar references first
-    modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
-    modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
-
-    // OPTIMIZATION: Use a single pass for term preservation
-    const preservePhrases = [
-        'drinking water',
-        'fresh water',
-        'water stations',
-        'water fountain',
-        'geothermal water',
-        'Gelmir lagoon bar',
-        'buy-gift-tickets',
-        'water-resistant',
-        'waterproof',
-        'water resistance'
-    ];
-
-    // Create a map of unique markers for each phrase - using single-pass regex
-    const markerPattern = new RegExp('(' + preservePhrases.map(phrase => 
-        phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    ).join('|') + ')', 'gi');
+    // PHASE 1: PROTECT SPECIAL TERMS
+    // ==============================
+    // Protect water bottles and shoes from modification
+    // Create a map of protected phrases and their markers
+    const protectedPhrases = new Map();
+    let protectionCount = 0;
     
-    const markers = {};
-    // Collect and mark all matching phrases at once
-    modifiedText = modifiedText.replace(markerPattern, (match) => {
-        const marker = `__PRESERVE_${Math.random().toString(36).substring(7)}_TERM__`;
-        markers[marker] = match;
+    // Water bottle protection
+    modifiedText = modifiedText.replace(/\b(your|a|my|personal|own|the)?\s*(water\s+bottle[s]?)\b/gi, (match) => {
+        const marker = `__PROTECTED_${protectionCount++}__`;
+        protectedPhrases.set(marker, match);
         return marker;
     });
-
-    // OPTIMIZATION: Apply special phrases in a single loop without checking each one
-    // We filter to only the phrases that appear in the text
-    const relevantPhrases = Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases)
-        .filter(([phrase]) => {
-            // Simple inclusion check rather than regex test for speed
-            return modifiedText.toLowerCase().includes(phrase.toLowerCase());
-        });
     
-    // Apply only the relevant phrases
-    relevantPhrases.forEach(([phrase, replacement]) => {
+    // Water shoes protection
+    modifiedText = modifiedText.replace(/\b(your|a|my|personal|own|the)?\s*(water\s+shoes|aqua\s+shoes|swim\s+shoes|swimming\s+shoes)\b/gi, (match) => {
+        const marker = `__PROTECTED_${protectionCount++}__`;
+        protectedPhrases.set(marker, match);
+        return marker;
+    });
+    
+    // Drinking water protection
+    modifiedText = modifiedText.replace(/\bdrinking\s+water\b/gi, (match) => {
+        const marker = `__PROTECTED_${protectionCount++}__`;
+        protectedPhrases.set(marker, match);
+        return marker;
+    });
+    
+    // Water stations protection
+    modifiedText = modifiedText.replace(/\bdrinking\s+water\s+stations?\b/gi, (match) => {
+        const marker = `__PROTECTED_${protectionCount++}__`;
+        protectedPhrases.set(marker, match);
+        return marker;
+    });
+    
+    // Other special phrases that should be protected
+    const additionalProtections = [
+        /\bwater-resistant\b/gi,
+        /\bwaterproof\b/gi,
+        /\bwater\s+resistance\b/gi,
+        /\bfresh\s+water\b/gi
+    ];
+    
+    additionalProtections.forEach(pattern => {
+        modifiedText = modifiedText.replace(pattern, (match) => {
+            const marker = `__PROTECTED_${protectionCount++}__`;
+            protectedPhrases.set(marker, match);
+            return marker;
+        });
+    });
+    
+    // PHASE 2: FIX BAR REFERENCES
+    // ==========================
+    // Handle Gelmir Bar variations with regex
+    modifiedText = modifiedText.replace(/\b(in-geothermal water|in geothermal water|in-water|in water)\s+Gelmir\s+Bar\b/gi, 'our Gelmir lagoon bar');
+    modifiedText = modifiedText.replace(/Gelmir Bar/gi, 'Gelmir lagoon bar');
+    modifiedText = modifiedText.replace(/Gelmir lagoon bar is a lagoon bar/gi, 'Gelmir lagoon bar is');
+    modifiedText = modifiedText.replace(/Gelmir lagoon bar, a lagoon bar/gi, 'Gelmir lagoon bar');
+    
+    // PHASE 3: APPLY CRITICAL SPECIAL PHRASES FIRST
+    // ============================================
+    // Apply hydration-related special phrases first
+    const hydrationPhrases = [
+        'drink drinking water',
+        'drink plenty of geothermal water',
+        'drinking plenty of geothermal',
+        'drinking plenty of geothermal water',
+        'drink geothermal water',
+        'drinking the geothermal water',
+        'stay hydrated with geothermal',
+        'geothermal water provided is free',
+        'get geothermal water',
+        'get some geothermal water',
+        'can get geothermal water',
+        'can have geothermal water',
+        'have geothermal water',
+        'geothermal water at our',
+        'encourage you to drink geothermal'
+    ];
+    
+    // Extract special phrases that match hydration terms
+    const hydrationSpecials = Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases)
+        .filter(([phrase]) => hydrationPhrases.includes(phrase));
+    
+    // Apply only these critical phrases first
+    hydrationSpecials.forEach(([phrase, replacement]) => {
         const phraseRegex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         modifiedText = modifiedText.replace(phraseRegex, replacement);
     });
-
-    // CRITICAL FIX: Corrected the order for preferred terminology
-    // In the guidelines, the format is 'preferred_term': 'term_to_replace'
-    // So the key is what we want to use, and the value is what we want to replace
-    const relevantTerminology = Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred)
-        .filter(([preferred, toReplace]) => {
-            // Check if the text contains the term we want to replace
-            return modifiedText.toLowerCase().includes(toReplace.toLowerCase());
+    
+    // PHASE 4: APPLY MOST SPECIFIC SPECIAL PHRASES (by length)
+    // ======================================================
+    // Sort special phrases by length (longest first) for better handling of overlapping phrases
+    const sortedSpecialPhrases = Object.entries(SKY_LAGOON_GUIDELINES.specialPhrases)
+        // Filter out phrases we've already processed
+        .filter(([phrase]) => !hydrationPhrases.includes(phrase))
+        // Sort by length (longest first)
+        .sort((a, b) => b[0].length - a[0].length);
+    
+    // Apply sorted special phrases
+    sortedSpecialPhrases.forEach(([phrase, replacement]) => {
+        const phraseRegex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        modifiedText = modifiedText.replace(phraseRegex, replacement);
+    });
+    
+    // PHASE 5: APPLY PREFERRED TERMINOLOGY
+    // ==================================
+    // Extract the water transformation rule separately for special handling
+    const waterRule = Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred)
+        .find(([_, term]) => term === 'water');
+    
+    // Apply all other preferred terminology
+    Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred)
+        .filter(([_, term]) => term !== 'water') // Skip water rule for now
+        .forEach(([preferred, toReplace]) => {
+            const phraseRegex = new RegExp(`\\b${toReplace}\\b`, 'gi');
+            modifiedText = modifiedText.replace(phraseRegex, preferred);
         });
     
-    relevantTerminology.forEach(([preferred, toReplace]) => {
-        const phraseRegex = new RegExp(`\\b${toReplace}\\b`, 'gi');
-        modifiedText = modifiedText.replace(phraseRegex, preferred);
-    });
-
-    // OPTIMIZATION: Only apply Icelandic terminology when needed
+    // PHASE 6: SPECIAL HANDLING FOR WATER->GEOTHERMAL WATER
+    // ===================================================
+    // Only if we found the water rule
+    if (waterRule) {
+        const [preferred, toReplace] = waterRule;
+        
+        // We need to find standalone "water" words, but avoid replacing in protected contexts
+        modifiedText = modifiedText.replace(/\bwater\b/gi, (match, offset) => {
+            // Check surrounding context (up to 30 chars before and after)
+            const start = Math.max(0, offset - 30);
+            const end = Math.min(modifiedText.length, offset + match.length + 30);
+            const context = modifiedText.substring(start, end);
+            
+            // Skip if it's part of a drinking water reference
+            if (/drinking\s+water/i.test(context)) {
+                return match;
+            }
+            
+            // Skip if it's part of fresh water
+            if (/fresh\s+water/i.test(context)) {
+                return match;
+            }
+            
+            // Skip if it's related to water stations
+            if (/water\s+stations?/i.test(context)) {
+                return match;
+            }
+            
+            // Skip for other water-related terms we don't want to modify
+            const skipPatterns = [
+                /water\s+bottle/i,
+                /water\s+shoes/i,
+                /water-resistant/i,
+                /waterproof/i,
+                /water\s+resistance/i
+            ];
+            
+            for (const pattern of skipPatterns) {
+                if (pattern.test(context)) {
+                    return match;
+                }
+            }
+            
+            // If we made it here, it's safe to replace
+            return preferred;
+        });
+    }
+    
+    // PHASE 7: APPLY ICELANDIC TERMINOLOGY IF NEEDED
+    // ============================================
     if (/[áðéíóúýþæö]/i.test(modifiedText) && SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology) {
         Object.entries(SKY_LAGOON_GUIDELINES.terminology.icelandicTerminology)
             .filter(([incorrect]) => modifiedText.includes(incorrect))
@@ -667,73 +751,18 @@ const enforceTerminology = (text) => {
                 modifiedText = modifiedText.replace(new RegExp(incorrect, 'g'), correct);
             });
     }
-
-    // Restore preserved phrases
-    for (const [marker, original] of Object.entries(markers)) {
-        modifiedText = modifiedText.replace(new RegExp(marker, 'g'), original);
-    }
-
-    // OPTIMIZATION: Combine hydration safety checks into fewer regex passes
-    const hydrationSafetyGroups = [
-        // Bar and location patterns
-        [
-            /\bin\s+our\s+geothermal\s+waters\b/gi,
-            /\bwithin\s+the\s+lagoon\s+itself\b/gi,
-            /\binside\s+the\s+lagoon\s+itself\b/gi,
-            /\bwithin\s+the\s+lagoon\s+area\b/gi
-        ],
-        // Drinking patterns
-        [
-            /\b(drink|drinking|consume|use|get|have)\s+(the\s+)?(geothermal\s+)?water\s+(regularly|throughout|during|while|at|from|in)/gi
-        ],
-        // Direct geothermal water references
-        [
-            /\bgeothermal water\s+(from|at|available|is)\s+(the|our|these)?\s*(stations?|fountains?|fresh|free|clean|safe)/gi
-        ]
-    ];
-
-    // Process each group of similar regex patterns
-    hydrationSafetyGroups.forEach(patterns => {
-        patterns.forEach(regex => {
-            modifiedText = modifiedText.replace(regex, (match) => {
-                if (match.includes('geothermal')) {
-                    if (match.includes('experience')) {
-                        return match.replace(/(in-geothermal water|in geothermal water)/, 'in-lagoon');
-                    }
-                    if (match.includes('in the geothermal water')) {
-                        return 'in our lagoon';
-                    }
-                    if (match.includes('including geothermal water')) {
-                        return 'including refreshing beverages';
-                    }
-                    if (match.includes('geothermal water\'s edge') || match.includes('edge of the geothermal water')) {
-                        return 'at the lagoon\'s edge';
-                    }
-                    if (match.includes('in our geothermal waters')) {
-                        return 'in our lagoon';
-                    }
-                    if (match.match(/within\s+the\s+lagoon\s+(itself|area)/)) {
-                        return 'in the lagoon';
-                    }
-                    if (match.match(/inside\s+the\s+lagoon\s+itself/)) {
-                        return 'in the lagoon';
-                    }
-                    if (match.includes('warmth of our geothermal waters') || 
-                        match.includes('immersed in our geothermal waters')) {
-                        return 'in the lagoon';
-                    }
-                    return match.replace('geothermal water', 'drinking water');
-                }
-                return match;
-            });
-        });
-    });
-
-    // WATER BOTTLE UNPROTECTION - Now restore all protected water bottle references
-    modifiedText = modifiedText.replace(/__PROTECTED_WATER_BOTTLE__(.*?)__END_PROTECTION__/gi, '$1');
     
-    // WATER SHOES UNPROTECTION - Restore all protected water shoes references
-    modifiedText = modifiedText.replace(/__PROTECTED_WATER_SHOES__(.*?)__END_PROTECTION__/gi, '$1');
+    // PHASE 8: RESTORE PROTECTED PHRASES
+    // ================================
+    protectedPhrases.forEach((original, marker) => {
+        modifiedText = modifiedText.replace(new RegExp(marker, 'g'), original);
+    });
+    
+    // PHASE 9: CLEANUP PASSES
+    // =====================
+    // Handle double geothermal cases
+    const geothermalRegex = /\b(geothermal\s+){2,}/gi;
+    modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
     
     // Final cleanup for any "geothermal water bottle" that might have slipped through
     modifiedText = modifiedText.replace(/geothermal\s+water\s+bottle/gi, 'water bottle');
@@ -742,15 +771,19 @@ const enforceTerminology = (text) => {
     modifiedText = modifiedText.replace(/geothermal\s+water\s+shoes/gi, 'water shoes');
     modifiedText = modifiedText.replace(/geothermal\s+aqua\s+shoes/gi, 'aqua shoes');
     modifiedText = modifiedText.replace(/geothermal\s+swim(ming)?\s+shoes/gi, 'swim$1 shoes');
-
-    // Final check for any remaining double geothermal
-    modifiedText = modifiedText.replace(geothermalRegex, 'geothermal ');
-
+    
     // Log minimal output - only if text was changed
     if (modifiedText !== text) {
         console.log('✨ Applied terminology rules');
+        
+        // Optional debugging for serious issues - uncomment if needed
+        // if (modifiedText.includes('geothermal geothermal') || modifiedText.includes('drinking geothermal')) {
+        //     console.log('⚠️ Warning: Possible terminology issue detected:');
+        //     console.log('- Original: ' + text.substring(0, 100) + '...');
+        //     console.log('- Modified: ' + modifiedText.substring(0, 100) + '...');
+        // }
     }
-
+    
     return modifiedText;
 };
 
