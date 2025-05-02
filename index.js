@@ -645,16 +645,18 @@ const enforceTerminology = (text) => {
         modifiedText = modifiedText.replace(phraseRegex, replacement);
     });
 
-    // OPTIMIZATION: Same filter approach for preferred terminology
+    // CRITICAL FIX: Corrected the order for preferred terminology
+    // In the guidelines, the format is 'preferred_term': 'term_to_replace'
+    // So the key is what we want to use, and the value is what we want to replace
     const relevantTerminology = Object.entries(SKY_LAGOON_GUIDELINES.terminology.preferred)
-        .filter(([_, incorrect]) => {
-            // Check for word boundaries only when needed
-            return modifiedText.toLowerCase().includes(incorrect.toLowerCase());
+        .filter(([preferred, toReplace]) => {
+            // Check if the text contains the term we want to replace
+            return modifiedText.toLowerCase().includes(toReplace.toLowerCase());
         });
     
-    relevantTerminology.forEach(([correct, incorrect]) => {
-        const phraseRegex = new RegExp(`\\b${incorrect}\\b`, 'gi');
-        modifiedText = modifiedText.replace(phraseRegex, correct);
+    relevantTerminology.forEach(([preferred, toReplace]) => {
+        const phraseRegex = new RegExp(`\\b${toReplace}\\b`, 'gi');
+        modifiedText = modifiedText.replace(phraseRegex, preferred);
     });
 
     // OPTIMIZATION: Only apply Icelandic terminology when needed
