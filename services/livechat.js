@@ -2218,6 +2218,9 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                 const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
                 const emergencyCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
                 
+                // Use enhanced customer message formatting here
+                const enhancedMessage = `══════ 👤 CUSTOMER MESSAGE ══════\n${message}\n═══════════════════════════════`;
+                
                 // Simple message send with minimal complexity
                 await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
                     method: 'POST',
@@ -2230,7 +2233,7 @@ export async function sendMessageToLiveChat(chatId, message, credentials, custom
                         chat_id: chatId,
                         event: {
                             type: 'message',
-                            text: message,
+                            text: enhancedMessage,
                             visibility: 'all'
                             // No author_id - better than failing completely
                         }
@@ -2325,14 +2328,14 @@ export async function sendDualApiMessage(chatId, message, credentials, isFromCus
         authHeader = `Basic ${agentCredentials}`;
       }
       
-      // Add visual prefix to message as fallback for better visibility
-      const prefixedMessage = isFromCustomer ? 
-        `👤 [CUSTOMER]: ${message}` : message;
+      // Enhanced formatting for customer messages
+      const formattedMessage = isFromCustomer ? 
+        `══════ 👤 CUSTOMER MESSAGE ══════\n${message}\n═══════════════════════════════` : message;
       
       // Create event object with styling properties to force customer appearance
       const eventObject = {
         type: 'message',
-        text: prefixedMessage,
+        text: formattedMessage,
         visibility: 'all',
         properties: {
           styling: {

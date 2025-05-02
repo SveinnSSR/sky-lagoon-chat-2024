@@ -334,6 +334,29 @@ When responding to questions about volcanic activity:
 // Add it to your basePrompt
 basePrompt += volcanoInformation;
 
+// MONTHLY THEME INFORMATION - Update monthly
+const monthlyTheme = `
+CURRENT MONTHLY THEME (MAY 2025):
+
+${isIcelandic ? 
+`MAÍ TIL HEIÐURS MÖMMUM:
+Flest eiga mæðrum sínum mikið að þakka. Því langar okkur að hvetja ykkur til að að staldra við og heiðra þær fyrir allt sem þær hafa kennt okkur. Mæðradagurinn er 11. maí en Sky Lagoon tileinkar allan maímánuð mæðrum allsstaðar og af öllum toga: Nýbökuðum mömmum, tilvonandi mömmum, stjúpmömmum — öllum mömmum.` 
+: 
+`MAY IS FOR THE MOTHERS:
+Mothers shape our lives in countless ways, each offering wisdom, love, and lessons in their own special way. As Mother's Day approaches on May 11, Sky Lagoon is dedicating the entire month of May to honoring all mothers everywhere.
+We encourage you to celebrate a mom in your life, it might be your own mom, a new mom you know, an expecting mother, a stepmom, or maybe a mother figure. Join us as we take this opportunity to express our gratitude and appreciation for the remarkable role mothers play in our lives.`}
+
+When responding to questions about the monthly theme:
+1. Mention our May Mother's Day celebration when discussing visits in May
+2. Suggest our Sky Lagoon for Two package as a thoughtful gift for mothers
+3. Highlight our peaceful ambiance as perfect for a mother's retreat
+4. For direct Mother's Day questions, suggest booking early for the best times
+5. If asked about specific discounts, clarify we don't currently offer specific Mother's Day discounts but recommend the Multi-Pass for value
+`;
+
+// Add it to your basePrompt
+basePrompt += monthlyTheme;
+
 // ADD THIS RIGHT HERE - After the language-specific base prompts are initialized
 const linkEnhancement = `
 CRITICAL LINK INCLUSION:
