@@ -42,7 +42,7 @@ import {
     matchMonthInQuery,
     icelandicMonths 
 } from './sunsetTimes.js';
-// Add this import at the top with your other imports
+// Terminology Processor - enforce terminology based on Sky Lagoon guidelines
 import { enforceTerminology, filterEmojis } from './terminologyProcessor.js';
 // AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
@@ -84,9 +84,6 @@ import { processMessagePair } from './messageProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
-// WebSocket can be removed as noted
-// import { WebSocketServer } from 'ws';
-
 // Add near the top after imports
 console.log('🚀 SERVER STARTING - ' + new Date().toISOString());
 console.log('Environment check - NODE_ENV:', process.env.NODE_ENV);
@@ -121,12 +118,16 @@ const pusher = new Pusher({
     useTLS: true
 });
 
-// Simplified broadcastConversation that preserves Pusher functionality and uses the new message processor
+// Optimized broadcastConversation that preserves Pusher functionality and uses the message processor
 const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
     try {
-        console.log('\n🔄 Using message processor for message pair');
-        
-        // Use the message processor for message processing, MongoDB and analytics
+        // Skip processing for empty messages
+        if (!userMessage || !botResponse) {
+            console.log('Skipping broadcast for empty message');
+            return { success: false, reason: 'empty_message' };
+        }
+
+        // Use the message processor for MongoDB and analytics
         const processResult = await processMessagePair(
             userMessage,
             botResponse,
@@ -141,13 +142,11 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
         
         // Check if processing was successful
         if (processResult.success) {
-            console.log('\n✅ Successfully processed message pair with message processor');
-            
-            // We still need Pusher broadcasting which isn't in messageProcessor.js yet
+            // Handle Pusher broadcasting which isn't in messageProcessor.js yet
             try {
                 const sessionInfo = await getOrCreateSession(clientSessionId);
                 
-                // Create minimal conversation data for Pusher
+                // Create minimal conversation data for Pusher (retaining backward compatibility)
                 const conversationData = {
                     id: sessionInfo.conversationId,
                     sessionId: sessionInfo.sessionId,
@@ -176,9 +175,8 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 
                 // Pusher-only broadcast (MongoDB and analytics already handled by processMessagePair)
                 await pusher.trigger('chat-channel', 'conversation-update', conversationData);
-                console.log('✅ Pusher message sent successfully');
             } catch (pusherError) {
-                console.error('❌ Pusher error:', pusherError);
+                console.error('Pusher error:', pusherError.message);
                 // Continue even if Pusher fails - critical data is already saved
             }
             
@@ -187,14 +185,13 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 postgresqlId: processResult.postgresqlId
             };
         } else if (processResult.error === 'duplicate_message') {
-            console.log('\n⚠️ Duplicate message detected by message processor');
             return { 
                 success: true,
                 postgresqlId: null,
                 deduplicated: true
             };
         } else {
-            console.log('\n❌ Message processor error:', processResult.error, processResult.reason);
+            console.log('Message processor error:', processResult.error, processResult.reason);
             return { 
                 success: false, 
                 postgresqlId: null,
@@ -202,7 +199,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
             };
         }
     } catch (error) {
-        console.error('❌ Error in broadcastConversation:', error);
+        console.error('Error in broadcastConversation:', error.message);
         return { success: false, postgresqlId: null };
     }
 };
@@ -338,8 +335,8 @@ const SKY_LAGOON_GUIDELINES = {
     // Sky Lagoon approved emojis for filtering
     emojis: ['😊', '☁️', '✨', '🌞', '🌅', '📍']
     
-    // You can optionally keep terminology in a simplified format for reference
-    // but the AI won't use this directly
+    // These are brand approved emojis. 
+    // We use terminologyProcessor.js to enforce them
 };
 
 // Constants
@@ -1420,23 +1417,6 @@ const detectTimeContext = (message, seasonInfo, languageDecision) => {
 };
 */
 
-const UNKNOWN_QUERY_TYPES = {
-    COMPLETELY_UNKNOWN: 'completely_unknown',    // No relevant knowledge found
-};
-
-const UNKNOWN_QUERY_RESPONSES = {
-    COMPLETELY_UNKNOWN: [
-        "I'm still learning about that aspect of Sky Lagoon. Would you like to speak with a team member? You can reach us at +354 527 6800 (available 9 AM - 6 PM local time) or by email at: reservations@skylagoon.is.",
-        "I'm not fully familiar with that yet. Would you like me to connect you with our team? You can reach them at +354 527 6800 (9 AM - 6 PM local time) or by email at: reservations@skylagoon.is",
-        "I want to make sure you receive accurate information. For this specific query, please contact our team at +354 527 6800 (9 AM - 6 PM local time) or by email at: reservations@skylagoon.is"
-    ],
-    COMPLETELY_UNKNOWN_IS: [
-        "Ég er enn að læra um þennan þátt hjá Sky Lagoon. Viltu ræða við einhvern úr teyminu okkar? Þú getur haft samband við okkur í síma 527 6800 eða gegnum netfangið: reservations@skylagoon.is",
-        "Ég er ekki alveg með þessar upplýsingar á hreinu. Viltu heyra í þjónustufulltrúa? Þú getur hringt í okkur í síma 527 6800 eða haft samband í gegnum netfangið: reservations@skylagoon.is",
-        "Ég er ekki alveg viss um þetta, en teymið okkar getur örugglega hjálpað þér! Til að tryggja að þú fáir réttar upplýsingar, vinsamlegast hafðu samband við teymið okkar í síma 527 6800 eða netfangið: reservations@skylagoon.is"
-    ]
-};
-
 // Helper function to get random response
 const getRandomResponse = (responses) => {
     return responses[Math.floor(Math.random() * responses.length)];
@@ -1866,49 +1846,6 @@ async function getOrCreateSession(conversationData) {
   }
 }
 */
-
-// Context tracking constants
-const CONTEXT_TTL = 3600000; // 1 hour - matches existing CACHE_TTL
-const MAX_CONTEXT_MESSAGES = 10; // Maximum messages to keep in history
-const CONTEXT_MEMORY_LIMIT = 5;  // Keep last 5 interactions
-
-// Enhanced context tracking patterns
-const CONTEXT_PATTERNS = {
-    reference: {
-        en: [
-            'you mentioned',
-            'as discussed',
-            'like you said',
-            'about that',
-            'regarding',
-            'as for',
-            'speaking of'
-        ],
-        is: [
-            'þú nefndir',
-            'eins og við ræddum',
-            'varðandi það',
-            'um það',
-            'hvað varðar',
-            'talandi um'
-        ]
-    },
-    followUp: {
-        en: [
-            'what about',
-            'and then',
-            'what else',
-            'how about',
-            'tell me more about'
-        ],
-        is: [
-            'hvað með',
-            'og svo',
-            'hvað fleira',
-            'segðu mér meira um'
-        ]
-    }
-};
 
 // Add new code here
 const EMOJI_MAPPING = {
@@ -3651,6 +3588,7 @@ function determineMessageType(content, language) {
 }
 
 // Pusher broadcast function with enhanced language detection
+// Is this unused? 'handleConversationUpdate' is declared but its value is never read. Used in a different function?
 function handleConversationUpdate(conversationData, languageInfo) {
   try {
     console.log('🚀 Broadcasting conversation via Pusher:', {

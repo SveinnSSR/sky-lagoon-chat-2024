@@ -92,20 +92,33 @@ Revise the text to follow these guidelines while preserving the exact meaning, t
   }
 };
 
-// Simpler emoji filtering function - no change needed to how it's called
+/**
+ * Filters out non-approved emojis from text
+ * Keeps only Sky Lagoon approved emojis: 😊 ☁️ ✨ 🌞 🌅 📍
+ * 
+ * @param {string} text - The text containing emojis to filter
+ * @param {string[]} approvedEmojis - Array of allowed emoji characters
+ * @returns {string} - Text with only approved emojis
+ */
 export const filterEmojis = (text, approvedEmojis) => {
   let filteredText = text;
   let removedEmojis = [];
   
+  // This regex finds all emoji characters in the text
+  // In human terms: "Find any emoji character from the common emoji sets"
+  // Examples of what it catches:
+  // - Approved emojis we keep: 😊 ☁️ ✨ 🌞 🌅 📍
+  // - Other emojis we remove: 😂 🎉 👍 🔥 💯 etc.
   filteredText = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
     if (approvedEmojis.includes(match)) {
-      return match;
+      return match; // Keep approved emojis
     } else {
-      removedEmojis.push(match);
-      return '';
+      removedEmojis.push(match); // Track removed emojis
+      return ''; // Remove non-approved emojis
     }
   });
   
+  // Log removed emojis if any were found
   if (removedEmojis.length > 0) {
     console.log(`🧹 Removed ${removedEmojis.length} non-approved emojis: ${removedEmojis.join(' ')}`);
   }
