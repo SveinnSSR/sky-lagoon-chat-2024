@@ -43,7 +43,7 @@ import {
     icelandicMonths 
 } from './sunsetTimes.js';
 // Add this import at the top with your other imports
-const { enforceTerminology, filterEmojis } = require('./terminologyProcessor.js');
+import { enforceTerminology, filterEmojis } from './terminologyProcessor.js';
 // AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
 import { 
     checkAgentAvailability,
@@ -3314,46 +3314,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (!completion) {
             throw new Error('Failed to get completion after retries');
         }
-
+        
         // Get the response from GPT
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
-
+        
         // Add AI response to the context system
         addMessageToContext(context, { role: 'assistant', content: response });
-
+        
         // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous
         const enhancedResponse = await enforceTerminology(response);
         console.log('\n✨ Enhanced Response:', enhancedResponse);
-
-        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using simpler approach
+        
+        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-        let emojiFilterLogs = [];
-        const filteredResponse = enhancedResponse.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
-            if (approvedEmojis.includes(match)) {
-                // Approved emoji - keep it
-                return match;
-            } else {
-                // Non-approved emoji - log it and remove it
-                emojiFilterLogs.push(match);
-                return '';
-            }
-        });
-
-        // Log emoji filtering results
-        if (emojiFilterLogs.length > 0) {
-            console.log(`\n🧹 Emoji Filtering: Removed ${emojiFilterLogs.length} non-approved emojis`);
-            console.log(`\n🧹 Removed emojis: ${emojiFilterLogs.join(' ')}`);
-            console.log(`\n🧹 Approved emojis (for reference): ${approvedEmojis.join(' ')}`);
-        } else {
-            console.log(`\n🧹 Emoji Filtering: No non-approved emojis found`);
-        }
-
+        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-
+        
         // Update assistant message in context with filtered response
         addMessageToContext(context, { role: 'assistant', content: filteredResponse });
-
+        
         // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
@@ -3377,7 +3357,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
         }
-
+        
         // Cache the response
         responseCache.set(cacheKey, {
             response: {

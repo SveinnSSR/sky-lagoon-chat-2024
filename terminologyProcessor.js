@@ -1,10 +1,10 @@
 /**
  * AI-powered terminology enforcement for Sky Lagoon - 2025 approach
- * This leverages a lightweight AI model specifically for terminology standardization
+ * ES Module version
  */
 
 // Use this function instead of the regex-based enforceTerminology
-const enforceTerminology = async (text) => {
+export const enforceTerminology = async (text) => {
   // Guard clause
   if (!text) return text;
   
@@ -93,7 +93,7 @@ Revise the text to follow these guidelines while preserving the exact meaning, t
 };
 
 // Simpler emoji filtering function - no change needed to how it's called
-const filterEmojis = (text, approvedEmojis) => {
+export const filterEmojis = (text, approvedEmojis) => {
   let filteredText = text;
   let removedEmojis = [];
   
@@ -111,10 +111,4 @@ const filterEmojis = (text, approvedEmojis) => {
   }
   
   return filteredText;
-};
-
-// Export the functions
-module.exports = { 
-  enforceTerminology,
-  filterEmojis
 };
