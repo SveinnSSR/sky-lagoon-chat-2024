@@ -3,8 +3,14 @@
  * ES Module version
  */
 
-// Use this function instead of the regex-based enforceTerminology
-export const enforceTerminology = async (text) => {
+/**
+ * Applies Sky Lagoon terminology rules to text using AI processing
+ * 
+ * @param {string} text - The text to process
+ * @param {Object} openaiInstance - The initialized OpenAI client instance
+ * @returns {Promise<string>} - Text with terminology applied
+ */
+export const enforceTerminology = async (text, openaiInstance) => {
   // Guard clause
   if (!text) return text;
   
@@ -20,7 +26,7 @@ export const enforceTerminology = async (text) => {
     const containsIcelandic = /[áðéíóúýþæö]/i.test(text);
     
     // Use a faster, smaller model since this is just for text processing
-    const response = await openai.chat.completions.create({
+    const response = await openaiInstance.chat.completions.create({
       model: "gpt-4o", // Using main model until gpt-4o-mini is available
       messages: [
         { 

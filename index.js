@@ -9,7 +9,7 @@ import rateLimit from 'express-rate-limit';
 import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 import Pusher from 'pusher';
-// Add import for new context system at the top of your file
+// Enhanced context management system
 import { 
     getSessionContext, 
     getPersistentSessionContext,
@@ -2676,8 +2676,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Add AI response to the context system
         addMessageToContext(context, { role: 'assistant', content: response });
         
-        // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous
-        const enhancedResponse = await enforceTerminology(response);
+        // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
+        const enhancedResponse = await enforceTerminology(response, openai);
         console.log('\n✨ Enhanced Response:', enhancedResponse);
         
         // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
