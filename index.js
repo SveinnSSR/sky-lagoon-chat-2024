@@ -1668,6 +1668,17 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
 
 // Modified chat endpoint using only the new context system
 app.post('/chat', verifyApiKey, async (req, res) => {
+    // Add performance tracking
+    const startTime = Date.now();
+    const metrics = {
+        sessionTime: 0,
+        languageTime: 0,
+        knowledgeTime: 0,
+        transferTime: 0,
+        bookingTime: 0,
+        totalTime: 0
+    };
+
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -1720,95 +1731,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // MIGRATION: Get or create context using MongoDB-backed persistent session
-        let context;
-        try {
-                context = await getPersistentSessionContext(sessionId);
-        } catch (sessionError) {
-                console.error(`❌ Session recovery error:`, sessionError);
-                // Fallback to in-memory session
-                context = getSessionContext(sessionId);
-        }
-
-        // Do language detection with the context
-        const languageDecision = newDetectLanguage(userMessage, context);        
-
-        // Extract language code in addition to isIcelandic
-        const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
-        
-        // Update language info in the context
-        updateLanguageContext(context, userMessage);
-        
-        // Enhanced logging for language detection
-        console.log('\n🌍 Enhanced Language Detection:', {
-            message: userMessage,
-            language: language,
-            isIcelandic: languageDecision.isIcelandic,
-            confidence: languageDecision.confidence,
-            reason: languageDecision.reason,
-            sessionId: sessionId // Add session ID to logs for traceability
-        });
-
-        // Check for non-supported languages
-        if (languageDecision.reason === 'non_supported_language') {
-            console.log('\n🌐 Non-supported language detected:', {
-                message: userMessage,
-                detectedLanguage: languageDecision.detectedLanguage || 'unknown',
-                confidence: languageDecision.confidence
-            });
-            
-            const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
-            
-            // Add to new context system before responding
-            addMessageToContext(context, { role: 'user', content: userMessage });
-            
-            // Use the unified broadcast system but don't send response yet
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: unsupportedLanguageResponse,
-                language: {
-                    detected: 'non-supported',
-                    detectedSpecific: languageDecision.detectedLanguage || 'unknown',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'language_not_supported',
-                responseType: 'direct_response'
-            });
-            return res.status(responseData.status || 200).json(responseData);
-        }
-
-        // Add this message to the context system
-        addMessageToContext(context, { role: 'user', content: userMessage });
-        
-        // Update topics in the context system
-        updateTopicContext(context, userMessage);
-
-        // Log session info for debugging
-        console.log('\n🔍 Session ID:', {
-            sessionId,
-            language: context.language,
-            lastTopic: context.lastTopic,
-            topics: context.topics
-        });
-
-        // Enhanced logging for language detection results
-        console.log('\n🔬 Enhanced Language Detection Test:', {
-            message: userMessage,
-            newSystem: languageDecision,
-            patterns: {
-                hasGreeting: /^(hi|hey|hello|good\s*(morning|afternoon|evening))/i.test(userMessage),
-                hasQuestion: /^(what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage),
-                hasPackageTerms: /\b(pure|sky|admission|pass|package|ritual|facilities)\b/i.test(userMessage),
-                isFollowUp: /^(and|or|but|so|also|what about|how about)/i.test(userMessage),
-                hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
-                hasIcelandicWords: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún)\b/i.test(userMessage),
-                isPriceQuery: /\b(cost|price|how much|prices|pricing)\b/i.test(userMessage),
-                isTimeQuery: /\b(time|hours|when|open|close|opening|closing)\b/i.test(userMessage),
-                isLocationQuery: /\b(where|location|address|directions|find|get there)\b/i.test(userMessage),
-                hasPersonalPronouns: /\b(i|we|my|our|me|us)\b/i.test(userMessage),
-                hasAmenityTerms: /\b(towel|robe|locker|shower|changing room|food|drink)\b/i.test(userMessage)
-            }
-        });
-
         // MIGRATION: Handle booking form submissions
         if (req.body.isBookingChangeRequest) {
             try {
@@ -1820,7 +1742,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Create a NEW chat for the form submission
                 console.log('\n📝 Creating new LiveChat booking change request for form submission');
                 // Use direct agent chat instead of bot transfer
-                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
+                const chatData = await createDirectAgentChat(sessionId, false); // Default to English since we don't have language detection yet
 
                 if (!chatData.chat_id) {
                     throw new Error('Failed to create booking change request chat');
@@ -1837,36 +1759,39 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     throw new Error('Failed to submit booking change request');
                 }
                 
-                // Return success response
-                const confirmationMessage = languageDecision.isIcelandic ?
+                // Return success response - We don't know language yet, but we'll try to detect from the form data if possible
+                const isIcelandic = formData.language === 'is' || 
+                                   (formData.message && /[þæðöáíúéó]/i.test(formData.message));
+                
+                const confirmationMessage = isIcelandic ?
                     "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
                     "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
                 
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: confirmationMessage });
+                // Add to a temporary context for broadcasting
+                const tempContext = { language: isIcelandic ? 'is' : 'en' };
+                addMessageToContext(tempContext, { role: 'assistant', content: confirmationMessage });
                 
                 // Use the unified broadcast system but don't send response yet
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: confirmationMessage,
                     success: true,
                     language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
+                        detected: isIcelandic ? 'Icelandic' : 'English',
+                        confidence: 'medium'
                     },
                     topicType: 'booking_change_submitted',
                     responseType: 'direct_response'
                 });
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
+                
                 return res.status(responseData.status || 200).json(responseData);
             } catch (error) {
                 console.error('\n❌ Booking Form Submission Error:', error);
                 
-                // Return error response
-                const errorMessage = languageDecision.isIcelandic ?
-                    "Því miður get ég ekki sent beiðnina þína núna. Vinsamlegast reyndu aftur síðar eða hringdu í +354 527 6800." :
-                    "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
-                
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: errorMessage });
+                // Return error response (we don't know the language yet, default to English)
+                const errorMessage = "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
                 
                 // Use the unified broadcast system but don't send response yet
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
@@ -1875,288 +1800,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     status: 500,
                     error: error.message,
                     language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
+                        detected: 'English',
+                        confidence: 'medium'
                     },
                     topicType: 'booking_change_failed',
                     responseType: 'direct_response'
                 });
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
-            }
-        }
-
-        // MIGRATION: Check if we should show booking change form with enhanced AI-powered detection
-        const bookingFormCheck = await shouldShowBookingForm(userMessage, languageDecision, context);
-
-        // Update the booking context with detection results
-        updateBookingChangeContext(context, userMessage, bookingFormCheck);
-
-        // Process the final decision using context
-        const finalBookingCheck = processBookingFormCheck(bookingFormCheck, context);
-
-        // Only show form if the final check determines we need it
-        if (finalBookingCheck.shouldShowForm) {
-            try {
-                // Create chat using direct agent approach for the booking change request
-                console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
-                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
-
-                if (!chatData.chat_id) {
-                    throw new Error('Failed to create booking change request');
-                }
-
-                console.log('\n✅ Booking change request created:', chatData.chat_id);
-
-                // Prepare booking change message based on language and agent hours
-                const bookingChangeMessage = languageDecision.isIcelandic ?
-                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-18 virka daga og 9-16 um helgar. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
-                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 6 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
-
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
-
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: bookingChangeMessage,
-                    showBookingChangeForm: true,
-                    chatId: chatData.chat_id,
-                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'booking_change_request',
-                    responseType: 'direct_response'
-                });
-                return res.status(responseData.status || 200).json(responseData);
-            } catch (error) {
-                console.error('\n❌ Booking Change Request Error:', error);
-                // Fall through to AI response if request fails
-
-                // Provide fallback response when request fails
-                const fallbackMessage = languageDecision.isIcelandic ?
-                    "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
-                    "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
-
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-
-                // Use the unified broadcast system but don't send response yet
-                const errorResponseData = await sendBroadcastAndPrepareResponse({
-                    message: fallbackMessage,
-                    error: error.message,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'booking_change_failed',
-                    responseType: 'direct_response'
-                });
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
-            }
-        }
-
-        // MIGRATION: Check if we should transfer to human agent with AI-powered detection
-        const transferCheck = await shouldTransferToAgent(userMessage, languageDecision, context);
-
-        console.log('\n🔄 Transfer Check Result:', {
-            shouldTransfer: transferCheck.shouldTransfer,
-            reason: transferCheck.reason,
-            confidence: transferCheck.confidence,
-            withinHours: isWithinOperatingHours(),
-            availableAgents: transferCheck.agents?.length || 0
-        });
-
-        // Check if user is already transferred to prevent duplicate transfers
-        if (context.transferStatus && context.transferStatus.transferred) {
-            console.log('\n📝 User already transferred to agent, skipping transfer');
-            
-            // IMPORTANT: For agent mode messages, just forward to LiveChat without bot response
-            if (req.body.isAgentMode) {
-                // Store message in MongoDB for echo detection
-                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', context.transferStatus.chatId, userMessage);
-                try {
-                    await storeRecentMessage(context.transferStatus.chatId, userMessage);
-                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
-                } catch (storeError) {
-                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
-                }
                 
-                // Send the message to LiveChat using the stored credentials
-                await sendMessageToLiveChat(
-                    context.transferStatus.chatId, 
-                    userMessage, 
-                    req.body.agent_credentials || req.body.bot_token
-                );
-                
-                // Return success but suppress any bot message
-                return res.status(200).json({
-                    success: true,
-                    chatId: context.transferStatus.chatId,
-                    agent_credentials: req.body.agent_credentials || req.body.bot_token,
-                    suppressMessage: true,
-                    transferred: true
-                });
-            }
-            
-            // For non-agent messages, still show the reminder
-            const alreadyTransferredMessage = languageDecision.isIcelandic ?
-                "Þú ert þegar tengd(ur) við þjónustufulltrúa. Vinsamlegast haltu áfram samtalinu." :
-                "You are already connected with a live agent. Please continue your conversation here.";
-            
-            // Add response to context
-            addMessageToContext(context, { role: 'assistant', content: alreadyTransferredMessage });
-            
-            // Use the unified broadcast system to update the UI without creating a new transfer
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: alreadyTransferredMessage,
-                transferred: true,
-                chatId: context.transferStatus.chatId,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence
-                },
-                topicType: 'transfer_reminder',
-                responseType: 'direct_response'
-            });
-            
-            return res.status(responseData.status || 200).json(responseData);
-        }
-        
-        if (transferCheck.shouldTransfer) {
-            try {
-                // Create chat with correct customer attribution
-                console.log('\n📝 Creating new LiveChat chat with customer attribution:', sessionId);
-                const chatData = await createAttributedChat(sessionId, languageDecision.isIcelandic);
-
-                // Store mapping between LiveChat chat ID and our session ID in memory and MongoDB
-                if (chatData && chatData.chat_id) {
-                    // Use the persistent storage function
-                    await storeChatSessionMapping(chatData.chat_id, sessionId);
-                }
-                
-                if (!chatData || !chatData.chat_id) {
-                    throw new Error('Failed to create chat or get chat ID');
-                }
-                
-                console.log('\n✅ Chat created successfully with dual API approach:', chatData.chat_id);
-                
-                // Prepare transfer message based on language
-                const transferMessage = languageDecision.isIcelandic ?
-                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
-                    "I'm connecting you with a customer service representative. One moment...";
-                
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: transferMessage });
-                
-                // Use the unified broadcast system to update the UI
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: transferMessage,
-                    transferred: true,
-                    chatId: chatData.chat_id,
-                    customer_token: chatData.customer_token, // Add customer token
-                    agent_credentials: chatData.agent_credentials,
-                    initiateWidget: true,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'transfer',
-                    responseType: 'direct_response'
-                });
-                
-                // Verification check using agent credentials - keeping this from the original code
-                setTimeout(async () => {
-                    try {
-                        console.log('\n⏱️ Running visibility verification check with agent credentials...');
-                        
-                        // Verify the chat exists and is active using agent credentials
-                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Basic ${chatData.agent_credentials}`,
-                                'X-Region': 'fra'
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatData.chat_id
-                            })
-                        });
-                        
-                        if (verifyResponse.ok) {
-                            const chatStatus = await verifyResponse.json();
-                            console.log('\n🔍 Chat status verification:', {
-                                id: chatData.chat_id,
-                                active: chatStatus.active,
-                                thread: chatStatus.thread || {},
-                                users: chatStatus.users?.length || 0
-                            });
-                            
-                            // If the chat looks inactive, send a follow-up message to alert agents
-                            if (!chatStatus.active || !chatStatus.thread?.events?.length) {
-                                console.log('\n⚠️ Chat visibility check - sending reminder message...');
-                                
-                                // Send a reminder message using agent credentials
-                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Basic ${chatData.agent_credentials}`,
-                                        'X-Region': 'fra'
-                                    },
-                                    body: JSON.stringify({
-                                        chat_id: chatData.chat_id,
-                                        event: {
-                                            type: 'message',
-                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
-                                            visibility: 'all'
-                                        }
-                                    })
-                                });
-                            }
-                        }
-                    } catch (verifyError) {
-                        console.error('\n⚠️ Verification error:', verifyError);
-                        // Don't throw - this is just an additional check
-                    }
-                }, 2000);
-
-                // Mark user as transferred to prevent duplicate transfers
-                context.transferStatus = {
-                    transferred: true,
-                    chatId: chatData.chat_id,
-                    timestamp: new Date().toISOString()
-                };
-                
-                return res.status(responseData.status || 200).json(responseData);
-            } catch (error) {
-                console.error('\n❌ Transfer Error:', error);
-                
-                // Provide fallback response
-                const fallbackMessage = languageDecision.isIcelandic ?
-                    "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
-                    "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
-                
-                // Add fallback response to context
-                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-                
-                // Return error response
-                const errorResponseData = await sendBroadcastAndPrepareResponse({
-                    message: fallbackMessage,
-                    error: error.message,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'transfer_failed',
-                    responseType: 'direct_response'
-                });
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
                 
                 return res.status(errorResponseData.status || 500).json(errorResponseData);
             }
         }
 
-        // Handle messages when in agent mode
+        // Handle messages when in agent mode - KEEP THIS ENTIRE BLOCK INTACT
         if (req.body.chatId && req.body.isAgentMode) {
             console.log('\n🚨 AGENT MODE HANDLER TRIGGERED:', {
                 chatId: req.body.chatId,
@@ -2375,6 +2033,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     messageSent = true;
                 }
                 
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (agent mode): ${metrics.totalTime}ms`);
+                
                 // Return success response
                 return res.status(200).json({
                     success: true,
@@ -2383,26 +2044,440 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     bot_token: req.body.bot_token,
                     suppressMessage: true,
                     language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
+                        detected: 'English', // Default since we don't have language detection yet
+                        confidence: 'medium'
                     }
                 });
             } catch (error) {
                 console.error('\n❌ LiveChat Message Error:', error);
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (agent mode error): ${metrics.totalTime}ms`);
+                
                 return res.status(500).json({
-                    message: languageDecision.isIcelandic ? 
-                        "Villa kom upp við að senda skilaboð" :
-                        "Error sending message to agent",
+                    message: "Error sending message to agent",
                     error: error.message
                 });
             }
         }
 
-        // MIGRATION: Detect if sunset information is relevant
-        let sunsetData = null;
-        if (isSunsetQuery(userMessage, languageDecision)) {
-            console.log('\n🌅 Sunset-related query detected - adding data to context');
-            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
+        // TARGETED PARALLELIZATION: Core operations in parallel
+        console.log('\n⏱️ Starting parallel initialization...');
+        const parallelStart = Date.now();
+        
+        // MIGRATION: Get or create context and perform language detection in parallel
+        let context, languageDecision;
+        
+        try {
+            [context, languageDecision] = await Promise.all([
+                getPersistentSessionContext(sessionId),
+                newDetectLanguage(userMessage)
+            ]);
+            
+            metrics.sessionTime = Date.now() - parallelStart;
+            console.log(`\n⏱️ Session and language detection completed in ${metrics.sessionTime}ms`);
+        } catch (sessionError) {
+            console.error(`❌ Session recovery error:`, sessionError);
+            // Fallback to in-memory session
+            context = getSessionContext(sessionId);
+            languageDecision = newDetectLanguage(userMessage, context);
+        }
+
+        // Extract language code in addition to isIcelandic
+        const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
+        
+        // Update language info in the context
+        updateLanguageContext(context, userMessage);
+        
+        // Enhanced logging for language detection
+        console.log('\n🌍 Enhanced Language Detection:', {
+            message: userMessage,
+            language: language,
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason,
+            sessionId: sessionId // Add session ID to logs for traceability
+        });
+
+        // Check for non-supported languages
+        if (languageDecision.reason === 'non_supported_language') {
+            console.log('\n🌐 Non-supported language detected:', {
+                message: userMessage,
+                detectedLanguage: languageDecision.detectedLanguage || 'unknown',
+                confidence: languageDecision.confidence
+            });
+            
+            const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
+            
+            // Add to new context system before responding
+            addMessageToContext(context, { role: 'user', content: userMessage });
+            
+            // Use the unified broadcast system but don't send response yet
+            const responseData = await sendBroadcastAndPrepareResponse({
+                message: unsupportedLanguageResponse,
+                language: {
+                    detected: 'non-supported',
+                    detectedSpecific: languageDecision.detectedLanguage || 'unknown',
+                    confidence: languageDecision.confidence
+                },
+                topicType: 'language_not_supported',
+                responseType: 'direct_response'
+            });
+            
+            metrics.totalTime = Date.now() - startTime;
+            console.log(`\n⏱️ Total processing time (non-supported language): ${metrics.totalTime}ms`);
+            
+            return res.status(responseData.status || 200).json(responseData);
+        }
+
+        // Add this message to the context system
+        addMessageToContext(context, { role: 'user', content: userMessage });
+        
+        // Update topics in the context system
+        updateTopicContext(context, userMessage);
+
+        // Log session info for debugging
+        console.log('\n🔍 Session ID:', {
+            sessionId,
+            language: context.language,
+            lastTopic: context.lastTopic,
+            topics: context.topics
+        });
+
+        // TARGETED PARALLELIZATION: Run key checks in parallel
+        console.log('\n⏱️ Starting parallel operations...');
+        const operationsStart = Date.now();
+        
+        const [
+            transferCheck,       // Check if we should transfer to a human agent
+            bookingFormCheck,    // Check if we should show booking form
+            knowledgeBaseResults // Get relevant knowledge
+        ] = await Promise.all([
+            shouldTransferToAgent(userMessage, languageDecision, context)
+                .then(result => {
+                    metrics.transferTime = Date.now() - operationsStart;
+                    return result;
+                }),
+            shouldShowBookingForm(userMessage, languageDecision, context)
+                .then(result => {
+                    metrics.bookingTime = Date.now() - operationsStart;
+                    return result;
+                }),
+            getKnowledgeWithFallbacks(userMessage, context)
+                .then(result => {
+                    metrics.knowledgeTime = Date.now() - operationsStart;
+                    return result;
+                })
+        ]);
+        
+        console.log(`\n⏱️ Parallel operations completed in ${Date.now() - operationsStart}ms`);
+
+        // Enhanced logging for language detection results
+        console.log('\n🔬 Enhanced Language Detection Test:', {
+            message: userMessage,
+            newSystem: languageDecision,
+            patterns: {
+                hasGreeting: /^(hi|hey|hello|good\s*(morning|afternoon|evening))/i.test(userMessage),
+                hasQuestion: /^(what|how|where|when|why|can|could|would|will|do|does|is|are|should)\b/i.test(userMessage),
+                hasPackageTerms: /\b(pure|sky|admission|pass|package|ritual|facilities)\b/i.test(userMessage),
+                isFollowUp: /^(and|or|but|so|also|what about|how about)/i.test(userMessage),
+                hasIcelandicChars: /[þæðöáíúéó]/i.test(userMessage),
+                hasIcelandicWords: /\b(og|að|er|það|við|ekki|ég|þú|hann|hún)\b/i.test(userMessage),
+                isPriceQuery: /\b(cost|price|how much|prices|pricing)\b/i.test(userMessage),
+                isTimeQuery: /\b(time|hours|when|open|close|opening|closing)\b/i.test(userMessage),
+                isLocationQuery: /\b(where|location|address|directions|find|get there)\b/i.test(userMessage),
+                hasPersonalPronouns: /\b(i|we|my|our|me|us)\b/i.test(userMessage),
+                hasAmenityTerms: /\b(towel|robe|locker|shower|changing room|food|drink)\b/i.test(userMessage)
+            }
+        });
+
+        // Update the booking context with detection results
+        updateBookingChangeContext(context, userMessage, bookingFormCheck);
+
+        // Process the final decision using context
+        const finalBookingCheck = processBookingFormCheck(bookingFormCheck, context);
+
+        // Only show form if the final check determines we need it
+        if (finalBookingCheck.shouldShowForm) {
+            try {
+                // Create chat using direct agent approach for the booking change request
+                console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
+                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
+
+                if (!chatData.chat_id) {
+                    throw new Error('Failed to create booking change request');
+                }
+
+                console.log('\n✅ Booking change request created:', chatData.chat_id);
+
+                // Prepare booking change message based on language and agent hours
+                const bookingChangeMessage = languageDecision.isIcelandic ?
+                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-18 virka daga og 9-16 um helgar. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
+                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 6 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
+
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
+
+                // Use the unified broadcast system but don't send response yet
+                const responseData = await sendBroadcastAndPrepareResponse({
+                    message: bookingChangeMessage,
+                    showBookingChangeForm: true,
+                    chatId: chatData.chat_id,
+                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'booking_change_request',
+                    responseType: 'direct_response'
+                });
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
+                
+                return res.status(responseData.status || 200).json(responseData);
+            } catch (error) {
+                console.error('\n❌ Booking Change Request Error:', error);
+                // Fall through to AI response if request fails
+
+                // Provide fallback response when request fails
+                const fallbackMessage = languageDecision.isIcelandic ?
+                    "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
+                    "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
+
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
+
+                // Use the unified broadcast system but don't send response yet
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
+                    message: fallbackMessage,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence
+                    },
+                    topicType: 'booking_change_failed',
+                    responseType: 'direct_response'
+                });
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
+                
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
+            }
+        }
+
+        // MIGRATION: Check if we should transfer to human agent with AI-powered detection
+
+        console.log('\n🔄 Transfer Check Result:', {
+            shouldTransfer: transferCheck.shouldTransfer,
+            reason: transferCheck.reason,
+            confidence: transferCheck.confidence,
+            withinHours: isWithinOperatingHours(),
+            availableAgents: transferCheck.agents?.length || 0
+        });
+
+        // Check if user is already transferred to prevent duplicate transfers
+        if (context.transferStatus && context.transferStatus.transferred) {
+            console.log('\n📝 User already transferred to agent, skipping transfer');
+            
+            // IMPORTANT: For agent mode messages, just forward to LiveChat without bot response
+            if (req.body.isAgentMode) {
+                // Store message in MongoDB for echo detection
+                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', context.transferStatus.chatId, userMessage);
+                try {
+                    await storeRecentMessage(context.transferStatus.chatId, userMessage);
+                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
+                } catch (storeError) {
+                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
+                }
+                
+                // Send the message to LiveChat using the stored credentials
+                await sendMessageToLiveChat(
+                    context.transferStatus.chatId, 
+                    userMessage, 
+                    req.body.agent_credentials || req.body.bot_token
+                );
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (already transferred agent mode): ${metrics.totalTime}ms`);
+                
+                // Return success but suppress any bot message
+                return res.status(200).json({
+                    success: true,
+                    chatId: context.transferStatus.chatId,
+                    agent_credentials: req.body.agent_credentials || req.body.bot_token,
+                    suppressMessage: true,
+                    transferred: true
+                });
+            }
+            
+            // For non-agent messages, still show the reminder
+            const alreadyTransferredMessage = languageDecision.isIcelandic ?
+                "Þú ert þegar tengd(ur) við þjónustufulltrúa. Vinsamlegast haltu áfram samtalinu." :
+                "You are already connected with a live agent. Please continue your conversation here.";
+            
+            // Add response to context
+            addMessageToContext(context, { role: 'assistant', content: alreadyTransferredMessage });
+            
+            // Use the unified broadcast system to update the UI without creating a new transfer
+            const responseData = await sendBroadcastAndPrepareResponse({
+                message: alreadyTransferredMessage,
+                transferred: true,
+                chatId: context.transferStatus.chatId,
+                language: {
+                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                },
+                topicType: 'transfer_reminder',
+                responseType: 'direct_response'
+            });
+            
+            metrics.totalTime = Date.now() - startTime;
+            console.log(`\n⏱️ Total processing time (already transferred): ${metrics.totalTime}ms`);
+            
+            return res.status(responseData.status || 200).json(responseData);
+        }
+        
+        if (transferCheck.shouldTransfer) {
+            try {
+                // Create chat with correct customer attribution
+                console.log('\n📝 Creating new LiveChat chat with customer attribution:', sessionId);
+                const chatData = await createAttributedChat(sessionId, languageDecision.isIcelandic);
+
+                // Store mapping between LiveChat chat ID and our session ID in memory and MongoDB
+                if (chatData && chatData.chat_id) {
+                    // Use the persistent storage function
+                    await storeChatSessionMapping(chatData.chat_id, sessionId);
+                }
+                
+                if (!chatData || !chatData.chat_id) {
+                    throw new Error('Failed to create chat or get chat ID');
+                }
+                
+                console.log('\n✅ Chat created successfully with dual API approach:', chatData.chat_id);
+                
+                // Prepare transfer message based on language
+                const transferMessage = languageDecision.isIcelandic ?
+                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
+                    "I'm connecting you with a customer service representative. One moment...";
+                
+                // Add response to context
+                addMessageToContext(context, { role: 'assistant', content: transferMessage });
+                
+                // Use the unified broadcast system to update the UI
+                const responseData = await sendBroadcastAndPrepareResponse({
+                    message: transferMessage,
+                    transferred: true,
+                    chatId: chatData.chat_id,
+                    customer_token: chatData.customer_token, // Add customer token
+                    agent_credentials: chatData.agent_credentials,
+                    initiateWidget: true,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
+                    topicType: 'transfer',
+                    responseType: 'direct_response'
+                });
+                
+                // Verification check using agent credentials - keeping this from the original code
+                setTimeout(async () => {
+                    try {
+                        console.log('\n⏱️ Running visibility verification check with agent credentials...');
+                        
+                        // Verify the chat exists and is active using agent credentials
+                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${chatData.agent_credentials}`,
+                                'X-Region': 'fra'
+                            },
+                            body: JSON.stringify({
+                                chat_id: chatData.chat_id
+                            })
+                        });
+                        
+                        if (verifyResponse.ok) {
+                            const chatStatus = await verifyResponse.json();
+                            console.log('\n🔍 Chat status verification:', {
+                                id: chatData.chat_id,
+                                active: chatStatus.active,
+                                thread: chatStatus.thread || {},
+                                users: chatStatus.users?.length || 0
+                            });
+                            
+                            // If the chat looks inactive, send a follow-up message to alert agents
+                            if (!chatStatus.active || !chatStatus.thread?.events?.length) {
+                                console.log('\n⚠️ Chat visibility check - sending reminder message...');
+                                
+                                // Send a reminder message using agent credentials
+                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Basic ${chatData.agent_credentials}`,
+                                        'X-Region': 'fra'
+                                    },
+                                    body: JSON.stringify({
+                                        chat_id: chatData.chat_id,
+                                        event: {
+                                            type: 'message',
+                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
+                                            visibility: 'all'
+                                        }
+                                    })
+                                });
+                            }
+                        }
+                    } catch (verifyError) {
+                        console.error('\n⚠️ Verification error:', verifyError);
+                        // Don't throw - this is just an additional check
+                    }
+                }, 2000);
+
+                // Mark user as transferred to prevent duplicate transfers
+                context.transferStatus = {
+                    transferred: true,
+                    chatId: chatData.chat_id,
+                    timestamp: new Date().toISOString()
+                };
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (new transfer): ${metrics.totalTime}ms`);
+                
+                return res.status(responseData.status || 200).json(responseData);
+            } catch (error) {
+                console.error('\n❌ Transfer Error:', error);
+                
+                // Provide fallback response
+                const fallbackMessage = languageDecision.isIcelandic ?
+                    "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
+                    "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
+                
+                // Add fallback response to context
+                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
+                
+                // Return error response
+                const errorResponseData = await sendBroadcastAndPrepareResponse({
+                    message: fallbackMessage,
+                    error: error.message,
+                    language: {
+                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
+                    topicType: 'transfer_failed',
+                    responseType: 'direct_response'
+                });
+                
+                metrics.totalTime = Date.now() - startTime;
+                console.log(`\n⏱️ Total processing time (transfer error): ${metrics.totalTime}ms`);
+                
+                return res.status(errorResponseData.status || 500).json(errorResponseData);
+            }
         }
 
         // Detect late arrival scenario - now using context system's late arrival tracking
@@ -2421,29 +2496,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.log('\n⏰ Time context updated:', timeContext);
         }
 
-        // Use comprehensive knowledge retrieval with fallbacks
-        console.log('\n📚 Starting knowledge retrieval with fallback system...');
-        const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
-
-        // Log the final results
-        console.log('\n🔍 Knowledge retrieval results:', {
-                count: knowledgeBaseResults.length,
-                language: context.language,
-                query: userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : ''),
-                types: knowledgeBaseResults.map(r => r.type)
-        });
-
-        // Preserve non-zero results by making a copy
-        let originalResults = null;
-        if (knowledgeBaseResults && knowledgeBaseResults.length > 0) {
-            originalResults = [...knowledgeBaseResults];
-            // Log to confirm we have results
-            console.log('\n📝 Preserving Knowledge Base Results:', {
-                count: originalResults.length,
-                types: originalResults.map(r => r.type)
-            });
-        }
-
         // Update conversation memory with current topic if we found knowledge
         if (knowledgeBaseResults.length > 0) {
             const mainTopic = knowledgeBaseResults[0].type;
@@ -2455,6 +2507,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 response: knowledgeBaseResults[0].content,
                 language: context.language
             });
+        }
+
+        // MIGRATION: Detect if sunset information is relevant
+        let sunsetData = null;
+        if (isSunsetQuery(userMessage, languageDecision)) {
+            console.log('\n🌅 Sunset-related query detected - adding data to context');
+            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
         }
 
         // Check for seasonal context
@@ -2511,7 +2570,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Add cache key with language
         const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
-        const responseCache = new Map(); // Getting it from the global scope
         const cached = responseCache.get(cacheKey);
         
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -2520,6 +2578,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 language: languageDecision.isIcelandic ? 'is' : 'en',
                 confidence: languageDecision.confidence
             });
+            
+           metrics.totalTime = Date.now() - startTime;
+           console.log(`\n⏱️ Total processing time (cached): ${metrics.totalTime}ms`);
+           
            return res.json(cached.response);
        }
 
@@ -2634,6 +2696,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 ${language === 'auto' ? 'IMPORTANT: Respond in the same language as the user\'s question.' : `Response MUST be in ${language} language.`}`
         });
 
+        // Record time before making GPT request
+        const gptStart = Date.now();
+        
         // Make GPT-4 request with retries
         let attempt = 0;
         let completion;
@@ -2663,6 +2728,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
+        
+        // Record GPT request time
+        metrics.gptTime = Date.now() - gptStart;
+        console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
 
         // If we get here, we have a successful completion
         if (!completion) {
@@ -2686,7 +2755,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
         
         // Update assistant message in context with filtered response
-        addMessageToContext(context, { role: 'assistant', content: filteredResponse });
+        context.messages[context.messages.length - 1].content = filteredResponse;
         
         // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
         let postgresqlMessageId = null;
@@ -2724,6 +2793,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 }
             },
             timestamp: Date.now()
+        });
+        
+        // Record total processing time
+        metrics.totalTime = Date.now() - startTime;
+        console.log('\n⏱️ Performance Metrics:', {
+            sessionAndLanguage: `${metrics.sessionTime}ms`,
+            knowledge: `${metrics.knowledgeTime}ms`,
+            transfer: `${metrics.transferTime}ms`,
+            booking: `${metrics.bookingTime}ms`,
+            gpt: `${metrics.gptTime}ms`,
+            total: `${metrics.totalTime}ms`
         });
 
         // Return the response
@@ -2785,6 +2865,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             topicType: 'error',
             responseType: 'error_response'
         });
+        
+        metrics.totalTime = Date.now() - startTime;
+        console.log(`\n⏱️ Error occurred after ${metrics.totalTime}ms`);
         
         // Send error response separately to ensure it reaches the client
         return res.status(500).json({
