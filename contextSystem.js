@@ -1,5 +1,20 @@
 // contextSystem.js - Enhanced context management system
 
+// Global caches shared across all sessions
+if (!global.skyLagoonCaches) {
+  global.skyLagoonCaches = {
+    knowledge: new Map(),
+    vector: new Map(),
+    // Configuration
+    KNOWLEDGE_CACHE_TTL: 24 * 60 * 60 * 1000, // 24 hours
+    KNOWLEDGE_CACHE_MAX_SIZE: 500,
+    VECTOR_CACHE_TTL: 24 * 60 * 60 * 1000,
+    VECTOR_CACHE_MAX_SIZE: 1000
+  };
+  
+  console.log('🌐 Initialized global knowledge caching system');
+}
+
 // Import required dependencies
 import { detectLanguage as oldDetectLanguage } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
@@ -408,10 +423,10 @@ export class AdaptiveMemory {
   }
 }
 
-// Knowledge retrieval caching system
-const knowledgeCache = new Map();
-const KNOWLEDGE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-const KNOWLEDGE_CACHE_MAX_SIZE = 500; // Maximum cache entries
+// Use global caches for knowledge retrieval
+const knowledgeCache = global.skyLagoonCaches.knowledge;
+const KNOWLEDGE_CACHE_TTL = global.skyLagoonCaches.KNOWLEDGE_CACHE_TTL;
+const KNOWLEDGE_CACHE_MAX_SIZE = global.skyLagoonCaches.KNOWLEDGE_CACHE_MAX_SIZE;
 
 // Helper function to create normalized cache keys
 function createCacheKey(message, language) {
@@ -460,10 +475,10 @@ function cleanupKnowledgeCache() {
 // Run cleanup every hour
 setInterval(cleanupKnowledgeCache, 60 * 60 * 1000);
 
-// Vector-specific cache for getVectorKnowledge
-const vectorCache = new Map();
-const VECTOR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const VECTOR_CACHE_MAX_SIZE = 1000; // Vector cache can be larger
+// Use global caches for vector knowledge
+const vectorCache = global.skyLagoonCaches.vector;
+const VECTOR_CACHE_TTL = global.skyLagoonCaches.VECTOR_CACHE_TTL;
+const VECTOR_CACHE_MAX_SIZE = global.skyLagoonCaches.VECTOR_CACHE_MAX_SIZE;
 
 /**
  * Gets or creates a session context with enhanced structure

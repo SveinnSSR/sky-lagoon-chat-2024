@@ -6,10 +6,21 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Add caching layer to reduce database calls
-const embeddingsCache = new Map();
-const EMBEDDINGS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
-const EMBEDDINGS_CACHE_MAX_SIZE = 2000;
+// Global embedding cache shared across all sessions
+if (!global.embeddingsCache) {
+  global.embeddingsCache = {
+    cache: new Map(),
+    TTL: 7 * 24 * 60 * 60 * 1000, // 7 days
+    MAX_SIZE: 2000
+  };
+  
+  console.log('🌐 Initialized global embeddings caching system');
+}
+
+// Use global embedding cache
+const embeddingsCache = global.embeddingsCache.cache;
+const EMBEDDINGS_CACHE_TTL = global.embeddingsCache.TTL;
+const EMBEDDINGS_CACHE_MAX_SIZE = global.embeddingsCache.MAX_SIZE;
 
 // Helper function to create normalized cache keys
 function createEmbeddingsCacheKey(query, limit, threshold, language) {
