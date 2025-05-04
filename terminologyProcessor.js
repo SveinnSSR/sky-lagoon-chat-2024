@@ -1,7 +1,11 @@
 /**
- * AI-powered terminology enforcement for Sky Lagoon - 2025 approach
+ * AI-powered terminology enforcement for Sky Lagoon
  * ES Module version
  */
+
+// Cache for terminology processing results
+const terminologyCache = new Map();
+const TERMINOLOGY_CACHE_MAX_SIZE = 500; // Prevent unbounded growth
 
 /**
  * Applies Sky Lagoon terminology rules to text using AI processing
@@ -17,6 +21,13 @@ export const enforceTerminology = async (text, openaiInstance) => {
   // Only use AI for messages above a certain length
   // Short responses are less likely to need processing
   if (text.length < 30) return text;
+  
+  // Check cache first
+  const cacheKey = createCacheKey(text);
+  if (terminologyCache.has(cacheKey)) {
+    console.log('📦 Using cached terminology processing');
+    return terminologyCache.get(cacheKey);
+  }
   
   console.log('\n📝 Applying AI terminology processing');
   const startTime = performance.now();
@@ -89,6 +100,18 @@ Revise the text to follow these guidelines while preserving the exact meaning, t
     const processingTime = (performance.now() - startTime).toFixed(2);
     
     console.log(`✨ AI terminology processing completed in ${processingTime}ms`);
+    
+    // Cache the result before returning
+    terminologyCache.set(cacheKey, result);
+    
+    // Clean up cache if it gets too large
+    if (terminologyCache.size > TERMINOLOGY_CACHE_MAX_SIZE) {
+      console.log(`\n🧹 Cleaning terminology cache (${terminologyCache.size} entries)`);
+      const oldestKeys = [...terminologyCache.keys()].slice(0, 100);
+      oldestKeys.forEach(key => terminologyCache.delete(key));
+      console.log(`🧹 Removed ${oldestKeys.length} oldest terminology cache entries`);
+    }
+    
     return result;
     
   } catch (error) {
@@ -114,7 +137,7 @@ export const filterEmojis = (text, approvedEmojis) => {
   // In human terms: "Find any emoji character from the common emoji sets"
   // Examples of what it catches:
   // - Approved emojis we keep: 😊 ☁️ ✨ 🌞 🌅 📍
-  // - Other emojis we remove: 😂 🎉 👍 🔥 💯 etc.
+  // - Other emojis we remove: 🤖 🧠 📣 👀 😵‍💫 etc.
   filteredText = text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]/gu, (match) => {
     if (approvedEmojis.includes(match)) {
       return match; // Keep approved emojis
@@ -131,3 +154,17 @@ export const filterEmojis = (text, approvedEmojis) => {
   
   return filteredText;
 };
+
+/**
+ * Creates a normalized cache key from text
+ * @param {string} text - The text to create a key from
+ * @returns {string} - A normalized key for caching
+ */
+function createCacheKey(text) {
+  // Create a simplified version of the text for caching
+  return text.toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim()
+    .slice(0, 100);           // Use first 100 chars as basis for key
+}
