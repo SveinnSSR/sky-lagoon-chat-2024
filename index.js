@@ -1683,24 +1683,50 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     // Check if streaming is requested
     const useStreaming = req.body.stream === true;
     
-    // FIXED: Define sendChunk function at the top level with a check
+    // ENHANCED: Define sendChunk function with explicit flushing
     const sendChunk = (data) => {
         if (useStreaming) {
+            console.log(`\n📊 [STREAMING] Sending chunk: ${data.type || 'unknown'}`);
             res.write(`data: ${JSON.stringify(data)}\n\n`);
+            // Force immediate sending of the chunk
+            try {
+                // Some Node.js environments support flush directly
+                if (typeof res.flush === 'function') {
+                    res.flush();
+                }
+            } catch (e) {
+                // Ignore flush errors (some servers don't support it)
+            }
         }
     };
     
     // Setup for streaming if requested
     if (useStreaming) {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
+        console.log('\n📊 [STREAMING] Setting up SSE headers');
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no' // Important for Nginx
+        });
+        
+        // Flush headers immediately to start the connection
+        res.flushHeaders();
+        console.log('\n📊 [STREAMING] Headers flushed');
         
         // Send initial connection message
         sendChunk({ 
             type: 'start',
             sessionId: req.body.sessionId
         });
+        
+        // Send immediate feedback within 100ms to improve perceived responsiveness
+        setTimeout(() => {
+            sendChunk({
+                type: 'init',
+                message: "Processing your request...",
+            });
+        }, 100);
     }
 
     // Unified function to broadcast but NOT send response
@@ -2865,6 +2891,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 sendChunk({
                     type: 'gpt_start'
                 });
+                
+                // NEW: Add immediate user feedback for better perceived responsiveness
+                setTimeout(() => {
+                    sendChunk({
+                        type: 'processing',
+                        message: "Searching for information...",
+                        stage: 'preparing'
+                    });
+                }, 500);
                 
                 // Make GPT-4 request with streaming enabled
                 const completion = await openai.chat.completions.create({
