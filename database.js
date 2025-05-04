@@ -3,38 +3,78 @@ import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// MongoDB Connection
-let cachedClient = null;
-let cachedDb = null;
+// Global singleton connection
+if (!global.mongoConnection) {
+  global.mongoConnection = {
+    client: null,
+    db: null,
+    connecting: null, // Promise for connection in progress
+    connectionTime: 0,
+    lastUsed: Date.now()
+  };
+}
 
 export async function connectToDatabase() {
   try {
-    // If we already have a connection, use it
-    if (cachedClient && cachedDb) {
+    // Use existing connection if available
+    if (global.mongoConnection.client && global.mongoConnection.db) {
       console.log('Using cached database connection');
-      return { client: cachedClient, db: cachedDb };
+      // Update last used timestamp
+      global.mongoConnection.lastUsed = Date.now();
+      return {
+        client: global.mongoConnection.client,
+        db: global.mongoConnection.db
+      };
     }
-
+    
+    // If connection is in progress, wait for it instead of creating a new one
+    if (global.mongoConnection.connecting) {
+      console.log('Waiting for existing MongoDB connection to complete...');
+      await global.mongoConnection.connecting;
+      return {
+        client: global.mongoConnection.client,
+        db: global.mongoConnection.db
+      };
+    }
+    
     // Check for MongoDB URI
     if (!process.env.MONGODB_URI) {
       console.error('MONGODB_URI environment variable not set');
       throw new Error('Please define the MONGODB_URI environment variable');
     }
-
-    // Connect to MongoDB
+    
+    // Start new connection and set the connecting promise
     console.log('Connecting to MongoDB...');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
+    const startTime = Date.now();
     
-    // Cache the connection
-    cachedClient = client;
-    cachedDb = db;
+    // Store connection promise to prevent parallel connection attempts
+    global.mongoConnection.connecting = (async () => {
+      try {
+        const client = new MongoClient(process.env.MONGODB_URI);
+        await client.connect();
+        const db = client.db();
+        
+        // Store connection globally
+        global.mongoConnection.client = client;
+        global.mongoConnection.db = db;
+        global.mongoConnection.connectionTime = Date.now() - startTime;
+        global.mongoConnection.lastUsed = Date.now();
+        
+        console.log(`MongoDB connected successfully in ${global.mongoConnection.connectionTime}ms`);
+        return { client, db };
+      } catch (error) {
+        global.mongoConnection.connecting = null;
+        throw error;
+      }
+    })();
     
-    console.log('MongoDB connected successfully');
-    return { client, db };
+    // Wait for connection
+    const result = await global.mongoConnection.connecting;
+    global.mongoConnection.connecting = null;
+    return result;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    global.mongoConnection.connecting = null;
     throw error;
   }
 }
@@ -235,3 +275,29 @@ export async function getDualCredentials(chatId) {
     return null;
   }
 }
+
+// Add connection monitoring function to periodically check connection health
+// This helps prevent connection timeouts
+setInterval(() => {
+  if (global.mongoConnection.client && global.mongoConnection.db) {
+    // If no activity for 10 minutes, ping the database to keep connection alive
+    const timeSinceLastUse = Date.now() - global.mongoConnection.lastUsed;
+    if (timeSinceLastUse > 10 * 60 * 1000) { // 10 minutes
+      try {
+        // Ping database but don't log it to avoid cluttering logs
+        global.mongoConnection.db.command({ ping: 1 })
+          .then(() => {
+            global.mongoConnection.lastUsed = Date.now();
+          })
+          .catch(error => {
+            console.warn('\n⚠️ MongoDB ping failed, connection might be stale:', error.message);
+            // Reset connection so next request creates a fresh one
+            global.mongoConnection.client = null;
+            global.mongoConnection.db = null;
+          });
+      } catch (error) {
+        // Do nothing on errors to avoid crashing the app
+      }
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
