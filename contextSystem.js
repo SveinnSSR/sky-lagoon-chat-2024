@@ -408,6 +408,63 @@ export class AdaptiveMemory {
   }
 }
 
+// Knowledge retrieval caching system
+const knowledgeCache = new Map();
+const KNOWLEDGE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const KNOWLEDGE_CACHE_MAX_SIZE = 500; // Maximum cache entries
+
+// Helper function to create normalized cache keys
+function createCacheKey(message, language) {
+  // Normalize the message by removing punctuation, excess whitespace, and converting to lowercase
+  const normalizedMessage = message.toLowerCase()
+    .replace(/[^\w\s?]/g, '') // Remove punctuation except question marks
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim();
+  
+  return `${normalizedMessage}:${language || 'en'}`;
+}
+
+// Periodic cache cleanup function
+function cleanupKnowledgeCache() {
+  if (knowledgeCache.size > KNOWLEDGE_CACHE_MAX_SIZE) {
+    console.log(`\n🧹 Cleaning knowledge cache (${knowledgeCache.size} entries)`);
+    const now = Date.now();
+    
+    // First remove expired entries
+    let expiredCount = 0;
+    for (const [key, entry] of knowledgeCache.entries()) {
+      if (now - entry.timestamp > KNOWLEDGE_CACHE_TTL) {
+        knowledgeCache.delete(key);
+        expiredCount++;
+      }
+    }
+    
+    // If still too large, remove oldest entries
+    if (knowledgeCache.size > KNOWLEDGE_CACHE_MAX_SIZE - 100) {
+      const entries = [...knowledgeCache.entries()];
+      // Sort by timestamp (oldest first)
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      // Remove oldest 100 entries
+      let oldestRemoved = 0;
+      for (let i = 0; i < 100 && i < entries.length; i++) {
+        knowledgeCache.delete(entries[i][0]);
+        oldestRemoved++;
+      }
+      
+      console.log(`🧹 Removed ${expiredCount} expired and ${oldestRemoved} oldest cache entries`);
+    }
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupKnowledgeCache, 60 * 60 * 1000);
+
+// Vector-specific cache for getVectorKnowledge
+const vectorCache = new Map();
+const VECTOR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const VECTOR_CACHE_MAX_SIZE = 1000; // Vector cache can be larger
+
 /**
  * Gets or creates a session context with enhanced structure
  * @param {string} sessionId - Unique session ID
@@ -1219,14 +1276,14 @@ export function updateTopicContext(context, message) {
 }
 
 /**
- * Gets relevant knowledge using vector search with enhanced context awareness
+ * Gets relevant knowledge using vector search with enhanced context awareness and caching
  * @param {string} message - User message
  * @param {Object} context - Session context
  * @returns {Promise<Array>} - Relevant knowledge entries with similarity scores
  */
 export async function getVectorKnowledge(message, context) {
   try {
-    console.log(`\n🔍 Performing vector search for: "${message}" in ${context.language}`);
+    console.log(`\n🔍 Vector search for: "${message}" in ${context.language}`);
     
     // Determine which language to use
     const language = context.language || 'en';
@@ -1237,7 +1294,7 @@ export async function getVectorKnowledge(message, context) {
     let enhancementStrategy = 'none';
     
     // Check if this is a short or follow-up query
-    const isShortQuery = message.split(' ').length <= 4; // Increased from 3 to 4
+    const isShortQuery = message.split(' ').length <= 4;
     const isFollowUp = /^(and|what about|how about|is there|what if|og|hvað með|en hvað|er það)/i.test(message);
     
     // Build contextual enhancement based on various signals
@@ -1275,7 +1332,7 @@ export async function getVectorKnowledge(message, context) {
         if (enhancementStrategy === 'none') enhancementStrategy = 'last_topic';
       }
       
-      // 4. NEW: Add most recent user message for context (if different)
+      // 4. Add most recent user message for context (if different)
       const lastUserMessages = context.messages
         .filter(m => m.role === 'user')
         .slice(-3); // Get last 3 user messages
@@ -1299,14 +1356,14 @@ export async function getVectorKnowledge(message, context) {
         }
       }
       
-      // 5. NEW: Add intent information if available
+      // 5. Add intent information if available
       if (context.intentHierarchy?.primaryIntent && 
           !contextPieces.includes(context.intentHierarchy.primaryIntent)) {
         contextPieces.push(context.intentHierarchy.primaryIntent);
         if (enhancementStrategy === 'none') enhancementStrategy = 'primary_intent';
       }
 
-      // 6. NEW: Add predicted topic information if available
+      // 6. Add predicted topic information if available
       if (context.topicGraph && context.lastTopic) {
         const predictions = context.topicGraph.predictNextTopics(context.lastTopic, 1);
         if (predictions.length > 0 && 
@@ -1317,7 +1374,7 @@ export async function getVectorKnowledge(message, context) {
         }
       }      
 
-      // 7. NEW: Add relevant memories for very short queries
+      // 7. Add relevant memories for very short queries
       if (message.split(' ').length <= 2 && context.adaptiveMemory) {
         // Get recent highly relevant memories
         const relevantMemories = context.adaptiveMemory.getRelevantMemories(message, null, 1);
@@ -1384,6 +1441,22 @@ export async function getVectorKnowledge(message, context) {
       });
     }
     
+    // CHECK CACHE before proceeding with the search
+    const vectorCacheKey = `vector:${searchQuery.toLowerCase().replace(/[^\w\s]/g, '').trim()}:${language}`;
+    
+    if (vectorCache.has(vectorCacheKey)) {
+      const cached = vectorCache.get(vectorCacheKey);
+      
+      // Check if cache entry is still valid
+      if (Date.now() - cached.timestamp < VECTOR_CACHE_TTL) {
+        console.log(`\n📦 Using cached vector results for: "${searchQuery}"`);
+        return cached.results;
+      } else {
+        // Expired entry, remove it
+        vectorCache.delete(vectorCacheKey);
+      }
+    }
+    
     // Import the vector search function from embeddings.js
     const { searchSimilarContent } = await import('./utils/embeddings.js');
     
@@ -1426,7 +1499,22 @@ export async function getVectorKnowledge(message, context) {
       }
     }    
     
-    return normalizeVectorResults(transformedResults);
+    const normalizedResults = normalizeVectorResults(transformedResults);
+    
+    // Cache the results before returning
+    if (normalizedResults && normalizedResults.length > 0) {
+      vectorCache.set(vectorCacheKey, {
+        results: normalizedResults,
+        timestamp: Date.now()
+      });
+      
+      // Cleanup if cache gets too big
+      if (vectorCache.size > VECTOR_CACHE_MAX_SIZE) {
+        cleanupVectorCache();
+      }
+    }
+    
+    return normalizedResults;
     
   } catch (error) {
     console.error('\n❌ Error in vector search:', error);
@@ -1435,15 +1523,46 @@ export async function getVectorKnowledge(message, context) {
   }
 }
 
+// Helper function to clean up the vector cache
+function cleanupVectorCache() {
+  console.log(`\n🧹 Cleaning vector cache (${vectorCache.size} entries)`);
+  const now = Date.now();
+  
+  // First remove expired entries
+  let expiredCount = 0;
+  for (const [key, entry] of vectorCache.entries()) {
+    if (now - entry.timestamp > VECTOR_CACHE_TTL) {
+      vectorCache.delete(key);
+      expiredCount++;
+    }
+  }
+  
+  // If still too large, remove oldest entries
+  if (vectorCache.size > VECTOR_CACHE_MAX_SIZE - 200) {
+    const entries = [...vectorCache.entries()];
+    // Sort by timestamp (oldest first)
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    // Remove oldest 200 entries
+    let oldestRemoved = 0;
+    for (let i = 0; i < 200 && i < entries.length; i++) {
+      vectorCache.delete(entries[i][0]);
+      oldestRemoved++;
+    }
+    
+    console.log(`🧹 Removed ${expiredCount} expired and ${oldestRemoved} oldest vector cache entries`);
+  }
+}
+
 /**
- * Comprehensive knowledge retrieval with fallback mechanisms
+ * Comprehensive knowledge retrieval with fallback mechanisms and caching
  * @param {string} message - User message
  * @param {Object} context - Session context
  * @returns {Promise<Array>} - Knowledge entries with fallback handling
  */
 export async function getKnowledgeWithFallbacks(message, context) {
   try {
-    console.log(`\n📚 Starting comprehensive knowledge retrieval for: "${message}"`);
+    console.log(`\n📚 Starting knowledge retrieval for: "${message}"`);
     
     // Track retrieval attempts for analytics
     if (!context.retrievalStats) {
@@ -1453,6 +1572,21 @@ export async function getKnowledgeWithFallbacks(message, context) {
         successRate: 0,
         history: []
       };
+    }
+    
+    // Check cache first
+    const cacheKey = createCacheKey(message, context.language);
+    if (knowledgeCache.has(cacheKey)) {
+      const cached = knowledgeCache.get(cacheKey);
+      
+      // Check if cache entry is still valid
+      if (Date.now() - cached.timestamp < KNOWLEDGE_CACHE_TTL) {
+        console.log(`\n📦 Using cached knowledge for: "${message}"`);
+        return cached.results;
+      } else {
+        // Expired entry, remove it
+        knowledgeCache.delete(cacheKey);
+      }
     }
     
     // Increment attempt counter
@@ -1470,9 +1604,16 @@ export async function getKnowledgeWithFallbacks(message, context) {
       timestamp: Date.now()
     });
     
-    // If we got results, return them
+    // If we got results, cache and return them
     if (results && results.length > 0) {
       console.log(`\n✅ Primary vector search successful: ${results.length} results`);
+      
+      // Cache the results
+      knowledgeCache.set(cacheKey, {
+        results: results,
+        timestamp: Date.now()
+      });
+      
       return results;
     }
     
@@ -1496,6 +1637,13 @@ export async function getKnowledgeWithFallbacks(message, context) {
       
       if (results && results.length > 0) {
         console.log(`\n✅ Topic fallback successful: ${results.length} results`);
+        
+        // Cache under the original query
+        knowledgeCache.set(cacheKey, {
+          results: results,
+          timestamp: Date.now()
+        });
+        
         return results;
       }
     }
@@ -1520,6 +1668,13 @@ export async function getKnowledgeWithFallbacks(message, context) {
       
       if (results && results.length > 0) {
         console.log(`\n✅ Intent fallback successful: ${results.length} results`);
+        
+        // Cache under the original query
+        knowledgeCache.set(cacheKey, {
+          results: results,
+          timestamp: Date.now()
+        });
+        
         return results;
       }
     }
@@ -1546,6 +1701,13 @@ export async function getKnowledgeWithFallbacks(message, context) {
         
         if (results && results.length > 0) {
           console.log(`\n✅ Secondary intent fallback successful: ${results.length} results`);
+          
+          // Cache under the original query
+          knowledgeCache.set(cacheKey, {
+            results: results,
+            timestamp: Date.now()
+          });
+          
           return results;
         }
       }
@@ -1576,6 +1738,13 @@ export async function getKnowledgeWithFallbacks(message, context) {
       
       if (results && results.length > 0) {
         console.log(`\n✅ Keyword fallback successful: ${results.length} results`);
+        
+        // Cache under the original query
+        knowledgeCache.set(cacheKey, {
+          results: results,
+          timestamp: Date.now()
+        });
+        
         return results;
       }
     }
@@ -1591,13 +1760,16 @@ export async function getKnowledgeWithFallbacks(message, context) {
     
     // Try to use a traditional search method if all fallbacks failed
     try {
-      // Use the imported functions from the top of the file instead of dynamic imports
+      // Import the getRelevantKnowledge functions
+      const { getRelevantKnowledge } = await import('./knowledgeBase.js');
+      const { getRelevantKnowledge_is } = await import('./knowledgeBase_is.js');
+      
       console.log(`\n🔍 FINAL ATTEMPT: Traditional search fallback`);
       
       // Use the appropriate function based on language
       const traditionalResults = context.language === 'is' ? 
-        getRelevantKnowledge_is(message) : 
-        getRelevantKnowledge(message);
+        await getRelevantKnowledge_is(message) : 
+        await getRelevantKnowledge(message);
       
       // Track this attempt
       context.retrievalStats.history.push({
@@ -1609,6 +1781,9 @@ export async function getKnowledgeWithFallbacks(message, context) {
       
       if (traditionalResults && traditionalResults.length > 0) {
         console.log(`\n✅ Traditional search fallback successful: ${traditionalResults.length} results`);
+        
+        // We don't cache these results since they're last-resort fallbacks
+        
         return traditionalResults;
       }
     } catch (traditionalError) {

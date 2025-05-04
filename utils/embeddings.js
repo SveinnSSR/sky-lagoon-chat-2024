@@ -6,6 +6,58 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Add caching layer to reduce database calls
+const embeddingsCache = new Map();
+const EMBEDDINGS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const EMBEDDINGS_CACHE_MAX_SIZE = 2000;
+
+// Helper function to create normalized cache keys
+function createEmbeddingsCacheKey(query, limit, threshold, language) {
+  // Normalize the query by removing punctuation, excess whitespace, and converting to lowercase
+  const normalizedQuery = query.toLowerCase()
+    .replace(/[^\w\s?]/g, '') // Remove punctuation except question marks
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim();
+  
+  return `${normalizedQuery}:${language}:${limit}:${threshold}`;
+}
+
+// Cleanup function for embeddings cache
+function cleanupEmbeddingsCache() {
+  if (embeddingsCache.size > EMBEDDINGS_CACHE_MAX_SIZE) {
+    console.log(`Cleaning embeddings cache (${embeddingsCache.size} entries)`);
+    const now = Date.now();
+    
+    // First remove expired entries
+    let expiredCount = 0;
+    for (const [key, entry] of embeddingsCache.entries()) {
+      if (now - entry.timestamp > EMBEDDINGS_CACHE_TTL) {
+        embeddingsCache.delete(key);
+        expiredCount++;
+      }
+    }
+    
+    // If still too large, remove oldest entries
+    if (embeddingsCache.size > EMBEDDINGS_CACHE_MAX_SIZE - 500) {
+      const entries = [...embeddingsCache.entries()];
+      // Sort by timestamp (oldest first)
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      // Remove oldest entries
+      let oldestRemoved = 0;
+      for (let i = 0; i < 500 && i < entries.length; i++) {
+        embeddingsCache.delete(entries[i][0]);
+        oldestRemoved++;
+      }
+      
+      console.log(`Removed ${expiredCount} expired and ${oldestRemoved} oldest embeddings cache entries`);
+    }
+  }
+}
+
+// Run embeddings cache cleanup every 12 hours
+setInterval(cleanupEmbeddingsCache, 12 * 60 * 60 * 1000);
+
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -76,7 +128,7 @@ export async function storeEmbedding(content, metadata = {}, language = 'en') {
 }
 
 /**
- * Search for similar content based on a query
+ * Search for similar content based on a query with caching
  * @param {string} query - Query text
  * @param {number} limit - Maximum number of results
  * @param {number} similarityThreshold - Minimum similarity score (0-1)
@@ -85,6 +137,23 @@ export async function storeEmbedding(content, metadata = {}, language = 'en') {
  */
 export async function searchSimilarContent(query, limit = 5, similarityThreshold = 0.6, language = 'en') {
   try {
+    // Check cache first
+    const cacheKey = createEmbeddingsCacheKey(query, limit, similarityThreshold, language);
+    
+    if (embeddingsCache.has(cacheKey)) {
+      const cached = embeddingsCache.get(cacheKey);
+      
+      // Check if cache entry is still valid
+      if (Date.now() - cached.timestamp < EMBEDDINGS_CACHE_TTL) {
+        console.log(`📦 Using cached embeddings results for: "${query}"`);
+        return cached.results;
+      } else {
+        // Expired entry, remove it
+        embeddingsCache.delete(cacheKey);
+      }
+    }
+    
+    // Cache miss - proceed with database query
     const queryEmbedding = await generateEmbedding(query);
     const client = await pool.connect();
     
@@ -104,6 +173,17 @@ export async function searchSimilarContent(query, limit = 5, similarityThreshold
          LIMIT $2`,
         [embeddingString, limit, similarityThreshold]
       );
+      
+      // Cache the results
+      embeddingsCache.set(cacheKey, {
+        results: result.rows,
+        timestamp: Date.now()
+      });
+      
+      // Check if cache is getting too large
+      if (embeddingsCache.size > EMBEDDINGS_CACHE_MAX_SIZE) {
+        cleanupEmbeddingsCache();
+      }
       
       return result.rows;
     } finally {
