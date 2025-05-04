@@ -24,8 +24,12 @@ export const enforceTerminology = async (text, openaiInstance) => {
   
   // Check cache first
   const cacheKey = createCacheKey(text);
+  
+  // Debug logging to track cache status
+  console.log(`🔍 Terminology cache check: size=${terminologyCache.size}, key="${cacheKey.slice(0, 30)}..."`);
+  
   if (terminologyCache.has(cacheKey)) {
-    console.log('📦 Using cached terminology processing');
+    console.log('📦 TERMINOLOGY CACHE HIT: Using cached processing');
     return terminologyCache.get(cacheKey);
   }
   
@@ -103,6 +107,12 @@ Revise the text to follow these guidelines while preserving the exact meaning, t
     
     // Cache the result before returning
     terminologyCache.set(cacheKey, result);
+    console.log(`💾 Added to terminology cache: size now ${terminologyCache.size}`);
+    
+    // Log the before and after to see what changes were made
+    console.log(`🔄 Terminology changes: 
+    BEFORE: "${text.slice(0, 100)}${text.length > 100 ? '...' : ''}"
+    AFTER:  "${result.slice(0, 100)}${result.length > 100 ? '...' : ''}"`);
     
     // Clean up cache if it gets too large
     if (terminologyCache.size > TERMINOLOGY_CACHE_MAX_SIZE) {
