@@ -20,8 +20,8 @@ import { detectLanguage as oldDetectLanguage } from './knowledgeBase_is.js';
 import { detectLanguage as newDetectLanguage } from './languageDetection.js';
 import { connectToDatabase } from './database.js';
 // Import knowledge base functions at the top of contextSystem.js
-import { getRelevantKnowledge } from './knowledgeBase.js';
-import { getRelevantKnowledge_is } from './knowledgeBase_is.js';
+// import { getRelevantKnowledge } from './knowledgeBase.js'; - handled inside getKnowledgeWithFallbacks function further below
+// import { getRelevantKnowledge_is } from './knowledgeBase_is.js'; - handled inside getKnowledgeWithFallbacks function further below
 
 // Store sessions in memory
 const sessions = new Map();

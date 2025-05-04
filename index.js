@@ -1666,7 +1666,7 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
         messages.general;
 };
 
-// Modified chat endpoint using only the new context system
+// Modified chat endpoint with streaming support
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
     const startTime = Date.now();
@@ -1676,8 +1676,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         knowledgeTime: 0,
         transferTime: 0,
         bookingTime: 0,
+        gptTime: 0,
         totalTime: 0
     };
+
+    // Check if streaming is requested
+    const useStreaming = req.body.stream === true;
+    
+    // Setup for streaming if requested
+    if (useStreaming) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        // Helper function to send chunks to the client
+        const sendChunk = (data) => {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+        
+        // Send initial connection message
+        sendChunk({ 
+            type: 'start',
+            sessionId: req.body.sessionId
+        });
+    }
 
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
@@ -1786,7 +1808,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
                 
-                return res.status(responseData.status || 200).json(responseData);
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'booking_form_response',
+                        message: confirmationMessage,
+                        success: true
+                    });
+                    return res.end();
+                } else {
+                    return res.status(responseData.status || 200).json(responseData);
+                }
             } catch (error) {
                 console.error('\n❌ Booking Form Submission Error:', error);
                 
@@ -1810,7 +1841,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
                 
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'error',
+                        message: errorMessage,
+                        errorType: 'booking_form_error'
+                    });
+                    return res.end();
+                } else {
+                    return res.status(errorResponseData.status || 500).json(errorResponseData);
+                }
             }
         }
 
@@ -2037,26 +2077,48 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log(`\n⏱️ Total processing time (agent mode): ${metrics.totalTime}ms`);
                 
                 // Return success response
-                return res.status(200).json({
-                    success: true,
-                    chatId: req.body.chatId,
-                    agent_credentials: req.body.agent_credentials,
-                    bot_token: req.body.bot_token,
-                    suppressMessage: true,
-                    language: {
-                        detected: 'English', // Default since we don't have language detection yet
-                        confidence: 'medium'
-                    }
-                });
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'agent_message',
+                        success: true,
+                        chatId: req.body.chatId,
+                        agent_credentials: req.body.agent_credentials,
+                        bot_token: req.body.bot_token,
+                        suppressMessage: true
+                    });
+                    return res.end();
+                } else {
+                    return res.status(200).json({
+                        success: true,
+                        chatId: req.body.chatId,
+                        agent_credentials: req.body.agent_credentials,
+                        bot_token: req.body.bot_token,
+                        suppressMessage: true,
+                        language: {
+                            detected: 'English', // Default since we don't have language detection yet
+                            confidence: 'medium'
+                        }
+                    });
+                }
             } catch (error) {
                 console.error('\n❌ LiveChat Message Error:', error);
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (agent mode error): ${metrics.totalTime}ms`);
                 
-                return res.status(500).json({
-                    message: "Error sending message to agent",
-                    error: error.message
-                });
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'error',
+                        message: "Error sending message to agent",
+                        error: error.message,
+                        errorType: 'agent_mode_error'
+                    });
+                    return res.end();
+                } else {
+                    return res.status(500).json({
+                        message: "Error sending message to agent",
+                        error: error.message
+                    });
+                }
             }
         }
 
@@ -2075,6 +2137,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             metrics.sessionTime = Date.now() - parallelStart;
             console.log(`\n⏱️ Session and language detection completed in ${metrics.sessionTime}ms`);
+            
+            // If streaming, send language detection result
+            if (useStreaming) {
+                sendChunk({
+                    type: 'language',
+                    language: languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en'),
+                    isIcelandic: languageDecision.isIcelandic,
+                    confidence: languageDecision.confidence
+                });
+            }
         } catch (sessionError) {
             console.error(`❌ Session recovery error:`, sessionError);
             // Fallback to in-memory session
@@ -2111,7 +2183,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Add to new context system before responding
             addMessageToContext(context, { role: 'user', content: userMessage });
             
-            // Use the unified broadcast system but don't send response yet
+            // Generate response using the broadcast function
             const responseData = await sendBroadcastAndPrepareResponse({
                 message: unsupportedLanguageResponse,
                 language: {
@@ -2126,7 +2198,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             metrics.totalTime = Date.now() - startTime;
             console.log(`\n⏱️ Total processing time (non-supported language): ${metrics.totalTime}ms`);
             
-            return res.status(responseData.status || 200).json(responseData);
+            // Handle streaming vs non-streaming response
+            if (useStreaming) {
+                sendChunk({
+                    type: 'error',
+                    message: unsupportedLanguageResponse,
+                    errorType: 'language_not_supported'
+                });
+                return res.end();
+            } else {
+                return res.status(responseData.status || 200).json(responseData);
+            }
         }
 
         // Add this message to the context system
@@ -2170,6 +2252,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         ]);
         
         console.log(`\n⏱️ Parallel operations completed in ${Date.now() - operationsStart}ms`);
+        
+        // If streaming, send knowledge base results to client
+        if (useStreaming) {
+            sendChunk({
+                type: 'knowledge',
+                count: knowledgeBaseResults.length,
+                topics: knowledgeBaseResults.map(k => k.type)
+            });
+        }
 
         // Enhanced logging for language detection results
         console.log('\n🔬 Enhanced Language Detection Test:', {
@@ -2217,7 +2308,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
 
-                // Use the unified broadcast system but don't send response yet
+                // Prepare response data through broadcast function for consistency
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: bookingChangeMessage,
                     showBookingChangeForm: true,
@@ -2234,11 +2325,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
                 
-                return res.status(responseData.status || 200).json(responseData);
+                // Handle streaming vs non-streaming response
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'booking_form',
+                        message: bookingChangeMessage,
+                        chatId: chatData.chat_id,
+                        agent_credentials: chatData.agent_credentials,
+                        language: language
+                    });
+                    return res.end();
+                } else {
+                    return res.status(responseData.status || 200).json(responseData);
+                }
             } catch (error) {
                 console.error('\n❌ Booking Change Request Error:', error);
-                // Fall through to AI response if request fails
-
                 // Provide fallback response when request fails
                 const fallbackMessage = languageDecision.isIcelandic ?
                     "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
@@ -2247,7 +2348,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
 
-                // Use the unified broadcast system but don't send response yet
+                // Process response through broadcast function
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
                     error: error.message,
@@ -2262,12 +2363,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
                 
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
+                // Handle streaming vs non-streaming error response
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'error',
+                        message: fallbackMessage,
+                        errorType: 'booking_form_error'
+                    });
+                    return res.end();
+                } else {
+                    return res.status(errorResponseData.status || 500).json(errorResponseData);
+                }
             }
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
-
         console.log('\n🔄 Transfer Check Result:', {
             shouldTransfer: transferCheck.shouldTransfer,
             reason: transferCheck.reason,
@@ -2301,14 +2411,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (already transferred agent mode): ${metrics.totalTime}ms`);
                 
-                // Return success but suppress any bot message
-                return res.status(200).json({
-                    success: true,
-                    chatId: context.transferStatus.chatId,
-                    agent_credentials: req.body.agent_credentials || req.body.bot_token,
-                    suppressMessage: true,
-                    transferred: true
-                });
+                // Handle streaming vs non-streaming response
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'agent_message',
+                        chatId: context.transferStatus.chatId,
+                        suppressMessage: true,
+                        transferred: true
+                    });
+                    return res.end();
+                } else {
+                    // Return success but suppress any bot message
+                    return res.status(200).json({
+                        success: true,
+                        chatId: context.transferStatus.chatId,
+                        agent_credentials: req.body.agent_credentials || req.body.bot_token,
+                        suppressMessage: true,
+                        transferred: true
+                    });
+                }
             }
             
             // For non-agent messages, still show the reminder
@@ -2319,7 +2440,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Add response to context
             addMessageToContext(context, { role: 'assistant', content: alreadyTransferredMessage });
             
-            // Use the unified broadcast system to update the UI without creating a new transfer
+            // Process response through broadcast function
             const responseData = await sendBroadcastAndPrepareResponse({
                 message: alreadyTransferredMessage,
                 transferred: true,
@@ -2336,7 +2457,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             metrics.totalTime = Date.now() - startTime;
             console.log(`\n⏱️ Total processing time (already transferred): ${metrics.totalTime}ms`);
             
-            return res.status(responseData.status || 200).json(responseData);
+            // Handle streaming vs non-streaming response
+            if (useStreaming) {
+                sendChunk({
+                    type: 'transfer_reminder',
+                    message: alreadyTransferredMessage,
+                    transferred: true,
+                    chatId: context.transferStatus.chatId
+                });
+                return res.end();
+            } else {
+                return res.status(responseData.status || 200).json(responseData);
+            }
         }
         
         if (transferCheck.shouldTransfer) {
@@ -2365,12 +2497,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add response to context
                 addMessageToContext(context, { role: 'assistant', content: transferMessage });
                 
-                // Use the unified broadcast system to update the UI
+                // Process response through broadcast function
                 const responseData = await sendBroadcastAndPrepareResponse({
                     message: transferMessage,
                     transferred: true,
                     chatId: chatData.chat_id,
-                    customer_token: chatData.customer_token, // Add customer token
+                    customer_token: chatData.customer_token, 
                     agent_credentials: chatData.agent_credentials,
                     initiateWidget: true,
                     language: {
@@ -2382,7 +2514,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseType: 'direct_response'
                 });
                 
-                // Verification check using agent credentials - keeping this from the original code
+                // Verification check using agent credentials
                 setTimeout(async () => {
                     try {
                         console.log('\n⏱️ Running visibility verification check with agent credentials...');
@@ -2448,7 +2580,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (new transfer): ${metrics.totalTime}ms`);
                 
-                return res.status(responseData.status || 200).json(responseData);
+                // Handle streaming vs non-streaming response
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'transfer',
+                        message: transferMessage,
+                        transferred: true,
+                        chatId: chatData.chat_id,
+                        customer_token: chatData.customer_token,
+                        agent_credentials: chatData.agent_credentials,
+                        initiateWidget: true
+                    });
+                    return res.end();
+                } else {
+                    return res.status(responseData.status || 200).json(responseData);
+                }
             } catch (error) {
                 console.error('\n❌ Transfer Error:', error);
                 
@@ -2460,7 +2606,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 // Add fallback response to context
                 addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
                 
-                // Return error response
+                // Process error response through broadcast function
                 const errorResponseData = await sendBroadcastAndPrepareResponse({
                     message: fallbackMessage,
                     error: error.message,
@@ -2476,7 +2622,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 metrics.totalTime = Date.now() - startTime;
                 console.log(`\n⏱️ Total processing time (transfer error): ${metrics.totalTime}ms`);
                 
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
+                // Handle streaming vs non-streaming error response
+                if (useStreaming) {
+                    sendChunk({
+                        type: 'error',
+                        message: fallbackMessage,
+                        errorType: 'transfer_error'
+                    });
+                    return res.end();
+                } else {
+                    return res.status(errorResponseData.status || 500).json(errorResponseData);
+                }
             }
         }
 
@@ -2572,7 +2728,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
         const cached = responseCache.get(cacheKey);
         
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        // Use cache for non-streaming requests only
+        if (!useStreaming && cached && Date.now() - cached.timestamp < CACHE_TTL) {
             console.log('\n📦 Using cached response:', {
                 message: userMessage,
                 language: languageDecision.isIcelandic ? 'is' : 'en',
@@ -2699,125 +2856,247 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record time before making GPT request
         const gptStart = Date.now();
         
-        // Make GPT-4 request with retries
-        let attempt = 0;
-        let completion;
-        while (attempt < MAX_RETRIES) {
+        // Handle streaming vs non-streaming GPT calls
+        if (useStreaming) {
             try {
-                completion = await openai.chat.completions.create({
-                    // Updated to newer model with improved latency and performance
-                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                // Send start notification for streaming
+                sendChunk({
+                    type: 'gpt_start'
+                });
+                
+                // Make GPT-4 request with streaming enabled
+                const completion = await openai.chat.completions.create({
+                    model: "gpt-4o",
                     messages: messages,
                     temperature: 0.7,
-                    max_tokens: getMaxTokens(userMessage)
+                    max_tokens: getMaxTokens(userMessage),
+                    stream: true // Enable streaming. SSE Streaming only activates when the request includes stream: true in the body. Change to false here or in frontend to disable.
                 });
-                break;
-            } catch (error) {
-                attempt++;
-                console.error(`OpenAI request failed (Attempt ${attempt}/${MAX_RETRIES}):`, {
-                    error: error.message,
-                    status: error.response?.status,
-                    attempt: attempt,
-                    maxRetries: MAX_RETRIES
-                });
-                if (attempt === MAX_RETRIES) {
-                    throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
+                
+                let fullText = '';
+                let chunkCount = 0;
+                
+                // Process the stream
+                for await (const chunk of completion) {
+                    const content = chunk.choices[0]?.delta?.content || '';
+                    
+                    if (content) {
+                        fullText += content;
+                        chunkCount++;
+                        
+                        // Send each content chunk to the client
+                        sendChunk({
+                            type: 'chunk',
+                            content: content,
+                            chunkId: chunkCount
+                        });
+                    }
                 }
-                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
-                console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                metrics.gptTime = Date.now() - gptStart;
+                console.log(`\n⏱️ GPT streaming completed in ${metrics.gptTime}ms`);
+                
+                // Apply terminology processing to the complete text
+                console.log('\n✨ Applying terminology processing to complete response');
+                const enhancedResponse = await enforceTerminology(fullText, openai);
+                
+                // Apply emoji filtering
+                console.log('\n🧹 Applying emoji filtering');
+                const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+                const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+                
+                // Add AI response to the context system
+                addMessageToContext(context, { role: 'assistant', content: filteredResponse });
+                
+                // Send the fully processed response
+                sendChunk({
+                    type: 'complete',
+                    fullText: filteredResponse,
+                    language: language
+                });
+                
+                // Broadcast to Pusher for analytics and real-time updates
+                try {
+                    const broadcastResult = await broadcastConversation(
+                        userMessage,
+                        filteredResponse,
+                        language === 'is' ? 'is' : 'en',
+                        context?.lastTopic || 'general',
+                        'gpt_response',
+                        sessionId
+                    );
+                    
+                    // Send PostgreSQL ID if available
+                    if (broadcastResult && broadcastResult.postgresqlId) {
+                        sendChunk({
+                            type: 'metadata',
+                            postgresqlId: broadcastResult.postgresqlId
+                        });
+                    }
+                } catch (broadcastError) {
+                    console.error('Error broadcasting:', broadcastError);
+                    // Continue even if broadcasting fails
+                }
+                
+                // Record total processing time
+                metrics.totalTime = Date.now() - startTime;
+                console.log('\n⏱️ Performance Metrics:', {
+                    sessionAndLanguage: `${metrics.sessionTime}ms`,
+                    knowledge: `${metrics.knowledgeTime}ms`,
+                    transfer: `${metrics.transferTime}ms`,
+                    booking: `${metrics.bookingTime}ms`,
+                    gpt: `${metrics.gptTime}ms`,
+                    total: `${metrics.totalTime}ms`
+                });
+                
+                // Send final metrics to client
+                sendChunk({
+                    type: 'metrics',
+                    metrics: {
+                        sessionTime: metrics.sessionTime,
+                        knowledgeTime: metrics.knowledgeTime,
+                        transferTime: metrics.transferTime,
+                        bookingTime: metrics.bookingTime,
+                        gptTime: metrics.gptTime,
+                        totalTime: metrics.totalTime
+                    }
+                });
+                
+                // Close the connection
+                res.end();
+                
+            } catch (error) {
+                console.error('Error in GPT streaming:', error);
+                
+                // Send error through stream
+                sendChunk({
+                    type: 'error',
+                    message: formatErrorMessage(error, userMessage, languageDecision),
+                    errorType: 'gpt_error'
+                });
+                
+                // Close the connection
+                res.end();
             }
-        }
-        
-        // Record GPT request time
-        metrics.gptTime = Date.now() - gptStart;
-        console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
+        } else {
+            // NON-STREAMING (existing implementation)
+            let attempt = 0;
+            let completion;
+            while (attempt < MAX_RETRIES) {
+                try {
+                    completion = await openai.chat.completions.create({
+                        model: "gpt-4o",
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: getMaxTokens(userMessage)
+                    });
+                    break;
+                } catch (error) {
+                    attempt++;
+                    console.error(`OpenAI request failed (Attempt ${attempt}/${MAX_RETRIES}):`, {
+                        error: error.message,
+                        status: error.response?.status,
+                        attempt: attempt,
+                        maxRetries: MAX_RETRIES
+                    });
+                    if (attempt === MAX_RETRIES) {
+                        throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
+                    }
+                    const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                    console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            
+            // Record GPT request time
+            metrics.gptTime = Date.now() - gptStart;
+            console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
 
-        // If we get here, we have a successful completion
-        if (!completion) {
-            throw new Error('Failed to get completion after retries');
-        }
-        
-        // Get the response from GPT
-        const response = completion.choices[0].message.content;
-        console.log('\n🤖 GPT Response:', response);
-        
-        // Add AI response to the context system
-        addMessageToContext(context, { role: 'assistant', content: response });
-        
-        // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
-        const enhancedResponse = await enforceTerminology(response, openai);
-        console.log('\n✨ Enhanced Response:', enhancedResponse);
-        
-        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
-        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
-        console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-        
-        // Update assistant message in context with filtered response
-        context.messages[context.messages.length - 1].content = filteredResponse;
-        
-        // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
-        let postgresqlMessageId = null;
-        if (completion && req.body.message) {
-            // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
-            const responseObj = {
-                message: filteredResponse, // FIXED: Now using fully processed response
-                language: {
-                    detected: context.language === 'is' ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
+            // If we get here, we have a successful completion
+            if (!completion) {
+                throw new Error('Failed to get completion after retries');
+            }
+            
+            // Get the response from GPT
+            const response = completion.choices[0].message.content;
+            console.log('\n🤖 GPT Response:', response);
+            
+            // Add AI response to the context system
+            addMessageToContext(context, { role: 'assistant', content: response });
+            
+            // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
+            const enhancedResponse = await enforceTerminology(response, openai);
+            console.log('\n✨ Enhanced Response:', enhancedResponse);
+            
+            // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
+            const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+            const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+            console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
+            
+            // Update assistant message in context with filtered response
+            context.messages[context.messages.length - 1].content = filteredResponse;
+            
+            // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
+            let postgresqlMessageId = null;
+            if (completion && req.body.message) {
+                // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
+                const responseObj = {
+                    message: filteredResponse, // FIXED: Now using fully processed response
+                    language: {
+                        detected: context.language === 'is' ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
+                    topicType: context?.lastTopic || 'general',
+                    responseType: 'gpt_response'
+                };
+                
+                // Pass through sendBroadcastAndPrepareResponse to broadcast
+                const result = await sendBroadcastAndPrepareResponse(responseObj);
+                
+                // Extract the PostgreSQL ID if available from the result
+                postgresqlMessageId = result.postgresqlMessageId || null;
+                
+                console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
+            }
+            
+            // Cache the response
+            responseCache.set(cacheKey, {
+                response: {
+                    message: filteredResponse, // Use the fully processed response
+                    postgresqlMessageId: postgresqlMessageId,
+                    language: {
+                        detected: context.language === 'is' ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    }
                 },
-                topicType: context?.lastTopic || 'general',
-                responseType: 'gpt_response'
-            };
+                timestamp: Date.now()
+            });
             
-            // Pass through sendBroadcastAndPrepareResponse to broadcast
-            const result = await sendBroadcastAndPrepareResponse(responseObj);
-            
-            // Extract the PostgreSQL ID if available from the result
-            postgresqlMessageId = result.postgresqlMessageId || null;
-            
-            console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
-        }
-        
-        // Cache the response
-        responseCache.set(cacheKey, {
-            response: {
-                message: filteredResponse, // Use the fully processed response
+            // Record total processing time
+            metrics.totalTime = Date.now() - startTime;
+            console.log('\n⏱️ Performance Metrics:', {
+                sessionAndLanguage: `${metrics.sessionTime}ms`,
+                knowledge: `${metrics.knowledgeTime}ms`,
+                transfer: `${metrics.transferTime}ms`,
+                booking: `${metrics.bookingTime}ms`,
+                gpt: `${metrics.gptTime}ms`,
+                total: `${metrics.totalTime}ms`
+            });
+
+            // Return the response
+            return res.status(200).json({
+                message: filteredResponse, // Return the fully processed response
                 postgresqlMessageId: postgresqlMessageId,
                 language: {
-                    detected: context.language === 'is' ? 'Icelandic' : 'English',
+                    detected: context.language,
+                    isIcelandic: context.language === 'is',
                     confidence: languageDecision.confidence,
                     reason: languageDecision.reason
                 }
-            },
-            timestamp: Date.now()
-        });
-        
-        // Record total processing time
-        metrics.totalTime = Date.now() - startTime;
-        console.log('\n⏱️ Performance Metrics:', {
-            sessionAndLanguage: `${metrics.sessionTime}ms`,
-            knowledge: `${metrics.knowledgeTime}ms`,
-            transfer: `${metrics.transferTime}ms`,
-            booking: `${metrics.bookingTime}ms`,
-            gpt: `${metrics.gptTime}ms`,
-            total: `${metrics.totalTime}ms`
-        });
-
-        // Return the response
-        return res.status(200).json({
-            message: filteredResponse, // Return the fully processed response
-            postgresqlMessageId: postgresqlMessageId,
-            language: {
-                detected: context.language,
-                isIcelandic: context.language === 'is',
-                confidence: languageDecision.confidence,
-                reason: languageDecision.reason
-            }
-        });
-
+            });
+        }
     } catch (error) {
         console.error('\n❌ Error Details:', {
             message: error.message,
@@ -2854,12 +3133,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Use the unified broadcast system but don't send response yet
+        // Broadcast the error for analytics
         await sendBroadcastAndPrepareResponse({
             message: errorMessage,
             status: 500,
             language: {
-                detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English'),
+                detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'is' : 'en'),
                 confidence: errorLanguageDecision.confidence
             },
             topicType: 'error',
@@ -2869,14 +3148,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         metrics.totalTime = Date.now() - startTime;
         console.log(`\n⏱️ Error occurred after ${metrics.totalTime}ms`);
         
-        // Send error response separately to ensure it reaches the client
-        return res.status(500).json({
-            message: errorMessage,
-            language: {
-                detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English'),
-                confidence: errorLanguageDecision.confidence
-            }
-        });
+        // Handle streaming vs non-streaming error response
+        if (useStreaming) {
+            sendChunk({
+                type: 'error',
+                message: errorMessage,
+                errorType: 'connection_error',
+                language: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'is' : 'en')
+            });
+            return res.end();
+        } else {
+            // Send error response separately to ensure it reaches the client
+            return res.status(500).json({
+                message: errorMessage,
+                language: {
+                    detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'is' : 'en'),
+                    confidence: errorLanguageDecision.confidence
+                }
+            });
+        }
     }
 });
 
