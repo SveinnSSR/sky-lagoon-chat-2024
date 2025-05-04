@@ -1683,16 +1683,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     // Check if streaming is requested
     const useStreaming = req.body.stream === true;
     
+    // FIXED: Define sendChunk function at the top level with a check
+    const sendChunk = (data) => {
+        if (useStreaming) {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        }
+    };
+    
     // Setup for streaming if requested
     if (useStreaming) {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        
-        // Helper function to send chunks to the client
-        const sendChunk = (data) => {
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-        };
         
         // Send initial connection message
         sendChunk({ 
