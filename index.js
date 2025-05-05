@@ -2179,7 +2179,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             sendEvent({ 
                 type: 'processingStep', 
-                step: "🧠 Session context retrieved, language detected",
+                step: "☁️ Preparing your response...",
                 timestamp: Date.now()
             });
         }
