@@ -345,8 +345,8 @@ const OPENAI_TIMEOUT = 15000;  // 15 seconds
 // Hours during which agents may be available
 // Open every day of the week from 9am to 4pm - Closed for now
 const LIVECHAT_HOURS = {
-    START: 22,    // 9 AM
-    END: 23,     // 4 PM (24-hour format)
+    START: 21,    // 9 AM
+    END: 22,     // 4 PM (24-hour format)
 };
 
 /**
