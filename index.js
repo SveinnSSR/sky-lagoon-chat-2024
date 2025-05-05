@@ -2832,7 +2832,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         if (useStreaming && sendEvent) {
             sendEvent({ 
                 type: 'processingStep', 
-                step: "🤖 Generating response...",
+                step: "☁️ Generating response...",
                 timestamp: Date.now()
             });
         }
@@ -3193,7 +3193,7 @@ app.get('/chat-stream', verifyApiKey, async (req, res) => {
             
             sendEvent({ 
                 type: 'processingStep', 
-                step: "🧠 Session context retrieved, language detected",
+                step: "☁️ Preparing your response...",
                 timestamp: Date.now()
             });
         } catch (sessionError) {
