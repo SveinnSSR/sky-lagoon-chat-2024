@@ -345,8 +345,8 @@ const OPENAI_TIMEOUT = 15000;  // 15 seconds
 // Hours during which agents may be available
 // Open every day of the week from 9am to 4pm - Closed for now
 const LIVECHAT_HOURS = {
-    START: 22,    // 9 AM
-    END: 23,     // 4 PM (24-hour format)
+    START: 21,    // 9 AM
+    END: 22,     // 4 PM (24-hour format)
 };
 
 /**
@@ -1020,54 +1020,6 @@ async function ensureMappingCollection() {
   }
 }
 
-/**
- * Sets up SSE (Server-Sent Events) for streaming responses
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Function} - Function to send SSE events
- */
-function setupSSE(req, res) {
-    console.log('\n📊 [STREAMING] Setting up SSE connection');
-    
-    // Set up SSE headers correctly
-    res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no' // Important for Nginx
-    });
-    
-    // Ensure headers are sent immediately
-    res.flushHeaders();
-    
-    // Helper function to send events
-    const sendEvent = (data) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-    
-    // Send initial connection established event
-    sendEvent({
-        type: 'connected',
-        timestamp: Date.now()
-    });
-    
-    // Keep the connection alive with a ping every 30 seconds
-    const keepAliveInterval = setInterval(() => {
-        sendEvent({ 
-            type: 'ping', 
-            timestamp: Date.now() 
-        });
-    }, 30000);
-    
-    // Clean up on close
-    req.on('close', () => {
-        clearInterval(keepAliveInterval);
-        console.log('\n📊 [STREAMING] SSE connection closed');
-    });
-    
-    return sendEvent;
-}
-
 // Add this helper function to detect sunset-related queries
 const isSunsetQuery = (message, languageDecision) => {
     const msg = message.toLowerCase();
@@ -1714,7 +1666,7 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
         messages.general;
 };
 
-// Modified chat endpoint using SSE and the new context system
+// Modified chat endpoint using only the new context system
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
     const startTime = Date.now();
@@ -1726,37 +1678,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         bookingTime: 0,
         totalTime: 0
     };
-
-    // Check if streaming is requested
-    const useStreaming = req.body.stream === true;
-    
-    // FIXED: Define sendChunk function for streaming mode
-    let sendEvent;
-    if (useStreaming) {
-        console.log('\n📊 [STREAMING] Request using streaming mode');
-        
-        // Set up SSE headers
-        res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache, no-transform',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no' // Important for Nginx
-        });
-        
-        // Flush headers immediately to establish connection
-        res.flushHeaders();
-        
-        // Helper function to send events
-        sendEvent = (data) => {
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-        };
-        
-        // Send initial connection message
-        sendEvent({ 
-            type: 'start',
-            sessionId: req.body.sessionId
-        });
-    }
 
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
@@ -2167,23 +2088,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Update language info in the context
         updateLanguageContext(context, userMessage);
         
-        // Add streaming language event here
-        if (useStreaming && sendEvent) {
-            sendEvent({ 
-                type: 'language', 
-                language: languageDecision.isIcelandic ? 'is' : 'en',
-                isIcelandic: languageDecision.isIcelandic,
-                confidence: languageDecision.confidence,
-                timestamp: Date.now()
-            });
-            
-            sendEvent({ 
-                type: 'processingStep', 
-                step: "☁️ Preparing your response...",
-                timestamp: Date.now()
-            });
-        }
-
         // Enhanced logging for language detection
         console.log('\n🌍 Enhanced Language Detection:', {
             message: userMessage,
@@ -2266,29 +2170,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         ]);
         
         console.log(`\n⏱️ Parallel operations completed in ${Date.now() - operationsStart}ms`);
-
-        // Add streaming knowledge event here
-        if (useStreaming && sendEvent) {
-            sendEvent({ 
-                type: 'knowledge', 
-                count: knowledgeBaseResults.length,
-                timestamp: Date.now()
-            });
-            
-            if (knowledgeBaseResults.length > 0) {
-                sendEvent({ 
-                    type: 'processingStep', 
-                    step: `🔍 Found ${knowledgeBaseResults.length} relevant information items`,
-                    timestamp: Date.now()
-                });
-            } else {
-                sendEvent({ 
-                    type: 'processingStep', 
-                    step: "🔍 Searching for information...",
-                    timestamp: Date.now()
-                });
-            }
-        }
 
         // Enhanced logging for language detection results
         console.log('\n🔬 Enhanced Language Detection Test:', {
@@ -2704,15 +2585,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
            return res.json(cached.response);
        }
 
-        // Add streaming preparing response event here
-        if (useStreaming && sendEvent) {
-            sendEvent({ 
-                type: 'processingStep', 
-                step: "💭 Preparing response...",
-                timestamp: Date.now()
-            });
-        }
-
         // Enhanced system prompt with all context
         let systemPrompt = getSystemPrompt(sessionId, 
             userMessage.toLowerCase().match(/hour|open|close|time/i), 
@@ -2824,86 +2696,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 ${language === 'auto' ? 'IMPORTANT: Respond in the same language as the user\'s question.' : `Response MUST be in ${language} language.`}`
         });
 
+        // Record time before making GPT request
+        const gptStart = Date.now();
+        
         // Make GPT-4 request with retries
         let attempt = 0;
         let completion;
-
-        // Only send the event once before starting attempts
-        if (useStreaming && sendEvent) {
-            sendEvent({ 
-                type: 'processingStep', 
-                step: "☁️ Generating response...",
-                timestamp: Date.now()
-            });
-        }
-
-        // Record time before making GPT request - do this ONCE here
-        const gptStart = Date.now();
-
         while (attempt < MAX_RETRIES) {
             try {
-                if (useStreaming) {
-                    // Send event marking the actual start of the OpenAI request
-                    if (sendEvent) {
-                        sendEvent({ 
-                            type: 'gpt_start',
-                            timestamp: Date.now()
-                        });
-                    }
-                    
-                    // Make GPT-4 request with streaming enabled - REMOVE const!
-                    completion = await openai.chat.completions.create({
-                        model: "gpt-4o",
-                        messages: messages,
-                        temperature: 0.7,
-                        max_tokens: getMaxTokens(userMessage),
-                        stream: true // Enable streaming
-                    });
-                    
-                    let fullText = '';
-                    let chunkCount = 0;
-                    
-                    // Process the stream
-                    for await (const chunk of completion) {
-                        const content = chunk.choices[0]?.delta?.content || '';
-                        
-                        if (content) {
-                            fullText += content;
-                            chunkCount++;
-                            
-                            // Send each content chunk to the client
-                            if (sendEvent) {
-                                sendEvent({
-                                    type: 'chunk',
-                                    content: content,
-                                    chunkId: chunkCount
-                                });
-                            }
-                        }
-                    }
-                    
-                    // Create completion object with full text for further processing
-                    completion = {
-                        choices: [{
-                            message: {
-                                content: fullText
-                            }
-                        }]
-                    };
-                    
-                    console.log(`\n⏱️ GPT streaming completed in ${Date.now() - gptStart}ms`);
-                } else {
-                    // Original non-streaming OpenAI call
-                    completion = await openai.chat.completions.create({
-                        // Updated to newer model with improved latency and performance
-                        model: "gpt-4o", 
-                        messages: messages,
-                        temperature: 0.7,
-                        max_tokens: getMaxTokens(userMessage)
-                    });
-                    
-                    console.log(`\n⏱️ GPT request completed in ${Date.now() - gptStart}ms`);
-                }
+                completion = await openai.chat.completions.create({
+                    // Updated to newer model with improved latency and performance
+                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: getMaxTokens(userMessage)
+                });
                 break;
             } catch (error) {
                 attempt++;
@@ -2913,17 +2720,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     attempt: attempt,
                     maxRetries: MAX_RETRIES
                 });
-                
-                if (useStreaming && sendEvent) {
-                    // Send error event in streaming mode
-                    sendEvent({
-                        type: 'error', 
-                        message: "I apologize, but I'm having trouble connecting right now. Please try again shortly.",
-                        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-                        timestamp: Date.now()
-                    });
-                }
-                
                 if (attempt === MAX_RETRIES) {
                     throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
                 }
@@ -2933,7 +2729,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
         
-        // Record GPT request time once after all attempts
+        // Record GPT request time
         metrics.gptTime = Date.now() - gptStart;
         console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
 
@@ -2945,73 +2741,23 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Get the response from GPT
         const response = completion.choices[0].message.content;
         console.log('\n🤖 GPT Response:', response);
-
+        
         // Add AI response to the context system
         addMessageToContext(context, { role: 'assistant', content: response });
-
+        
         // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
         const enhancedResponse = await enforceTerminology(response, openai);
         console.log('\n✨ Enhanced Response:', enhancedResponse);
-
+        
         // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
         const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-
+        
         // Update assistant message in context with filtered response
         context.messages[context.messages.length - 1].content = filteredResponse;
-
-        // For streaming mode, send completion and finish
-        if (useStreaming && sendEvent) {
-            // Use the unified broadcast system for analytics
-            let postgresqlMessageId = null;
-            if (req.body.message) {
-                try {
-                    console.log(`📨 Broadcasting response with session ID: ${sessionId || 'None provided'}`);
-                    
-                    // Single broadcast point with session ID
-                    const broadcastResult = await broadcastConversation(
-                        req.body.message || req.body.question || "unknown_message",
-                        filteredResponse,
-                        languageDecision.isIcelandic ? 'is' : 'en',
-                        context?.lastTopic || 'general',
-                        'streaming_response',
-                        sessionId
-                    );
-                    
-                    // Store PostgreSQL ID if available
-                    if (broadcastResult && broadcastResult.postgresqlId) {
-                        postgresqlMessageId = broadcastResult.postgresqlId;
-                    }
-                } catch (error) {
-                    console.error('❌ Error in broadcast function:', error);
-                }
-            }
-            
-            // Send the completion event
-            sendEvent({ 
-                type: 'complete', 
-                fullText: filteredResponse,
-                postgresqlMessageId: postgresqlMessageId,
-                timestamp: Date.now()
-            });
-            
-            // Record total processing time
-            metrics.totalTime = Date.now() - startTime;
-            console.log('\n⏱️ Performance Metrics:', {
-                sessionAndLanguage: `${metrics.sessionTime}ms`,
-                knowledge: `${metrics.knowledgeTime}ms`,
-                transfer: `${metrics.transferTime}ms`,
-                booking: `${metrics.bookingTime}ms`,
-                gpt: `${metrics.gptTime}ms`,
-                total: `${metrics.totalTime}ms`
-            });
-            
-            // No need to send JSON response for streaming mode as we've already sent the complete event
-            return;
-        }
-
-        // Use the unified broadcast system for normal mode
+        
+        // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
             // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
@@ -3034,7 +2780,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
         }
-
+        
         // Cache the response
         responseCache.set(cacheKey, {
             response: {
@@ -3048,7 +2794,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             },
             timestamp: Date.now()
         });
-
+        
         // Record total processing time
         metrics.totalTime = Date.now() - startTime;
         console.log('\n⏱️ Performance Metrics:', {
@@ -3130,345 +2876,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 detected: errorLanguageDecision.language || (errorLanguageDecision.isIcelandic ? 'Icelandic' : 'English'),
                 confidence: errorLanguageDecision.confidence
             }
-        });
-    }
-});
-
-// Chat streaming endpoint - dedicated endpoint for SSE
-app.get('/chat-stream', verifyApiKey, async (req, res) => {
-    // Extract query parameters
-    const userMessage = req.query.message;
-    const sessionId = req.query.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    
-    // Add performance tracking
-    const startTime = Date.now();
-    const metrics = {
-        sessionTime: 0,
-        languageTime: 0,
-        knowledgeTime: 0,
-        transferTime: 0,
-        bookingTime: 0,
-        gptTime: 0,
-        totalTime: 0
-    };
-    
-    // Set up SSE connection
-    const sendEvent = setupSSE(req, res);
-    
-    try {
-        console.log('\n🔍 Streaming request:', {
-            sessionId: sessionId,
-            message: userMessage,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Send initial step
-        sendEvent({ 
-            type: 'processingStep', 
-            step: "🔄 Starting request processing...",
-            timestamp: Date.now()
-        });
-        
-        // MIGRATION: Get or create context and perform language detection in parallel
-        const parallelStart = Date.now();
-        let context, languageDecision;
-        
-        try {
-            [context, languageDecision] = await Promise.all([
-                getPersistentSessionContext(sessionId),
-                newDetectLanguage(userMessage)
-            ]);
-            
-            metrics.sessionTime = Date.now() - parallelStart;
-            console.log(`\n⏱️ Session and language detection completed in ${metrics.sessionTime}ms`);
-            
-            // Send event for language detection
-            sendEvent({ 
-                type: 'language', 
-                language: languageDecision.isIcelandic ? 'is' : 'en',
-                isIcelandic: languageDecision.isIcelandic,
-                confidence: languageDecision.confidence,
-                timestamp: Date.now()
-            });
-            
-            sendEvent({ 
-                type: 'processingStep', 
-                step: "☁️ Preparing your response...",
-                timestamp: Date.now()
-            });
-        } catch (sessionError) {
-            console.error(`❌ Session recovery error:`, sessionError);
-            // Fallback to in-memory session
-            context = getSessionContext(sessionId);
-            languageDecision = newDetectLanguage(userMessage, context);
-        }
-        
-        // Extract language code in addition to isIcelandic
-        const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
-        
-        // Update language info in the context
-        updateLanguageContext(context, userMessage);
-        
-        // Add this message to the context system
-        addMessageToContext(context, { role: 'user', content: userMessage });
-        
-        // Update topics in the context system
-        updateTopicContext(context, userMessage);
-        
-        // Send progress step after initial context setup
-        sendEvent({ 
-            type: 'processingStep', 
-            step: "📚 Looking up relevant information...",
-            timestamp: Date.now()
-        });
-        
-        // Get knowledge with fallbacks
-        const operationsStart = Date.now();
-        const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
-        metrics.knowledgeTime = Date.now() - operationsStart;
-        
-        // Send knowledge results event
-        sendEvent({ 
-            type: 'knowledge', 
-            count: knowledgeBaseResults.length,
-            timestamp: Date.now()
-        });
-        
-        if (knowledgeBaseResults.length > 0) {
-            sendEvent({ 
-                type: 'processingStep', 
-                step: `🔍 Found ${knowledgeBaseResults.length} relevant information items`,
-                timestamp: Date.now()
-            });
-            
-            // Update conversation memory with current topic
-            const mainTopic = knowledgeBaseResults[0].type;
-            context.lastTopic = mainTopic;
-            
-            // Add to conversation memory with language info
-            context.conversationMemory.addTopic(mainTopic, {
-                query: userMessage,
-                response: knowledgeBaseResults[0].content,
-                language: context.language
-            });
-        } else {
-            sendEvent({ 
-                type: 'processingStep', 
-                step: "🔍 Searching for relevant information...",
-                timestamp: Date.now()
-            });
-        }
-        
-        // MIGRATION: Detect if sunset information is relevant
-        let sunsetData = null;
-        if (isSunsetQuery(userMessage, languageDecision)) {
-            sunsetData = getSunsetDataForContext(userMessage, languageDecision);
-        }
-        
-        // Enhanced system prompt with all context
-        let systemPrompt = getSystemPrompt(sessionId, 
-            userMessage.toLowerCase().match(/hour|open|close|time/i), 
-            userMessage, 
-            {
-                ...languageDecision,
-                language: language
-            }, 
-            sunsetData
-        );
-        
-        // Get current season info for hours
-        const seasonInfo = getCurrentSeason();
-        
-        // Add seasonal context to prompt if relevant
-        if (context.lastTopic === 'hours' || 
-            context.lastTopic === 'seasonal' || 
-            userMessage.toLowerCase().includes('hour') || 
-            userMessage.toLowerCase().includes('open') || 
-            userMessage.toLowerCase().includes('close')) {
-            
-            systemPrompt += `\n\nCURRENT OPERATING HOURS:
-            Today (${seasonInfo.greeting}):
-            Opening Hours: ${seasonInfo.season === 'summer' ? '09:00' : 
-                        seasonInfo.season === 'winter' ? '11:00 weekdays, 10:00 weekends' : '10:00'}
-            Closing Time: ${seasonInfo.closingTime}
-            Last Ritual: ${seasonInfo.lastRitual}
-            Bar Service Until: ${seasonInfo.barClose}
-            Lagoon Access Until: ${seasonInfo.lagoonClose}
-            
-            Please include these specific times in your response.`;
-        }
-        
-        // Prepare messages array
-        const messages = [
-            { 
-                role: "system", 
-                content: systemPrompt
-            }
-        ];
-        
-        // Add context awareness from conversation history
-        if (context.messages && context.messages.length > 0) {
-            messages.push(...context.messages.slice(-5));
-        }
-        
-        // Add special context for late arrival or booking modification
-        if (context.lateArrivalContext?.isLate || context.bookingContext?.hasBookingIntent) {
-            messages.push({
-                role: "system",
-                content: `CURRENT CONTEXT:
-                    Language: ${context.language === 'is' ? 'Icelandic' : 'English'}
-                    Late Arrival: ${context.lateArrivalContext?.isLate ? 'Yes' : 'No'}
-                    Sold Out Status: ${context.soldOutStatus ? 'Yes' : 'No'}
-                    Booking Modification: ${context.bookingContext?.hasBookingIntent ? 'Requested' : 'No'}
-                    Time of Day: ${new Date().getHours() >= 9 && new Date().getHours() < 19 ? 'During support hours' : 'After hours'}`
-            });
-        }
-        
-        // Conversation continuity check
-        const isOngoingConversation = context.messages && 
-                                     context.messages.filter(m => m.role === 'assistant').length > 0;
-        
-        if (isOngoingConversation) {
-            messages.push({
-                role: "system",
-                content: `Note: This is a continuing conversation. Maintain conversation flow without 
-                introducing new greetings like "Hello" or "Hello there".`
-            });
-        }
-        
-        // Add special context for likely conversational messages
-        if (userMessage.split(' ').length <= 4 || 
-            /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {
-            
-            messages.push({
-                role: "system",
-                content: `This appears to be a conversational message rather than a factual question. Handle it naturally with appropriate small talk, greeting, or acknowledgment responses while maintaining Sky Lagoon's brand voice.`
-            });
-        }
-        
-        // Updated user message with language instructions
-        messages.push({
-            role: "user",
-            content: `Knowledge Base Information: ${JSON.stringify(knowledgeBaseResults)}
-            
-                User Question: ${userMessage}
-            
-                Please provide a natural, conversational response. For factual information about Sky Lagoon, use ONLY the information from the knowledge base.
-                For greetings, small talk, or acknowledgments, respond naturally without requiring knowledge base information.
-            
-                Maintain our brand voice and use "our" instead of "the" when referring to facilities and services.
-                ${language === 'auto' ? 'IMPORTANT: Respond in the same language as the user\'s question.' : `Response MUST be in ${language} language.`}`
-        });
-        
-        // Send event before starting GPT request
-        sendEvent({ 
-            type: 'processingStep', 
-            step: "🤖 Generating response...",
-            timestamp: Date.now()
-        });
-        
-        sendEvent({ 
-            type: 'gpt_start',
-            timestamp: Date.now()
-        });
-        
-        // Record time before making GPT request
-        const gptStart = Date.now();
-        
-        // Make GPT-4 request with streaming enabled
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: getMaxTokens(userMessage),
-            stream: true // Enable streaming
-        });
-        
-        let fullText = '';
-        let chunkCount = 0;
-        
-        // Process the stream
-        for await (const chunk of completion) {
-            const content = chunk.choices[0]?.delta?.content || '';
-            
-            if (content) {
-                fullText += content;
-                chunkCount++;
-                
-                // Send each content chunk to the client
-                sendEvent({
-                    type: 'chunk',
-                    content: content,
-                    chunkId: chunkCount
-                });
-            }
-        }
-        
-        metrics.gptTime = Date.now() - gptStart;
-        console.log(`\n⏱️ GPT streaming completed in ${metrics.gptTime}ms`);
-        
-        // Apply terminology processing to the complete text
-        console.log('\n✨ Applying terminology processing to complete response');
-        const enhancedResponse = await enforceTerminology(fullText, openai);
-        
-        // Filter emojis
-        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
-        
-        // Add AI response to the context system
-        addMessageToContext(context, { role: 'assistant', content: filteredResponse });
-        
-        // Broadcast conversation to Pusher and analytics
-        let postgresqlMessageId = null;
-        if (userMessage) {
-            try {
-                console.log(`\n📨 Broadcasting response with session ID: ${sessionId}`);
-                
-                // Single broadcast point with session ID
-                const broadcastResult = await broadcastConversation(
-                    userMessage,
-                    filteredResponse,
-                    languageDecision.isIcelandic ? 'is' : 'en',
-                    context?.lastTopic || 'general',
-                    'streaming_response',
-                    sessionId
-                );
-                
-                // Store PostgreSQL ID if available from the result
-                postgresqlMessageId = broadcastResult.postgresqlId || null;
-                
-                console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
-            } catch (error) {
-                console.error('\n❌ Error in broadcast function:', error);
-            }
-        }
-        
-        // Send the completion message with the fully processed text
-        sendEvent({
-            type: 'complete',
-            fullText: filteredResponse,
-            postgresqlMessageId: postgresqlMessageId,
-            timestamp: Date.now()
-        });
-        
-        // Record total processing time
-        metrics.totalTime = Date.now() - startTime;
-        console.log('\n⏱️ Performance Metrics:', {
-            sessionAndLanguage: `${metrics.sessionTime}ms`,
-            knowledge: `${metrics.knowledgeTime}ms`,
-            gpt: `${metrics.gptTime}ms`,
-            total: `${metrics.totalTime}ms`
-        });
-        
-    } catch (error) {
-        console.error('\n❌ Streaming Error:', error);
-        
-        // Send error to client
-        sendEvent({
-            type: 'error',
-            message: "I apologize, but I'm having trouble connecting right now. Please try again shortly.",
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-            timestamp: Date.now()
         });
     }
 });
