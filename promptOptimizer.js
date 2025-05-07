@@ -87,6 +87,23 @@ This is a common question and requires a clear, direct answer about pricing bein
     }
   }
 
+    // ADD THIS NEW SECTION RIGHT HERE
+    // Enhance context awareness for pricing follow-ups
+    if (context.lastTopic && 
+        (context.lastTopic === 'pricing' || 
+         context.topics.includes('pricing') ||
+         context.topics.includes('packages'))) {
+      
+      promptSections.push(`
+CRITICAL CONTEXT AWARENESS INSTRUCTION:
+The user asked about pricing previously and is now asking a follow-up question: "${message}"
+This is a FOLLOW-UP question, not a new query. 
+DO NOT repeat the full package format again.
+Instead, provide a direct conversational answer to their specific question.
+Remember that context awareness and natural conversation are MORE IMPORTANT than adhering to rigid format templates.
+      `);
+    }  
+
   // ALWAYS include these critical sections for conversation continuity
   promptSections.push(extractSection(originalPrompt, '4. Context Awareness:', '5. Response Guidelines:'));
   
@@ -104,18 +121,56 @@ This is a common question and requires a clear, direct answer about pricing bein
     promptSections.push(extractSection(originalPrompt, 'AGE POLICY AND CHILDREN:', 'WEBSITE LINKS GUIDELINES:'));
   }
   
-  // 2. Packages information
-  if (matchesAnyTopic(context, ['package', 'packages', 'saman', 'sér', 'ser', 'standard', 'premium', 'price', 'pricing', 'cost', 'pure', 'sky pass']) || 
-      message.toLowerCase().match(/\b(package|saman|sér|ser|pure|sky pass|premium|standard|price|cost|pricing)\b/) ||
-      (lastTopic === 'pricing' && message.length < 50)) {
-    promptSections.push(extractSection(originalPrompt, 'PRICING REFERENCE INFORMATION:', 'PRODUCT INFORMATION AND SHIPPING:'));
-    promptSections.push(extractSection(originalPrompt, 'LEGACY PACKAGE NAME MAPPING', 'DIRECT PROBLEM SOLVING PRIORITY:'));
-    promptSections.push(extractSection(originalPrompt, '22. For Package Comparison Queries:', '23. For Gift Ticket Queries:'));
+// 2. Packages information
+if (matchesAnyTopic(context, ['package', 'packages', 'saman', 'sér', 'ser', 'standard', 'premium', 'price', 'pricing', 'cost', 'pure', 'sky pass']) || 
+    message.toLowerCase().match(/\b(package|saman|sér|ser|pure|sky pass|premium|standard|price|cost|pricing)\b/) ||
+    (lastTopic === 'pricing' && message.length < 50)) {
     
-    // Add specific instructions for Icelandic pricing responses
-    if (context.language === 'is' || 
-        (context.language === 'auto' && /[áðéíóúýþæö]/i.test(message))) {
-      promptSections.push(`
+  // IMPROVED: Check if this is a follow-up question using context signals
+  const isFollowUpPriceQuestion = 
+    // Short message following a pricing topic suggests follow-up
+    (context.lastTopic === 'pricing' && message.length < 25) ||
+    // Check context history for pricing topic continuity
+    (context.intentHierarchy?.primaryIntent === 'pricing' && message.length < 30) ||
+    // Using adaptiveMemory to detect conversation continuity
+    (context.adaptiveMemory?.getRecentMemories(1).some(m => 
+      m.category === 'assistant_response' && 
+      m.content.includes('12.990') && 
+      Date.now() - m.timestamp < 60000
+    )) ||
+    // Specific follow-up detected by contextSystem
+    (context.bookingContext?.lastDateMention && message.length < 30) ||
+    // Message patterns that strongly indicate price follow-up
+    (message.toLowerCase().includes("fyrir einn") || message.toLowerCase().includes("fyrir tvo") || 
+     message.toLowerCase().match(/\beinn eða tvo\b/));
+  
+  if (isFollowUpPriceQuestion) {
+    // For follow-ups, prioritize the FOLLOW-UP PRICING RESPONSES section first
+    promptSections.push(extractSection(originalPrompt, 'FOLLOW-UP PRICING RESPONSES:', 'STANDARD PRICE INFORMATION FORMAT TO INCLUDE:'));
+    
+    // Add context awareness override to make sure it responds conversationally
+    promptSections.push(`
+CRITICAL RESPONSE CONTEXT OVERRIDE:
+This is a follow-up question about pricing. The user has already received information about package prices.
+DO NOT repeat the full package details format again.
+INSTEAD: Provide a direct, conversational answer focused on the specific follow-up question.
+Prioritize context continuity over template formatting.
+The user's query "${message}" is continuing from previous pricing discussion.
+`);
+  } else {
+    // For initial questions, include standard price format
+    promptSections.push(extractSection(originalPrompt, 'STANDARD PRICE INFORMATION FORMAT TO INCLUDE:', 'RITUAL INCLUSION POLICY:'));
+  }
+  
+  // Always include these sections for both initial and follow-up questions
+  promptSections.push(extractSection(originalPrompt, 'PRICING REFERENCE INFORMATION:', 'PRODUCT INFORMATION AND SHIPPING:'));
+  promptSections.push(extractSection(originalPrompt, 'LEGACY PACKAGE NAME MAPPING', 'DIRECT PROBLEM SOLVING PRIORITY:'));
+  promptSections.push(extractSection(originalPrompt, '22. For Package Comparison Queries:', '23. For Gift Ticket Queries:'));
+  
+  // Add specific instructions for Icelandic pricing responses
+  if (context.language === 'is' || 
+      (context.language === 'auto' && /[áðéíóúýþæö]/i.test(message))) {
+    promptSections.push(`
 ICELANDIC PRICING RESPONSE REQUIREMENTS:
 When discussing prices in Icelandic, follow these rules:
 1. Always refer to "Saman Package" as "Saman pakkinn" 
