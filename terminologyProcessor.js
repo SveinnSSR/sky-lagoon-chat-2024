@@ -19,13 +19,11 @@ export const enforceTerminology = async (text, openaiInstance) => {
   if (!text) return text;
   
   // Only use AI for messages above a certain length
-  // Short responses are less likely to need processing
   if (text.length < 30) return text;
   
   // Check cache first
   const cacheKey = createCacheKey(text);
   
-  // Debug logging to track cache status
   console.log(`🔍 Terminology cache check: size=${terminologyCache.size}, key="${cacheKey.slice(0, 30)}..."`);
   
   if (terminologyCache.has(cacheKey)) {
@@ -37,20 +35,8 @@ export const enforceTerminology = async (text, openaiInstance) => {
   const startTime = performance.now();
   
   try {
-    // Detect if text contains Icelandic characters
+    // Detect if text contains Icelandic characters to determine language
     const containsIcelandic = /[áðéíóúýþæö]/i.test(text);
-    
-    // Determine language-specific instructions
-    const languageInstructions = containsIcelandic ? 
-      `ICELANDIC TERMINOLOGY RULES:
-      - Replace "bókunarreferensnúmerinu" with "bókunarnúmerinu"
-      - Replace "bókunarreferensnúmerið" with "bókunarnúmerið"
-      - Replace "bókunarreferensnúmeri" with "bókunarnúmeri"
-      - Replace "bókunarreferensnúmer" with "bókunarnúmer"` 
-      : 
-      `ENGLISH TERMINOLOGY RULES:
-      - DO NOT replace "booking number" or "reference number" with "bókunarnúmer"
-      - Keep all English terminology in English`;
     
     // Use a faster, smaller model since this is just for text processing
     const response = await openaiInstance.chat.completions.create({
@@ -60,7 +46,7 @@ export const enforceTerminology = async (text, openaiInstance) => {
           role: "system", 
           content: `You are a specialized text processor for Sky Lagoon. Your job is to revise text to follow Sky Lagoon's terminology guidelines without changing meaning.
           
-TERMINOLOGY RULES:
+TERMINOLOGY RULES (APPLY TO ALL LANGUAGES):
 1. Replace "luxury" with "serenity"
 2. Replace "pool" with "wellness"
 3. Replace "swim" with "immerse"
@@ -73,14 +59,27 @@ TERMINOLOGY RULES:
 10. Replace "bracelet" with "wristband"
 11. Replace "in-water bar" or "in water bar" with "lagoon bar"
 12. Replace "buy" with "purchase"
-13. Replace standalone "water" with "geothermal water" EXCEPT in the following contexts:
-   - "drinking water" (NEVER add "geothermal" to drinking water)
-   - "water bottle" (NEVER replace with "geothermal water bottle")
-   - "water shoes" (NEVER replace with "geothermal water shoes")
-   - "fresh water" (keep as is)
-   - "water stations" (keep as is)
+13. Replace standalone "water" with "geothermal water" EXCEPT in contexts like "drinking water"
 
-${languageInstructions}
+LANGUAGE-SPECIFIC PROCESSING GUIDELINES:
+${containsIcelandic ? 
+`ICELANDIC TEXT DETECTED - Apply these Icelandic-specific rules:
+1. Convert "bókunarreferensnúmer" to "bókunarnúmer" in all forms
+2. Convert "Saman Package" to "Saman pakkinn" 
+3. Convert "Sér Package" to "Sér pakkinn"
+4. Use proper Icelandic grammar and word order
+5. Use full Icelandic terminology for package descriptions
+6. Replace any English words with their proper Icelandic equivalents
+7. Ensure natural Icelandic phrasing rather than direct translations
+8. Use the terms "lónið okkar" or "heita lónið" for geothermal lagoon references
+9. Make sure the text sounds naturally Icelandic to a native speaker` 
+: 
+`ENGLISH TEXT DETECTED - Apply these English-specific rules:
+1. NEVER replace "booking number" or "reference number" with "bókunarnúmer"
+2. Keep "Saman Package" and "Sér Package" in English
+3. Maintain English grammar and phrasing
+4. Do not introduce any Icelandic terms into English text
+5. Ensure natural English phrasing and terminology`}
 
 SPECIAL RULES:
 - Fix "our our" to just "our"
@@ -90,19 +89,14 @@ SPECIAL RULES:
 - Maintain all emoji exactly as they are
 - Preserve all factual information exactly
 
-LANGUAGE-SPECIFIC PROCESSING:
-- For English text: ONLY apply English terminology rules
-- For Icelandic text: ONLY apply Icelandic terminology rules
-- NEVER mix languages - don't insert Icelandic words into English text
-
 Your task is ONLY to apply terminology changes. Do NOT:
 - Change the meaning of the text
 - Add or remove information
-- Rephrase sentences unnecessarily
+- Rephrase sentences unnecessarily (unless fixing awkward translations)
 - Change the tone or style
 - Remove or replace emoji
 
-Revise the text to follow these guidelines while preserving the exact meaning, tone, and content.`
+Revise the text to follow these guidelines while preserving the meaning, tone, and content.`
         },
         {
           role: "user",
