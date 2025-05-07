@@ -1679,7 +1679,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         languageTime: 0,
         knowledgeTime: 0,
         transferTime: 0,
-        bookingTime: 0,
+        // bookingTime removed
         totalTime: 0
     };
 
@@ -2071,17 +2071,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         const [
             transferCheck,       // Check if we should transfer to a human agent
-            bookingFormCheck,    // Check if we should show booking form
             knowledgeBaseResults // Get relevant knowledge
         ] = await Promise.all([
             shouldTransferToAgent(userMessage, languageDecision, context)
                 .then(result => {
                     metrics.transferTime = Date.now() - operationsStart;
-                    return result;
-                }),
-            shouldShowBookingForm(userMessage, languageDecision, context)
-                .then(result => {
-                    metrics.bookingTime = Date.now() - operationsStart;
                     return result;
                 }),
             getKnowledgeWithFallbacks(userMessage, context)
@@ -2112,18 +2106,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Update the booking context with detection results
-        updateBookingChangeContext(context, userMessage, bookingFormCheck);
-
-        // Process the final decision using context
-        const finalBookingCheck = processBookingFormCheck(bookingFormCheck, context);
-
         // Instead of showing a form, add a flag to the context
         // REPLACED the entire "if (finalBookingCheck.shouldShowForm)" block with this:
-        if (finalBookingCheck.shouldShowForm) {
-            console.log('\n📝 Booking change intent detected, marking in context');
+        // Simple lightweight booking change intent detection (no AI calls)
+        const lowercaseMsg = userMessage.toLowerCase();
+        if (lowercaseMsg.includes('change') && 
+            (lowercaseMsg.includes('booking') || lowercaseMsg.includes('reservation'))) {
             
-            // Set flags in context for future analytics use
+            console.log('\n📝 Simple booking change intent detected, marking in context');
+            
+            // Set flags in context for analytics use
             if (!context.bookingContext) {
                 context.bookingContext = {};
             }
@@ -2139,7 +2131,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
             
             console.log('\n✅ Marked booking change in context for analytics');
-            // We'll continue with normal AI response - no special handling needed
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
@@ -2677,7 +2668,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             sessionAndLanguage: `${metrics.sessionTime}ms`,
             knowledge: `${metrics.knowledgeTime}ms`,
             transfer: `${metrics.transferTime}ms`,
-            booking: `${metrics.bookingTime}ms`,
+            // booking metric removed
             gpt: `${metrics.gptTime}ms`,
             total: `${metrics.totalTime}ms`
         });
