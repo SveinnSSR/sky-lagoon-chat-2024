@@ -101,7 +101,7 @@ export async function processMessagePair(userMessage, botResponse, metadata = {}
       endedAt: new Date().toISOString(),
       language: metadata.language || 'en',
       topic: metadata.topic || 'general',
-      status: 'active'
+      status: metadata.status || 'active'
     });
 
     // Log normalized data for debugging
