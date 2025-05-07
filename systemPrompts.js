@@ -7,7 +7,7 @@ import { getRelevantKnowledge_is, knowledgeBase_is } from './knowledgeBase_is.js
 // Import getSessionContext directly from contextSystem.js
 import { getSessionContext, validateDate } from './contextSystem.js';
 // Import getOptizedPrompt for promptOptimizer.js for GPT optimization
-import { getOptimizedPrompt } from './promptOptimizer.js';
+// import { getOptimizedPrompt } from './promptOptimizer.js'; // DISABLED
 
 // Import the getCurrentSeason function - this is imported from index.js
 let getCurrentSeasonFunction;
