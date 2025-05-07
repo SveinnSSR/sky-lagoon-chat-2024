@@ -404,7 +404,8 @@ const areAgentsAvailable = async () => {
 };
 
 /**
- * AI-powered function to check if booking change form should be shown
+ * AI-powered function to check if booking change form should be shown.
+ * no form is shown anymore after updates but keeping this for data and analytics benefits
  * @param {string} message - User message
  * @param {Object} languageDecision - Language detection information
  * @param {Object} context - Conversation context (optional)
@@ -1734,89 +1735,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         console.log('\n📥 Incoming Message:', userMessage);
         
-        // MIGRATION: Handle booking form submissions
-        if (req.body.isBookingChangeRequest) {
-            try {
-                // Parse the message as form data
-                const formData = JSON.parse(req.body.formData || '{}');
-                
-                console.log('\n📝 Submitting booking change form data:', formData);
-                
-                // Create a NEW chat for the form submission
-                console.log('\n📝 Creating new LiveChat booking change request for form submission');
-                // Use direct agent chat instead of bot transfer
-                const chatData = await createDirectAgentChat(sessionId, false); // Default to English since we don't have language detection yet
-
-                if (!chatData.chat_id) {
-                    throw new Error('Failed to create booking change request chat');
-                }
-                
-                // Submit the booking change request to the NEW chat
-                const submitted = await submitBookingChangeRequest(
-                    chatData.chat_id,  // Use the new chat ID
-                    formData, 
-                    chatData.agent_credentials // Use agent credentials instead of bot token
-                );
-                
-                if (!submitted) {
-                    throw new Error('Failed to submit booking change request');
-                }
-                
-                // Return success response - We don't know language yet, but we'll try to detect from the form data if possible
-                const isIcelandic = formData.language === 'is' || 
-                                   (formData.message && /[þæðöáíúéó]/i.test(formData.message));
-                
-                const confirmationMessage = isIcelandic ?
-                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda." :
-                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours.";
-                
-                // Add to a temporary context for broadcasting
-                const tempContext = { language: isIcelandic ? 'is' : 'en' };
-                addMessageToContext(tempContext, { role: 'assistant', content: confirmationMessage });
-                
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: confirmationMessage,
-                    success: true,
-                    language: {
-                        detected: isIcelandic ? 'Icelandic' : 'English',
-                        confidence: 'medium'
-                    },
-                    topicType: 'booking_change_submitted',
-                    responseType: 'direct_response'
-                });
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
-                
-                return res.status(responseData.status || 200).json(responseData);
-            } catch (error) {
-                console.error('\n❌ Booking Form Submission Error:', error);
-                
-                // Return error response (we don't know the language yet, default to English)
-                const errorMessage = "I'm sorry, I couldn't submit your request at this time. Please try again later or call us at +354 527 6800.";
-                
-                // Use the unified broadcast system but don't send response yet
-                const errorResponseData = await sendBroadcastAndPrepareResponse({
-                    message: errorMessage,
-                    success: false,
-                    status: 500,
-                    error: error.message,
-                    language: {
-                        detected: 'English',
-                        confidence: 'medium'
-                    },
-                    topicType: 'booking_change_failed',
-                    responseType: 'direct_response'
-                });
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
-                
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
-            }
-        }
-
         // Handle messages when in agent mode - KEEP THIS ENTIRE BLOCK INTACT
         if (req.body.chatId && req.body.isAgentMode) {
             console.log('\n🚨 AGENT MODE HANDLER TRIGGERED:', {
@@ -2147,6 +2065,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         });
 
         // TARGETED PARALLELIZATION: Run key checks in parallel
+        // NOTE: I kept the detection part for changing bookings but removed the form display part (showing the LiveChat form)
         console.log('\n⏱️ Starting parallel operations...');
         const operationsStart = Date.now();
         
@@ -2199,74 +2118,28 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Process the final decision using context
         const finalBookingCheck = processBookingFormCheck(bookingFormCheck, context);
 
-        // Only show form if the final check determines we need it
+        // Instead of showing a form, add a flag to the context
+        // REPLACED the entire "if (finalBookingCheck.shouldShowForm)" block with this:
         if (finalBookingCheck.shouldShowForm) {
-            try {
-                // Create chat using direct agent approach for the booking change request
-                console.log('\n📝 Creating new LiveChat booking change request for:', sessionId);
-                const chatData = await createDirectAgentChat(sessionId, languageDecision.isIcelandic);
-
-                if (!chatData.chat_id) {
-                    throw new Error('Failed to create booking change request');
-                }
-
-                console.log('\n✅ Booking change request created:', chatData.chat_id);
-
-                // Prepare booking change message based on language and agent hours
-                const bookingChangeMessage = languageDecision.isIcelandic ?
-                    `Ég sé að þú vilt breyta bókuninni þinni. ${!finalBookingCheck.isWithinAgentHours ? 'Athugaðu að þjónustufulltrúar okkar starfa frá kl. 9-18 virka daga og 9-16 um helgar. ' : ''}Fyrir bókanir innan 48 klukkustunda, vinsamlegast hringdu í +354 527 6800. Fyrir framtíðarbókanir, geturðu sent beiðni um breytingu með því að fylla út eyðublaðið hér að neðan. Vinsamlegast athugaðu að allar breytingar eru háðar framboði.` :
-                    `I see you'd like to change your booking. ${!finalBookingCheck.isWithinAgentHours ? 'Please note that our customer service team works from 9 AM to 6 PM (GMT) on weekdays. ' : ''}For immediate assistance with bookings within 48 hours, please call us at +354 527 6800. For future bookings, you can submit a change request using the form below. Our team will review your request and respond via email within 24 hours.`;
-
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: bookingChangeMessage });
-
-                // Use the unified broadcast system but don't send response yet
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: bookingChangeMessage,
-                    showBookingChangeForm: true,
-                    chatId: chatData.chat_id,
-                    agent_credentials: chatData.agent_credentials, // Use agent credentials instead of bot token
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'booking_change_request',
-                    responseType: 'direct_response'
-                });
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (booking form): ${metrics.totalTime}ms`);
-                
-                return res.status(responseData.status || 200).json(responseData);
-            } catch (error) {
-                console.error('\n❌ Booking Change Request Error:', error);
-                // Fall through to AI response if request fails
-
-                // Provide fallback response when request fails
-                const fallbackMessage = languageDecision.isIcelandic ?
-                    "Því miður er ekki hægt að senda beiðni um breytingu á bókun núna. Vinsamlegast hringdu í +354 527 6800 eða sendu tölvupóst á reservations@skylagoon.is fyrir aðstoð." :
-                    "I'm sorry, I couldn't submit your booking change request at the moment. Please call us at +354 527 6800 or email reservations@skylagoon.is for assistance.";
-
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-
-                // Use the unified broadcast system but don't send response yet
-                const errorResponseData = await sendBroadcastAndPrepareResponse({
-                    message: fallbackMessage,
-                    error: error.message,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence
-                    },
-                    topicType: 'booking_change_failed',
-                    responseType: 'direct_response'
-                });
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (booking form error): ${metrics.totalTime}ms`);
-                
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
+            console.log('\n📝 Booking change intent detected, marking in context');
+            
+            // Set flags in context for future analytics use
+            if (!context.bookingContext) {
+                context.bookingContext = {};
             }
+            
+            context.bookingContext.hasBookingIntent = true;
+            context.bookingContext.hasBookingChangeIntent = true;
+            context.lastTopic = 'booking_change';
+            
+            // Add to topics for analytics tracking
+            if (!context.topics) context.topics = [];
+            if (!context.topics.includes('booking_change')) {
+                context.topics.push('booking_change');
+            }
+            
+            console.log('\n✅ Marked booking change in context for analytics');
+            // We'll continue with normal AI response - no special handling needed
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
