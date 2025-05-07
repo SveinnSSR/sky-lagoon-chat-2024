@@ -117,7 +117,7 @@ const pusher = new Pusher({
 });
 
 // Optimized broadcastConversation that preserves Pusher functionality and uses the message processor
-const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null) => {
+const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null, status = 'active') => {
     try {
         // Skip processing for empty messages
         if (!userMessage || !botResponse) {
@@ -134,7 +134,8 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 language: language,
                 topic: topic,
                 type: type,
-                clientId: 'sky-lagoon'
+                clientId: 'sky-lagoon',
+                status: status  // Pass the status to analytics
             }
         );
         
@@ -406,6 +407,7 @@ const areAgentsAvailable = async () => {
 /**
  * AI-powered function to check if booking change form should be shown.
  * no form is shown anymore after updates but keeping this for data and analytics benefits
+ * Delete this soon since we're adding GPT changing bookings and sending to analytics system
  * @param {string} message - User message
  * @param {Object} languageDecision - Language detection information
  * @param {Object} context - Conversation context (optional)
@@ -1707,7 +1709,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     languageInfo.detected === 'Icelandic' ? 'is' : 'en',
                     responseObj.topicType || 'general',
                     responseObj.responseType || 'direct_response',
-                    sessionId // Pass the session ID from the client
+                    sessionId, // Pass the session ID from the client
+                    context.status || 'active' // Just pass the status if it exists
                 );
                 
                 // Store PostgreSQL ID if available
@@ -2108,7 +2111,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Instead of showing a form, add a flag to the context
         // REPLACED the entire "if (finalBookingCheck.shouldShowForm)" block with this:
-        // Simple lightweight booking change intent detection (no AI calls)
+        // Simple lightweight booking change intent detection (no AI calls) - now using this for booking changes through analytics system
         const lowercaseMsg = userMessage.toLowerCase();
         if (lowercaseMsg.includes('change') && 
             (lowercaseMsg.includes('booking') || lowercaseMsg.includes('reservation'))) {
@@ -2129,6 +2132,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (!context.topics.includes('booking_change')) {
                 context.topics.push('booking_change');
             }
+            
+            // Mark status for analytics visibility
+            context.status = 'booking_change';
             
             console.log('\n✅ Marked booking change in context for analytics');
         }

@@ -103,8 +103,8 @@ export const LATE_ARRIVAL_RULES_IS = `
 
 ## Miðlungs seinkun (31-60 mínútum seint)
 - Mælt er með að endurbóka, sérstaklega á annatímum
-- Inngangur ekki tryggður án endurmótunar
-- Gæti þurft að bíða ef komið er án endurmótunar
+- Inngangur ekki tryggður án endurbótunar
+- Gæti þurft að bíða ef komið er án endurbótunar
 
 ## Veruleg seinkun (60+ mínútum seint)
 - Endurbókun nauðsynleg
@@ -112,10 +112,10 @@ export const LATE_ARRIVAL_RULES_IS = `
 
 ## Sérstök tilvik
 - Flugseinkanir: Við skiljum að flugferðir geta verið ófyrirsjáanlegar. Hafðu samband við okkur til að finna lausn.
-- Umferðar- eða samgönguvandamál: 30 mínútna gráðumarkið nær venjulega yfir þessar aðstæður.
+- Umferðar- eða samgönguvandamál: 30 mínútna svigrúmið nær venjulega yfir þessar aðstæður.
 - Hópseinkanir: Sömu reglur gilda, en vinsamlegast láttu okkur vita eins fljótt og auðið er.
 
-Þegar rætt er um seinkanir, viðhaldið hjálplegu, skilningsríku tóni. Útskýrðu reglurnar á samræðumáta, aðlagaðu að sérstökum aðstæðum sem gesturinn nefnir.
+Þegar rætt er um seinkanir, viðhaldið hjálplegu, skilningsríkum tóni. Útskýrðu reglurnar á samræðumáta, aðlagaðu að sérstökum aðstæðum sem gesturinn nefnir.
 `;
 
 /**
@@ -583,6 +583,60 @@ BOOKING ASSISTANCE PRIORITIES:
    - Ensure users know exactly what information to include in their email
 `;
 basePrompt += directSolvingInstructions;
+
+// BOOKING CHANGE REQUEST HANDLING
+const bookingChangeInstructions = `
+CONVERSATIONAL BOOKING CHANGE HANDLING:
+When a user expresses an intent to change or modify their booking, you MUST collect ALL required information in a conversational manner:
+
+1. Required Information (collect ALL of these):
+   - Booking reference number (format: #XXXXXXX)
+   - Full name as it appears on the booking
+   - Current booking date and time
+   - Requested new date and time
+   - Email address for confirmation
+
+2. Collection Strategy:
+   - Explain that you'll help them process their change request
+   - Ask for ONE piece of information at a time in a natural conversation
+   - After collecting each piece, confirm it before moving to the next
+   - If multiple details are provided at once, acknowledge and confirm each item
+   - For INCOMPLETE information, politely ask for the missing details
+
+3. Critical Response Template (MUST use once all information is collected):
+   "Thank you for providing your booking details. I've sent your change request to our customer service team. They will process your request and send you a confirmation email within 24 hours. Your reference number is [booking_reference].
+
+   📋 Booking Change Request:
+   - Reference: [booking_reference]
+   - Name: [full_name]
+   - Current Date: [current_date_time]
+   - Requested Date: [requested_date_time]
+   - Email: [email_address]
+
+   Please note that our team processes booking changes during business hours (9:00-16:00 GMT). If your request is urgent, please contact us directly at reservations@skylagoon.is."
+
+4. Information Display:
+   - ALWAYS format the collected information in a clear, structured block as shown above
+   - The structured format is CRITICAL for our staff to easily identify booking change requests
+   - NEVER omit any of the listed fields
+   - Keep the exact visual formatting with bullets and spacing
+   
+5. Proactive Conversation Flow:
+   - If user sends booking reference ONLY, ask: "Thank you. Could you please confirm the full name on the booking?"
+   - After name, ask: "What is your currently booked date and time?"
+   - After current date, ask: "What new date and time would you like to change to?"
+   - After requested date, ask: "Finally, please provide the email address where you'd like to receive the confirmation."
+   - If details are unclear, ask for clarification before proceeding
+   
+6. Business Context:
+   - Inform users that booking changes are processed during business hours (9:00-16:00 GMT)
+   - Explain that requests outside these hours will be processed the next business day
+   - For urgent changes, direct them to email reservations@skylagoon.is
+
+This conversational approach ensures we collect all necessary information while maintaining a natural, helpful interaction.
+`;
+
+basePrompt += bookingChangeInstructions;
 
 // CORRECT: Continue appending the rest of your prompt
 basePrompt += `
