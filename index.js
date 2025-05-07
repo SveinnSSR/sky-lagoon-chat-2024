@@ -1710,7 +1710,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseObj.topicType || 'general',
                     responseObj.responseType || 'direct_response',
                     sessionId, // Pass the session ID from the client
-                    context.status || 'active' // Just pass the status if it exists
+                    responseObj.status || 'active' // MODIFY THIS LINE to use responseObj instead of context
                 );
                 
                 // Store PostgreSQL ID if available
@@ -2642,7 +2642,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     reason: languageDecision.reason
                 },
                 topicType: context?.lastTopic || 'general',
-                responseType: 'gpt_response'
+                responseType: 'gpt_response',
+                status: context.status || 'active' // ADD THIS LINE
             };
             
             // Pass through sendBroadcastAndPrepareResponse to broadcast
