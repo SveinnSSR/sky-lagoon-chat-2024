@@ -40,6 +40,18 @@ export const enforceTerminology = async (text, openaiInstance) => {
     // Detect if text contains Icelandic characters
     const containsIcelandic = /[áðéíóúýþæö]/i.test(text);
     
+    // Determine language-specific instructions
+    const languageInstructions = containsIcelandic ? 
+      `ICELANDIC TERMINOLOGY RULES:
+      - Replace "bókunarreferensnúmerinu" with "bókunarnúmerinu"
+      - Replace "bókunarreferensnúmerið" with "bókunarnúmerið"
+      - Replace "bókunarreferensnúmeri" with "bókunarnúmeri"
+      - Replace "bókunarreferensnúmer" with "bókunarnúmer"` 
+      : 
+      `ENGLISH TERMINOLOGY RULES:
+      - DO NOT replace "booking number" or "reference number" with "bókunarnúmer"
+      - Keep all English terminology in English`;
+    
     // Use a faster, smaller model since this is just for text processing
     const response = await openaiInstance.chat.completions.create({
       model: "gpt-4o", // Using main model until gpt-4o-mini is available
@@ -68,11 +80,7 @@ TERMINOLOGY RULES:
    - "fresh water" (keep as is)
    - "water stations" (keep as is)
 
-ICELANDIC TERMINOLOGY RULES:
-- Replace "bókunarreferensnúmerinu" with "bókunarnúmerinu"
-- Replace "bókunarreferensnúmerið" with "bókunarnúmerið"
-- Replace "bókunarreferensnúmeri" with "bókunarnúmeri"
-- Replace "bókunarreferensnúmer" with "bókunarnúmer"
+${languageInstructions}
 
 SPECIAL RULES:
 - Fix "our our" to just "our"
@@ -81,6 +89,11 @@ SPECIAL RULES:
 - NEVER add "geothermal" to "drinking water" phrases
 - Maintain all emoji exactly as they are
 - Preserve all factual information exactly
+
+LANGUAGE-SPECIFIC PROCESSING:
+- For English text: ONLY apply English terminology rules
+- For Icelandic text: ONLY apply Icelandic terminology rules
+- NEVER mix languages - don't insert Icelandic words into English text
 
 Your task is ONLY to apply terminology changes. Do NOT:
 - Change the meaning of the text
