@@ -2626,6 +2626,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
+        // Check for booking change status specifically
+        if (context.status === 'booking_change') {
+            messages.push({
+                role: "system",
+                content: `CRITICAL INSTRUCTION OVERRIDE: 
+        The current conversation has status='booking_change' which has been detected.
+        You MUST use the CONVERSATIONAL BOOKING CHANGE HANDLING process to collect 
+        all required booking information conversationally rather than directing the user to email.
+        This is a high-priority instruction that overrides any other booking change handling guidance.`
+            });
+        }
+
         // Handle human agent requests outside hours
         if (transferCheck && transferCheck.enhancePrompt && 
             transferCheck.promptContext?.situation === 'human_requested_outside_hours') {
