@@ -3141,7 +3141,7 @@ IMPORTANT EASTER INFORMATION:
     }
 
     // Use the optimizer if enabled
-    if (process.env.USE_PROMPT_OPTIMIZER !== 'false') {
+    if (false) {    // Always skip optimizer by using false condition
         try {
             const optimizedPrompt = getOptimizedPrompt(basePrompt, userMessage, context);
             
