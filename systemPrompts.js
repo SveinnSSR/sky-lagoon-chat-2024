@@ -6,8 +6,6 @@ import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is, knowledgeBase_is } from './knowledgeBase_is.js';
 // Import getSessionContext directly from contextSystem.js
 import { getSessionContext, validateDate } from './contextSystem.js';
-// Import getOptizedPrompt for promptOptimizer.js for GPT optimization
-// import { getOptimizedPrompt } from './promptOptimizer.js'; // DISABLED
 
 // Import the getCurrentSeason function - this is imported from index.js
 let getCurrentSeasonFunction;
@@ -3140,39 +3138,14 @@ IMPORTANT EASTER INFORMATION:
         basePrompt += `\n\nCRITICAL: RESPOND IN ${language.toUpperCase()} LANGUAGE. DO NOT RESPOND IN ENGLISH OR ICELANDIC UNLESS THE USER MESSAGE IS IN THOSE LANGUAGES.`;
     }
 
-    // Use the optimizer if enabled
-    if (false) {    // Always skip optimizer by using false condition
-        try {
-            const optimizedPrompt = getOptimizedPrompt(basePrompt, userMessage, context);
-            
-            console.log('\n🤖 Final System Prompt:', {
-                prompt: optimizedPrompt.substring(0, 500) + '... [truncated for logging]',
-                language: {
-                    isIcelandic: languageDecision.isIcelandic,
-                    language: language,
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                },
-                optimized: true
-            });
-            
-            return optimizedPrompt;
-        } catch (error) {
-            console.error('Error optimizing prompt:', error);
-            // Fall back to full prompt on error
-        }
-    }
-    
-    // Return original prompt if optimization is disabled or failed
-    console.log('\n🤖 Final System Prompt (unoptimized):', {
+    console.log('\n🤖 Final System Prompt:', {
         prompt: basePrompt.substring(0, 500) + '... [truncated for logging]',
         language: {
             isIcelandic: languageDecision.isIcelandic,
             language: language,
             confidence: languageDecision.confidence,
             reason: languageDecision.reason
-        },
-        optimized: false
+        }
     });
     return basePrompt;
 };
