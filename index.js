@@ -1026,6 +1026,141 @@ async function ensureMappingCollection() {
   }
 }
 
+/**
+ * Modern intent-based booking change detection with multilingual support
+ * ChatGPT based - not Livechat. Will delete the Livechat functions above this one at some point.
+ * @param {string} userMessage - The user's message
+ * @param {Object} context - The conversation context
+ * @returns {boolean} - Whether a booking change intent was detected
+ */
+const detectBookingChangeIntent = (userMessage, context) => {
+  // Detect language
+  const isIcelandic = context.language === 'is';
+  
+  // Create a more sophisticated detection pattern - with Icelandic support
+  const bookingTerms = isIcelandic 
+    ? ['miði', 'miða', 'bókun', 'pöntun', 'tími', 'tíma', 'pantaði'] 
+    : ['ticket', 'booking', 'reservation', 'slot', 'appointment', 'booked'];
+    
+  const changeTerms = isIcelandic
+    ? ['breyta', 'breyting', 'skipta', 'uppfæra', 'endurskipuleggja', 'öðruvísi', 'aðrar']
+    : ['change', 'modify', 'switch', 'update', 'reschedule', 'different'];
+    
+  const timePattern = /\d{1,2}[\.:]\d{2}/;
+  const datePattern = isIcelandic
+    ? /(?:jan|feb|mar|apr|maí|jún|júl|ágú|sep|okt|nóv|des)(?:úar|rúar|s|íl|st|tember|óber|ember)?\.?\s+\d{1,2}/i
+    : /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:uary|ruary|ch|il|ust|tember|ober|ember)?\.?\s+\d{1,2}/i;
+  
+  // Intent markers
+  let hasBookingReference = false;
+  let hasChangeIntent = false;
+  let hasTimeChange = false;
+  
+  // Convert message to lowercase for consistent matching
+  const lowercaseMsg = userMessage.toLowerCase();
+  
+  // Check for booking terms
+  hasBookingReference = bookingTerms.some(term => lowercaseMsg.includes(term));
+  
+  // Check for bought + date/time pattern (common in booking change requests)
+  if ((isIcelandic && lowercaseMsg.includes('keypti')) || 
+      (!isIcelandic && lowercaseMsg.includes('bought'))) {
+    if (timePattern.test(userMessage) || datePattern.test(userMessage)) {
+      hasBookingReference = true;
+    }
+  }
+  
+  // Check for change intent
+  hasChangeIntent = changeTerms.some(term => lowercaseMsg.includes(term));
+  
+  // Check for time changes (like "3:00" vs "3:30")
+  const timeMatches = userMessage.match(timePattern);
+  if (timeMatches && timeMatches.length >= 2) {
+    hasTimeChange = true;
+  } else if (timePattern.test(userMessage)) {
+    // Check for contextual indicators of change in either language
+    const changeContextIndicators = isIcelandic
+      ? ['í staðinn', 'frekar', 'en', 'ekki', 'heldur']
+      : ['instead', 'rather', 'but', 'not', 'instead of'];
+      
+    if (changeContextIndicators.some(indicator => lowercaseMsg.includes(indicator))) {
+      hasTimeChange = true;
+    }
+  }
+  
+  // Calculate confidence score based on intent markers
+  const confidenceScore = 
+    (hasBookingReference ? 0.4 : 0) + 
+    (hasChangeIntent ? 0.4 : 0) + 
+    (hasTimeChange ? 0.2 : 0);
+  
+  console.log('\n🔍 Booking change detection analysis:', {
+    language: isIcelandic ? 'Icelandic' : 'English',
+    hasBookingReference,
+    hasChangeIntent, 
+    hasTimeChange,
+    confidenceScore
+  });
+  
+  // If we have reasonable confidence, update the intent tracking
+  if (confidenceScore >= 0.4) {
+    console.log(`\n✅ Detected booking change intent with confidence: ${confidenceScore}`);
+    
+    // Update intent hierarchy
+    if (context.intentHierarchy) {
+      context.intentHierarchy.updateIntent('booking_change', confidenceScore);
+    }
+    
+    // Add to topic graph
+    if (context.topicGraph) {
+      context.topicGraph.addTopic('booking_change', {
+        detected: Date.now(),
+        confidence: confidenceScore,
+        language: isIcelandic ? 'is' : 'en'
+      });
+      
+      // Create relationship from previous topic if any
+      if (context.lastTopic && context.lastTopic !== 'booking_change') {
+        context.topicGraph.addRelationship(context.lastTopic, 'booking_change', 0.8);
+      }
+    }
+    
+    // Set status and other context flags
+    context.bookingContext = context.bookingContext || {};
+    context.bookingContext.hasBookingIntent = true;
+    context.bookingContext.hasBookingChangeIntent = true;
+    context.bookingContext.confidenceScore = confidenceScore;
+    context.lastTopic = 'booking_change';
+    
+    // Add to topics tracking
+    if (!context.topics) context.topics = [];
+    if (!context.topics.includes('booking_change')) {
+      context.topics.push('booking_change');
+    }
+    
+    // Mark status for analytics visibility
+    context.status = 'booking_change';
+    
+    // Store in adaptive memory
+    if (context.adaptiveMemory) {
+      context.adaptiveMemory.addMemory(userMessage, {
+        category: 'booking_change',
+        importance: 0.8,
+        language: isIcelandic ? 'is' : 'en',
+        metadata: {
+          confidenceScore,
+          detectedTime: timeMatches ? timeMatches[0] : null,
+          hasExplicitChangeWord: hasChangeIntent
+        }
+      });
+    }
+    
+    return true;
+  }
+  
+  return false;
+};
+
 // Add this helper function to detect sunset-related queries
 const isSunsetQuery = (message, languageDecision) => {
     const msg = message.toLowerCase();
@@ -2109,34 +2244,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Instead of showing a form, add a flag to the context
-        // REPLACED the entire "if (finalBookingCheck.shouldShowForm)" block with this:
-        // Simple lightweight booking change intent detection (no AI calls) - now using this for booking changes through analytics system
-        const lowercaseMsg = userMessage.toLowerCase();
-        if (lowercaseMsg.includes('change') && 
-            (lowercaseMsg.includes('booking') || lowercaseMsg.includes('reservation'))) {
-            
-            console.log('\n📝 Simple booking change intent detected, marking in context');
-            
-            // Set flags in context for analytics use
-            if (!context.bookingContext) {
-                context.bookingContext = {};
-            }
-            
-            context.bookingContext.hasBookingIntent = true;
-            context.bookingContext.hasBookingChangeIntent = true;
-            context.lastTopic = 'booking_change';
-            
-            // Add to topics for analytics tracking
-            if (!context.topics) context.topics = [];
-            if (!context.topics.includes('booking_change')) {
-                context.topics.push('booking_change');
-            }
-            
-            // Mark status for analytics visibility
-            context.status = 'booking_change';
-            
-            console.log('\n✅ Marked booking change in context for analytics');
+        // Modern intent-based booking change detection
+        // This is the Booking Change Request System that is broadcasted to Analytics
+        if (detectBookingChangeIntent(userMessage, context)) {
+            console.log('\n📝 Booking change intent detected through advanced context analysis');
+            // The function already set all required context flags
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
