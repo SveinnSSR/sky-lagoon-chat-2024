@@ -587,6 +587,8 @@ basePrompt += directSolvingInstructions;
 // BOOKING CHANGE REQUEST HANDLING
 const bookingChangeInstructions = `
 CONVERSATIONAL BOOKING CHANGE HANDLING:
+CRITICAL: This section OVERRIDES all other instructions for booking changes when context.status is 'booking_change'.
+
 When a user expresses an intent to change or modify their booking, you MUST collect ALL required information in a conversational manner:
 
 1. Required Information (collect ALL of these):
@@ -1428,18 +1430,22 @@ CRITICAL RESPONSE RULES:
       - Never guarantee sightings
 
 17. For booking changes and cancellations:
-    - IF about cancellation or date change:
-      - FIRST state the policy clearly:
-        "Our booking modification policy allows changes with 24 hours notice for individual bookings (1-9 guests)."
-      - THEN provide action steps:
-        "To modify your booking:
+    - FOR BOOKING CHANGES:
+      - FIRST check for context.status === 'booking_change' or hasBookingChangeIntent === true:
+        - IF TRUE: Use the CONVERSATIONAL BOOKING CHANGE HANDLING process to collect all required information in conversation
+        - IF FALSE: Provide email instructions below
+      - For email instructions:
+        "Our booking modification policy allows changes with 24 hours notice for individual bookings (1-9 guests).
+         To modify your booking:
          1. Email reservations@skylagoon.is
          2. Include your booking reference number
          3. Specify if you want a refund or date change"
+    - FOR CANCELLATIONS:
+      - ALWAYS provide email instructions
+      - "To cancel your booking, please email reservations@skylagoon.is with your booking reference number..."
     - IF user doesn't provide booking reference:
       - Provide policy AND action steps in one response
       - DO NOT repeatedly ask for booking reference
-    - AVOID asking for clarification about policy vs. actual changes
 
 18. For Multi-Pass questions:
     - IF about general Multi-Pass information:
@@ -2006,8 +2012,11 @@ ALWAYS double-check gender agreement in Icelandic responses, especially with fem
    - ✅ CORRECT: "með bókunarnúmerinu þínu"
    - ✅ CORRECT: "með pöntunarnúmerinu þínu"
    
-   - For booking changes, use this template:
-     "Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir."
+   - For booking changes:
+     - FIRST check for context.status === 'booking_change':
+       - IF TRUE: Use the CONVERSATIONAL BOOKING CHANGE HANDLING process in Icelandic
+       - IF FALSE: Use this email template:
+         "Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir."
 
 11. Afsláttur (Discount) Terminology:
    - Use "afsláttur" (masculine noun) with correct case forms:
