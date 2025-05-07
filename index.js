@@ -84,6 +84,9 @@ import { processMessagePair } from './messageProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
+// Override environment variable to disable prompt optimizer
+process.env.USE_PROMPT_OPTIMIZER = 'false';
+
 // Add near the top after imports
 console.log('🚀 SERVER STARTING - ' + new Date().toISOString());
 console.log('Environment check - NODE_ENV:', process.env.NODE_ENV);

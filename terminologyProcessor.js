@@ -74,12 +74,12 @@ ${containsIcelandic ?
 8. Use the terms "lónið okkar" or "heita lónið" for geothermal lagoon references
 9. Make sure the text sounds naturally Icelandic to a native speaker` 
 : 
-`ENGLISH TEXT DETECTED - Apply these English-specific rules:
-1. NEVER replace "booking number" or "reference number" with "bókunarnúmer"
-2. Keep "Saman Package" and "Sér Package" in English
-3. Maintain English grammar and phrasing
-4. Do not introduce any Icelandic terms into English text
-5. Ensure natural English phrasing and terminology`}
+`THIS IS ENGLISH TEXT - Follow these strict English rules:
+1. NEVER use ANY Icelandic words in English text
+2. Use "Saman Package" and "Sér Package" in English (keep the word "Package")
+3. Use "our lagoon" instead of "lónið okkar" 
+4. CRITICAL: NO ICELANDIC TERMS like "pakkinn" or "lónið" in English text
+5. Keep ALL text 100% in English with NO MIXING of languages`}
 
 SPECIAL RULES:
 - Fix "our our" to just "our"

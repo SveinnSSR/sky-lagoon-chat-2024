@@ -144,18 +144,24 @@ if (matchesAnyTopic(context, ['package', 'packages', 'saman', 'sér', 'ser', 'st
     (message.toLowerCase().includes("fyrir einn") || message.toLowerCase().includes("fyrir tvo") || 
      message.toLowerCase().match(/\beinn eða tvo\b/));
   
-  if (isFollowUpPriceQuestion) {
-    // For follow-ups, prioritize the FOLLOW-UP PRICING RESPONSES section first
-    promptSections.push(extractSection(originalPrompt, 'FOLLOW-UP PRICING RESPONSES:', 'STANDARD PRICE INFORMATION FORMAT TO INCLUDE:'));
-    
-    // Add context awareness override to make sure it responds conversationally
-    promptSections.push(`
-CRITICAL RESPONSE CONTEXT OVERRIDE:
-This is a follow-up question about pricing. The user has already received information about package prices.
-DO NOT repeat the full package details format again.
-INSTEAD: Provide a direct, conversational answer focused on the specific follow-up question.
-Prioritize context continuity over template formatting.
-The user's query "${message}" is continuing from previous pricing discussion.
+if (isFollowUpPriceQuestion) {
+  // For follow-ups, prioritize the FOLLOW-UP PRICING RESPONSES section first
+  promptSections.push(extractSection(originalPrompt, 'FOLLOW-UP PRICING RESPONSES:', 'STANDARD PRICE INFORMATION FORMAT TO INCLUDE:'));
+  
+  // Add context override that's more general and less question-specific
+  promptSections.push(`
+CRITICAL CONVERSATIONAL OVERRIDE:
+This appears to be a follow-up question about pricing. User asked: "${message}"
+
+1. Respond naturally like a helpful team member would in conversation
+2. NO TEMPLATED LISTS - use conversational paragraphs instead
+3. Answer what was asked without repeating all package details again
+4. Important pricing clarifications to include when relevant:
+   - Prices are per person/ticket
+   - Each visitor needs their own ticket
+5. Keep language consistent - no mixing Icelandic into English or vice versa
+
+Your tone should be helpful, clear, and conversational. Sound like a real person having a chat, not reciting information.
 `);
   } else {
     // For initial questions, include standard price format
