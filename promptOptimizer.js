@@ -31,7 +31,7 @@ export function getOptimizedPrompt(originalPrompt, message, context) {
   const topicHistory = context.topics || [];
   
   // Create cache key using context information
-  const cacheKey = `${primaryIntent || 'general'}:${lastTopic}:${context.language}`;
+  const cacheKey = `${primaryIntent || 'general'}:${lastTopic}:${context.language}:${message.length < 25 ? 'short' : 'long'}`;
   
   // Check cache
   if (promptCache.has(cacheKey)) {
@@ -47,13 +47,56 @@ export function getOptimizedPrompt(originalPrompt, message, context) {
     promptCache.delete(cacheKey);
   }
 
-  console.log(`🔧 Building optimized prompt for intent: ${primaryIntent || 'general'}`);
+  console.log(`🔧 Building optimized prompt for intent: ${primaryIntent || lastTopic || 'general'}`);
   
   // Start with base instructions
   let optimizedPrompt = basePrompt;
   
   // Add sections based on AI context determination
   const promptSections = [];
+  
+  // CRITICAL: Always include context awareness for short follow-up messages
+  if (message.length < 25) {
+    promptSections.push(`
+FOLLOW-UP QUESTION CONTEXT:
+The user has asked a short follow-up question: "${message}"
+Their previous topic was "${lastTopic}" and the conversation is ongoing.
+You MUST maintain context from the previous messages and provide a direct answer.
+If they're asking about something mentioned earlier, respond assuming they're referring to what was discussed before.
+Short messages like "What about X?" or "Is it for one person?" are follow-ups to the previous topic.
+`);
+
+    // Special handling for "one or two" type questions, especially in pricing context
+    if (message.match(/for (one|two|1|2)/) || 
+        message.match(/\b(one|two|1|2) (person|people)\b/) || 
+        message.toLowerCase().includes("fyrir einn") || 
+        message.toLowerCase().includes("fyrir tvo") || 
+        message.toLowerCase().match(/\beinn eða tvo\b/)) {
+      
+      promptSections.push(`
+PRICE PER PERSON CLARIFICATION CONTEXT:
+The user is asking whether prices previously discussed are for one person or for multiple people.
+ALWAYS clarify that:
+- All prices are PER PERSON
+- Each visitor needs their own ticket
+- For two people, they would need to purchase two tickets/packages
+- The Saman Package costs 12,990 ISK per person on weekdays
+- The Sér Package costs 15,990 ISK per person on weekdays
+This is a common question and requires a clear, direct answer about pricing being per person.
+`);
+    }
+  }
+
+  // ALWAYS include these critical sections for conversation continuity
+  promptSections.push(extractSection(originalPrompt, '4. Context Awareness:', '5. Response Guidelines:'));
+  
+  // Always include Icelandic-specific sections when applicable
+  if (context.language === 'is' || 
+      (context.language === 'auto' && /[áðéíóúýþæö]/i.test(message))) {
+    promptSections.push(extractSection(originalPrompt, 'ICELANDIC RESPONSE GUIDELINES:', 'ICELANDIC LANGUAGE GUIDELINES:'));
+    promptSections.push(extractSection(originalPrompt, 'ICELANDIC GRAMMAR PRECISION:', 'ALDURSTAKMÖRK OG BÖRN:'));
+    promptSections.push(extractSection(originalPrompt, 'STANDARD PRICE INFORMATION FORMAT TO INCLUDE:', 'RITUAL INCLUSION POLICY:'));
+  }
   
   // 1. Age restriction information
   if (matchesAnyTopic(context, ['age', 'children', 'kids', 'minimum', 'child', 'young']) || 
@@ -63,10 +106,27 @@ export function getOptimizedPrompt(originalPrompt, message, context) {
   
   // 2. Packages information
   if (matchesAnyTopic(context, ['package', 'packages', 'saman', 'sér', 'ser', 'standard', 'premium', 'price', 'pricing', 'cost', 'pure', 'sky pass']) || 
-      message.toLowerCase().match(/\b(package|saman|sér|ser|pure|sky pass|premium|standard|price|cost|pricing)\b/)) {
+      message.toLowerCase().match(/\b(package|saman|sér|ser|pure|sky pass|premium|standard|price|cost|pricing)\b/) ||
+      (lastTopic === 'pricing' && message.length < 50)) {
     promptSections.push(extractSection(originalPrompt, 'PRICING REFERENCE INFORMATION:', 'PRODUCT INFORMATION AND SHIPPING:'));
     promptSections.push(extractSection(originalPrompt, 'LEGACY PACKAGE NAME MAPPING', 'DIRECT PROBLEM SOLVING PRIORITY:'));
     promptSections.push(extractSection(originalPrompt, '22. For Package Comparison Queries:', '23. For Gift Ticket Queries:'));
+    
+    // Add specific instructions for Icelandic pricing responses
+    if (context.language === 'is' || 
+        (context.language === 'auto' && /[áðéíóúýþæö]/i.test(message))) {
+      promptSections.push(`
+ICELANDIC PRICING RESPONSE REQUIREMENTS:
+When discussing prices in Icelandic, follow these rules:
+1. Always refer to "Saman Package" as "Saman pakkinn" 
+2. Always refer to "Sér Package" as "Sér pakkinn"
+3. Use "Verð: 12.990 ISK" format for pricing
+4. Clarify that prices are per person ("Verð er á mann")
+5. For "Er það fyrir einn eða tvo?" be very clear that:
+   - "Já, verðið er á mann. Fyrir tvo þarf að kaupa tvo miða."
+   - "Verðið er á hvern gest, ekki fyrir par eða hóp."
+`);
+    }
   }
   
   // 3. Date Night / Sky Lagoon for Two
