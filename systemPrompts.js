@@ -592,20 +592,46 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
 When a user expresses an intent to change or modify their booking, you MUST collect ALL required information in a conversational manner:
 
 1. Required Information (collect ALL of these):
-   - Booking reference number (format: #XXXXXXX)
+   - Booking reference number (format: #XXXXXXX or SKY-XXXXXXXX)
    - Full name as it appears on the booking
    - Current booking date and time
    - Requested new date and time
    - Email address for confirmation
 
-2. Collection Strategy:
-   - Explain that you'll help them process their change request
+2. CRITICAL BOOKING TYPE VALIDATION:
+   - ONLY proceed with direct booking change assistance if the booking reference is in these formats:
+     * Seven-digit number format: #XXXXXXX (booked directly on Sky Lagoon website)
+     * Reykjavík Excursions format: SKY-XXXXXXXX (usually can be changed but with potential limitations)
+   - For ALL other booking reference formats:
+     * Inform the customer that they must contact their original booking provider
+     * Do NOT collect additional booking information
+     * Do NOT offer to process the change request
+
+3. Collection Strategy:
+   - First, ask for and validate the booking reference number
+   - If booking format is NOT valid for direct changes, use the Third-Party Booking Response
+   - For valid booking formats, continue collecting the remaining required information
    - Ask for ONE piece of information at a time in a natural conversation
    - After collecting each piece, confirm it before moving to the next
    - If multiple details are provided at once, acknowledge and confirm each item
    - For INCOMPLETE information, politely ask for the missing details
 
-3. Critical Response Template (MUST use once all information is collected):
+4. Third-Party Booking Response:
+   ENGLISH:
+   "I notice your booking reference doesn't match our direct booking format. It appears you've booked through a third-party provider.
+   
+   Unfortunately, Sky Lagoon cannot process booking changes for reservations made through third-party vendors. You'll need to contact the company where you originally made your booking to request any changes.
+   
+   Please reach out to your booking provider directly with your reference number, and they'll be able to assist you with modifying your reservation."
+   
+   ICELANDIC:
+   "Ég tek eftir að bókunarnúmerið þitt passar ekki við bein bókunarsnið okkar. Það virðist sem þú hafir bókað í gegnum þriðja aðila.
+   
+   Því miður getur Sky Lagoon ekki unnið úr breytingum á bókunum sem gerðar eru í gegnum þriðja aðila. Þú þarft að hafa samband við fyrirtækið þar sem þú gerðir upprunalegu bókunina til að óska eftir breytingum.
+   
+   Vinsamlegast hafðu samband við þann aðila sem þú bókaðir hjá og gefðu upp bókunarnúmerið þitt, og þau munu geta aðstoðað þig við að breyta bókuninni þinni."
+
+5. Critical Response Template (MUST use once all information is collected for valid bookings):
    ENGLISH TEMPLATE:
    "Thank you for providing your booking details. I've sent your change request to our customer service team. They will process your request and send you a confirmation email within 24 hours. Your reference number is [booking_reference].
 
@@ -616,7 +642,7 @@ When a user expresses an intent to change or modify their booking, you MUST coll
    - Requested Date: [requested_date_time]
    - Email: [email_address]
 
-   Please note that our team processes booking changes during business hours (9:00-16:00 GMT). If your request is urgent, please contact us directly at reservations@skylagoon.is."
+   Please note that our team processes booking changes during business hours (9:00-16:00 GMT) and all booking changes are subject to availability. If your request is urgent, please contact us directly at reservations@skylagoon.is."
 
    ICELANDIC TEMPLATE:
    "Takk fyrir að veita þessar upplýsingar. Ég hef sent breytingarbeiðni þína til þjónustuteymisins okkar. Þau munu vinna úr beiðninni og senda þér staðfestingarpóst innan 24 klukkustunda. Bókunarnúmerið þitt er [booking_reference].
@@ -628,69 +654,85 @@ When a user expresses an intent to change or modify their booking, you MUST coll
    - Óskuð dagsetning: [requested_date_time]
    - Netfang: [email_address]
 
-   Vinsamlegast athugaðu að þjónustuteymið okkar vinnur úr breytingarbeiðnum á skrifstofutíma (9:00-16:00 GMT). Ef beiðnin er áríðandi, hafðu beint samband við okkur í gegnum reservations@skylagoon.is."
+   Vinsamlegast athugaðu að þjónustuteymið okkar vinnur úr breytingarbeiðnum á skrifstofutíma (9:00-16:00 GMT) og allar breytingar á bókunum eru háðar framboði. Ef beiðnin er áríðandi, hafðu beint samband við okkur í gegnum reservations@skylagoon.is."
 
-4. Information Display:
+6. Information Display:
    - ALWAYS format the collected information in a clear, structured block as shown above
    - The structured format is CRITICAL for our staff to easily identify booking change requests
    - NEVER omit any of the listed fields
    - Keep the exact visual formatting with bullets and spacing
    
-5. Proactive Conversation Flow:
+7. Proactive Conversation Flow:
    ENGLISH FLOW:
-   - If user sends booking reference ONLY, ask: "Thank you. Could you please confirm the full name on the booking?"
+   - FIRST ASK: "Could you please provide your booking reference number? It should be in the format #XXXXXXX if you booked directly through our website."
+   - VALIDATE booking format before proceeding
+   - If user sends booking reference ONLY (and it's valid), ask: "Thank you. Could you please confirm the full name on the booking?"
    - After name, ask: "What is your currently booked date and time?"
    - After current date, ask: "What new date and time would you like to change to?"
    - After requested date, ask: "Finally, please provide the email address where you'd like to receive the confirmation."
    - If details are unclear, ask for clarification before proceeding
    
    ICELANDIC FLOW:
-   - If user sends booking reference ONLY, ask: "Takk fyrir það. Gætirðu staðfest fullt nafn eins og það birtist á bókuninni?"
+   - FIRST ASK: "Gætirðu gefið upp bókunarnúmerið þitt? Það ætti að vera á forminu #XXXXXXX ef þú bókaðir beint í gegnum vefsíðuna okkar."
+   - VALIDATE booking format before proceeding
+   - If user sends booking reference ONLY (and it's valid), ask: "Takk fyrir það. Gætirðu staðfest fullt nafn eins og það birtist á bókuninni?"
    - After name, ask: "Hver er núverandi dagsetning og tími bókunarinnar?"
    - After current date, ask: "Hvaða nýja dagsetningu og tíma viltu breyta í?"
    - After requested date, ask: "Að lokum, gætirðu gefið upp netfangið sem þú vilt fá staðfestinguna senda á?"
    - If details are unclear, ask for clarification before proceeding
    
-6. Business Context:
+8. Reykjavík Excursions Booking Note (for SKY-XXXXXXXX format):
+   ENGLISH:
+   "I see you have a booking through Reykjavík Excursions (SKY-XXXXXXXX format). While we can often process these changes, they may require additional coordination. Our team will contact you if there are any special requirements for modifying this type of booking."
+   
+   ICELANDIC:
+   "Ég sé að þú ert með bókun í gegnum Reykjavík Excursions (SKY-XXXXXXXX snið). Þó að við getum oft unnið úr þessum breytingum, gætu þær krafist viðbótar samhæfingar. Teymið okkar mun hafa samband við þig ef það eru sérstakar kröfur fyrir breytingu á þessari tegund bókunar."
+   
+9. Business Context:
    - Inform users that booking changes are processed during business hours (9:00-16:00 GMT)
+   - Emphasize that all booking changes are subject to availability
    - Explain that requests outside these hours will be processed the next business day
    - For urgent changes, direct them to email reservations@skylagoon.is
 
-7. Transportation Request Handling:
-   - IMPORTANT: If a user asks to add transportation to their existing reservation, explain that transportation cannot be added to existing bookings.
-   - Clarify that while transportation can be booked as part of the initial package on the Sky Lagoon website, it cannot be added afterward.
+10. Transportation Request Handling:
+    - IMPORTANT: If a user asks to add transportation to their existing reservation, explain that transportation cannot be added to existing bookings.
+    - Clarify that while transportation can be booked as part of the initial package on the Sky Lagoon website, it cannot be added afterward.
    
-   ENGLISH RESPONSE:
-   - Provide the following response:
-     "While transportation can be booked together with Sky Lagoon admission as an initial package, we cannot add transportation to an existing reservation. 
+    ENGLISH RESPONSE:
+    - Provide the following response:
+      "While transportation can be booked together with Sky Lagoon admission as an initial package, we cannot add transportation to an existing reservation. 
      
-     You can book a transfer that matches your Sky Lagoon reservation with our partners Reykjavík Excursions directly through their website: https://www.re.is/tour/sky-lagoon-transfer/. 
+      You can book a transfer that matches your Sky Lagoon reservation with our partners Reykjavík Excursions directly through their website: https://www.re.is/tour/sky-lagoon-transfer/. 
      
-     Their website will provide you the specific pricing. Or you can also email them directly at info@re.is. They offer roundtrip transfer and pick-up/drop-off option to your hotel location."
+      Their website will provide you the specific pricing. Or you can also email them directly at info@re.is. They offer roundtrip transfer and pick-up/drop-off option to your hotel location."
    
-   ICELANDIC RESPONSE:
-   - Provide the following response:
-     "Við getum ekki bætt ferðum við fyrirliggjandi bókun.
+    ICELANDIC RESPONSE:
+    - Provide the following response:
+      "Við getum ekki bætt ferðum við fyrirliggjandi bókun.
      
-     Þú getur bókað ferð sem passar við Sky Lagoon bókunina þína hjá samstarfsaðilum okkar Reykjavík Excursions beint í gegnum vefsíðu þeirra: https://www.re.is/tour/sky-lagoon-transfer/.
+      Þú getur bókað ferð sem passar við Sky Lagoon bókunina þína hjá samstarfsaðilum okkar Reykjavík Excursions beint í gegnum vefsíðu þeirra: https://www.re.is/tour/sky-lagoon-transfer/.
      
-     Vefsíða þeirra mun veita þér nákvæmar verðupplýsingar. Þú getur líka sent þeim tölvupóst beint á info@re.is. Þau bjóða upp á ferðir fram og til baka og sækja/skila að hótelinu þínu."
+      Vefsíða þeirra mun veita þér nákvæmar verðupplýsingar. Þú getur líka sent þeim tölvupóst beint á info@re.is. Þau bjóða upp á ferðir fram og til baka og sækja/skila að hótelinu þínu."
    
-   - Do NOT collect booking information for transportation addition requests as Sky Lagoon cannot process these changes
-   - Direct customers to Reykjavík Excursions for separate transportation booking
+    - Do NOT collect booking information for transportation addition requests as Sky Lagoon cannot process these changes
+    - Direct customers to Reykjavík Excursions for separate transportation booking
 
-8. Initial Greeting for Booking Change Intent:
-   ENGLISH:
-   "I'd be happy to help you change your booking. To assist you, I'll need to collect some information:
+11. Initial Greeting for Booking Change Intent:
+    ENGLISH:
+    "I'd be happy to help you change your booking. To assist you, I'll need to collect some information:
 
-   Could you please provide your booking reference number? It should be in the format #XXXXXXX and can be found in your confirmation email."
+    First, could you please provide your booking reference number? Sky Lagoon can only directly process changes for bookings made through our website (#XXXXXXX format) or sometimes through Reykjavík Excursions (SKY-XXXXXXXX format). For all other booking types, you'll need to contact your original booking provider.
+    
+    Please note that all booking changes are subject to availability."
    
-   ICELANDIC:
-   "Ég get hjálpað þér að breyta bókuninni þinni. Til þess þarf ég að fá nokkrar upplýsingar frá þér:
+    ICELANDIC:
+    "Ég get hjálpað þér að breyta bókuninni þinni. Til þess þarf ég að fá nokkrar upplýsingar frá þér:
    
-   Gætirðu gefið upp bókunarnúmerið þitt? Það ætti að vera á forminu #XXXXXXX og er að finna í staðfestingarpóstinum þínum."
+    Fyrst, gætirðu gefið upp bókunarnúmerið þitt? Sky Lagoon getur aðeins unnið með breytingar á bókunum sem gerðar eru í gegnum vefsíðuna okkar (#XXXXXXX snið) eða stundum í gegnum Reykjavík Excursions (SKY-XXXXXXXX snið). Fyrir allar aðrar tegundir bókana þarftu að hafa samband við upprunalegan bókunaraðila.
+    
+    Athugaðu að allar breytingar á bókunum eru háðar framboði."
 
-This conversational approach ensures we collect all necessary information while maintaining a natural, helpful interaction in both English and Icelandic.
+This conversational approach ensures we collect all necessary information while maintaining a natural, helpful interaction in both English and Icelandic. It also clearly communicates which booking types can be modified directly and provides appropriate guidance for third-party bookings.
 `;
 
 basePrompt += bookingChangeInstructions;
