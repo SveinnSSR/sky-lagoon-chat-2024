@@ -1027,96 +1027,271 @@ async function ensureMappingCollection() {
 }
 
 /**
- * Modern intent-based booking change detection with multilingual support
- * ChatGPT based - not Livechat. Will delete the Livechat functions above this one at some point.
+ * Modern intent-based booking change detection using contextual analysis
  * @param {string} userMessage - The user's message
  * @param {Object} context - The conversation context
- * @returns {boolean} - Whether a booking change intent was detected
+ * @returns {Object} - Detection result with type, confidence, and action
  */
 const detectBookingChangeIntent = (userMessage, context) => {
   // Detect language
   const isIcelandic = context.language === 'is';
   
-  // Create a more sophisticated detection pattern - with Icelandic support
-  const bookingTerms = isIcelandic 
-    ? ['miði', 'miða', 'bókun', 'pöntun', 'tími', 'tíma', 'pantaði'] 
-    : ['ticket', 'booking', 'reservation', 'slot', 'appointment', 'booked'];
+  /**
+   * Extracts recent conversation topics from context
+   * @returns {Array} - Recent topics
+   */
+  function getRecentTopics() {
+    const topics = [];
     
-  const changeTerms = isIcelandic
-    ? ['breyta', 'breyting', 'skipta', 'uppfæra', 'endurskipuleggja', 'öðruvísi', 'aðrar']
-    : ['change', 'modify', 'switch', 'update', 'reschedule', 'different'];
-    
-  const timePattern = /\d{1,2}[\.:]\d{2}/;
-  const datePattern = isIcelandic
-    ? /(?:jan|feb|mar|apr|maí|jún|júl|ágú|sep|okt|nóv|des)(?:úar|rúar|s|íl|st|tember|óber|ember)?\.?\s+\d{1,2}/i
-    : /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:uary|ruary|ch|il|ust|tember|ober|ember)?\.?\s+\d{1,2}/i;
-  
-  // Intent markers
-  let hasBookingReference = false;
-  let hasChangeIntent = false;
-  let hasTimeChange = false;
-  
-  // Convert message to lowercase for consistent matching
-  const lowercaseMsg = userMessage.toLowerCase();
-  
-  // Check for booking terms
-  hasBookingReference = bookingTerms.some(term => lowercaseMsg.includes(term));
-  
-  // Check for bought + date/time pattern (common in booking change requests)
-  if ((isIcelandic && lowercaseMsg.includes('keypti')) || 
-      (!isIcelandic && lowercaseMsg.includes('bought'))) {
-    if (timePattern.test(userMessage) || datePattern.test(userMessage)) {
-      hasBookingReference = true;
+    // Check for lastTopic
+    if (context.lastTopic) {
+      topics.push(context.lastTopic);
     }
+    
+    // Check topics array
+    if (context.topics && Array.isArray(context.topics)) {
+      topics.push(...context.topics.slice(-3));
+    }
+    
+    // Check conversation memory
+    if (context.conversationMemory && Array.isArray(context.conversationMemory.topics)) {
+      topics.push(...context.conversationMemory.topics.slice(0, 3).map(t => t.topic));
+    }
+    
+    // Get topics from recent messages
+    if (context.messages && Array.isArray(context.messages)) {
+      const recentMessages = context.messages.slice(-6);
+      for (const message of recentMessages) {
+        if (message.topic) {
+          topics.push(message.topic);
+        }
+      }
+    }
+    
+    return [...new Set(topics)]; // Return unique topics
   }
   
-  // Check for change intent
-  hasChangeIntent = changeTerms.some(term => lowercaseMsg.includes(term));
+  /**
+   * Gets recent message pairs (bot-user exchanges)
+   * @returns {Array} - Recent message pairs
+   */
+  function getRecentMessagePairs() {
+    const pairs = [];
+    
+    if (!context.messages || !Array.isArray(context.messages)) {
+      return pairs;
+    }
+    
+    // Get last few messages
+    const recentMessages = context.messages.slice(-6);
+    
+    // Go through messages and create bot-user pairs
+    for (let i = 0; i < recentMessages.length - 1; i++) {
+      if (recentMessages[i].role === 'assistant' && recentMessages[i+1].role === 'user') {
+        pairs.push({
+          bot: recentMessages[i].content.toLowerCase(),
+          user: recentMessages[i+1].content.toLowerCase()
+        });
+      }
+    }
+    
+    return pairs;
+  }
   
-  // Check for time changes (like "3:00" vs "3:30")
-  const timeMatches = userMessage.match(timePattern);
-  if (timeMatches && timeMatches.length >= 2) {
-    hasTimeChange = true;
-  } else if (timePattern.test(userMessage)) {
-    // Check for contextual indicators of change in either language
-    const changeContextIndicators = isIcelandic
-      ? ['í staðinn', 'frekar', 'en', 'ekki', 'heldur']
-      : ['instead', 'rather', 'but', 'not', 'instead of'];
+  /**
+   * Analyzes if a message contains cancellation intent
+   * @returns {boolean} - Whether cancellation intent is detected
+   */
+  function isCancellationIntent() {
+    const lowercaseMsg = userMessage.toLowerCase();
+    
+    // Check for explicit cancellation terms
+    const hasCancellationTerms = isIcelandic
+      ? /\b(hætta við|afbóka|afpanta|afbókun|endurgreiðslu|skila)\b/i.test(lowercaseMsg)
+      : /\b(cancel|refund|money back|cancellation)\b/i.test(lowercaseMsg);
+    
+    // Check for booking context + negative phrases
+    const hasNegativeBookingContext = 
+      (lowercaseMsg.includes('booking') || lowercaseMsg.includes('reservation') || 
+       lowercaseMsg.includes('bókun') || lowercaseMsg.includes('pöntun')) &&
+      (lowercaseMsg.includes('not') || lowercaseMsg.includes('don\'t want') || 
+       lowercaseMsg.includes('ekki') || lowercaseMsg.includes('vil ekki'));
+    
+    return hasCancellationTerms || hasNegativeBookingContext;
+  }
+  
+  /**
+   * Analyzes the conversation context beyond keywords
+   * @returns {Object} - Conversation context analysis
+   */
+  function analyzeConversationContext() {
+    // Initialize result
+    const result = {
+      type: 'general',
+      subtopic: null,
+      hasActionableIntent: false,
+      confusionLevel: 0,
+      confidenceScore: 0.5
+    };
+    
+    // Get data for analysis
+    const topicSequence = getRecentTopics();
+    const messageSequence = getRecentMessagePairs();
+    const lowercaseMsg = userMessage.toLowerCase();
+    
+    // Analyze topic sequence for patterns
+    if (topicSequence.includes('late_arrival')) {
+      result.type = 'policy_discussion';
+      result.subtopic = 'arrival_time';
+      result.confidenceScore = 0.7;
+    }
+    
+    // Look for multi-turn conversation about arrival times
+    if (messageSequence.some(pair => {
+      // If bot mentioned grace period and user follows up
+      return (pair.bot.includes('grace period') || pair.bot.includes('30-minute') || 
+              pair.bot.includes('rebook') || pair.bot.includes('endurbóka')) &&
+             (lowercaseMsg.includes('how') || lowercaseMsg.includes('if') ||
+              lowercaseMsg.includes('hvernig') || lowercaseMsg.includes('ef'))
+    })) {
+      result.type = 'policy_discussion';
+      result.subtopic = 'arrival_time';
+      result.confidenceScore = 0.8;
+    }
+    
+    // Check if message has reference to specific booking
+    if (/\b#\d{7}\b/.test(userMessage) || 
+        /\bmy\s+booking\b/i.test(userMessage) || 
+        /\breference\b/i.test(userMessage) ||
+        /\bmína\s+bókun\b/i.test(userMessage)) {
+      result.hasActionableIntent = true;
+      result.confidenceScore += 0.2;
+    }
+    
+    // Check for arrival time discussions
+    if ((lowercaseMsg.includes('arrive') || lowercaseMsg.includes('entry') || 
+         lowercaseMsg.includes('grace period') || lowercaseMsg.includes('late')) &&
+        (lowercaseMsg.includes('how') || lowercaseMsg.includes('what if') || 
+         lowercaseMsg.includes('can i') || lowercaseMsg.includes('get i'))) {
+      result.type = 'policy_discussion';
+      result.subtopic = 'arrival_time';
+      result.confidenceScore += 0.1;
+    }
+    
+    // Use intent hierarchy from context if available
+    if (context.intentHierarchy && context.intentHierarchy.primaryIntent) {
+      // If user was already talking about bookings
+      if (['booking', 'booking_change', 'late_arrival'].includes(context.intentHierarchy.primaryIntent)) {
+        result.confidenceScore += 0.1;
+        
+        // If the primary intent was specifically about changes
+        if (context.intentHierarchy.primaryIntent === 'booking_change') {
+          result.type = 'booking_change';
+          result.confidenceScore += 0.1;
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Deep analysis of booking change intent
+   * @param {Object} conversationContext - Analyzed conversation context
+   * @returns {Object} - Intent analysis
+   */
+  function analyzeBookingChangeIntent(conversationContext) {
+    const lowercaseMsg = userMessage.toLowerCase();
+    
+    // Initialize result
+    const result = {
+      isBookingChange: false,
+      confidence: 0,
+      bookingReference: null,
+      hasPersonalizedIntent: false,
+      isExplicitRequest: false
+    };
+    
+    // Check if this is already recognized as a policy discussion
+    if (conversationContext.type === 'policy_discussion' && !conversationContext.hasActionableIntent) {
+      result.confidence = 0.2; // Very low confidence for policy discussions
+      return result;
+    }
+    
+    // Check for explicit booking change request indicators
+    result.isExplicitRequest = isIcelandic
+      ? /\b(breyta|breyting|uppfæra|færa)\s+(bókun|tíma|pöntun)\b/i.test(userMessage)
+      : /\b(change|modify|update|reschedule|move)\s+(booking|reservation|appointment)\b/i.test(userMessage);
+    
+    if (result.isExplicitRequest) {
+      result.confidence += 0.4;
+    }
+    
+    // Check for booking reference indicators
+    const bookingRefMatch = userMessage.match(/\b#\d{7}\b/);
+    if (bookingRefMatch) {
+      result.bookingReference = bookingRefMatch[0];
+      result.confidence += 0.3;
+    }
+    
+    // Check for personalized intent
+    result.hasPersonalizedIntent = isIcelandic
+      ? /\b(mín|mínum|mína|mínar|mitt|minn|okkar)\s+(bókun|pöntun|tími)\b/i.test(userMessage)
+      : /\b(my|our)\s+(booking|reservation|time|appointment)\b/i.test(userMessage);
+    
+    if (result.hasPersonalizedIntent) {
+      result.confidence += 0.2;
+    }
+    
+    // Use topic graph to check if user previously discussed booking changes
+    if (context.topicGraph && 
+        typeof context.topicGraph.transitionProbability === 'function') {
       
-    if (changeContextIndicators.some(indicator => lowercaseMsg.includes(indicator))) {
-      hasTimeChange = true;
+      try {
+        // Calculate probability of transition to booking_change from current topic
+        const transitionProb = context.topicGraph.transitionProbability(
+          context.lastTopic || 'general', 
+          'booking_change'
+        );
+        
+        if (transitionProb > 0.3) {
+          result.confidence += 0.1;
+        }
+      } catch (error) {
+        console.error('Error checking topic transitions:', error);
+      }
     }
+    
+    // Check topical context beyond keywords - look at the flow of conversation
+    if (conversationContext.type === 'booking_change' || 
+        (context.lastTopic === 'booking' && 
+         (lowercaseMsg.includes('different') || lowercaseMsg.includes('another') || 
+          lowercaseMsg.includes('öðruvísi') || lowercaseMsg.includes('annan')))) {
+      result.confidence += 0.1;
+    }
+    
+    // Finalize result
+    result.isBookingChange = result.confidence >= 0.6;
+    
+    return result;
   }
   
-  // Calculate confidence score based on intent markers
-  const confidenceScore = 
-    (hasBookingReference ? 0.4 : 0) + 
-    (hasChangeIntent ? 0.4 : 0) + 
-    (hasTimeChange ? 0.2 : 0);
-  
-  console.log('\n🔍 Booking change detection analysis:', {
-    language: isIcelandic ? 'Icelandic' : 'English',
-    hasBookingReference,
-    hasChangeIntent, 
-    hasTimeChange,
-    confidenceScore
-  });
-  
-  // If we have reasonable confidence, update the intent tracking
-  if (confidenceScore >= 0.4) {
-    console.log(`\n✅ Detected booking change intent with confidence: ${confidenceScore}`);
-    
+  /**
+   * Updates context with booking change information
+   * @param {Object} intentAnalysis - Intent analysis result
+   */
+  function updateContextWithBookingChange(intentAnalysis) {
     // Update intent hierarchy
     if (context.intentHierarchy) {
-      context.intentHierarchy.updateIntent('booking_change', confidenceScore);
+      context.intentHierarchy.updateIntent('booking_change', intentAnalysis.confidence);
     }
     
     // Add to topic graph
     if (context.topicGraph) {
       context.topicGraph.addTopic('booking_change', {
         detected: Date.now(),
-        confidence: confidenceScore,
-        language: isIcelandic ? 'is' : 'en'
+        confidence: intentAnalysis.confidence,
+        language: context.language
       });
       
       // Create relationship from previous topic if any
@@ -1129,7 +1304,8 @@ const detectBookingChangeIntent = (userMessage, context) => {
     context.bookingContext = context.bookingContext || {};
     context.bookingContext.hasBookingIntent = true;
     context.bookingContext.hasBookingChangeIntent = true;
-    context.bookingContext.confidenceScore = confidenceScore;
+    context.bookingContext.confidenceScore = intentAnalysis.confidence;
+    context.bookingContext.bookingReference = intentAnalysis.bookingReference;
     context.lastTopic = 'booking_change';
     
     // Add to topics tracking
@@ -1143,22 +1319,132 @@ const detectBookingChangeIntent = (userMessage, context) => {
     
     // Store in adaptive memory
     if (context.adaptiveMemory) {
-      context.adaptiveMemory.addMemory(userMessage, {
+      context.adaptiveMemory.addMemory(intentAnalysis, {
         category: 'booking_change',
         importance: 0.8,
-        language: isIcelandic ? 'is' : 'en',
+        language: context.language,
         metadata: {
-          confidenceScore,
-          detectedTime: timeMatches ? timeMatches[0] : null,
-          hasExplicitChangeWord: hasChangeIntent
+          confidenceScore: intentAnalysis.confidence,
+          isExplicitRequest: intentAnalysis.isExplicitRequest,
+          hasPersonalizedIntent: intentAnalysis.hasPersonalizedIntent,
+          bookingReference: intentAnalysis.bookingReference
         }
       });
     }
-    
-    return true;
   }
   
-  return false;
+  /**
+   * Updates context with cancellation information
+   */
+  function updateContextWithCancellation() {
+    // Update intent hierarchy
+    if (context.intentHierarchy) {
+      context.intentHierarchy.updateIntent('cancellation', 0.9);
+    }
+    
+    // Add to topic graph
+    if (context.topicGraph) {
+      context.topicGraph.addTopic('cancellation', {
+        detected: Date.now(),
+        confidence: 0.9,
+        language: context.language
+      });
+      
+      // Create relationship from previous topic if any
+      if (context.lastTopic && context.lastTopic !== 'cancellation') {
+        context.topicGraph.addRelationship(context.lastTopic, 'cancellation', 0.8);
+      }
+    }
+    
+    // Set status and other context flags
+    context.bookingContext = context.bookingContext || {};
+    context.bookingContext.hasCancellationIntent = true;
+    context.bookingContext.hasBookingChangeIntent = false;
+    context.lastTopic = 'cancellation';
+    
+    // Add to topics tracking
+    if (!context.topics) context.topics = [];
+    if (!context.topics.includes('cancellation')) {
+      context.topics.push('cancellation');
+    }
+    
+    // Mark status for analytics visibility
+    context.status = 'cancellation';
+    
+    // Store in adaptive memory
+    if (context.adaptiveMemory) {
+      context.adaptiveMemory.addMemory(userMessage, {
+        category: 'cancellation',
+        importance: 0.8,
+        language: context.language
+      });
+    }
+  }
+  
+  // MAIN DETECTION FLOW
+  
+  // First, check for cancellation intent
+  if (isCancellationIntent()) {
+    console.log('\n🚨 Cancellation intent detected');
+    updateContextWithCancellation();
+    return {
+      type: 'cancellation',
+      confidence: 0.9,
+      shouldCollectInfo: false
+    };
+  }
+  
+  // Analyze conversation context
+  const conversationContext = analyzeConversationContext();
+  console.log('\n🧠 Conversation context analysis:', conversationContext);
+  
+  // If we're in a policy discussion about arrival times/late arrival, handle appropriately
+  if (conversationContext.type === 'policy_discussion' && 
+      conversationContext.subtopic === 'arrival_time' &&
+      !conversationContext.hasActionableIntent) {
+    
+    console.log('\n📚 Policy question about arrival times detected');
+    
+    // Update context for policy discussion but don't trigger booking change
+    if (context.topics && !context.topics.includes('booking_policy')) {
+      context.topics.push('booking_policy');
+    }
+    
+    if (context.lastTopic !== 'booking_policy') {
+      context.lastTopic = 'booking_policy';
+    }
+    
+    return {
+      type: 'policy_question',
+      confidence: conversationContext.confidenceScore,
+      subtopic: 'arrival_time',
+      shouldCollectInfo: false
+    };
+  }
+  
+  // Analyze for booking change intent
+  const intentAnalysis = analyzeBookingChangeIntent(conversationContext);
+  console.log('\n🔍 Booking change intent analysis:', intentAnalysis);
+  
+  // If it's a booking change with high confidence, update context
+  if (intentAnalysis.isBookingChange && intentAnalysis.confidence >= 0.6) {
+    console.log(`\n✅ Booking change intent detected with confidence: ${intentAnalysis.confidence}`);
+    updateContextWithBookingChange(intentAnalysis);
+    
+    return {
+      type: 'booking_change',
+      confidence: intentAnalysis.confidence,
+      bookingReference: intentAnalysis.bookingReference,
+      shouldCollectInfo: true
+    };
+  }
+  
+  // Default - no specific intent detected
+  return {
+    type: 'unknown',
+    confidence: Math.max(intentAnalysis.confidence, conversationContext.confidenceScore),
+    shouldCollectInfo: false
+  };
 };
 
 // Add this helper function to detect sunset-related queries
@@ -2244,11 +2530,36 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Modern intent-based booking change detection
-        // This is the Booking Change Request System that is broadcasted to Analytics
-        if (detectBookingChangeIntent(userMessage, context)) {
-            console.log('\n📝 Booking change intent detected through advanced context analysis');
-            // The function already set all required context flags
+        // Modern intent-based booking change and cancellation detection
+        const bookingIntentResult = detectBookingChangeIntent(userMessage, context);
+
+        // Log the detailed result
+        console.log('\n🧠 Booking intent analysis result:', {
+          type: bookingIntentResult.type,
+          confidence: bookingIntentResult.confidence,
+          shouldCollectInfo: bookingIntentResult.shouldCollectInfo,
+          bookingReference: bookingIntentResult.bookingReference || null
+        });
+
+        // Handle based on intent type
+        if (bookingIntentResult.type === 'cancellation') {
+          console.log('\n🚨 Cancellation intent detected - will direct to email');
+          // Status is already set to 'cancellation' in the detection function
+        } 
+        else if (bookingIntentResult.type === 'booking_change' && bookingIntentResult.shouldCollectInfo) {
+          console.log('\n📝 Booking change intent detected - starting collection flow');
+          // Status is already set to 'booking_change' in the detection function
+        } 
+        else if (bookingIntentResult.type === 'policy_question') {
+          console.log('\n📋 Policy question detected - providing information only');
+          // Make sure we don't trigger the booking form
+          if (context.status === 'booking_change') {
+            context.status = 'active';
+          }
+          // But keep policy topic for knowledge base retrieval
+          if (!context.topics.includes('booking_policy')) {
+            context.topics.push('booking_policy');
+          }
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
@@ -2626,7 +2937,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Check for booking change status specifically
+        // Check for booking change status and cancellations specifically
         if (context.status === 'booking_change') {
             messages.push({
                 role: "system",
@@ -2635,6 +2946,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         You MUST use the CONVERSATIONAL BOOKING CHANGE HANDLING process to collect 
         all required booking information conversationally rather than directing the user to email.
         This is a high-priority instruction that overrides any other booking change handling guidance.`
+            });
+        } 
+        else if (context.status === 'cancellation') {
+            messages.push({
+                role: "system",
+                content: `CRITICAL INSTRUCTION OVERRIDE:
+        The current conversation has status='cancellation' which has been detected.
+        You MUST use the CANCELLATION TEMPLATE to direct the user to email our team.
+        Do NOT collect booking details for cancellations.
+        This is a high-priority instruction that overrides any other cancellation handling guidance.`
             });
         }
 
