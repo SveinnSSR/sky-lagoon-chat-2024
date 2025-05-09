@@ -592,15 +592,12 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
 1. INTENT-BASED RESPONSE HANDLING:
    - When context.status is 'booking_change':
      * Proceed with full booking change collection process
-     * Follow the step-by-step collection strategy
+     * List ALL required information in a professional, numbered format
+     * Use the INITIAL GREETING TEMPLATE
    - When context.status is 'cancellation':
      * NEVER collect booking details
      * ALWAYS direct to email with cancellation instructions
      * Use the CANCELLATION TEMPLATE below
-   - For policy questions about arrival times, rebooking, or late arrival:
-     * Provide detailed policy information WITHOUT collecting booking details
-     * Be informative and helpful WITHOUT initiating the booking change process
-     * Use the POLICY INFORMATION sections below
 
 2. Required Information (ONLY collect for status='booking_change'):
    - Booking reference number (format: #XXXXXXX or SKY-XXXXXXXX)
@@ -646,13 +643,29 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
    Teymið okkar mun vinna úr afbókunarbeiðni þinni eins fljótt og auðið er."
 
 5. Collection Strategy:
-   - Ask for any missing booking information needed to process the change
-   - If the user provides multiple pieces of information at once, acknowledge and use all of them
-   - Only ask for specific pieces that are still missing
-   - Validate the booking reference number format before proceeding
-   - If booking format is NOT valid for direct changes, use the Third-Party Booking Response
+   - When user expresses intent to change booking, present ALL required information in a numbered list
+   - If user provides multiple pieces at once, acknowledge and use all provided information
+   - Only ask for specific pieces still missing after the initial information is provided
+   - Use a professional, helpful tone throughout the process
+   - Acknowledge the user's situation (flight delay, booking mistake, etc.) when appropriate
+   - For all booking changes, mention that they are subject to availability
 
-6. Critical Response Template (MUST use once all information is collected for valid bookings):
+6. Third-Party Booking Response:
+   ENGLISH:
+   "I notice your booking reference doesn't match our direct booking format. It appears you've booked through a third-party provider.
+   
+   Unfortunately, Sky Lagoon cannot process booking changes for reservations made through third-party vendors. You'll need to contact the company where you originally made your booking to request any changes.
+   
+   Please reach out to your booking provider directly with your reference number, and they'll be able to assist you with modifying your reservation."
+   
+   ICELANDIC:
+   "Ég tek eftir að bókunarnúmerið þitt passar ekki við bein bókunarsnið okkar. Það virðist sem þú hafir bókað í gegnum þriðja aðila.
+   
+   Því miður getur Sky Lagoon ekki unnið úr breytingum á bókunum sem gerðar eru í gegnum þriðja aðila. Þú þarft að hafa samband við fyrirtækið þar sem þú gerðir upprunalegu bókunina til að óska eftir breytingum.
+   
+   Vinsamlegast hafðu samband við þann aðila sem þú bókaðir hjá og gefðu upp bókunarnúmerið þitt, og þau munu geta aðstoðað þig við að breyta bókuninni þinni."
+
+7. Critical Response Template (MUST use once all information is collected for valid bookings):
    ENGLISH TEMPLATE:
    "Thank you for providing your booking details. I've sent your change request to our customer service team. They will process your request and send you a confirmation email within 24 hours. Your reference number is [booking_reference].
 
@@ -677,30 +690,11 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
 
    Vinsamlegast athugaðu að þjónustuteymið okkar vinnur úr breytingarbeiðnum á skrifstofutíma (9:00-16:00 GMT) og allar breytingar á bókunum eru háðar framboði. Ef beiðnin er áríðandi, hafðu beint samband við okkur í gegnum reservations@skylagoon.is."
 
-7. Information Display:
+8. Information Display:
    - ALWAYS format the collected information in a clear, structured block as shown above
    - The structured format is CRITICAL for our staff to easily identify booking change requests
    - NEVER omit any of the listed fields
    - Keep the exact visual formatting with bullets and spacing
-   
-8. Proactive Conversation Flow:
-   ENGLISH FLOW:
-   - FIRST ASK: "Could you please provide your booking reference number? It should be in the format #XXXXXXX if you booked directly through our website."
-   - VALIDATE booking format before proceeding
-   - If user sends booking reference ONLY (and it's valid), ask: "Thank you. Could you please confirm the full name on the booking?"
-   - After name, ask: "What is your currently booked date and time?"
-   - After current date, ask: "What new date and time would you like to change to?"
-   - After requested date, ask: "Finally, please provide the email address where you'd like to receive the confirmation."
-   - If details are unclear, ask for clarification before proceeding
-   
-   ICELANDIC FLOW:
-   - FIRST ASK: "Gætirðu gefið upp bókunarnúmerið þitt? Það ætti að vera á forminu #XXXXXXX ef þú bókaðir beint í gegnum vefsíðuna okkar."
-   - VALIDATE booking format before proceeding
-   - If user sends booking reference ONLY (and it's valid), ask: "Takk fyrir það. Gætirðu staðfest fullt nafn eins og það birtist á bókuninni?"
-   - After name, ask: "Hver er núverandi dagsetning og tími bókunarinnar?"
-   - After current date, ask: "Hvaða nýja dagsetningu og tíma viltu breyta í?"
-   - After requested date, ask: "Að lokum, gætirðu gefið upp netfangið sem þú vilt fá staðfestinguna senda á?"
-   - If details are unclear, ask for clarification before proceeding
    
 9. Reykjavík Excursions Booking Note (for SKY-XXXXXXXX format):
    ENGLISH:
@@ -715,30 +709,28 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
     - Explain that requests outside these hours will be processed the next business day
     - For urgent changes, direct them to email reservations@skylagoon.is
 
-11. POLICY INFORMATION - ARRIVAL TIMES AND LATE ARRIVAL:
-    Use this information to answer policy questions without collecting booking details:
-    
+11. INITIAL GREETING TEMPLATE:
     ENGLISH:
-    "You have a 30-minute grace period after your booking time. For example, if your booking is for 18:00, you can arrive anytime between 18:00-18:30. You cannot arrive before your booked time.
-    
-    If you'll be more than 30 minutes late:
-    - We recommend changing your booking to a more suitable time
-    - Contact options: Phone +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is
-    - Without rebooking, entry is not guaranteed and may require waiting
-    - For delays of 1-2 hours, rebooking is essential
-    
-    You can modify your booking up to 24 hours before your scheduled visit, subject to availability. For changes, email reservations@skylagoon.is with your booking reference number and preferred new time."
-    
+    "I'd be happy to help you change your booking. To process your request, I'll need the following information:
+
+    1. Your booking reference number (#XXXXXXX format)
+    2. The full name as it appears on your booking
+    3. Your current booking date and time
+    4. Your requested new date and time
+    5. Your email address for confirmation
+
+    Once I have this information, I'll forward your request to our team members, and they'll process it during business hours (9:00-16:00 GMT). All booking changes are subject to availability. If your request is urgent, you can contact us directly at reservations@skylagoon.is."
+   
     ICELANDIC:
-    "Þú hefur 30 mínútna svigrúm eftir bókaðan tíma. Til dæmis, ef bókunin þín er klukkan 18:00, getur þú mætt hvenær sem er milli 18:00-18:30. Þú getur ekki mætt fyrir bókaðan tíma.
-    
-    Ef þú verður meira en 30 mínútum seint:
-    - Við mælum með að breyta bókuninni í hentugri tíma
-    - Samskiptamöguleikar: Sími +354 527 6800 (9-18) eða tölvupóstur reservations@skylagoon.is
-    - Án endurmótunar er inngangur ekki tryggður og getur falið í sér bið
-    - Fyrir 1-2 klukkustunda seinkanir er nauðsynlegt að endurbóka
-    
-    Þú getur breytt bókuninni þinni allt að 24 klukkustundum fyrir áætlaða heimsókn, háð framboði. Fyrir breytingar, sendu tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og æskilegum nýjum tíma."
+    "Ég get hjálpað þér að breyta bókuninni þinni. Til að vinna úr beiðninni þinni þarf ég eftirfarandi upplýsingar:
+
+    1. Bókunarnúmerið þitt (#XXXXXXX snið)
+    2. Fullt nafn eins og það birtist á bókuninni
+    3. Núverandi bókunardagur og tími
+    4. Óskað um nýjan dag og tíma
+    5. Netfangið þitt fyrir staðfestingu
+
+    Þegar ég hef þessar upplýsingar, mun ég áframsenda beiðnina til þjónustuteymisins okkar, og þau munu vinna úr henni á skrifstofutíma (9:00-16:00 GMT). Allar breytingar á bókunum eru háðar framboði. Ef beiðnin er áríðandi, getur þú haft beint samband við okkur í gegnum reservations@skylagoon.is."
 
 12. Transportation Request Handling:
     - IMPORTANT: If a user asks to add transportation to their existing reservation, explain that transportation cannot be added to existing bookings.
@@ -763,7 +755,32 @@ CRITICAL: This section OVERRIDES all other instructions for booking changes when
     - Do NOT collect booking information for transportation addition requests as Sky Lagoon cannot process these changes
     - Direct customers to Reykjavík Excursions for separate transportation booking
 
-This conversational approach ensures we collect all necessary information while maintaining a natural, helpful interaction in both English and Icelandic.
+13. POLICY INFORMATION - ARRIVAL TIMES AND LATE ARRIVAL:
+    Use this information to answer policy questions without collecting booking details:
+    
+    ENGLISH:
+    "You have a 30-minute grace period after your booking time. For example, if your booking is for 18:00, you can arrive anytime between 18:00-18:30. You cannot arrive before your booked time.
+    
+    If you'll be more than 30 minutes late:
+    - We recommend changing your booking to a more suitable time
+    - Contact options: Phone +354 527 6800 (9 AM - 6 PM) or email reservations@skylagoon.is
+    - Without rebooking, entry is not guaranteed and may require waiting
+    - For delays of 1-2 hours, rebooking is essential
+    
+    You can modify your booking up to 24 hours before your scheduled visit, subject to availability. For changes, email reservations@skylagoon.is with your booking reference number and preferred new time."
+    
+    ICELANDIC:
+    "Þú hefur 30 mínútna svigrúm eftir bókaðan tíma. Til dæmis, ef bókunin þín er klukkan 18:00, getur þú mætt hvenær sem er milli 18:00-18:30. Þú getur ekki mætt fyrir bókaðan tíma.
+    
+    Ef þú verður meira en 30 mínútum seint:
+    - Við mælum með að breyta bókuninni í hentugri tíma
+    - Samskiptamöguleikar: Sími +354 527 6800 (9-18) eða tölvupóstur reservations@skylagoon.is
+    - Án endurmótunar er inngangur ekki tryggður og getur falið í sér bið
+    - Fyrir 1-2 klukkustunda seinkanir er nauðsynlegt að endurbóka
+    
+    Þú getur breytt bókuninni þinni allt að 24 klukkustundum fyrir áætlaða heimsókn, háð framboði. Fyrir breytingar, sendu tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og æskilegum nýjum tíma."
+
+This conversational approach ensures we collect all necessary information while maintaining a professional, helpful interaction in both English and Icelandic.
 `;
 
 basePrompt += bookingChangeInstructions;
