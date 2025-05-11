@@ -2306,9 +2306,6 @@ ICELANDIC BOOKING GUIDANCE:
    - Use "á annatímum" for "during peak times"
    - Use "til að forðast vonbrigði" for "to avoid disappointment"
 
-6. APPROVED BOOKING CHANGE TEMPLATE:
-"Til að breyta bókuninni þinni, sendu okkur tölvupóst á reservations@skylagoon.is með bókunarnúmerinu þínu og þeim breytingum sem þú óskar eftir. Við munum gera okkar besta til að koma til móts við óskir þínar. Láttu mig vita ef þú hefur fleiri spurningar!"
-
 PRICE QUERY HANDLING:
 For price-related queries in Icelandic (such as "Hvað kostar", "Verð", "Er hægt að fá ódýrari"):
 

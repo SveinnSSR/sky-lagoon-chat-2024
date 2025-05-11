@@ -25,6 +25,8 @@ import {
 import { updateBookingChangeContext, processBookingFormCheck } from './contextSystem.js';
 // System prompts from systemPrompts.js
 import { getSystemPrompt, setGetCurrentSeasonFunction } from './systemPrompts.js';
+// Import at the top of your file with other imports
+import { getOptimizedSystemPrompt } from './promptManager.js';
 // Legacy knowledge base imports - kept for reference
 // These are now handled through contextSystem.js getKnowledgeWithFallbacks
 // import { getRelevantKnowledge } from './knowledgeBase.js';
@@ -84,7 +86,7 @@ import { processMessagePair } from './messageProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
-// Override environment variable to disable prompt optimizer
+// Override environment variable to disable prompt optimizer - Not used anymore - Delete this
 process.env.USE_PROMPT_OPTIMIZER = 'false';
 
 // Add near the top after imports
@@ -2526,15 +2528,32 @@ app.post('/chat', verifyApiKey, async (req, res) => {
        }
 
         // Enhanced system prompt with all context
-        let systemPrompt = getSystemPrompt(sessionId, 
-            userMessage.toLowerCase().match(/hour|open|close|time/i), 
-            userMessage, 
-            {
-                ...languageDecision,
-                language: language // Pass explicit language code
-            }, 
-            sunsetData
-        );
+        const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true'; // Switches to New Modular Dynamic Prompt System
+        let systemPrompt;
+
+        if (useModularPrompts) {
+            // Use async version with await
+            systemPrompt = await getOptimizedSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                {
+                    ...languageDecision,
+                    language: language // Pass explicit language code
+                }, 
+                sunsetData
+            );
+        } else {
+            // Use original synchronous version
+            systemPrompt = getSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                {
+                    ...languageDecision,
+                    language: language // Pass explicit language code
+                }, 
+                sunsetData
+            );
+        }
 
         // Add seasonal context to prompt if relevant
         if (context.lastTopic === 'hours' || 
