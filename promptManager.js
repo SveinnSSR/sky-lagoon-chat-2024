@@ -25,6 +25,52 @@ import {
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is } from './knowledgeBase_is.js';
 
+// Configure logging
+const DEBUG_LEVEL = process.env.PROMPT_DEBUG_LEVEL || 'info'; // 'debug', 'info', 'warn', 'error'
+
+// Logger utility
+const logger = {
+  debug: (...args) => DEBUG_LEVEL === 'debug' && console.log('\n🔍 [PROMPT-DEBUG]', ...args),
+  info: (...args) => ['debug', 'info'].includes(DEBUG_LEVEL) && console.log('\n📝 [PROMPT-INFO]', ...args),
+  warn: (...args) => ['debug', 'info', 'warn'].includes(DEBUG_LEVEL) && console.log('\n⚠️ [PROMPT-WARN]', ...args),
+  error: (...args) => console.error('\n❌ [PROMPT-ERROR]', ...args)
+};
+
+// Simple module usage logger
+function logModuleUsage(modules) {
+  const moduleNames = modules.map(modulePath => {
+    // Extract friendly name from path (e.g., 'core/identity' -> 'Identity')
+    const parts = modulePath.split('/');
+    const name = parts[parts.length - 1];
+    return name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' ');
+  });
+  
+  console.log(`\n📊 [MODULES USED]: ${JSON.stringify(moduleNames)}`);
+  return modules; // Return modules for chaining
+}
+
+// Performance watchdog
+function checkPerformance(metrics, query, modules) {
+  const warnings = [];
+  
+  if (metrics.knowledgeTime > 3500) {
+    warnings.push(`Slow knowledge retrieval (${metrics.knowledgeTime}ms)`);
+  }
+  
+  if (metrics.promptTime > 2000) {
+    warnings.push(`Slow prompt assembly (${metrics.promptTime}ms)`);
+  }
+  
+  if (metrics.totalTime > 8000) {
+    warnings.push(`Slow total processing (${metrics.totalTime}ms)`);
+  }
+  
+  if (warnings.length > 0) {
+    const moduleNames = modules.map(m => m.split('/').pop());
+    console.log(`\n⚠️ [QA FLAG] ${warnings.join(', ')} for query: "${query.substring(0, 50)}..." Modules: ${JSON.stringify(moduleNames)} Total time: ${metrics.totalTime}ms`);
+  }
+}
+
 // Explicitly import all modules
 // Core modules
 import * as identityModule from './prompts/core/identity.js';
@@ -53,17 +99,6 @@ import * as englishRulesModule from './prompts/language/english_rules.js';
 
 // Seasonal modules
 import * as currentSeasonModule from './prompts/seasonal/current_season.js';
-
-// Configure logging
-const DEBUG_LEVEL = process.env.PROMPT_DEBUG_LEVEL || 'info'; // 'debug', 'info', 'warn', 'error'
-
-// Logger utility
-const logger = {
-  debug: (...args) => DEBUG_LEVEL === 'debug' && console.log('\n🔍 [PROMPT-DEBUG]', ...args),
-  info: (...args) => ['debug', 'info'].includes(DEBUG_LEVEL) && console.log('\n📝 [PROMPT-INFO]', ...args),
-  warn: (...args) => ['debug', 'info', 'warn'].includes(DEBUG_LEVEL) && console.log('\n⚠️ [PROMPT-WARN]', ...args),
-  error: (...args) => console.error('\n❌ [PROMPT-ERROR]', ...args)
-};
 
 // Module registry for easy lookup
 const moduleRegistry = {
@@ -463,6 +498,9 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   
   logger.info(`Selected ${finalModules.length} modules:`, finalModules);
   
+  // Log modules using our custom module logger
+  logModuleUsage(finalModules);
+  
   return finalModules;
 }
 
@@ -656,8 +694,15 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
  * @returns {string} The system prompt
  */
 export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) {
+  // Add clear indicator that modular system is active
+  console.log('\n🧩🧩🧩 MODULAR PROMPT SYSTEM ACTIVE 🧩🧩🧩');
+  
   // Track performance
   const startTime = Date.now();
+  let knowledgeStart = 0;
+  let knowledgeEnd = 0;
+  let modulesSelectionEnd = 0;
+  let promptAssemblyEnd = 0;
   
   // If feature flag is off, use the original getSystemPrompt
   if (!USE_MODULAR_PROMPTS) {
@@ -673,23 +718,39 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     updateLanguageContext(context, userMessage);
     
     // Determine which modules to include using advanced context analysis
+    const modulesSelectionStart = Date.now();
     const modules = await determineRelevantModules(userMessage, context, languageDecision, isHoursQuery);
+    modulesSelectionEnd = Date.now();
     
     // Get relevant knowledge base entries using advanced retrieval
+    knowledgeStart = Date.now();
     const relevantKnowledge = await getKnowledgeWithFallbacks(userMessage, context);
+    knowledgeEnd = Date.now();
     
     // Assemble the final prompt using the dynamic module system
+    const promptAssemblyStart = Date.now();
     const assembledPrompt = assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
+    promptAssemblyEnd = Date.now();
     
     // Performance metrics
     const endTime = Date.now();
     const totalTime = endTime - startTime;
+    const metrics = {
+      modulesSelectionTime: modulesSelectionEnd - modulesSelectionStart,
+      knowledgeTime: knowledgeEnd - knowledgeStart,
+      promptTime: promptAssemblyEnd - promptAssemblyStart,
+      totalTime: totalTime
+    };
     
     logger.info(`Dynamic prompt generation complete:`, {
       promptLength: assembledPrompt.length,
       moduleCount: modules.length,
-      totalTime: `${totalTime}ms`
+      totalTime: `${totalTime}ms`,
+      ...metrics
     });
+    
+    // Check performance 
+    checkPerformance(metrics, userMessage, modules);
     
     return assembledPrompt;
   } catch (error) {
