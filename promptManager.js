@@ -144,10 +144,51 @@ const moduleMetadata = {
     priority: 'high',
     description: 'Package information and pricing',
     relatedTopics: [
-        'pricing', 'packages', 'booking', 'offerings', 'tickets', 'cost',
-        'gift_cards', 'gjafakort', 'pure', 'sky',
-        'gift_cards_booking_upgrade_info_ser_from_saman',
-        'packages_upgrades_response_with_gift_card'
+      // General package terms
+      'pricing', 'packages', 'booking', 'offerings', 'tickets', 'cost',
+      'price', 'prices', 'how much', 'admission', 'pass', 'entry fee',
+      'discount', 'special offer', 'sale', 'deal',
+    
+      // Package types
+      'saman', 'ser', 'sér', 'multi-pass', 'multipass', 'hefð', 'venja',
+      'standard', 'premium', 'basic', 'deluxe', 'for two', 'date night',
+      'stefnumót', 'stefnumótspakki', 'couples', 'duo',
+    
+      // Legacy package names
+      'pure', 'sky', 'pure lite', 'pure pass', 'sky pass', 'pure package',
+      'sky package', 'pure-lite', 'sky aðgangur', 'pure aðgangur',
+    
+      // Currency terms
+      'dollar', 'usd', 'euro', 'eur', 'pound', 'gbp', 'cad', 'isk',
+      'krona', 'króna', 'krónum', 'currency', 'exchange rate', 'american dollars',
+    
+      // Gift card terms
+      'gift card', 'gift certificate', 'gift voucher', 'gjafakort', 'gjafabréf',
+      'yay', 'yay card', 'yay gjafakort', 'redeem', 'gift ticket', 'redemption',
+      'gift card upgrade', 'uppfæra gjafakort', 'gift card code',
+    
+      // Third-party discount programs
+      'fríða', 'frida', 'meniga', 'íslandsbanki', 'vís', 'vis', 'islandsbanki',
+      'endurgreiðsla', 'endurgreiðslu', 'banking app', 'insurance', 'trygging',
+    
+      // Product information
+      'scrub', 'body scrub', 'lotion', 'shampoo', 'conditioner', 'fragrance',
+      'ship', 'shipping', 'products', 'buy online', 'purchase', 'salt scrub',
+      'sky products', 'home fragrance', 'gift sets',
+    
+      // Amenities mentioned in packages
+      'towel', 'handklæði', 'robe', 'slippers', 'flip-flops', 'changing room',
+      'private changing', 'swimwear', 'sundföt', 'rental', 'premium amenities',
+    
+      // Icelandic terms
+      'verð', 'pakki', 'pakkinn', 'aðgangur', 'bóka', 'kostar', 'tilboð',
+      'afslátt', 'tvær leiðir', 'saman pakki', 'sér pakki', 'afsláttur',
+    
+      // Vector search intents
+      'gift_cards_booking_upgrade_info_ser_from_saman',
+      'packages_upgrades_response_with_gift_card',
+      'packages_pricing', 'saman_vs_ser', 'multipass_info', 'packages_date_night',
+      'packages_currency', 'product_info', 'discounts_promotions'
     ],
     category: 'services'
   },
@@ -160,7 +201,24 @@ const moduleMetadata = {
   'services/facilities': {
     priority: 'medium',
     description: 'Facility information',
-    relatedTopics: ['facilities', 'amenities', 'changing', 'shower', 'lockers', 'accessibility'],
+    relatedTopics: [
+      // English general terms
+      'facilities', 'amenities', 'changing', 'shower', 'lockers', 'accessibility',
+      // Swimwear terms
+      'swimwear', 'rental', 'bathing suit', 'swimming trunks', 'bikini',
+      // Accessibility terms
+      'wheelchair', 'disabled', 'disability', 'mobility', 'accessible', 'chair lift',
+      // Massage-related (for negative responses)
+      'massage', 'spa treatment', 'therapy',
+      // Amenities specifics
+      'towels', 'robes', 'slippers', 'flip-flops', 'hairdryer', 'hair dryer',
+      // Location/transport
+      'location', 'directions', 'transportation', 'shuttle', 'drive', 'parking',
+      // Icelandic terms
+      'sundföt', 'aðstaða', 'búningsaðstaða', 'nudd', 'staðsetning',
+      // Vector-derived intents
+      'facilities_amenities', 'facilities_services', 'facilities_accessibility'
+    ],
     category: 'services'
   },
   'services/dining': {
@@ -172,19 +230,63 @@ const moduleMetadata = {
   'policies/late_arrival': {
     priority: 'medium',
     description: 'Late arrival policy and handling',
-    relatedTopics: ['late', 'delay', 'miss', 'arrival', 'time', 'booking'],
+    relatedTopics: [
+      // English time-related terms
+      'late', 'delay', 'missed', 'miss', 'arrival', 'time', 
+      'grace period', 'window', 'after booking', 'check in window',
+      'arrive late', 'late arrival', 'delayed', 'traffic', 'flight delay',
+      '30 minutes', 'half hour', 'hour late', 'arrive before',
+      // Scenario terms
+      'stuck in traffic', 'flight delayed', 'lost', 'running late',
+      'missing my time', 'past my booking', 'after my time',
+      // Icelandic terms
+      'seinkun', 'seinkar', 'sein', 'of sein', 'bókaðan tíma', 
+      'svigrúm', 'umferðarteppa', 'missa af', 
+      '30 mínútur', 'hálftíma', 'klst sein',
+      // Vector intents
+      'policy_late_arrival', 'arrival_policy'
+    ],
     category: 'policies'
   },
   'policies/age_policy': {
     priority: 'medium',
     description: 'Age restriction policies',
-    relatedTopics: ['age', 'child', 'children', 'kid', 'baby', 'minor', 'restriction'],
+    relatedTopics: [
+      // English terms
+      'age', 'child', 'children', 'kid', 'kids', 'baby', 'minor', 'restriction',
+      'minimum age', 'age limit', 'age policy', 'how old', 'allowed age',
+      'bring kids', 'family friendly', 'child friendly', 'young', 'younglings',
+      'teenager', 'teen', 'baby', 'infant', 'years old', 'under',
+      // Icelandic terms
+      'aldurstakmark', 'aldurstak', 'börn', 'barnið', 'barn', 
+      'ungmenni', 'unglingar', 'má koma með', 'ára gamall',
+      'ára gömul', 'unglingur', 'aldur', 'lágmarksaldur',
+      // Vector intents
+      'policy_age', 'policies_children', 'age_requirement'
+    ],
     category: 'policies'
   },
   'policies/booking_change': {
     priority: 'high',
     description: 'Booking change and cancellation procedures',
-    relatedTopics: ['cancel', 'change', 'booking', 'reschedule', 'refund', 'modify'],
+    relatedTopics: [
+      // English change/cancellation terms
+      'cancel', 'change', 'modify', 'booking', 'reschedule', 'refund', 
+      'modification', 'cancellation', 'rebook', 'different time',
+      'different date', 'booking reference', 'reference number',
+      'transaction', 'confirmation', 'receipt', 'order', 'booking id', 
+      // Third-party booking terms
+      'third party', 'agent', 'travel agent', 'viator', 'expedia', 
+      'get your guide', 'getyourguide', 'tour operator',
+      // Transportation terms
+      'transportation', 'transfer', 'shuttle', 'add transfer',
+      // Icelandic terms
+      'breyta', 'breyting', 'hætta við', 'afbóka', 'afbókun', 'endurgreiðsla', 
+      'bókunarnúmer', 'staðfestingarnúmer', 'bóka aftur', 'annar tími',
+      'önnur dagsetning', 'þriðji aðili', 'ferð', 'rúta',
+      // Vector intents
+      'booking_change', 'cancellation', 'refund_policy', 'booking_modification'
+    ],
     category: 'policies'
   },
   'formatting/links': {
