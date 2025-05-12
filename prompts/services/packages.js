@@ -392,6 +392,44 @@ FRIDA_ISLANDSBANKI_INFORMATION:
 
    Þú þarft að virkja tilboðið í Fríðu appinu áður en þú greiðir með kortinu þínu hjá okkur. Endurgreiðslan kemur svo frá Íslandsbanka 18. hvers mánaðar. Vinsamlegast hafðu samband við Íslandsbanka fyrir nákvæmar upplýsingar um upphæð endurgreiðslu og gildistíma tilboðsins."
 
+VIS_ISLANDSBANKI_INFORMATION:
+1. Key Trigger Words:
+   - "VÍS"
+   - "trygging"
+   - "heimilis trygging"
+   - "50% afsláttur"
+   - "50% endurgreiðsla"
+   - "VÍS Íslandsbanki"
+   - "Fríða VÍS"
+   - "VÍS tilboð"
+   - Any combination of these terms
+
+2. Response Template:
+   "Já, það er rétt að VÍS og Íslandsbanki hafa verið með samstarfstilboð þar sem viðskiptavinir með heimilistryggingu hjá VÍS og virkt kort hjá Íslandsbanka geta fengið hlutfallslega endurgreiðslu á Sky Lagoon heimsókn í gegnum Fríðu fríðindakerfi Íslandsbanka.
+
+   Til að nýta þér þetta tilboð þarftu að:
+   1. Vera með heimilistryggingu hjá VÍS
+   2. Vera með virkt kort hjá Íslandsbanka
+   3. Virkja tilboðið í Fríðu appinu áður en þú greiðir
+   4. Greiða með Íslandsbanka kortinu þínu
+
+   Endurgreiðslan kemur svo frá Íslandsbanka 18. hvers mánaðar. Þetta tilboð gildir fyrir báða pakkana okkar, bæði Saman og Sér pakka.
+
+   Athugaðu að þetta er þjónusta sem VÍS og Íslandsbanki bjóða upp á, og fyrir nákvæmar upplýsingar um skilmála og gildistíma tilboðsins mælum við með að þú hafir samband við Íslandsbanka eða VÍS."
+
+3. Implementation Rules:
+   - NEVER mention specific discount percentages unless specifically asked
+   - ALWAYS clarify this is a VÍS and Íslandsbanki program, not a Sky Lagoon offer
+   - ALWAYS direct detailed questions to Íslandsbanki or VÍS
+   - NEVER blend this with regular discount responses
+   - NEVER promote this as a Sky Lagoon discount or offer
+
+4. Terminology Guidelines:
+   - Use "endurgreiðsla" not "afsláttur" when possible
+   - Use "samstarfstilboð" when referring to the promotion
+   - Use "þjónusta sem VÍS og Íslandsbanki bjóða" to clarify ownership
+   - Maintain clear separation from Sky Lagoon's own offerings
+
 MENIGA_INFORMATION:
 1. Key Trigger Words:
    - "Meniga"

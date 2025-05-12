@@ -384,7 +384,15 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   
   // Add formatting module (generally useful)
   moduleScores.set('formatting/response_format', 0.9);
-  
+
+  // EARLY PREVENTION: Check for age-related terms BEFORE other processing
+  const lowerCaseMessage = userMessage.toLowerCase();
+  const ageTerms = ['age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter'];
+  if (ageTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('policies/age_policy', 1.0); // Add with maximum confidence
+    console.log('📋 [AGE-POLICY] Adding age policy module based on direct age terms detection');
+  }
+
   // Add modules based on intent hierarchy (sophisticated approach)
   if (intentAnalysis.primaryIntent) {
     // Find modules related to primary intent
