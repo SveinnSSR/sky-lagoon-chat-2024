@@ -290,9 +290,9 @@ const moduleMetadata = {
     category: 'policies'
   },
   'formatting/links': {
-    priority: 'low',
+    priority: 'medium',  // Change from 'low' to 'medium'
     description: 'Link formatting guidelines',
-    alwaysInclude: false,
+    alwaysInclude: true,
     category: 'formatting'
   },
   'formatting/time_format': {
@@ -505,6 +505,13 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   if (currencyTerms.some(term => lowerCaseMessage.includes(term))) {
     moduleScores.set('services/packages', 1.0); // Add with maximum confidence
     console.log('💱 [CURRENCY] Adding packages module based on currency terms detection');
+  }
+
+  // EARLY PREVENTION: Check for gift card terms BEFORE other processing
+  const giftCardTerms = ['gift card', 'gjafakort', 'gjafabréf', 'sky aðgangur', 'pure aðgangur', 'pure lite'];
+  if (giftCardTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('services/packages', 1.0); // Add with maximum confidence
+    console.log('🎁 [GIFT-CARD] Adding packages module based on gift card terms detection');
   }
 
   // Add modules based on intent hierarchy (sophisticated approach)
