@@ -143,7 +143,12 @@ const moduleMetadata = {
   'services/packages': {
     priority: 'high',
     description: 'Package information and pricing',
-    relatedTopics: ['pricing', 'packages', 'booking', 'offerings', 'tickets', 'cost'],
+    relatedTopics: [
+        'pricing', 'packages', 'booking', 'offerings', 'tickets', 'cost',
+        'gift_cards', 'gjafakort', 'pure', 'sky',
+        'gift_cards_booking_upgrade_info_ser_from_saman',
+        'packages_upgrades_response_with_gift_card'
+    ],
     category: 'services'
   },
   'services/ritual': {
