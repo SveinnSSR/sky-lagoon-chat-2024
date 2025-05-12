@@ -393,6 +393,13 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     console.log('📋 [AGE-POLICY] Adding age policy module based on direct age terms detection');
   }
 
+  // EARLY PREVENTION: Check for currency/price terms BEFORE other processing
+  const currencyTerms = ['dollar', 'usd', 'euro', 'eur', 'price', 'cost', 'pound', 'currency', 'american dollar'];
+  if (currencyTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('services/packages', 1.0); // Add with maximum confidence
+    console.log('💱 [CURRENCY] Adding packages module based on currency terms detection');
+  }
+
   // Add modules based on intent hierarchy (sophisticated approach)
   if (intentAnalysis.primaryIntent) {
     // Find modules related to primary intent
@@ -494,7 +501,7 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   }
   
   // Apply adaptive threshold - use modules with confidence above threshold
-  const CONFIDENCE_THRESHOLD = 0.5;
+  const CONFIDENCE_THRESHOLD = 0.4;
   const selectedModules = [...moduleScores.entries()]
     .filter(([, score]) => score >= CONFIDENCE_THRESHOLD)
     .sort((a, b) => b[1] - a[1]) // Sort by descending confidence

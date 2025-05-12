@@ -1570,7 +1570,7 @@ function cleanupVectorCache() {
 }
 
 /**
- * Comprehensive knowledge retrieval with fallback mechanisms and caching
+ * Comprehensive knowledge retrieval with parallel fallback mechanisms and caching
  * @param {string} message - User message
  * @param {Object} context - Session context
  * @returns {Promise<Array>} - Knowledge entries with fallback handling
@@ -1607,170 +1607,118 @@ export async function getKnowledgeWithFallbacks(message, context) {
     // Increment attempt counter
     context.retrievalStats.attempts++;
     
-    // 1. Primary retrieval using enhanced vector search
-    console.log(`\n🔍 ATTEMPT 1: Primary vector search`);
-    let results = await getVectorKnowledge(message, context);
+    // Set up parallel fallback strategies
+    console.log(`\n🚀 Starting parallel knowledge retrieval strategies`);
     
-    // Track this attempt
-    context.retrievalStats.history.push({
-      strategy: 'primary_vector',
-      query: message,
-      resultCount: results?.length || 0,
-      timestamp: Date.now()
+    // 1. Primary retrieval using enhanced vector search
+    const primarySearchPromise = getVectorKnowledge(message, context).then(results => {
+      context.retrievalStats.history.push({
+        strategy: 'primary_vector',
+        query: message,
+        resultCount: results?.length || 0,
+        timestamp: Date.now()
+      });
+      return { type: 'primary', results };
     });
     
-    // If we got results, cache and return them
-    if (results && results.length > 0) {
-      console.log(`\n✅ Primary vector search successful: ${results.length} results`);
-      
-      // Cache the results
-      knowledgeCache.set(cacheKey, {
-        results: results,
-        timestamp: Date.now()
-      });
-      
-      return results;
-    }
-    
-    // 2. If no results, try with topic-enhanced query
-    console.log(`\n🔍 ATTEMPT 2: Topic fallback`);
-    
-    // Use topics from context to enhance query
-    if (context.lastTopic) {
-      const topicEnhancedQuery = `${context.lastTopic} ${message}`;
-      console.log(`\n🔍 Trying topic-enhanced query: "${topicEnhancedQuery}"`);
-      
-      results = await getVectorKnowledge(topicEnhancedQuery, context);
-      
-      // Track this attempt
-      context.retrievalStats.history.push({
-        strategy: 'topic_fallback',
-        query: topicEnhancedQuery,
-        resultCount: results?.length || 0,
-        timestamp: Date.now()
-      });
-      
-      if (results && results.length > 0) {
-        console.log(`\n✅ Topic fallback successful: ${results.length} results`);
-        
-        // Cache under the original query
-        knowledgeCache.set(cacheKey, {
-          results: results,
-          timestamp: Date.now()
-        });
-        
-        return results;
-      }
-    }
-    
-    // 3. If still no results, try with intent-based fallback
-    console.log(`\n🔍 ATTEMPT 3: Intent fallback`);
-    
-    // Use intent hierarchy for query enhancement
-    if (context.intentHierarchy?.primaryIntent) {
-      const intentEnhancedQuery = `${context.intentHierarchy.primaryIntent} ${message}`;
-      console.log(`\n🔍 Trying intent-enhanced query: "${intentEnhancedQuery}"`);
-      
-      results = await getVectorKnowledge(intentEnhancedQuery, context);
-      
-      // Track this attempt
-      context.retrievalStats.history.push({
-        strategy: 'intent_fallback',
-        query: intentEnhancedQuery,
-        resultCount: results?.length || 0,
-        timestamp: Date.now()
-      });
-      
-      if (results && results.length > 0) {
-        console.log(`\n✅ Intent fallback successful: ${results.length} results`);
-        
-        // Cache under the original query
-        knowledgeCache.set(cacheKey, {
-          results: results,
-          timestamp: Date.now()
-        });
-        
-        return results;
-      }
-    }
-    
-    // 4. Try with secondary intents if available
-    if (context.intentHierarchy?.secondaryIntents?.length > 0) {
-      console.log(`\n🔍 ATTEMPT 4: Secondary intent fallback`);
-      
-      // Try each secondary intent
-      for (const intent of context.intentHierarchy.secondaryIntents) {
-        const secondaryIntentQuery = `${intent} ${message}`;
-        console.log(`\n🔍 Trying secondary intent query: "${secondaryIntentQuery}"`);
-        
-        results = await getVectorKnowledge(secondaryIntentQuery, context);
-        
-        // Track this attempt
+    // 2. Topic-enhanced query
+    const topicSearchPromise = context.lastTopic ? 
+      getVectorKnowledge(`${context.lastTopic} ${message}`, context).then(results => {
         context.retrievalStats.history.push({
-          strategy: 'secondary_intent_fallback',
-          intent,
-          query: secondaryIntentQuery,
+          strategy: 'topic_fallback',
+          query: `${context.lastTopic} ${message}`,
           resultCount: results?.length || 0,
           timestamp: Date.now()
         });
-        
-        if (results && results.length > 0) {
-          console.log(`\n✅ Secondary intent fallback successful: ${results.length} results`);
-          
-          // Cache under the original query
-          knowledgeCache.set(cacheKey, {
-            results: results,
-            timestamp: Date.now()
-          });
-          
-          return results;
-        }
-      }
-    }
+        return { type: 'topic', results };
+      }) : 
+      Promise.resolve({ type: 'topic', results: [] });
     
-    // 5. Last resort - try keyword extraction
-    console.log(`\n🔍 ATTEMPT 5: Keyword fallback`);
+    // 3. Intent-based query
+    const intentSearchPromise = context.intentHierarchy?.primaryIntent ? 
+      getVectorKnowledge(`${context.intentHierarchy.primaryIntent} ${message}`, context).then(results => {
+        context.retrievalStats.history.push({
+          strategy: 'intent_fallback',
+          query: `${context.intentHierarchy.primaryIntent} ${message}`,
+          resultCount: results?.length || 0,
+          timestamp: Date.now()
+        });
+        return { type: 'intent', results };
+      }) : 
+      Promise.resolve({ type: 'intent', results: [] });
     
-    // Extract keywords (words with 4+ chars)
+    // 4. Secondary intent queries (picking just the first one for parallel execution)
+    const secondaryIntentSearchPromise = (context.intentHierarchy?.secondaryIntents?.length > 0) ? 
+      getVectorKnowledge(`${context.intentHierarchy.secondaryIntents[0]} ${message}`, context).then(results => {
+        context.retrievalStats.history.push({
+          strategy: 'secondary_intent_fallback',
+          intent: context.intentHierarchy.secondaryIntents[0],
+          query: `${context.intentHierarchy.secondaryIntents[0]} ${message}`,
+          resultCount: results?.length || 0,
+          timestamp: Date.now()
+        });
+        return { type: 'secondary_intent', results };
+      }) : 
+      Promise.resolve({ type: 'secondary_intent', results: [] });
+    
+    // 5. Keyword extraction
     const keywords = message.split(' ')
       .filter(word => word.length >= 4)
       .slice(0, 3);
       
-    if (keywords.length > 0) {
-      const keywordQuery = keywords.join(' ');
-      console.log(`\n🔍 Trying keyword search: "${keywordQuery}"`);
+    const keywordSearchPromise = keywords.length > 0 ? 
+      getVectorKnowledge(keywords.join(' '), context).then(results => {
+        context.retrievalStats.history.push({
+          strategy: 'keyword_fallback',
+          keywords,
+          query: keywords.join(' '),
+          resultCount: results?.length || 0,
+          timestamp: Date.now()
+        });
+        return { type: 'keyword', results };
+      }) : 
+      Promise.resolve({ type: 'keyword', results: [] });
+    
+    // Run all searches in parallel
+    const allResults = await Promise.all([
+      primarySearchPromise,
+      topicSearchPromise,
+      intentSearchPromise,
+      secondaryIntentSearchPromise,
+      keywordSearchPromise
+    ]);
+    
+    // Log all strategies that succeeded
+    const successfulSearches = allResults.filter(result => result.results && result.results.length > 0);
+    if (successfulSearches.length > 0) {
+      console.log(`\n✅ ${successfulSearches.length} search strategies found results:`);
+      successfulSearches.forEach(result => {
+        console.log(`  - ${result.type} search: ${result.results.length} results`);
+      });
+    }
+    
+    // Find the first strategy that returned results
+    const successfulSearch = allResults.find(result => result.results && result.results.length > 0);
+    
+    if (successfulSearch) {
+      console.log(`\n✅ Using ${successfulSearch.type} search results: ${successfulSearch.results.length} results`);
       
-      results = await getVectorKnowledge(keywordQuery, context);
-      
-      // Track this attempt
-      context.retrievalStats.history.push({
-        strategy: 'keyword_fallback',
-        keywords,
-        query: keywordQuery,
-        resultCount: results?.length || 0,
+      // Cache the results under the original query
+      knowledgeCache.set(cacheKey, {
+        results: successfulSearch.results,
         timestamp: Date.now()
       });
       
-      if (results && results.length > 0) {
-        console.log(`\n✅ Keyword fallback successful: ${results.length} results`);
-        
-        // Cache under the original query
-        knowledgeCache.set(cacheKey, {
-          results: results,
-          timestamp: Date.now()
-        });
-        
-        return results;
-      }
+      return successfulSearch.results;
     }
     
-    // All fallbacks failed, update stats
+    // All parallel fallbacks failed, update stats
     context.retrievalStats.fallbacks++;
     context.retrievalStats.successRate = 
       (context.retrievalStats.attempts - context.retrievalStats.fallbacks) / 
       context.retrievalStats.attempts;
     
-    console.log(`\n⚠️ Knowledge retrieval failed after all fallback attempts`);
+    console.log(`\n⚠️ All parallel knowledge retrieval strategies failed`);
     console.log(`📊 Retrieval stats: ${context.retrievalStats.successRate * 100}% success rate after ${context.retrievalStats.attempts} attempts`);
     
     // Try to use a traditional search method if all fallbacks failed
@@ -1804,22 +1752,22 @@ export async function getKnowledgeWithFallbacks(message, context) {
     } catch (traditionalError) {
       console.error(`\n❌ Traditional search failed:`, traditionalError);
     }
-
+    
     // Check if this is an ongoing conversation
     if (context && context.messages && context.messages.filter(m => m.role === 'assistant').length > 0) {
-        // This is an ongoing conversation, not the first interaction
-        console.log('\n🔄 Adding conversation continuity context for failed knowledge retrieval');
-        
-        return [{
-            type: 'conversation_context',
-            content: {
-                isOngoing: true,
-                messageCount: context.messages.length,
-                shouldAvoidGreeting: true,
-                lastTopic: context.lastTopic || 'general'
-            }
-        }];
-    }    
+      // This is an ongoing conversation, not the first interaction
+      console.log('\n🔄 Adding conversation continuity context for failed knowledge retrieval');
+      
+      return [{
+        type: 'conversation_context',
+        content: {
+          isOngoing: true,
+          messageCount: context.messages.length,
+          shouldAvoidGreeting: true,
+          lastTopic: context.lastTopic || 'general'
+        }
+      }];
+    }
     
     // Return empty array if all fallbacks failed
     return [];
