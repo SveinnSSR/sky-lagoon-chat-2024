@@ -695,7 +695,7 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
  */
 export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) {
   // Add clear indicator that modular system is active
-  console.log('\n🧩🧩🧩 MODULAR PROMPT SYSTEM ACTIVE 🧩🧩🧩');
+  console.log('MODULAR-SYSTEM-ACTIVE'); // No emoji, simple text - see if this log appears on vercel now
   
   // Track performance
   const startTime = Date.now();
