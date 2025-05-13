@@ -376,7 +376,7 @@ function getRequiredModulesFromKnowledge(knowledgeItems) {
   try {
     // Set performance timeout
     const startTime = Date.now();
-    const MAPPING_TIMEOUT_MS = 100; // 100ms timeout
+    const MAPPING_TIMEOUT_MS = 250; // 250ms timeout (increased from 100ms)
     
     const requiredModules = new Set();
     
@@ -442,24 +442,34 @@ function getRequiredModulesFromKnowledge(knowledgeItems) {
         }
       }
       
-      // Content-based mapping for critical terms
+      // Content-based mapping for critical terms - OPTIMIZED
       if (item.content) {
-        const contentStr = typeof item.content === 'string' ? 
-                          item.content.toLowerCase() : 
-                          JSON.stringify(item.content).toLowerCase();
-        
-        // Check for important keywords in content
-        if (contentStr.includes('refund') || contentStr.includes('cancel') || contentStr.includes('endurgreiðsla')) {
-          requiredModules.add('policies/booking_change');
+        // Fast path for string content
+        if (typeof item.content === 'string') {
+          const contentStr = item.content.toLowerCase();
+          
+          // Add modules based on keywords (using single-pass checks)
+          if (contentStr.includes('refund') || contentStr.includes('cancel') || contentStr.includes('endurgreiðsla')) {
+            requiredModules.add('policies/booking_change');
+          }
+          
+          if (contentStr.includes('bus') || contentStr.includes('shuttle') || contentStr.includes('transport') || 
+              contentStr.includes('return time') || contentStr.includes('bsi') || contentStr.includes('bsí')) {
+            requiredModules.add('services/facilities');
+          }
+          
+          if (contentStr.includes('massage') || contentStr.includes('nudd') || contentStr.includes('spa')) {
+            requiredModules.add('services/facilities');
+          }
         }
-        
-        if (contentStr.includes('bus') || contentStr.includes('shuttle') || contentStr.includes('transport') || 
-            contentStr.includes('return time') || contentStr.includes('bsi') || contentStr.includes('bsí')) {
-          requiredModules.add('services/facilities');
-        }
-        
-        if (contentStr.includes('massage') || contentStr.includes('nudd') || contentStr.includes('spa')) {
-          requiredModules.add('services/facilities');
+        // Faster handling for non-string content
+        else if (typeof item.content === 'object' && item.content !== null) {
+          // Check key properties directly without expensive JSON.stringify
+          const hasRefundProps = item.content.refund || item.content.cancel || item.content.cancellation;
+          const hasTransportProps = item.content.bus || item.content.transport || item.content.shuttle;
+          
+          if (hasRefundProps) requiredModules.add('policies/booking_change');
+          if (hasTransportProps) requiredModules.add('services/facilities');
         }
       }
     }
@@ -1055,7 +1065,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
           setTimeout(() => {
             console.log('⚠️ [TIMEOUT] Knowledge mapping timed out - using empty result');
             resolve([]);
-          }, 200); // 200ms maximum timeout
+          }, 500); // 500ms maximum timeout (increased from 200ms)
         });
         
         // Race between normal operation and timeout
