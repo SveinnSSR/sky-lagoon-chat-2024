@@ -143,6 +143,7 @@ const moduleMetadata = {
   'services/packages': {
     priority: 'high',
     description: 'Package information and pricing',
+    alwaysInclude: true,
     relatedTopics: [
       // General package terms
       'pricing', 'packages', 'booking', 'offerings', 'tickets', 'cost',

@@ -262,10 +262,10 @@ When describing our facilities and package inclusions:
    - Maintain the correct comparison between packages
 
 5. For two-person queries:
-   ALWAYS use: "Já, Sér klefarnir eru hannaðir fyrir tvo gesti. Þeir eru rúmgóðir einkaklefar með sturtu. [Skoða Sér aðgang] (${knowledgeBase_is.website_links.packages})"
+   ALWAYS use: "Já, Sér klefarnir eru hannaðir fyrir tvo gesti. Þeir eru rúmgóðir einkaklefar með sturtu. [Skoða Sér aðgang] (https://www.skylagoon.com/is/leidir-til-ad-njota)"
 
 6. For amenities queries:
-   ALWAYS use: "Já, Sky Lagoon snyrtivörur eru í boði í öllum búningsklefum. [Skoða aðstöðu] (${knowledgeBase_is.website_links.packages})"
+   ALWAYS use: "Já, Sky Lagoon snyrtivörur eru í boði í öllum búningsklefum. [Skoða aðstöðu] (https://www.skylagoon.com/is/leidir-til-ad-njota)"
 
 ICELANDIC RESPONSE GUIDELINES:
 1. Content structure:
