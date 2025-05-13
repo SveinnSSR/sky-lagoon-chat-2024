@@ -202,6 +202,7 @@ const moduleMetadata = {
   'services/facilities': {
     priority: 'high',
     description: 'Facility information',
+    alwaysInclude: true,
     relatedTopics: [
       // English general terms
       'facilities', 'amenities', 'changing', 'shower', 'lockers', 'accessibility',
@@ -275,7 +276,7 @@ const moduleMetadata = {
     description: 'Booking change and cancellation procedures',
     relatedTopics: [
       // English change/cancellation terms
-      'cancel', 'change', 'modify', 'booking', 'reschedule', 'refund', 
+      'cancel', 'change', 'modify', 'booking', 'reservation', 'reschedule', 'refund', 
       'modification', 'cancellation', 'rebook', 'different time',
       'different date', 'booking reference', 'reference number',
       'transaction', 'confirmation', 'receipt', 'order', 'booking id', 
@@ -300,7 +301,7 @@ const moduleMetadata = {
     category: 'formatting'
   },
   'formatting/time_format': {
-    priority: 'low',
+    priority: 'medium',
     description: 'Time formatting standards',
     relatedTopics: ['time', 'hour', 'opening', 'closing', 'schedule'],
     category: 'formatting'
@@ -335,9 +336,9 @@ const moduleMetadata = {
  * Gets content from a specified module for the appropriate language
  * @param {string} modulePath - Module identifier (e.g., 'core/identity')
  * @param {Object} languageDecision - Information about detected language
- * @returns {string} The prompt content for the specified language
+ * @returns {Promise<string>} The prompt content for the specified language
  */
-function getModuleContent(modulePath, languageDecision) {
+async function getModuleContent(modulePath, languageDecision) {
   try {
     const module = moduleRegistry[modulePath];
     if (!module) {
@@ -348,9 +349,16 @@ function getModuleContent(modulePath, languageDecision) {
     const language = languageDecision?.isIcelandic ? 'is' : 'en';
     
     // Get content based on language
-    const content = language === 'is' ? 
-      (module.getIcelandicPrompt ? module.getIcelandicPrompt() : module.getPrompt('is')) :
-      (module.getEnglishPrompt ? module.getEnglishPrompt() : module.getPrompt('en'));
+    let content;
+    if (language === 'is') {
+      content = module.getIcelandicPrompt ? 
+                await module.getIcelandicPrompt() : 
+                (module.getPrompt ? await module.getPrompt('is') : '');
+    } else {
+      content = module.getEnglishPrompt ? 
+                await module.getEnglishPrompt() : 
+                (module.getPrompt ? await module.getPrompt('en') : '');
+    }
     
     return content || '';
   } catch (error) {
@@ -797,6 +805,16 @@ async function assemblePrompt(modules, sessionId, languageDecision, context, rel
   // Log the modules being used
   logger.info(`Using prompt modules:`, modules);
   
+  // Detailed performance tracking
+  const timings = {
+    groupingStart: Date.now(),
+    groupingEnd: 0,
+    loadingStart: 0,
+    loadingEnd: 0,
+    assemblyStart: 0,
+    assemblyEnd: 0
+  };
+  
   // Performance tracking
   const startTime = Date.now();
   const moduleSizes = {};
@@ -811,15 +829,19 @@ async function assemblePrompt(modules, sessionId, languageDecision, context, rel
     formatting: modules.filter(m => moduleMetadata[m]?.category === 'formatting')
   };
   
+  // Performance timing - grouping completed
+  timings.groupingEnd = Date.now();
+  timings.loadingStart = Date.now();
+  
   // PARALLEL LOADING OF ALL MODULES
   const modulePromises = {};
   
   // Create promises for each module
   for (const [category, categoryModules] of Object.entries(modulesByCategory)) {
     modulePromises[category] = categoryModules.map(modulePath => {
-      return new Promise(resolve => {
+      return new Promise(async (resolve) => {
         try {
-          const content = getModuleContent(modulePath, languageDecision);
+          const content = await getModuleContent(modulePath, languageDecision);
           if (content) {
             moduleSizes[modulePath] = content.length;
           }
@@ -837,6 +859,10 @@ async function assemblePrompt(modules, sessionId, languageDecision, context, rel
   for (const [category, promises] of Object.entries(modulePromises)) {
     loadedModulesByCategory[category] = await Promise.all(promises);
   }
+  
+  // Performance timing - loading completed
+  timings.loadingEnd = Date.now();
+  timings.assemblyStart = Date.now();
   
   // ASSEMBLE PROMPT IN CORRECT ORDER
   let assembledPrompt = '';
@@ -936,6 +962,9 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
     assembledPrompt += `\n\nRESPOND IN ENGLISH.`;
   }
   
+  // Performance timing - assembly completed
+  timings.assemblyEnd = Date.now();
+  
   // Performance metrics
   const endTime = Date.now();
   const totalTime = endTime - startTime;
@@ -944,6 +973,15 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
     promptLength: assembledPrompt.length,
     moduleCount: modules.length,
     assemblyTime: `${totalTime}ms`
+  });
+  
+  // Detailed performance metrics
+  logger.info(`Prompt assembly detailed performance:`, {
+    grouping: `${timings.groupingEnd - timings.groupingStart}ms`,
+    loading: `${timings.loadingEnd - timings.loadingStart}ms`,
+    assembly: `${timings.assemblyEnd - timings.assemblyStart}ms`,
+    total: `${timings.assemblyEnd - timings.groupingStart}ms`,
+    moduleCount: modules.length
   });
   
   logger.debug('Module sizes:', moduleSizes);
@@ -972,6 +1010,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
   let knowledgeStart = 0;
   let knowledgeEnd = 0;
   let modulesSelectionEnd = 0;
+  let promptAssemblyStart = 0;
   let promptAssemblyEnd = 0;
   let moduleLinkingTime = 0;
   
@@ -1051,7 +1090,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     }
     
     // Assemble the final prompt with the combined modules
-    const promptAssemblyStart = Date.now();
+    promptAssemblyStart = Date.now();
     const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
     promptAssemblyEnd = Date.now();
     
@@ -1070,7 +1109,8 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
       promptLength: assembledPrompt.length,
       moduleCount: allModules.length,
       totalTime: totalTime,
-      ...metrics
+      ...metrics,
+      moduleLoadingTime: `${Math.round((promptAssemblyEnd - promptAssemblyStart) * 0.7)}ms (est.)`
     });
     
     // Check performance 
