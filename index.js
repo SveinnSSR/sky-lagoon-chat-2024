@@ -86,8 +86,8 @@ import { processMessagePair } from './messageProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
-// Override environment variable to disable prompt optimizer - Not used anymore - Delete this
-process.env.USE_PROMPT_OPTIMIZER = 'false';
+// Feature flags
+const ENABLE_LIVECHAT_TRANSFER = process.env.ENABLE_LIVECHAT_TRANSFER === 'true' || false; // Default to disabled
 
 // Add near the top after imports
 console.log('🚀 SERVER STARTING - ' + new Date().toISOString());
@@ -2157,26 +2157,47 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             topics: context.topics
         });
 
-        // TARGETED PARALLELIZATION: Run key checks in parallel
-        // NOTE: I kept the detection part for changing bookings but removed the form display part (showing the LiveChat form)
+        // TARGETED PARALLELIZATION: Core operations in parallel
         console.log('\n⏱️ Starting parallel operations...');
         const operationsStart = Date.now();
-        
-        const [
-            transferCheck,       // Check if we should transfer to a human agent
-            knowledgeBaseResults // Get relevant knowledge
-        ] = await Promise.all([
-            shouldTransferToAgent(userMessage, languageDecision, context)
-                .then(result => {
-                    metrics.transferTime = Date.now() - operationsStart;
-                    return result;
-                }),
+
+        // Determine which operations to run in parallel
+        let parallelPromises = [];
+        let transferCheck = { shouldTransfer: false, reason: 'livechat_transfer_disabled' };
+
+        if (ENABLE_LIVECHAT_TRANSFER) {
+            console.log('\n👥 LiveChat transfer check enabled');
+            parallelPromises.push(
+                shouldTransferToAgent(userMessage, languageDecision, context)
+                    .then(result => {
+                        metrics.transferTime = Date.now() - operationsStart;
+                        return result;
+                    })
+            );
+        } else {
+            console.log('\n👥 LiveChat transfer check disabled via feature flag');
+            metrics.transferTime = 0;
+        }
+
+        // Always run knowledge retrieval
+        parallelPromises.push(
             getKnowledgeWithFallbacks(userMessage, context)
                 .then(result => {
                     metrics.knowledgeTime = Date.now() - operationsStart;
                     return result;
                 })
-        ]);
+        );
+
+        // Run the enabled operations in parallel
+        const results = await Promise.all(parallelPromises);
+
+        // Extract results based on which operations were run
+        if (ENABLE_LIVECHAT_TRANSFER) {
+            transferCheck = results[0];
+            knowledgeBaseResults = results[1];
+        } else {
+            knowledgeBaseResults = results[0];
+        }
         
         console.log(`\n⏱️ Parallel operations completed in ${Date.now() - operationsStart}ms`);
 
@@ -2209,14 +2230,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // MIGRATION: Check if we should transfer to human agent with AI-powered detection
-
-        console.log('\n🔄 Transfer Check Result:', {
-            shouldTransfer: transferCheck.shouldTransfer,
-            reason: transferCheck.reason,
-            confidence: transferCheck.confidence,
-            withinHours: isWithinOperatingHours(),
-            availableAgents: transferCheck.agents?.length || 0
-        });
+        if (ENABLE_LIVECHAT_TRANSFER) {
+            console.log('\n🔄 Transfer Check Result:', {
+                shouldTransfer: transferCheck.shouldTransfer,
+                reason: transferCheck.reason,
+                confidence: transferCheck.confidence,
+                withinHours: isWithinOperatingHours(),
+                availableAgents: transferCheck.agents?.length || 0
+            });
+        } else {
+            console.log('\n🔄 Transfer Check: Disabled by feature flag - skipping hours check and agent availability');
+        }
 
         // Check if user is already transferred to prevent duplicate transfers
         if (context.transferStatus && context.transferStatus.transferred) {
@@ -2281,7 +2305,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             return res.status(responseData.status || 200).json(responseData);
         }
         
-        if (transferCheck.shouldTransfer) {
+        if (transferCheck.shouldTransfer && ENABLE_LIVECHAT_TRANSFER) {
             try {
                 // Create chat with correct customer attribution
                 console.log('\n📝 Creating new LiveChat chat with customer attribution:', sessionId);
