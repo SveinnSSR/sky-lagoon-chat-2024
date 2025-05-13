@@ -2540,7 +2540,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     ...languageDecision,
                     language: language // Pass explicit language code
                 }, 
-                sunsetData
+                sunsetData,
+                knowledgeBaseResults // Pass the already retrieved knowledge
             );
         } else {
             // Use original synchronous version

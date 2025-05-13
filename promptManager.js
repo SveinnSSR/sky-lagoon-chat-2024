@@ -998,7 +998,7 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
  * @param {Object} sunsetData - Optional sunset data
  * @returns {string} The system prompt
  */
-export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) {
+export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null, preRetrievedKnowledge = null) {
   // Feature flag for knowledge-module linking (disabled by default for safety)
   const USE_KNOWLEDGE_MODULE_LINKING = process.env.USE_KNOWLEDGE_MODULE_LINKING === 'true';
   
@@ -1027,10 +1027,17 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     // Update language context for this interaction
     updateLanguageContext(context, userMessage);
     
-    // CRITICAL CHANGE: Get knowledge FIRST before selecting modules
-    knowledgeStart = Date.now();
-    const relevantKnowledge = await getKnowledgeWithFallbacks(userMessage, context);
-    knowledgeEnd = Date.now();
+    // Use pre-retrieved knowledge if provided or retrieve if needed
+    let relevantKnowledge = preRetrievedKnowledge;
+    if (!relevantKnowledge) {
+      // Only retrieve if not provided (fallback)
+      knowledgeStart = Date.now();
+      relevantKnowledge = await getKnowledgeWithFallbacks(userMessage, context);
+      knowledgeEnd = Date.now();
+    } else {
+      console.log('📦 Using pre-retrieved knowledge, skipping redundant retrieval');
+      knowledgeEnd = knowledgeStart = Date.now(); // Set both to same value for metrics
+    }
     
     // Knowledge-to-module linking with feature flag & error protection
     let knowledgeRequiredModules = [];
