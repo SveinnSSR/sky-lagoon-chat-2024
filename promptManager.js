@@ -208,6 +208,9 @@ const moduleMetadata = {
       'swimwear', 'rental', 'bathing suit', 'swimming trunks', 'bikini',
       // Accessibility terms
       'wheelchair', 'disabled', 'disability', 'mobility', 'accessible', 'chair lift',
+      // Transportation-specific terms
+      'bsi', 'bsí', 'bus terminal', 'terminal', 'get to', 'travel to', 'reach',
+      'bus stop', 'bus station', 'tour bus', 'transfer service', 'excursion',
       // Massage-related (for negative responses)
       'massage', 'spa treatment', 'therapy',
       // Amenities specifics
@@ -514,6 +517,22 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     console.log('🎁 [GIFT-CARD] Adding packages module based on gift card terms detection');
   }
 
+  // EARLY PREVENTION: Check for transportation terms BEFORE other processing
+  const transportTerms = ['bus terminal', 'bsi', 'bsí', 'transfer', 'shuttle', 'bus', 'transportation', 'transport', 'get to you', 'get there'];
+  if (transportTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('services/facilities', 1.0); // Add with maximum confidence
+    console.log('🚌 [TRANSPORT] Adding facilities module based on transportation terms detection');
+  }
+
+  // EARLY PREVENTION: Check for location terms BEFORE other processing
+  const locationTerms = ['where', 'location', 'address', 'town', 'city', 'center', 'downtown', 
+      'close', 'near', 'distance', 'far', 'how far', 'directions', 'map'];
+  if (locationTerms.some(term => lowerCaseMessage.includes(term))) {
+  moduleScores.set('services/facilities', 1.0); // Add facilities with maximum confidence
+  moduleScores.set('formatting/links', 1.0); // Also add links with maximum confidence  
+  console.log('📍 [LOCATION] Adding facilities and links modules based on location terms detection');
+  }
+
   // Add modules based on intent hierarchy (sophisticated approach)
   if (intentAnalysis.primaryIntent) {
     // Find modules related to primary intent
@@ -615,11 +634,20 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   }
   
   // Apply adaptive threshold - use modules with confidence above threshold
-  const CONFIDENCE_THRESHOLD = 0.4;
+  // Apply adaptive threshold with category-specific values
+  const CONFIDENCE_THRESHOLDS = {
+    'services': 0.2,  // Lower threshold just for services
+    'default': 0.4    // Default threshold for other categories
+  };
+  
   const selectedModules = [...moduleScores.entries()]
-    .filter(([, score]) => score >= CONFIDENCE_THRESHOLD)
+    .filter(([modulePath, score]) => {
+      const category = moduleMetadata[modulePath]?.category || 'default';
+      const threshold = CONFIDENCE_THRESHOLDS[category] || CONFIDENCE_THRESHOLDS.default;
+      return score >= threshold;
+    })
     .sort((a, b) => b[1] - a[1]) // Sort by descending confidence
-    .map(([modulePath]) => modulePath);
+    .map(([modulePath]) => modulePath);  
   
   // Make sure we don't have too many modules - limit to reasonable size
   const MAX_MODULES = 12;
