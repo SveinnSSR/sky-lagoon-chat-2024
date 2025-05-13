@@ -642,9 +642,8 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
  * @param {Array} relevantKnowledge - Relevant knowledge base entries
  * @returns {string} The assembled prompt
  */
-function assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge = [], sunsetData = null) {
+async function assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge = [], sunsetData = null) {
   const language = languageDecision?.isIcelandic ? 'is' : 'en';
-  let assembledPrompt = '';
   
   // Log the modules being used
   logger.info(`Using prompt modules:`, modules);
@@ -653,64 +652,55 @@ function assemblePrompt(modules, sessionId, languageDecision, context, relevantK
   const startTime = Date.now();
   const moduleSizes = {};
   
-  // Load each module and append to the assembled prompt in priority order
-  // First add critical foundation modules
-  const foundationModules = modules.filter(m => moduleMetadata[m]?.category === 'foundation');
-  for (const modulePath of foundationModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
-    }
+  // GROUP MODULES BY CATEGORY
+  const modulesByCategory = {
+    foundation: modules.filter(m => moduleMetadata[m]?.category === 'foundation'),
+    language: modules.filter(m => moduleMetadata[m]?.category === 'language'),
+    services: modules.filter(m => moduleMetadata[m]?.category === 'services'),
+    policies: modules.filter(m => moduleMetadata[m]?.category === 'policies'),
+    seasonal: modules.filter(m => moduleMetadata[m]?.category === 'seasonal'),
+    formatting: modules.filter(m => moduleMetadata[m]?.category === 'formatting')
+  };
+  
+  // PARALLEL LOADING OF ALL MODULES
+  const modulePromises = {};
+  
+  // Create promises for each module
+  for (const [category, categoryModules] of Object.entries(modulesByCategory)) {
+    modulePromises[category] = categoryModules.map(modulePath => {
+      return new Promise(resolve => {
+        try {
+          const content = getModuleContent(modulePath, languageDecision);
+          if (content) {
+            moduleSizes[modulePath] = content.length;
+          }
+          resolve({ modulePath, content: content || '' });
+        } catch (err) {
+          logger.error(`Error loading module ${modulePath}:`, err);
+          resolve({ modulePath, content: '' });
+        }
+      });
+    });
   }
   
-  // Then add language modules
-  const languageModules = modules.filter(m => moduleMetadata[m]?.category === 'language');
-  for (const modulePath of languageModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
-    }
+  // Wait for all module loading to complete in each category
+  const loadedModulesByCategory = {};
+  for (const [category, promises] of Object.entries(modulePromises)) {
+    loadedModulesByCategory[category] = await Promise.all(promises);
   }
   
-  // Then add service modules
-  const serviceModules = modules.filter(m => moduleMetadata[m]?.category === 'services');
-  for (const modulePath of serviceModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
-    }
-  }
+  // ASSEMBLE PROMPT IN CORRECT ORDER
+  let assembledPrompt = '';
   
-  // Then add policy modules
-  const policyModules = modules.filter(m => moduleMetadata[m]?.category === 'policies');
-  for (const modulePath of policyModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
-    }
-  }
+  // Maintain the specific ordering of module categories
+  const categoryOrder = ['foundation', 'language', 'services', 'policies', 'seasonal', 'formatting'];
   
-  // Then add seasonal modules
-  const seasonalModules = modules.filter(m => moduleMetadata[m]?.category === 'seasonal');
-  for (const modulePath of seasonalModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
-    }
-  }
-  
-  // Finally add formatting modules
-  const formattingModules = modules.filter(m => moduleMetadata[m]?.category === 'formatting');
-  for (const modulePath of formattingModules) {
-    const moduleContent = getModuleContent(modulePath, languageDecision);
-    if (moduleContent) {
-      assembledPrompt += moduleContent + '\n\n';
-      moduleSizes[modulePath] = moduleContent.length;
+  for (const category of categoryOrder) {
+    const loadedModules = loadedModulesByCategory[category] || [];
+    for (const { content } of loadedModules) {
+      if (content) {
+        assembledPrompt += content + '\n\n';
+      }
     }
   }
   
@@ -807,7 +797,6 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
     assemblyTime: `${totalTime}ms`
   });
   
-  // Log module sizes for optimization insights
   logger.debug('Module sizes:', moduleSizes);
   
   return assembledPrompt;
@@ -858,7 +847,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     
     // Assemble the final prompt using the dynamic module system
     const promptAssemblyStart = Date.now();
-    const assembledPrompt = assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
+    const assembledPrompt = await assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
     promptAssemblyEnd = Date.now();
     
     // Performance metrics
