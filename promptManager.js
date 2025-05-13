@@ -338,7 +338,7 @@ const moduleMetadata = {
  * @param {Object} languageDecision - Information about detected language
  * @returns {Promise<string>} The prompt content for the specified language
  */
-async function getModuleContent(modulePath, languageDecision) {
+async function getModuleContent(modulePath, languageDecision, seasonInfo = null) {
   try {
     const module = moduleRegistry[modulePath];
     if (!module) {
@@ -353,11 +353,11 @@ async function getModuleContent(modulePath, languageDecision) {
     if (language === 'is') {
       content = module.getIcelandicPrompt ? 
                 await module.getIcelandicPrompt() : 
-                (module.getPrompt ? await module.getPrompt('is') : '');
+                (module.getPrompt ? await module.getPrompt('is', seasonInfo) : ''); // Pass seasonInfo
     } else {
       content = module.getEnglishPrompt ? 
                 await module.getEnglishPrompt() : 
-                (module.getPrompt ? await module.getPrompt('en') : '');
+                (module.getPrompt ? await module.getPrompt('en', seasonInfo) : ''); // Pass seasonInfo
     }
     
     return content || '';
@@ -809,7 +809,7 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
  * @param {Array} relevantKnowledge - Relevant knowledge base entries
  * @returns {string} The assembled prompt
  */
-async function assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge = [], sunsetData = null) {
+async function assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge = [], sunsetData = null, seasonInfo = null) {
   const language = languageDecision?.isIcelandic ? 'is' : 'en';
   
   // Log the modules being used
@@ -845,13 +845,13 @@ async function assemblePrompt(modules, sessionId, languageDecision, context, rel
   
   // PARALLEL LOADING OF ALL MODULES
   const modulePromises = {};
-  
+
   // Create promises for each module
   for (const [category, categoryModules] of Object.entries(modulesByCategory)) {
     modulePromises[category] = categoryModules.map(modulePath => {
       return new Promise(async (resolve) => {
         try {
-          const content = await getModuleContent(modulePath, languageDecision);
+          const content = await getModuleContent(modulePath, languageDecision, seasonInfo);
           if (content) {
             moduleSizes[modulePath] = content.length;
           }
@@ -1008,7 +1008,7 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
  * @param {Object} sunsetData - Optional sunset data
  * @returns {string} The system prompt
  */
-export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null, preRetrievedKnowledge = null) {
+export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null, preRetrievedKnowledge = null, seasonInfo = null) {
   // Feature flag for knowledge-module linking (disabled by default for safety)
   const USE_KNOWLEDGE_MODULE_LINKING = process.env.USE_KNOWLEDGE_MODULE_LINKING === 'true';
   
@@ -1108,7 +1108,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     
     // Assemble the final prompt with the combined modules
     promptAssemblyStart = Date.now();
-    const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
+    const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData, seasonInfo);
     promptAssemblyEnd = Date.now();
     
     // Performance metrics

@@ -2541,7 +2541,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     language: language // Pass explicit language code
                 }, 
                 sunsetData,
-                knowledgeBaseResults // Pass the already retrieved knowledge
+                knowledgeBaseResults, // Pass the already retrieved knowledge
+                seasonInfo // Add seasonInfo
             );
         } else {
             // Use original synchronous version
