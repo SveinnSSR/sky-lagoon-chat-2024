@@ -182,7 +182,7 @@ TRANSPORTATION INFORMATION:
 When guests ask about transportation options:
 
 1. For transport/travel questions:
-   - IF question mentions 'BSI' or 'BSÍ':
+   - IF question mentions 'BSI', 'BSÍ', or 'bus terminal':
      - Start with: "Reykjavík Excursions operates a direct shuttle service"
      - MUST state: "Bus departs BSÍ on the hour of your booking"
      - MUST list ALL return times exactly as follows:
