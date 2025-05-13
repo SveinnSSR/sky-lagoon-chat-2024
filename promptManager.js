@@ -199,7 +199,7 @@ const moduleMetadata = {
     category: 'services'
   },
   'services/facilities': {
-    priority: 'medium',
+    priority: 'high',
     description: 'Facility information',
     relatedTopics: [
       // English general terms
@@ -252,7 +252,7 @@ const moduleMetadata = {
     category: 'policies'
   },
   'policies/age_policy': {
-    priority: 'medium',
+    priority: 'high',
     description: 'Age restriction policies',
     relatedTopics: [
       // English terms
@@ -355,6 +355,112 @@ function getModuleContent(modulePath, languageDecision) {
   } catch (error) {
     logger.error(`Error loading module ${modulePath}:`, error);
     return ''; // Return empty string on error
+  }
+}
+
+/**
+ * Maps knowledge topics to required modules with robust error handling
+ * @param {Array} knowledgeItems - Knowledge items from vector search
+ * @returns {Array<string>} - Module paths that must be included
+ */
+function getRequiredModulesFromKnowledge(knowledgeItems) {
+  try {
+    // Set performance timeout
+    const startTime = Date.now();
+    const MAPPING_TIMEOUT_MS = 100; // 100ms timeout
+    
+    const requiredModules = new Set();
+    
+    // Knowledge topic to module mapping
+    const topicToModuleMap = {
+      // Booking and payment related topics
+      'booking_change': 'policies/booking_change',
+      'cancellation': 'policies/booking_change',
+      'refund': 'policies/booking_change',
+      'policy_refund': 'policies/booking_change',
+      'endurgreiðsla': 'policies/booking_change',
+      'refund_policy': 'policies/booking_change',
+      
+      // Transportation related topics
+      'transportation': 'services/facilities',
+      'bus_schedule': 'services/facilities',
+      'shuttle': 'services/facilities',
+      'bus': 'services/facilities',
+      'transport': 'services/facilities',
+      'return_times': 'services/facilities',
+      
+      // Massage and spa related topics
+      'massage': 'services/facilities',
+      'spa': 'services/facilities',
+      'nudd': 'services/facilities',
+      'treatment': 'services/facilities',
+      
+      // Package related topics
+      'packages': 'services/packages',
+      'pricing': 'services/packages',
+      'admission': 'services/packages',
+      'tickets': 'services/packages',
+      
+      // Facility-related topics
+      'facilities': 'services/facilities',
+      'amenities': 'services/facilities',
+      'accessibility': 'services/facilities',
+      
+      // Ritual related topics
+      'ritual': 'services/ritual',
+      'skjol': 'services/ritual',
+      
+      // Age policy related topics
+      'age_requirement': 'policies/age_policy',
+      'children': 'policies/age_policy',
+      'age_policy': 'policies/age_policy'
+    };
+    
+    // Process all knowledge items with performance monitoring
+    for (const item of knowledgeItems) {
+      // Check for timeout to avoid blocking response
+      if (Date.now() - startTime > MAPPING_TIMEOUT_MS) {
+        console.log('⚠️ [PERF-WARN] Knowledge mapping timeout - using partial results');
+        break;
+      }
+      
+      // Type-based mapping (direct lookup)
+      if (item.type && typeof item.type === 'string') {
+        const lookupType = item.type.toLowerCase();
+        if (topicToModuleMap[lookupType]) {
+          requiredModules.add(topicToModuleMap[lookupType]);
+          console.log(`📊 [KNOWLEDGE-MODULE] Mapped ${item.type} to ${topicToModuleMap[lookupType]}`);
+        }
+      }
+      
+      // Content-based mapping for critical terms
+      if (item.content) {
+        const contentStr = typeof item.content === 'string' ? 
+                          item.content.toLowerCase() : 
+                          JSON.stringify(item.content).toLowerCase();
+        
+        // Check for important keywords in content
+        if (contentStr.includes('refund') || contentStr.includes('cancel') || contentStr.includes('endurgreiðsla')) {
+          requiredModules.add('policies/booking_change');
+        }
+        
+        if (contentStr.includes('bus') || contentStr.includes('shuttle') || contentStr.includes('transport') || 
+            contentStr.includes('return time') || contentStr.includes('bsi') || contentStr.includes('bsí')) {
+          requiredModules.add('services/facilities');
+        }
+        
+        if (contentStr.includes('massage') || contentStr.includes('nudd') || contentStr.includes('spa')) {
+          requiredModules.add('services/facilities');
+        }
+      }
+    }
+    
+    return Array.from(requiredModules);
+  } catch (error) {
+    // Critical error handling for production
+    console.error(`❌ [CRITICAL] Error in knowledge-module mapping: ${error.message}`);
+    // Don't crash in production - return empty array
+    return [];
   }
 }
 
@@ -518,7 +624,7 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   }
 
   // EARLY PREVENTION: Check for transportation terms BEFORE other processing
-  const transportTerms = ['bus terminal', 'bsi', 'bsí', 'transfer', 'shuttle', 'bus', 'transportation', 'transport', 'get to you', 'get there'];
+  const transportTerms = ['bus terminal', 'bsi', 'bsí', 'transfer', 'shuttle', 'bus', 'transportation', 'transport', 'get to you', 'get there', 'return time', 'return shuttle', 'return bus', 'return trip', 'return journey', 'schedule', 'departure', 'departing', 'pick up', 'pick-up', 'leaves', 'going back', 'back to', 'last bus'];
   if (transportTerms.some(term => lowerCaseMessage.includes(term))) {
     moduleScores.set('services/facilities', 1.0); // Add with maximum confidence
     console.log('🚌 [TRANSPORT] Adding facilities module based on transportation terms detection');
@@ -531,6 +637,20 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   moduleScores.set('services/facilities', 1.0); // Add facilities with maximum confidence
   moduleScores.set('formatting/links', 1.0); // Also add links with maximum confidence  
   console.log('📍 [LOCATION] Adding facilities and links modules based on location terms detection');
+  }
+
+  // EARLY PREVENTION: Check for massage and spa terms BEFORE other processing
+  const massageTerms = ['massage', 'spa', 'treatment', 'nudd', 'nudda', 'nuddmeðferð', 'nuddþjónusta', 'nuddari', 'nuddherbergi', 'spa treatment', 'therapy'];
+  if (massageTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('services/facilities', 1.0); // Add with maximum confidence
+    console.log('💆 [MASSAGE] Adding facilities module based on massage terms detection');
+  }
+
+  // EARLY PREVENTION: Check for refund terms BEFORE other processing
+  const refundTerms = ['refund', 'cancel', 'cancellation', 'endurgreiðsla', 'hætta við', 'afbóka', 'change booking'];
+  if (refundTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('policies/booking_change', 1.0); // Add with maximum confidence
+    console.log('💰 [REFUND] Adding booking_change module based on refund terms detection');
   }
 
   // Add modules based on intent hierarchy (sophisticated approach)
@@ -840,8 +960,11 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
  * @returns {string} The system prompt
  */
 export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMessage, languageDecision, sunsetData = null) {
+  // Feature flag for knowledge-module linking (disabled by default for safety)
+  const USE_KNOWLEDGE_MODULE_LINKING = process.env.USE_KNOWLEDGE_MODULE_LINKING === 'true';
+  
   // Add clear indicator that modular system is active
-  console.log('MODULAR-SYSTEM-ACTIVE'); // No emoji, simple text - see if this log appears on vercel now
+  console.log('MODULAR-SYSTEM-ACTIVE'); 
   
   // Track performance
   const startTime = Date.now();
@@ -849,6 +972,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
   let knowledgeEnd = 0;
   let modulesSelectionEnd = 0;
   let promptAssemblyEnd = 0;
+  let moduleLinkingTime = 0;
   
   // If feature flag is off, use the original getSystemPrompt
   if (!USE_MODULAR_PROMPTS) {
@@ -863,19 +987,71 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     // Update language context for this interaction
     updateLanguageContext(context, userMessage);
     
-    // Determine which modules to include using advanced context analysis
-    const modulesSelectionStart = Date.now();
-    const modules = await determineRelevantModules(userMessage, context, languageDecision, isHoursQuery);
-    modulesSelectionEnd = Date.now();
-    
-    // Get relevant knowledge base entries using advanced retrieval
+    // CRITICAL CHANGE: Get knowledge FIRST before selecting modules
     knowledgeStart = Date.now();
     const relevantKnowledge = await getKnowledgeWithFallbacks(userMessage, context);
     knowledgeEnd = Date.now();
     
-    // Assemble the final prompt using the dynamic module system
+    // Knowledge-to-module linking with feature flag & error protection
+    let knowledgeRequiredModules = [];
+    
+    if (USE_KNOWLEDGE_MODULE_LINKING) {
+      const moduleLinkingStart = Date.now();
+      try {
+        // Set timeout for this operation
+        const linkingPromise = new Promise((resolve) => {
+          const requiredModules = getRequiredModulesFromKnowledge(relevantKnowledge);
+          resolve(requiredModules);
+        });
+        
+        const timeoutPromise = new Promise((resolve) => {
+          setTimeout(() => {
+            console.log('⚠️ [TIMEOUT] Knowledge mapping timed out - using empty result');
+            resolve([]);
+          }, 200); // 200ms maximum timeout
+        });
+        
+        // Race between normal operation and timeout
+        knowledgeRequiredModules = await Promise.race([linkingPromise, timeoutPromise]);
+        
+        if (knowledgeRequiredModules && knowledgeRequiredModules.length > 0) {
+          console.log(`🔗 [KNOWLEDGE-MODULE-LINK] Knowledge dictates modules: ${knowledgeRequiredModules.join(', ')}`);
+        }
+      } catch (linkingError) {
+        console.error(`❌ [LINKING-ERROR] Knowledge-module linking failed: ${linkingError.message}`);
+        knowledgeRequiredModules = []; // Safe fallback on error
+      }
+      
+      moduleLinkingTime = Date.now() - moduleLinkingStart;
+    }
+    
+    // Now determine modules through normal selection
+    const modulesSelectionStart = Date.now();
+    const contextSelectedModules = await determineRelevantModules(userMessage, context, languageDecision, isHoursQuery);
+    modulesSelectionEnd = Date.now();
+    
+    // Merge both module sets (from knowledge and context)
+    const allModules = [...contextSelectedModules];
+    
+    // Add knowledge-required modules if feature is enabled
+    if (USE_KNOWLEDGE_MODULE_LINKING && knowledgeRequiredModules.length > 0) {
+      // Add unique modules from knowledge
+      for (const module of knowledgeRequiredModules) {
+        if (!allModules.includes(module)) {
+          allModules.push(module);
+        }
+      }
+      
+      // Log metrics on added modules
+      const addedModules = knowledgeRequiredModules.filter(m => !contextSelectedModules.includes(m));
+      if (addedModules.length > 0) {
+        console.log(`📈 [KNOWLEDGE-ADDED] ${addedModules.length} modules from knowledge: ${addedModules.join(', ')}`);
+      }
+    }
+    
+    // Assemble the final prompt with the combined modules
     const promptAssemblyStart = Date.now();
-    const assembledPrompt = await assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
+    const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData);
     promptAssemblyEnd = Date.now();
     
     // Performance metrics
@@ -885,18 +1061,19 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
       modulesSelectionTime: modulesSelectionEnd - modulesSelectionStart,
       knowledgeTime: knowledgeEnd - knowledgeStart,
       promptTime: promptAssemblyEnd - promptAssemblyStart,
+      moduleLinkingTime: moduleLinkingTime,
       totalTime: totalTime
     };
     
     logger.info(`Dynamic prompt generation complete:`, {
       promptLength: assembledPrompt.length,
-      moduleCount: modules.length,
-      totalTime: `${totalTime}ms`,
+      moduleCount: allModules.length,
+      totalTime: totalTime,
       ...metrics
     });
     
     // Check performance 
-    checkPerformance(metrics, userMessage, modules);
+    checkPerformance(metrics, userMessage, allModules);
     
     return assembledPrompt;
   } catch (error) {
