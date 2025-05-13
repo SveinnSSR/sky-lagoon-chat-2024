@@ -2164,6 +2164,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Determine which operations to run in parallel
         let parallelPromises = [];
         let transferCheck = { shouldTransfer: false, reason: 'livechat_transfer_disabled' };
+        let knowledgeBaseResults; // Declare this variable here
 
         if (ENABLE_LIVECHAT_TRANSFER) {
             console.log('\n👥 LiveChat transfer check enabled');
