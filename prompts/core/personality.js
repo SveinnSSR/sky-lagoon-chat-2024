@@ -75,7 +75,7 @@ WELLNESS AND STRESS RELIEF RESPONSES:
 }
 
 /**
- * Returns the personality guidelines in Icelandic
+ * Returns the personality guidelines in Icelandic.
  * @returns {string} The Icelandic personality guidelines
  */
 export function getIcelandicPrompt() {
