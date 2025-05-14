@@ -678,27 +678,6 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     console.log('💰 [REFUND] Adding booking_change module based on refund terms detection');
   }
 
-  // EARLY PREVENTION: Check for contact/human requests BEFORE other processing
-  const contactTerms = [
-    'samband við manneskju', 'samband við starfsmann', 'tala við manneskju', 
-    'þarf að tala við', 'þarf að hafa samband', 'get ég talað við', 
-    'hringja í', 'símanúmer', 'hvaða síma', 'netfang', 'tölvupóstur'
-  ];
-  if (contactTerms.some(term => lowerCaseMessage.includes(term))) {
-    console.log('📞 [CONTACT] Detected request to contact human staff');
-    // Create a custom knowledge item with clean contact information
-    relevantKnowledge = [{
-      type: 'contact_information',
-      content: {
-        phone: '+354 527 6800',
-        email: 'reservations@skylagoon.is',
-        hours: '9:00 - 18:00',
-        instructions: 'Ef þú þarft að ná sambandi við starfsfólk okkar, vinsamlegast sendu tölvupóst á reservations@skylagoon.is eða hringdu í síma +354 527 6800 á milli 9:00 og 18:00.'
-      }
-    }];
-    return relevantKnowledge;
-  }
-
   // Add modules based on intent hierarchy (sophisticated approach)
   if (intentAnalysis.primaryIntent) {
     // Find modules related to primary intent
