@@ -622,7 +622,13 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
 
   // EARLY PREVENTION: Check for age-related terms BEFORE other processing
   const lowerCaseMessage = userMessage.toLowerCase();
-  const ageTerms = ['age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter'];
+  const ageTerms = [
+    'age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter',
+    // Add terms for infants and babies
+    'month old', 'infant', 'baby', 'babies', 'toddler', 'newborn', 'months old',
+    // Add truncated words that could appear
+    'month', 'infant', 'baby'
+  ];
   if (ageTerms.some(term => lowerCaseMessage.includes(term))) {
     moduleScores.set('policies/age_policy', 1.0); // Add with maximum confidence
     console.log('📋 [AGE-POLICY] Adding age policy module based on direct age terms detection');
