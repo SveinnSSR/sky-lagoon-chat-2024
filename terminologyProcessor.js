@@ -76,7 +76,9 @@ ICELANDIC TEXT RULES:
 - Convert "bókunarreferensnúmer" to "bókunarnúmer" in all forms
 - Use ONLY Icelandic terms throughout
 - Use "Saman pakkinn" and "Sér pakkinn"
-- Use "lónið okkar" for "our lagoon"
+- Replace "our lagoon" with "lónið" (not "lónið okkar") if "okkar" already appears nearby
+- Avoid phrases like "okkar fallega lónið okkar" (redundant "okkar")
+- Avoid unnecessary adjectives like "fallega", "dásamlega", or "einstaka" with "lónið"
 - Use proper Icelandic terminology consistently
 - Keep response 100% in Icelandic
 
