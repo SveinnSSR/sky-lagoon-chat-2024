@@ -321,7 +321,7 @@ const moduleMetadata = {
   'language/english_rules': {
     priority: 'medium',
     description: 'English language rules',
-    includeWhen: (context) => context.language === 'en' || !context.languageInfo?.isIcelandic,
+    includeWhen: (context) => context.language === 'en',
     category: 'language'
   },
   'seasonal/current_season': {
@@ -816,7 +816,22 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
  * @returns {string} The assembled prompt
  */
 async function assemblePrompt(modules, sessionId, languageDecision, context, relevantKnowledge = [], sunsetData = null, seasonInfo = null) {
-  const language = languageDecision?.isIcelandic ? 'is' : 'en';
+  // Determine language categories similar to the legacy system
+  const language = languageDecision?.language || (languageDecision?.isIcelandic ? 'is' : 'en');
+  const isIcelandic = language === 'is' || languageDecision?.isIcelandic;
+  const isEnglish = language === 'en';
+  const isAuto = language === 'auto';
+  const isStandardLanguage = isEnglish || isIcelandic;
+  const isOtherLanguage = !isStandardLanguage || isAuto;
+  
+  // Log the language determination decisions for debugging
+  console.log('\n🌐 Language determination:', {
+    language,
+    isAuto,
+    isEnglish,
+    isIcelandic,
+    isOtherLanguage
+  });
   
   // Log the modules being used
   logger.info(`Using prompt modules:`, modules);
@@ -971,11 +986,17 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
     assembledPrompt += conversationContext.join('\n');
   }
   
-  // Add final language instruction
-  if (language === 'is') {
+  // Add final language instruction using the more sophisticated approach from legacy system
+  if (isIcelandic) {
     assembledPrompt += `\n\nRESPOND IN ICELANDIC.`;
-  } else {
+  } else if (isEnglish) {
     assembledPrompt += `\n\nRESPOND IN ENGLISH.`;
+  } else if (isAuto) {
+    // Add the critical safety net from the legacy system
+    assembledPrompt += `\n\nIMPORTANT: RESPOND IN THE SAME LANGUAGE AS THE USER'S QUESTION. If the user writes in Icelandic, respond in Icelandic. If they write in English, respond in English. If they write in any other language, respond in that same language.`;
+  } else {
+    // For other explicit languages
+    assembledPrompt += `\n\nCRITICAL: RESPOND IN ${language.toUpperCase()} LANGUAGE. DO NOT RESPOND IN ENGLISH OR ICELANDIC UNLESS THE USER MESSAGE IS IN THOSE LANGUAGES.`;
   }
   
   // Performance timing - assembly completed
@@ -1039,6 +1060,19 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
   try {
     // Get the session context
     const context = getSessionContext(sessionId);
+    
+    // Enhanced logging similar to legacy system
+    console.log('\n👀 Language Context Check:', {
+      hasContext: !!context,
+      sessionId,
+      message: userMessage && userMessage.substring(0, 50),
+      language: {
+        isIcelandic: languageDecision?.isIcelandic,
+        language: languageDecision?.language,
+        confidence: languageDecision?.confidence,
+        reason: languageDecision?.reason
+      }
+    });
     
     // Update language context for this interaction
     updateLanguageContext(context, userMessage);
