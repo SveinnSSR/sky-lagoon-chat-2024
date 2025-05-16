@@ -657,6 +657,25 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   // Add formatting module (generally useful)
   moduleScores.set('formatting/response_format', 0.9);
 
+  // EARLY PREVENTION: Check for phone-related queries
+  const phoneTerms = ['phone', 'call', 'sími', 'síminn', 'símanum', 'þjónustuver'];
+  const isPhoneQuery = phoneTerms.some(term => lowerCaseMessage.includes(term));
+
+  if (isPhoneQuery && (lowerCaseMessage.includes('hour') || lowerCaseMessage.includes('open') || 
+                    lowerCaseMessage.includes('time') || lowerCaseMessage.includes('opinn') || 
+                    lowerCaseMessage.includes('tími') || lowerCaseMessage.includes('lengi'))) {
+    // Set flag in context
+    if (context) {
+      context.isPhoneTimeQuery = true;
+      if (context.timeContext) context.timeContext.isPhoneQuery = true;
+    }
+  
+    console.log('📞 [PHONE-HOURS] Detected phone hours query');
+  
+    // Ensure time_format module is prioritized
+    moduleScores.set('formatting/time_format', 1.0);
+  }
+  
   // EARLY PREVENTION: Check for age-related terms BEFORE other processing
   const ageTerms = [
     'age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter',

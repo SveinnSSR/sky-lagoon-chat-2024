@@ -1,3 +1,4 @@
+
 // prompts/formatting/time_format.js
 // Contains time formatting rules and time awareness information
 
@@ -12,6 +13,27 @@
  */
 export function getPrompt(language, seasonInfo, context = null, sunsetData = null, languageDecision = null) {
   let timeFormatContent = '';
+  
+  // Add specific distinction for phone service hours vs. facility hours
+  timeFormatContent += `
+PHONE SERVICE VS FACILITY HOURS DISTINCTION:
+1. For questions about "phone hours", "customer service hours", or with terms like "síminn" (phone):
+   - ALWAYS state phone service hours, not facility hours
+   - Phone service (customer service) hours: 09:00-18:00
+   - Include phone number: +354 527 6800
+   - Include email: reservations@skylagoon.is
+
+2. Phone query detection patterns:
+   - English: "phone hours", "phone open", "call", "customer service hours"
+   - Icelandic: "síminn", "símavakt", "þjónustuver", "símþjónusta"
+   
+3. Phone service hours response templates:
+   - For English: "Our customer service phone line (+354 527 6800) is open from 09:00 to 18:00 (GMT). You can also email us at reservations@skylagoon.is."
+   - For Icelandic: "Þjónustuver okkar í síma (+354 527 6800) er opið frá 09:00 til 18:00. Þú getur einnig sent okkur tölvupóst á reservations@skylagoon.is."
+
+4. For general opening hours questions (no phone terms mentioned):
+   - Provide the FACILITY opening hours according to seasonInfo
+`;
   
   // Add the time duration and formatting guidelines
   timeFormatContent += `
@@ -159,6 +181,20 @@ CURRENT ACTIVITY CONTEXT:
 `;
   }
 
+  // Special handling for phone time queries if detected in context
+  if (context && (context.isPhoneTimeQuery || (context.timeContext && context.timeContext.isPhoneQuery))) {
+    timeFormatContent += `
+PHONE QUERY DETECTED - CRITICAL INSTRUCTIONS:
+1. This is specifically a PHONE HOURS query
+2. DO NOT provide facility hours (${seasonInfo.openingTime}-${seasonInfo.closingTime})
+3. ONLY provide phone customer service hours (09:00-18:00)
+4. Include phone number: +354 527 6800
+5. Mention email alternative: reservations@skylagoon.is
+6. For Icelandic: "Þjónustuver okkar í síma (+354 527 6800) er opið frá 09:00 til 18:00."
+7. For English: "Our customer service phone line (+354 527 6800) is open from 09:00 to 18:00 (GMT)."
+`;
+  }
+
   // Add context-aware response flexibility
   timeFormatContent += `
 CONTEXT-AWARE RESPONSE FLEXIBILITY:
@@ -192,6 +228,7 @@ CURRENT SCHEDULE:
 - Last ritual: ${seasonInfo.lastRitual}
 - Bar service until: ${seasonInfo.barClose}
 - Lagoon access until: ${seasonInfo.lagoonClose}
+- Customer service phone hours: 09:00-18:00
 `;
 
   // Add sunset information if available
@@ -223,6 +260,7 @@ Today's hours:
 - Last ritual: ${seasonInfo.lastRitual} (GMT)
 - Bar closes: ${seasonInfo.barClose} (GMT)
 - Lagoon closes: ${seasonInfo.lagoonClose} (GMT)
+- Phone customer service: 09:00-18:00 (GMT)
 `;
 
   // Add Easter information if applicable
