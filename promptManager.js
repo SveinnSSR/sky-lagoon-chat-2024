@@ -646,8 +646,10 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     moduleScores.set(modulePath, 1.0); // Maximum confidence for critical modules
   }
   
-  // Add language-specific modules
-  const languageModule = languageDecision?.isIcelandic ? 'language/icelandic_rules' : 'language/english_rules';
+  // Add language-specific modules - prioritize explicit language settings
+  const languageModule = (languageDecision?.language === 'is' || context.language === 'is') ? 
+    'language/icelandic_rules' : 
+    (languageDecision?.isIcelandic ? 'language/icelandic_rules' : 'language/english_rules');
   moduleScores.set(languageModule, 1.0);
   
   // Add formatting module (generally useful)
