@@ -627,8 +627,10 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
       'core/personality',
       'formatting/response_format',
       'seasonal/current_season',
-      languageDecision?.isIcelandic ? 'language/icelandic_rules' : 'language/english_rules'
-    ];
+      (languageDecision?.language === 'is' || context.language === 'is') ? 
+        'language/icelandic_rules' : 
+        (languageDecision?.isIcelandic ? 'language/icelandic_rules' : 'language/english_rules')
+      ];
   }
   
   // Analyze message for intent and topic detection using contextSystem.js
