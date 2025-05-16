@@ -151,7 +151,7 @@ const moduleMetadata = {
       'discount', 'special offer', 'sale', 'deal',
     
       // Package types
-      'saman', 'ser', 'sér', 'multi-pass', 'multipass', 'hefð', 'venja',
+      'saman', 'ser', 'sér', 'hefð', 'venja',
       'standard', 'premium', 'basic', 'deluxe', 'for two', 'date night',
       'stefnumót', 'stefnumótspakki', 'couples', 'duo',
     
@@ -530,7 +530,7 @@ async function analyzeMessageIntent(message, context) {
     lastTopic: context.lastTopic,
     topics: context.topics || [],
     isQuestion: normalizedMessage.endsWith('?'),
-    isGreeting: /^(hello|hi|hey|good\s(morning|afternoon|evening)|hæ|halló|góðan\s(dag|morgun|kvöld))/i.test(normalizedMessage),
+    isGreeting: /^(hello|hi|hey|good\s(morning|afternoon|evening)|hæ|halló|sæl|góðan\s(dag|morgun|kvöld))/i.test(normalizedMessage),
     intentProbabilities: {},
     topicPredictions: []
   };
@@ -598,6 +598,39 @@ async function analyzeMessageIntent(message, context) {
  * @returns {Array<string>} Array of module paths to include
  */
 async function determineRelevantModules(userMessage, context, languageDecision, isHoursQuery) {
+  // EARLY PREVENTION: Check for greeting patterns BEFORE other processing
+  const lowerCaseMessage = userMessage.toLowerCase();
+  const greetingPatterns = [
+    // English greetings
+    /^(hello|hi|hey|good\s(morning|afternoon|evening)|greetings)/i,
+    // Icelandic greetings
+    /^(hæ|halló|sæl|sæll|sælar|góðan\s(dag|morgun|kvöld)|blessaður|blessuð)/i
+  ];
+  
+  // Check if message is just a simple greeting
+  const isSimpleGreeting = greetingPatterns.some(pattern => pattern.test(lowerCaseMessage)) && 
+                           lowerCaseMessage.split(' ').length <= 3;
+  
+  if (isSimpleGreeting) {
+    console.log('👋 [GREETING] Detected simple greeting pattern - bypassing vector search');
+    
+    // Update context with greeting info
+    if (context.intentHierarchy && typeof context.intentHierarchy.updateIntent === 'function') {
+      context.intentHierarchy.updateIntent('greeting', 1.0); // Set with maximum confidence
+    }
+    context.lastTopic = 'greeting';
+    
+    // Return basic modules for greeting without going through other processing
+    return [
+      'core/identity',
+      'core/response_rules',
+      'core/personality',
+      'formatting/response_format',
+      'seasonal/current_season',
+      languageDecision?.isIcelandic ? 'language/icelandic_rules' : 'language/english_rules'
+    ];
+  }
+  
   // Analyze message for intent and topic detection using contextSystem.js
   const intentAnalysis = await analyzeMessageIntent(userMessage, context);
   
@@ -621,7 +654,6 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   moduleScores.set('formatting/response_format', 0.9);
 
   // EARLY PREVENTION: Check for age-related terms BEFORE other processing
-  const lowerCaseMessage = userMessage.toLowerCase();
   const ageTerms = [
     'age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter',
     // Add terms for infants and babies
@@ -1076,6 +1108,11 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     
     // Update language context for this interaction
     updateLanguageContext(context, userMessage);
+    
+    // Store the user message in context for Icelandic detection
+    if (context && userMessage) {
+      context.lastMessage = userMessage;
+    }
     
     // Use pre-retrieved knowledge if provided or retrieve if needed
     let relevantKnowledge = preRetrievedKnowledge;
