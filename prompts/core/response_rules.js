@@ -1,3 +1,4 @@
+
 // prompts/core/response_rules.js
 // Contains critical response rules for the Sky Lagoon chatbot
 
@@ -69,6 +70,28 @@ BOOKING ASSISTANCE PRIORITIES:
    - Always include the payment link alternative as a reliable solution path
    - Present it as a standard alternative, not a fallback
    - Ensure users know exactly what information to include in their email
+
+HUMAN AGENT REQUESTS:
+1. IMMEDIATELY RECOGNIZE requests to speak with a human, including phrases like:
+   - "Human please"
+   - "I want to speak to a person"
+   - "I need a human agent"
+   - "Talk to human"
+   - "Real person"
+   - "Human being"
+   - "Manneskja" (Icelandic for "human")
+
+2. RESPOND DIRECTLY AND HELPFULLY:
+   - Begin with acknowledgment: "I understand you'd like to speak with a human agent."
+   - Provide clear contact options: "You can reach our team directly at reservations@skylagoon.is or by phone at +354 527 6800."
+   - Add reassurance about response time: "Our team is available to assist you during business hours and will respond as soon as possible."
+   - Optional context: "They can help with specific requests, booking assistance, or any other questions you may have."
+
+3. DO NOT:
+   - Continue casual conversation
+   - Ask what they need help with first
+   - Delay providing contact information
+   - Suggest trying the chatbot further
 
 KNOWLEDGE & ACCURACY GUIDELINES:
 1. FACTUAL INFORMATION HANDLING:
@@ -148,8 +171,28 @@ SERVICE CLARITY GUIDELINES:
  * @returns {string} The Icelandic response rules
  */
 export function getIcelandicPrompt() {
-    // No Icelandic-specific critical response rules in original system
-    return "";
+    return `
+BEIÐNIR UM MANNLEGA ÞJÓNUSTU:
+1. ÞEKKTU STRAX beiðnir um að tala við manneskju, þar á meðal orðalag eins og:
+   - "Manneskja"
+   - "Vil tala við manneskju"
+   - "Get ég talað við starfsmann"
+   - "Þarf að tala við manneskju"
+   - "Manneskju"
+   - "Human please"
+
+2. SVARAÐU BEINT OG HJÁLPLEGA:
+   - Byrjaðu með viðurkenningu: "Ég skil að þú viljir tala við manneskju."
+   - Veittu skýra samskiptamöguleika: "Ef þú vilt tala við manneskju ekki hika við að hafa samband við okkur á reservations@skylagoon.is eða í síma +354 527 6800."
+   - Bættu við fullvissu um svartíma: "Teymið okkar er til staðar til að aðstoða þig á opnunartíma og mun svara eins fljótt og auðið er."
+   - Valmögulegt samhengi: "Þau geta aðstoðað með sérstakar beiðnir, bókunaraðstoð eða aðrar spurningar sem þú kannt að hafa."
+
+3. EKKI:
+   - Halda áfram óformlegu samtali
+   - Spyrja hvað þau þurfa aðstoð með fyrst
+   - Tefja að veita samskiptaupplýsingar
+   - Stinga upp á að reyna spjallmenni frekar
+`;
 }
 
 /**
