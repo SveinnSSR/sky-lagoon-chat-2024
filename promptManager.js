@@ -657,6 +657,37 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   // Add formatting module (generally useful)
   moduleScores.set('formatting/response_format', 0.9);
 
+// EARLY PREVENTION: Check for booking change with reference number
+  const bookingRefPattern = /\b(\d{7,8}|[A-Z]+-\d{5,8}|confirmation.*\d{5,8})\b/i;
+  const changeTerms = ['færa', 'breyta', 'flytja', 'move', 'change', 'modify', 'reschedule'];
+  
+  // Check for both booking reference and change terms
+  const hasBookingRef = bookingRefPattern.test(lowerCaseMessage);
+  const hasChangeIntent = changeTerms.some(term => lowerCaseMessage.includes(term));
+  const hasPreviousBookingIntent = context && 
+    (context.lastTopic === 'booking_change' || context.status === 'booking_change');
+    
+  // Detect booking change request with reference number
+  if ((hasBookingRef && hasChangeIntent) || (hasBookingRef && hasPreviousBookingIntent)) {
+    // Set booking change status in context
+    if (context) {
+      context.status = 'booking_change';
+      context.lastTopic = 'booking_change';
+      
+      // Extract booking reference if available
+      const bookingRefMatch = lowerCaseMessage.match(/\b(\d{7,8})\b/);
+      if (bookingRefMatch) {
+        context.bookingDetails = context.bookingDetails || {};
+        context.bookingDetails.reference = bookingRefMatch[0];
+      }
+    }
+    
+    console.log('📝 [BOOKING-CHANGE] Detected booking reference with change request');
+    
+    // Ensure booking_change module is prioritized
+    moduleScores.set('policies/booking_change', 1.0);
+  }
+
   // EARLY PREVENTION: Check for phone-related queries
   const phoneTerms = ['phone', 'call', 'sími', 'síminn', 'símanum', 'þjónustuver'];
   const isPhoneQuery = phoneTerms.some(term => lowerCaseMessage.includes(term));
