@@ -657,7 +657,34 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   // Add formatting module (generally useful)
   moduleScores.set('formatting/response_format', 0.9);
 
-// EARLY PREVENTION: Check for booking change with reference number
+  // EARLY PREVENTION: Force Icelandic for common Icelandic greetings
+  const icelandicGreetingPatterns = /^(hæ|halló|sæl|sæll|góðan dag|góðan daginn)$/i;
+  if (icelandicGreetingPatterns.test(lowerCaseMessage) && !isSimpleGreeting) {
+    console.log('🇮🇸 [ICELANDIC] Detected specific Icelandic greeting - forcing Icelandic response');
+    
+    // Force Icelandic language settings
+    if (languageDecision) {
+      languageDecision.language = 'is';
+      languageDecision.isIcelandic = true;
+    }
+    
+    // Update context language
+    if (context) {
+      context.language = 'is';
+    }
+    
+    // Return modules with Icelandic rules prioritized
+    return [
+      'core/identity',
+      'core/response_rules',
+      'core/personality',
+      'formatting/response_format',
+      'seasonal/current_season',
+      'language/icelandic_rules'
+    ];
+  }
+
+  // EARLY PREVENTION: Check for booking change with reference number
   const bookingRefPattern = /\b(\d{7,8}|[A-Z]+-\d{5,8}|confirmation.*\d{5,8})\b/i;
   const changeTerms = ['færa', 'breyta', 'flytja', 'move', 'change', 'modify', 'reschedule'];
   
