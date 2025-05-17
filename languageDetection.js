@@ -14,7 +14,7 @@ export const detectLanguage = (message, context = null) => {
         .trim();
     
     // Only check for the truly unique Icelandic characters after removing brand terms
-    if (/[þð]/i.test(cleanedForDetection)) {
+    if (/[þðæ]/i.test(cleanedForDetection)) {
         return {
             isIcelandic: true,
             language: 'is',

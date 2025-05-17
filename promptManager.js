@@ -1177,6 +1177,12 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     // Get the session context
     const context = getSessionContext(sessionId);
     
+    // Honor client-specified language if available
+    if (languageDecision && languageDecision.language === 'is') {
+      languageDecision.isIcelandic = true;
+      console.log('🇮🇸 [LANGUAGE] Honoring client-specified Icelandic language');
+    }
+
     // Enhanced logging similar to legacy system
     console.log('\n👀 Language Context Check:', {
       hasContext: !!context,
