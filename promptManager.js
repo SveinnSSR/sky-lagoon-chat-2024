@@ -658,8 +658,8 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   moduleScores.set('formatting/response_format', 0.9);
 
   // EARLY PREVENTION: Force Icelandic for common Icelandic greetings
-  const icelandicGreetingPatterns = /^(hæ|halló|sæl|sæll|góðan dag|góðan daginn)$/i;
-  if (icelandicGreetingPatterns.test(lowerCaseMessage) && !isSimpleGreeting) {
+  const icelandicGreetingPatterns = /^(hæ|halló|sæl|sæll|góðan dag|góðan daginn)/i;
+  if (icelandicGreetingPatterns.test(lowerCaseMessage)) {
     console.log('🇮🇸 [ICELANDIC] Detected specific Icelandic greeting - forcing Icelandic response');
     
     // Force Icelandic language settings
@@ -673,14 +673,17 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
       context.language = 'is';
     }
     
-    // Return modules with Icelandic rules prioritized
+    // Set the language to Icelandic before building modules
+    console.log('🇮🇸 Forcing exact Icelandic greeting template usage');
+    
+    // Return modules with Icelandic rules prioritized and give it higher priority
     return [
+      'language/icelandic_rules', // Put this FIRST to ensure highest priority
       'core/identity',
       'core/response_rules',
       'core/personality',
       'formatting/response_format',
-      'seasonal/current_season',
-      'language/icelandic_rules'
+      'seasonal/current_season'
     ];
   }
 
