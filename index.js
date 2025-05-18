@@ -2794,7 +2794,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.error('\n❌ Failed to send connection event:', connError);
         }
         
-        // Send immediate response to client (without 'return' so code continues executing)
+        // Send immediate response to client WITHOUT the 'return' keyword
         res.status(200).json({
             streaming: true,
             streamId: streamId,
@@ -2809,8 +2809,10 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         // Make GPT-4 request with streaming enabled
         try {
+            // Make streaming request to OpenAI
+            console.log('\n🤖 Starting streaming request to OpenAI...');
             const completion = await openai.chat.completions.create({
-                model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                model: "gpt-4o",
                 messages: messages,
                 temperature: 0.7,
                 max_tokens: getMaxTokens(userMessage),
@@ -2820,6 +2822,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Process the stream chunks
             let collectedChunks = '';
             let chunkCount = 0;
+            
+            console.log('\n📡 Processing OpenAI stream...');
             
             for await (const chunk of completion) {
                 try {
@@ -2831,6 +2835,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         collectedChunks += content;
                         chunkCount++;
                         
+                        // Log chunk debug info
+                        console.log(`\n📦 Chunk ${chunkCount}: "${content}" (${content.length} chars)`);
+                        
                         // Send chunk via Pusher
                         await pusher.trigger('chat-channel', 'stream-chunk', {
                             streamId: streamId,
@@ -2840,15 +2847,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             timestamp: Date.now()
                         });
                         
-                        // Debugging info for chunks
-                        if (chunkCount % 5 === 0) {
-                            console.log(`\n📦 Sent ${chunkCount} chunks, total ${collectedChunks.length} chars`);
-                        }
+                        // More detailed logging for every single chunk
+                        console.log(`\n✅ Chunk ${chunkCount} sent via Pusher`);
                     }
                 } catch (chunkError) {
                     console.error('\n❌ Error processing chunk:', chunkError);
                 }
             }
+            
+            console.log(`\n✅ Stream complete: ${chunkCount} chunks, ${collectedChunks.length} total chars`);
             
             // Record GPT request time
             metrics.gptTime = Date.now() - gptStart;
@@ -2874,7 +2881,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (collectedChunks && req.body.message) {
                 // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
                 const responseObj = {
-                    message: filteredResponse, // FIXED: Now using fully processed response
+                    message: filteredResponse,
                     language: {
                         detected: context.language === 'is' ? 'Icelandic' : 'English',
                         confidence: languageDecision.confidence,
@@ -2882,7 +2889,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     },
                     topicType: context?.lastTopic || 'general',
                     responseType: 'gpt_response',
-                    status: context.status || 'active' // ADD THIS LINE
+                    status: context.status || 'active'
                 };
                 
                 // Pass through sendBroadcastAndPrepareResponse to broadcast
@@ -2914,7 +2921,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Cache the response
             responseCache.set(cacheKey, {
                 response: {
-                    message: filteredResponse, // Use the fully processed response
+                    message: filteredResponse,
                     postgresqlMessageId: postgresqlMessageId,
                     language: {
                         detected: context.language === 'is' ? 'Icelandic' : 'English',
@@ -2931,13 +2938,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 sessionAndLanguage: `${metrics.sessionTime}ms`,
                 knowledge: `${metrics.knowledgeTime}ms`,
                 transfer: `${metrics.transferTime}ms`,
-                // booking metric removed
                 gpt: `${metrics.gptTime}ms`,
                 total: `${metrics.totalTime}ms`
             });
             
         } catch (streamError) {
             console.error('\n❌ Streaming Error:', streamError);
+            console.error('\n❌ Error Stack:', streamError.stack);
             
             // Send error event via Pusher
             try {
