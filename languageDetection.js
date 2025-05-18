@@ -14,6 +14,7 @@ export const detectLanguage = (message, context = null) => {
         .trim();
     
     // Only check for the truly unique Icelandic characters after removing brand terms
+    // Note: The 'æ' character has potential overlap with other languages
     if (/[þðæ]/i.test(cleanedForDetection)) {
         return {
             isIcelandic: true,
