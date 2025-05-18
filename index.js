@@ -2794,7 +2794,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             console.error('\n❌ Failed to send connection event:', connError);
         }
         
-        // Send immediate response to client WITHOUT the 'return' keyword
+        // Send immediate response to client (NO return keyword)
         res.status(200).json({
             streaming: true,
             streamId: streamId,
@@ -2807,7 +2807,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
         
-        // Make GPT-4 request with streaming enabled
         try {
             // Make streaming request to OpenAI
             console.log('\n🤖 Starting streaming request to OpenAI...');
@@ -2816,27 +2815,25 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 messages: messages,
                 temperature: 0.7,
                 max_tokens: getMaxTokens(userMessage),
-                stream: true // Enable streaming
+                stream: true
             });
             
             // Process the stream chunks
             let collectedChunks = '';
             let chunkCount = 0;
             
-            console.log('\n📡 Processing OpenAI stream...');
-            
             for await (const chunk of completion) {
                 try {
                     // Extract content from the chunk
                     const content = chunk.choices[0]?.delta?.content || '';
                     
+                    // Log every chunk regardless of content
+                    console.log(`\n📦 Processing chunk ${chunkCount + 1}: ${content ? `"${content}"` : '[empty]'}`);
+                    
                     if (content) {
                         // Accumulate content
                         collectedChunks += content;
                         chunkCount++;
-                        
-                        // Log chunk debug info
-                        console.log(`\n📦 Chunk ${chunkCount}: "${content}" (${content.length} chars)`);
                         
                         // Send chunk via Pusher
                         await pusher.trigger('chat-channel', 'stream-chunk', {
@@ -2847,8 +2844,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                             timestamp: Date.now()
                         });
                         
-                        // More detailed logging for every single chunk
-                        console.log(`\n✅ Chunk ${chunkCount} sent via Pusher`);
+                        console.log(`\n✅ Chunk ${chunkCount} sent via Pusher: "${content}"`);
                     }
                 } catch (chunkError) {
                     console.error('\n❌ Error processing chunk:', chunkError);
@@ -2958,7 +2954,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             } catch (pusherError) {
                 console.error('\n❌ Failed to send stream error event:', pusherError);
             }
+            
+            // If streaming failed, log a warning but don't try to send another HTTP response
+            console.warn('\n⚠️ Streaming failed but HTTP response was already sent');
         }
+        
+        // We never get to this point in normal execution since we've already sent the response
+        // This is just to keep the structure of your code consistent
+        return;
 
     } catch (error) {
         console.error('\n❌ Error Details:', {
