@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SSE Test Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #messages { 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      height: 300px; 
+      overflow-y: auto;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    .message { margin-bottom: 8px; padding: 8px; border-radius: 4px; }
+    .system { background-color: #f0f0f0; }
+    .content { background-color: #e6f7ff; }
+    .error { background-color: #fff1f0; color: #f5222d; }
+    button {
+      background-color: #70744E;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>SSE Test Client</h1>
+  <div>
+    <button id="startButton">Start SSE Connection</button>
+    <button id="stopButton" disabled>Stop Connection</button>
+  </div>
+  <div id="status">Status: Disconnected</div>
+  <h2>Messages:</h2>
+  <div id="messages"></div>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const statusDiv = document.getElementById('status');
+    let eventSource = null;
+
+    function addMessage(type, text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      msgDiv.textContent = text;
+      messagesDiv.appendChild(msgDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function updateStatus(status) {
+      statusDiv.textContent = `Status: ${status}`;
+    }
+
+    startButton.addEventListener('click', function() {
+      // Clean up any existing connection
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      // Update UI
+      addMessage('system', 'Connecting to SSE endpoint...');
+      startButton.disabled = true;
+      stopButton.disabled = false;
+      updateStatus('Connecting...');
+
+      try {
+        // Create new EventSource connection
+        // Change this URL to match your actual deployed URL
+        eventSource = new EventSource('/test-sse');
+        
+        // Connection opened
+        eventSource.onopen = function() {
+          addMessage('system', 'Connection opened');
+          updateStatus('Connected');
+        };
+
+        // Connected event
+        eventSource.addEventListener('connected', function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            addMessage('system', `Connected: ${data.message}`);
+          } catch (error) {
+            addMessage('error', `Error parsing connected event: ${error.message}`);
+          }
+        });
+
+        // Message event
+        eventSource.addEventListener('message', function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            addMessage('content', `Message: ${data.content}`);
+          } catch (error) {
+            addMessage('error', `Error parsing message event: ${error.message}`);
+          }
+        });
+
+        // Complete event
+        eventSource.addEventListener('complete', function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            addMessage('system', `Complete: ${data.content}`);
+            if (data.done) {
+              closeConnection();
+            }
+          } catch (error) {
+            addMessage('error', `Error parsing complete event: ${error.message}`);
+          }
+        });
+
+        // Error handling
+        eventSource.onerror = function(error) {
+          addMessage('error', `EventSource error: ${error.type}`);
+          updateStatus('Error');
+          
+          // Don't automatically close on first error - let user see what happens
+          setTimeout(() => {
+            if (eventSource && eventSource.readyState === 2) { // CLOSED state
+              addMessage('system', 'Connection closed due to error');
+              closeConnection();
+            }
+          }, 1000);
+        };
+
+        // Generic message handler as fallback
+        eventSource.onmessage = function(event) {
+          addMessage('content', `Generic message: ${event.data}`);
+        };
+
+      } catch (error) {
+        addMessage('error', `Failed to create EventSource: ${error.message}`);
+        updateStatus('Failed');
+        startButton.disabled = false;
+        stopButton.disabled = true;
+      }
+    });
+
+    stopButton.addEventListener('click', function() {
+      closeConnection();
+    });
+
+    function closeConnection() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        addMessage('system', 'Connection closed');
+        updateStatus('Disconnected');
+        startButton.disabled = false;
+        stopButton.disabled = true;
+      }
+    }
+  </script>
+</body>
+</html>

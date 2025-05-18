@@ -3702,6 +3702,39 @@ app.post('/webhook-debug', (req, res) => {
   res.status(200).send('OK');
 });
 
+// Add this to your index.js file - a dedicated test endpoint
+app.get('/test-sse', (req, res) => {
+  console.log('SSE Test endpoint hit');
+  
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  
+  // Send initial connection message
+  res.write('event: connected\ndata: {"message":"Connection established"}\n\n');
+  
+  // Send a test message immediately
+  res.write('event: message\ndata: {"content":"Test message 1"}\n\n');
+  
+  // Send another message after 2 seconds
+  setTimeout(() => {
+    res.write('event: message\ndata: {"content":"Test message 2"}\n\n');
+  }, 2000);
+  
+  // Send a final message and close after 4 seconds
+  setTimeout(() => {
+    res.write('event: complete\ndata: {"content":"Test complete","done":true}\n\n');
+    res.end();
+  }, 4000);
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log('Client closed SSE connection');
+  });
+});
+
 // Add this AFTER your existing endpoints but BEFORE app.listen
 // ===============================================================
 // LiveChat webhook endpoint for receiving agent messages
