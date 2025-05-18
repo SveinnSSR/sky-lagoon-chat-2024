@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Streaming Test</title>
+  <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+</head>
+<body>
+  <h1>WebSocket Streaming Test</h1>
+  <button id="startTest">Start Test Stream</button>
+  <div id="status">Disconnected</div>
+  <div id="streamContent" style="border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto;"></div>
+  
+  <script>
+    const statusDiv = document.getElementById('status');
+    const contentDiv = document.getElementById('streamContent');
+    const startButton = document.getElementById('startTest');
+    
+    // Initialize Pusher with your credentials
+    const pusher = new Pusher('cc7d062dcbb73c0ecbe3', {
+      cluster: 'eu'
+    });
+    
+    // Subscribe to the channel
+    const channel = pusher.subscribe('chat-channel');
+    
+    // Bind to events
+    channel.bind('stream-connected', function(data) {
+      statusDiv.textContent = `Connected to stream: ${data.streamId}`;
+      contentDiv.innerHTML += `<div style="color: green;">✓ Connection established</div>`;
+      console.log('Stream connected event:', data);
+    });
+    
+    channel.bind('stream-chunk', function(data) {
+      contentDiv.innerHTML += `<span>${data.content}</span>`;
+      console.log('Chunk received:', data);
+    });
+    
+    channel.bind('stream-complete', function(data) {
+      statusDiv.textContent = `Stream complete: ${data.streamId}`;
+      contentDiv.innerHTML += `<div style="color: green;">✓ Stream complete</div>`;
+      console.log('Stream complete event:', data);
+    });
+    
+    channel.bind('stream-error', function(data) {
+      statusDiv.textContent = `Error: ${data.error}`;
+      contentDiv.innerHTML += `<div style="color: red;">✗ Error: ${data.error}</div>`;
+      console.log('Stream error event:', data);
+    });
+    
+    // Start test button
+    startButton.addEventListener('click', function() {
+      statusDiv.textContent = 'Starting test...';
+      contentDiv.innerHTML = '';
+      
+      fetch('/test-streaming')
+        .then(response => response.json())
+        .then(data => {
+          console.log('Test initiated:', data);
+        })
+        .catch(error => {
+          statusDiv.textContent = `Fetch error: ${error.message}`;
+          console.error('Fetch error:', error);
+        });
+    });
+  </script>
+</body>
+</html>
