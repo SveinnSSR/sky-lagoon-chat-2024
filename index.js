@@ -2744,109 +2744,128 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         
         // STREAMING IMPLEMENTATION
         if (isStreamingRequested) {
-            console.log('\n🔄 Using streaming mode for GPT request');
-            
-            try {
-                // Create a streaming completion
-                const stream = await openai.chat.completions.create({
-                    model: "gpt-4o",
-                    messages: messages,
-                    temperature: 0.7,
-                    max_tokens: getMaxTokens(userMessage),
-                    stream: true // Enable streaming
-                });
-                
-                // Track accumulated response for context saving
-                let accumulatedResponse = '';
-                
-                // Send "thinking" event (empty message to trigger UI)
-                sendEvent('chunk', { content: '', done: false });
-                
-                // Process the stream
-                for await (const chunk of stream) {
-                    const content = chunk.choices[0]?.delta?.content || '';
-                    
-                    if (content) {
-                        // Add to accumulated response
-                        accumulatedResponse += content;
-                        
-                        // Send this chunk to the client
-                        sendEvent('chunk', { 
-                            content: content,
-                            done: false
-                        });
-                    }
-                }
-                
-                // Calculate GPT time
-                metrics.gptTime = Date.now() - gptStart;
-                console.log(`\n⏱️ GPT streaming request completed in ${metrics.gptTime}ms`);
-                
-                // Log the completed response
-                console.log('\n🤖 GPT Streamed Response:', accumulatedResponse);
-                
-                // Add AI response to the context system
-                addMessageToContext(context, { role: 'assistant', content: accumulatedResponse });
-                
-                // Apply terminology enhancement asynchronously
-                const enhancedResponse = await enforceTerminology(accumulatedResponse, openai);
-                console.log('\n✨ Enhanced Response:', enhancedResponse);
-                
-                // Filter emojis
-                const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-                const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
-                console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-                
-                // Update assistant message in context with filtered response
-                context.messages[context.messages.length - 1].content = filteredResponse;
-                
-                // Use the unified broadcast system
-                let postgresqlMessageId = null;
-                if (req.body.message) {
-                    // Create an intermediate response object
-                    const responseObj = {
-                        message: filteredResponse,
-                        language: {
-                            detected: context.language === 'is' ? 'Icelandic' : 'English',
-                            confidence: languageDecision.confidence,
-                            reason: languageDecision.reason
-                        },
-                        topicType: context?.lastTopic || 'general',
-                        responseType: 'gpt_response',
-                        status: context.status || 'active'
-                    };
-                    
-                    // Pass through sendBroadcastAndPrepareResponse to broadcast
-                    const result = await sendBroadcastAndPrepareResponse(responseObj);
-                    
-                    // Extract the PostgreSQL ID if available from the result
-                    postgresqlMessageId = result.postgresqlMessageId || null;
-                }
-                
-                // Send the complete event
-                sendEvent('complete', { 
-                    content: filteredResponse,
-                    postgresqlMessageId: postgresqlMessageId,
-                    done: true,
-                    language: {
-                        detected: context.language === 'is' ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    }
-                });
-                
-                // Record total processing time
-                metrics.totalTime = Date.now() - startTime;
-                console.log('\n⏱️ Performance Metrics:', {
-                    sessionAndLanguage: `${metrics.sessionTime}ms`,
-                    knowledge: `${metrics.knowledgeTime}ms`,
-                    transfer: `${metrics.transferTime}ms`,
-                    gpt: `${metrics.gptTime}ms`,
-                    total: `${metrics.totalTime}ms`
-                });
-                
-                // End the response
-                return;
+          console.log('\n🔄 Using streaming mode for GPT request');
+  
+          try {
+              // Create a streaming completion
+              const stream = await openai.chat.completions.create({
+                  model: "gpt-4o",
+                  messages: messages,
+                  temperature: 0.7,
+                  max_tokens: getMaxTokens(userMessage),
+                  stream: true // Enable streaming
+              });
+  
+              // Track accumulated response for context saving
+              let accumulatedResponse = '';
+  
+              // MODIFIED: Send initial empty chunk to establish connection
+              sendEvent('chunk', { content: '', done: false });
+  
+              // Process the stream
+              for await (const chunk of stream) {
+                  const content = chunk.choices[0]?.delta?.content || '';
+  
+                  if (content) {
+                      // Add to accumulated response
+                      accumulatedResponse += content;
+  
+                      // MODIFIED: Use generic message format for better compatibility
+                      res.write(`data: ${JSON.stringify({ 
+                          content: content,
+                          done: false
+                      })}\n\n`);
+  
+                      // Send this chunk to the client
+                      sendEvent('chunk', { 
+                          content: content,
+                          done: false
+                      });
+                  }
+              }
+  
+              // Calculate GPT time
+              metrics.gptTime = Date.now() - gptStart;
+              console.log(`\n⏱️ GPT streaming request completed in ${metrics.gptTime}ms`);
+  
+              // Log the completed response
+              console.log('\n🤖 GPT Streamed Response:', accumulatedResponse);
+  
+              // Add AI response to the context system
+              addMessageToContext(context, { role: 'assistant', content: accumulatedResponse });
+  
+              // Apply terminology enhancement asynchronously
+              const enhancedResponse = await enforceTerminology(accumulatedResponse, openai);
+              console.log('\n✨ Enhanced Response:', enhancedResponse);
+  
+              // Filter emojis
+              const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+              const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+              console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
+  
+              // Update assistant message in context with filtered response
+              context.messages[context.messages.length - 1].content = filteredResponse;
+  
+              // Use the unified broadcast system
+              let postgresqlMessageId = null;
+              if (req.body.message) {
+                  // Create an intermediate response object
+                  const responseObj = {
+                      message: filteredResponse,
+                      language: {
+                          detected: context.language === 'is' ? 'Icelandic' : 'English',
+                          confidence: languageDecision.confidence,
+                          reason: languageDecision.reason
+                      },
+                      topicType: context?.lastTopic || 'general',
+                      responseType: 'gpt_response',
+                      status: context.status || 'active'
+                  };
+  
+                  // Pass through sendBroadcastAndPrepareResponse to broadcast
+                  const result = await sendBroadcastAndPrepareResponse(responseObj);
+  
+                  // Extract the PostgreSQL ID if available from the result
+                  postgresqlMessageId = result.postgresqlMessageId || null;
+              }
+  
+              // MODIFIED: Send the complete message in generic format
+              res.write(`data: ${JSON.stringify({ 
+                  content: filteredResponse,
+                  postgresqlMessageId: postgresqlMessageId,
+                  done: true,
+                  language: {
+                      detected: context.language === 'is' ? 'Icelandic' : 'English',
+                      confidence: languageDecision.confidence,
+                      reason: languageDecision.reason
+                  }
+              })}\n\n`);
+  
+              // Send the complete event for specific handlers
+              sendEvent('complete', { 
+                  content: filteredResponse,
+                  postgresqlMessageId: postgresqlMessageId,
+                  done: true,
+                  language: {
+                      detected: context.language === 'is' ? 'Icelandic' : 'English',
+                      confidence: languageDecision.confidence,
+                      reason: languageDecision.reason
+                  }
+              });
+  
+              // Record total processing time
+              metrics.totalTime = Date.now() - startTime;
+              console.log('\n⏱️ Performance Metrics:', {
+                  sessionAndLanguage: `${metrics.sessionTime}ms`,
+                  knowledge: `${metrics.knowledgeTime}ms`,
+                  transfer: `${metrics.transferTime}ms`,
+                  gpt: `${metrics.gptTime}ms`,
+                  total: `${metrics.totalTime}ms`
+              });
+  
+              // End the response properly
+              res.end();
+              return;
                 
             } catch (error) {
                 // If streaming fails, fall back to non-streaming
