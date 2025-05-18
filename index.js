@@ -1775,6 +1775,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         totalTime: 0
     };
 
+    // Generate a unique stream ID for this message
+    const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -2707,118 +2710,27 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record time before making GPT request
         const gptStart = Date.now();
         
-        // Make GPT-4 request with retries
-        let attempt = 0;
-        let completion;
-        while (attempt < MAX_RETRIES) {
-            try {
-                completion = await openai.chat.completions.create({
-                    // Updated to newer model with improved latency and performance
-                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
-                    messages: messages,
-                    temperature: 0.7,
-                    max_tokens: getMaxTokens(userMessage)
-                });
-                break;
-            } catch (error) {
-                attempt++;
-                console.error(`OpenAI request failed (Attempt ${attempt}/${MAX_RETRIES}):`, {
-                    error: error.message,
-                    status: error.response?.status,
-                    attempt: attempt,
-                    maxRetries: MAX_RETRIES
-                });
-                if (attempt === MAX_RETRIES) {
-                    throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
-                }
-                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
-                console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
+        // NEW: Send initial connected event via Pusher
+        console.log('\n🔌 Starting WebSocket streaming with ID:', streamId);
+        try {
+            // Send connection established event
+            await pusher.trigger('chat-channel', 'stream-connected', {
+                streamId: streamId,
+                sessionId: sessionId,
+                timestamp: Date.now()
+            });
+            
+            console.log('\n✅ Stream connected event sent successfully');
+        } catch (connError) {
+            console.error('\n❌ Failed to send connection event:', connError);
         }
         
-        // Record GPT request time
-        metrics.gptTime = Date.now() - gptStart;
-        console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
-
-        // If we get here, we have a successful completion
-        if (!completion) {
-            throw new Error('Failed to get completion after retries');
-        }
-        
-        // Get the response from GPT
-        const response = completion.choices[0].message.content;
-        console.log('\n🤖 GPT Response:', response);
-        
-        // Add AI response to the context system
-        addMessageToContext(context, { role: 'assistant', content: response });
-        
-        // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
-        const enhancedResponse = await enforceTerminology(response, openai);
-        console.log('\n✨ Enhanced Response:', enhancedResponse);
-        
-        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
-        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
-        console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-        
-        // Update assistant message in context with filtered response
-        context.messages[context.messages.length - 1].content = filteredResponse;
-        
-        // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
-        let postgresqlMessageId = null;
-        if (completion && req.body.message) {
-            // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
-            const responseObj = {
-                message: filteredResponse, // FIXED: Now using fully processed response
-                language: {
-                    detected: context.language === 'is' ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                },
-                topicType: context?.lastTopic || 'general',
-                responseType: 'gpt_response',
-                status: context.status || 'active' // ADD THIS LINE
-            };
-            
-            // Pass through sendBroadcastAndPrepareResponse to broadcast
-            const result = await sendBroadcastAndPrepareResponse(responseObj);
-            
-            // Extract the PostgreSQL ID if available from the result
-            postgresqlMessageId = result.postgresqlMessageId || null;
-            
-            console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
-        }
-        
-        // Cache the response
-        responseCache.set(cacheKey, {
-            response: {
-                message: filteredResponse, // Use the fully processed response
-                postgresqlMessageId: postgresqlMessageId,
-                language: {
-                    detected: context.language === 'is' ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                }
-            },
-            timestamp: Date.now()
-        });
-        
-        // Record total processing time
-        metrics.totalTime = Date.now() - startTime;
-        console.log('\n⏱️ Performance Metrics:', {
-            sessionAndLanguage: `${metrics.sessionTime}ms`,
-            knowledge: `${metrics.knowledgeTime}ms`,
-            transfer: `${metrics.transferTime}ms`,
-            // booking metric removed
-            gpt: `${metrics.gptTime}ms`,
-            total: `${metrics.totalTime}ms`
-        });
-
-        // Return the response
-        return res.status(200).json({
-            message: filteredResponse, // Return the fully processed response
-            postgresqlMessageId: postgresqlMessageId,
+        // Send immediate response to the client
+        // This allows the request to complete quickly while streaming continues
+        res.status(200).json({
+            streaming: true,
+            streamId: streamId,
+            sessionId: sessionId,
             language: {
                 detected: context.language,
                 isIcelandic: context.language === 'is',
@@ -2826,6 +2738,152 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 reason: languageDecision.reason
             }
         });
+
+        // IMPORTANT: At this point, the HTTP response is complete,
+        // but we continue processing the stream in the background        
+
+        // Make GPT-4 request with streaming enabled
+        try {
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                messages: messages,
+                temperature: 0.7,
+                max_tokens: getMaxTokens(userMessage),
+                stream: true // Enable streaming
+            });
+            
+            // Process the stream chunks
+            let collectedChunks = '';
+            let chunkCount = 0;
+            
+            for await (const chunk of completion) {
+                try {
+                    // Extract content from the chunk
+                    const content = chunk.choices[0]?.delta?.content || '';
+                    
+                    if (content) {
+                        // Accumulate content
+                        collectedChunks += content;
+                        chunkCount++;
+                        
+                        // Send chunk via Pusher
+                        await pusher.trigger('chat-channel', 'stream-chunk', {
+                            streamId: streamId,
+                            sessionId: sessionId,
+                            content: content,
+                            chunkNumber: chunkCount,
+                            timestamp: Date.now()
+                        });
+                        
+                        // Debugging info for chunks
+                        if (chunkCount % 5 === 0) {
+                            console.log(`\n📦 Sent ${chunkCount} chunks, total ${collectedChunks.length} chars`);
+                        }
+                    }
+                } catch (chunkError) {
+                    console.error('\n❌ Error processing chunk:', chunkError);
+                }
+            }
+            
+            // Record GPT request time
+            metrics.gptTime = Date.now() - gptStart;
+            console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
+            
+            // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
+            const enhancedResponse = await enforceTerminology(collectedChunks, openai);
+            console.log('\n✨ Enhanced Response:', enhancedResponse);
+            
+            // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
+            const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+            const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+            console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
+            
+            // Add AI response to the context system
+            addMessageToContext(context, { role: 'assistant', content: filteredResponse });
+            
+            // Update assistant message in context with filtered response
+            context.messages[context.messages.length - 1].content = filteredResponse;
+            
+            // Use the unified broadcast system for the GPT response
+            let postgresqlMessageId = null;
+            if (collectedChunks && req.body.message) {
+                // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
+                const responseObj = {
+                    message: filteredResponse, // FIXED: Now using fully processed response
+                    language: {
+                        detected: context.language === 'is' ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    },
+                    topicType: context?.lastTopic || 'general',
+                    responseType: 'gpt_response',
+                    status: context.status || 'active' // ADD THIS LINE
+                };
+                
+                // Pass through sendBroadcastAndPrepareResponse to broadcast
+                const result = await sendBroadcastAndPrepareResponse(responseObj);
+                
+                // Extract the PostgreSQL ID if available from the result
+                postgresqlMessageId = result.postgresqlMessageId || null;
+                
+                console.log('\n📊 PostgreSQL message ID:', postgresqlMessageId || 'Not available');
+            }
+            
+            // Send completion event via Pusher with the final processed content
+            await pusher.trigger('chat-channel', 'stream-complete', {
+                streamId: streamId,
+                sessionId: sessionId,
+                completeContent: filteredResponse,
+                postgresqlMessageId: postgresqlMessageId,
+                language: {
+                    detected: context.language,
+                    isIcelandic: context.language === 'is',
+                    confidence: languageDecision.confidence,
+                    reason: languageDecision.reason
+                },
+                timestamp: Date.now()
+            });
+            
+            console.log('\n✅ Stream complete event sent successfully');
+            
+            // Cache the response
+            responseCache.set(cacheKey, {
+                response: {
+                    message: filteredResponse, // Use the fully processed response
+                    postgresqlMessageId: postgresqlMessageId,
+                    language: {
+                        detected: context.language === 'is' ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    }
+                },
+                timestamp: Date.now()
+            });
+            
+            // Record total processing time
+            metrics.totalTime = Date.now() - startTime;
+            console.log('\n⏱️ Performance Metrics:', {
+                sessionAndLanguage: `${metrics.sessionTime}ms`,
+                knowledge: `${metrics.knowledgeTime}ms`,
+                transfer: `${metrics.transferTime}ms`,
+                // booking metric removed
+                gpt: `${metrics.gptTime}ms`,
+                total: `${metrics.totalTime}ms`
+            });
+            
+        } catch (streamError) {
+            console.error('\n❌ Streaming Error:', streamError);
+            
+            // Send error event via Pusher
+            await pusher.trigger('chat-channel', 'stream-error', {
+                streamId: streamId,
+                sessionId: sessionId,
+                error: streamError.message || 'An error occurred during streaming',
+                timestamp: Date.now()
+            });
+            
+            // Note: Response has already been sent, so no need to send error response
+        }
 
     } catch (error) {
         console.error('\n❌ Error Details:', {
@@ -2862,6 +2920,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 reason: errorLanguageDecision.reason
             }
         });
+
+        // Try to send error via Pusher if streamId is available
+        if (streamId) {
+            try {
+                await pusher.trigger('chat-channel', 'stream-error', {
+                    streamId: streamId,
+                    sessionId: sessionId,
+                    error: errorMessage,
+                    timestamp: Date.now()
+                });
+                console.log('\n✅ Stream error event sent via Pusher');
+            } catch (pusherError) {
+                console.error('\n❌ Failed to send Pusher error event:', pusherError);
+            }
+        }
 
         // Use the unified broadcast system but don't send response yet
         await sendBroadcastAndPrepareResponse({
@@ -3700,39 +3773,6 @@ app.post('/webhook-debug', (req, res) => {
     body: req.body
   });
   res.status(200).send('OK');
-});
-
-// Add this to your index.js file - a dedicated test endpoint
-app.get('/test-sse', (req, res) => {
-  console.log('SSE Test endpoint hit');
-  
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  
-  // Send initial connection message
-  res.write('event: connected\ndata: {"message":"Connection established"}\n\n');
-  
-  // Send a test message immediately
-  res.write('event: message\ndata: {"content":"Test message 1"}\n\n');
-  
-  // Send another message after 2 seconds
-  setTimeout(() => {
-    res.write('event: message\ndata: {"content":"Test message 2"}\n\n');
-  }, 2000);
-  
-  // Send a final message and close after 4 seconds
-  setTimeout(() => {
-    res.write('event: complete\ndata: {"content":"Test complete","done":true}\n\n');
-    res.end();
-  }, 4000);
-  
-  // Handle client disconnect
-  req.on('close', () => {
-    console.log('Client closed SSE connection');
-  });
 });
 
 // Add this AFTER your existing endpoints but BEFORE app.listen
