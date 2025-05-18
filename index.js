@@ -1775,37 +1775,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         totalTime: 0
     };
 
-    // New: Check if streaming is requested
-    const isStreamingRequested = req.body.streaming === true;
-    
-    // Define sendEvent function with default implementation BEFORE the conditional block
-    let sendEvent = (eventType, data) => {
-        // Default empty implementation that just logs
-        console.log(`[STREAM] Would send ${eventType} event if streaming was enabled`);
-    };
-
-    // If streaming is requested, set up SSE connection
-    if (isStreamingRequested) {
-        console.log('\n🔄 Streaming response requested');
-        
-        // Set headers for SSE
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no'); // Prevents buffering for nginx
-        
-        // Redefine the sendEvent function for actual streaming
-        sendEvent = (eventType, data) => {
-            res.write(`event: ${eventType}\n`);
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-            // Flush the response stream
-            if (res.flush) res.flush();
-        };
-        
-        // Send initial connection event
-        sendEvent('connected', { message: 'Stream connection established' });
-    }
-
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -2738,156 +2707,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record time before making GPT request
         const gptStart = Date.now();
         
-        // Make GPT-4 request with retries - FOR STREAMING
+        // Make GPT-4 request with retries
         let attempt = 0;
         let completion;
-        
-        // STREAMING IMPLEMENTATION
-        if (isStreamingRequested) {
-          console.log('\n🔄 Using streaming mode for GPT request');
-  
-          try {
-              // Create a streaming completion
-              const stream = await openai.chat.completions.create({
-                  model: "gpt-4o",
-                  messages: messages,
-                  temperature: 0.7,
-                  max_tokens: getMaxTokens(userMessage),
-                  stream: true // Enable streaming
-              });
-  
-              // Track accumulated response for context saving
-              let accumulatedResponse = '';
-  
-              // MODIFIED: Send initial empty chunk to establish connection
-              sendEvent('chunk', { content: '', done: false });
-  
-              // Process the stream
-              for await (const chunk of stream) {
-                  const content = chunk.choices[0]?.delta?.content || '';
-  
-                  if (content) {
-                      // Add to accumulated response
-                      accumulatedResponse += content;
-  
-                      // MODIFIED: Use generic message format for better compatibility
-                      res.write(`data: ${JSON.stringify({ 
-                          content: content,
-                          done: false
-                      })}\n\n`);
-  
-                      // Send this chunk to the client
-                      sendEvent('chunk', { 
-                          content: content,
-                          done: false
-                      });
-                  }
-              }
-  
-              // Calculate GPT time
-              metrics.gptTime = Date.now() - gptStart;
-              console.log(`\n⏱️ GPT streaming request completed in ${metrics.gptTime}ms`);
-  
-              // Log the completed response
-              console.log('\n🤖 GPT Streamed Response:', accumulatedResponse);
-  
-              // Add AI response to the context system
-              addMessageToContext(context, { role: 'assistant', content: accumulatedResponse });
-  
-              // Apply terminology enhancement asynchronously
-              const enhancedResponse = await enforceTerminology(accumulatedResponse, openai);
-              console.log('\n✨ Enhanced Response:', enhancedResponse);
-  
-              // Filter emojis
-              const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
-              const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
-              console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
-  
-              // Update assistant message in context with filtered response
-              context.messages[context.messages.length - 1].content = filteredResponse;
-  
-              // Use the unified broadcast system
-              let postgresqlMessageId = null;
-              if (req.body.message) {
-                  // Create an intermediate response object
-                  const responseObj = {
-                      message: filteredResponse,
-                      language: {
-                          detected: context.language === 'is' ? 'Icelandic' : 'English',
-                          confidence: languageDecision.confidence,
-                          reason: languageDecision.reason
-                      },
-                      topicType: context?.lastTopic || 'general',
-                      responseType: 'gpt_response',
-                      status: context.status || 'active'
-                  };
-  
-                  // Pass through sendBroadcastAndPrepareResponse to broadcast
-                  const result = await sendBroadcastAndPrepareResponse(responseObj);
-  
-                  // Extract the PostgreSQL ID if available from the result
-                  postgresqlMessageId = result.postgresqlMessageId || null;
-              }
-  
-              // MODIFIED: Send the complete message in generic format
-              res.write(`data: ${JSON.stringify({ 
-                  content: filteredResponse,
-                  postgresqlMessageId: postgresqlMessageId,
-                  done: true,
-                  language: {
-                      detected: context.language === 'is' ? 'Icelandic' : 'English',
-                      confidence: languageDecision.confidence,
-                      reason: languageDecision.reason
-                  }
-              })}\n\n`);
-  
-              // Send the complete event for specific handlers
-              sendEvent('complete', { 
-                  content: filteredResponse,
-                  postgresqlMessageId: postgresqlMessageId,
-                  done: true,
-                  language: {
-                      detected: context.language === 'is' ? 'Icelandic' : 'English',
-                      confidence: languageDecision.confidence,
-                      reason: languageDecision.reason
-                  }
-              });
-  
-              // Record total processing time
-              metrics.totalTime = Date.now() - startTime;
-              console.log('\n⏱️ Performance Metrics:', {
-                  sessionAndLanguage: `${metrics.sessionTime}ms`,
-                  knowledge: `${metrics.knowledgeTime}ms`,
-                  transfer: `${metrics.transferTime}ms`,
-                  gpt: `${metrics.gptTime}ms`,
-                  total: `${metrics.totalTime}ms`
-              });
-  
-              // End the response properly
-              res.end();
-              return;
-                
-            } catch (error) {
-                // If streaming fails, fall back to non-streaming
-                console.error('\n❌ Streaming Error:', error);
-                console.log('\n⚠️ Falling back to non-streaming request');
-                
-                // Send error event and continue with non-streaming approach
-                if (isStreamingRequested) {
-                    sendEvent('error', { 
-                        message: 'Error in streaming request',
-                        error: error.message
-                    });
-                }
-            }
-        }
-        
-        // NON-STREAMING APPROACH (FALLBACK OR REGULAR REQUEST)
-        // Make GPT-4 request with retries (unchanged from original)
         while (attempt < MAX_RETRIES) {
             try {
                 completion = await openai.chat.completions.create({
-                    model: "gpt-4o", 
+                    // Updated to newer model with improved latency and performance
+                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
                     messages: messages,
                     temperature: 0.7,
                     max_tokens: getMaxTokens(userMessage)
@@ -3007,15 +2834,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             type: error.constructor.name,
             timestamp: new Date().toISOString()
         });
-
-        // For streaming responses, send an error event
-        if (isStreamingRequested) {
-            sendEvent('error', { 
-                message: 'An error occurred while processing your request',
-                error: error.message
-            });
-            return;
-        }
 
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
