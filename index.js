@@ -1762,6 +1762,76 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
         messages.general;
 };
 
+// Try adding this directly after your other Express routes
+// Make sure it's BEFORE any catch-all routes or error handlers
+app.get('/test-streaming', async (req, res) => {
+  // Create a unique ID for this stream
+  const streamId = `test_${Date.now()}`;
+  
+  console.log(`[TEST] Starting test stream: ${streamId}`);
+  
+  try {
+    // 1. Send the "connected" event via Pusher
+    await pusher.trigger('chat-channel', 'stream-connected', {
+      streamId: streamId,
+      sessionId: 'test-session',
+      timestamp: Date.now()
+    });
+    console.log(`[TEST] Connected event sent for ${streamId}`);
+    
+    // 2. Send immediate response to browser
+    res.status(200).json({
+      message: "Test stream started",
+      streamId: streamId
+    });
+    
+    // 3. Simulate chunks being sent (no OpenAI dependency)
+    const testChunks = [
+      "This ", "is ", "a ", "test ", "message ", 
+      "sent ", "in ", "chunks ", "to ", "verify ",
+      "that ", "streaming ", "works ", "correctly."
+    ];
+    
+    // 4. Send chunks with delay to simulate real streaming
+    for (let i = 0; i < testChunks.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
+      
+      // Send chunk via Pusher
+      await pusher.trigger('chat-channel', 'stream-chunk', {
+        streamId: streamId,
+        sessionId: 'test-session',
+        content: testChunks[i],
+        chunkNumber: i+1,
+        timestamp: Date.now()
+      });
+      console.log(`[TEST] Chunk ${i+1} sent: "${testChunks[i]}"`);
+    }
+    
+    // 5. Send completion event
+    await pusher.trigger('chat-channel', 'stream-complete', {
+      streamId: streamId,
+      sessionId: 'test-session',
+      completeContent: testChunks.join(''),
+      timestamp: Date.now()
+    });
+    console.log(`[TEST] Stream complete event sent for ${streamId}`);
+    
+  } catch (error) {
+    console.error(`[TEST] Streaming test error: ${error.message}`);
+    // Try to send error event
+    try {
+      await pusher.trigger('chat-channel', 'stream-error', {
+        streamId: streamId,
+        sessionId: 'test-session',
+        error: error.message,
+        timestamp: Date.now()
+      });
+    } catch (pusherError) {
+      console.error(`[TEST] Failed to send error event: ${pusherError.message}`);
+    }
+  }
+});
+
 // Modified chat endpoint using only the new context system
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
@@ -3700,76 +3770,6 @@ app.post('/webhook-debug', (req, res) => {
     body: req.body
   });
   res.status(200).send('OK');
-});
-
-// Add this test endpoint to your index.js file
-app.get('/test-streaming', async (req, res) => {
-  // Create a unique ID for this stream
-  const streamId = `test_${Date.now()}`;
-  
-  // Log what we're doing
-  console.log(`Starting test stream: ${streamId}`);
-  
-  try {
-    // 1. Send the "connected" event via Pusher
-    await pusher.trigger('chat-channel', 'stream-connected', {
-      streamId: streamId,
-      sessionId: 'test-session',
-      timestamp: Date.now()
-    });
-    console.log(`Connected event sent for ${streamId}`);
-    
-    // 2. Send immediate response to browser
-    res.status(200).json({
-      message: "Test stream started",
-      streamId: streamId
-    });
-    
-    // 3. Simulate chunks being sent (no OpenAI dependency)
-    const testChunks = [
-      "This ", "is ", "a ", "test ", "message ", 
-      "sent ", "in ", "chunks ", "to ", "verify ",
-      "that ", "streaming ", "works ", "correctly."
-    ];
-    
-    // 4. Send chunks with delay to simulate real streaming
-    for (let i = 0; i < testChunks.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
-      
-      // Send chunk via Pusher
-      await pusher.trigger('chat-channel', 'stream-chunk', {
-        streamId: streamId,
-        sessionId: 'test-session',
-        content: testChunks[i],
-        chunkNumber: i+1,
-        timestamp: Date.now()
-      });
-      console.log(`Chunk ${i+1} sent: "${testChunks[i]}"`);
-    }
-    
-    // 5. Send completion event
-    await pusher.trigger('chat-channel', 'stream-complete', {
-      streamId: streamId,
-      sessionId: 'test-session',
-      completeContent: testChunks.join(''),
-      timestamp: Date.now()
-    });
-    console.log(`Stream complete event sent for ${streamId}`);
-    
-  } catch (error) {
-    console.error(`Streaming test error: ${error.message}`);
-    // Try to send error event
-    try {
-      await pusher.trigger('chat-channel', 'stream-error', {
-        streamId: streamId,
-        sessionId: 'test-session',
-        error: error.message,
-        timestamp: Date.now()
-      });
-    } catch (pusherError) {
-      console.error(`Failed to send error event: ${pusherError.message}`);
-    }
-  }
 });
 
 // Add this AFTER your existing endpoints but BEFORE app.listen
