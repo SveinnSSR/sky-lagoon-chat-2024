@@ -1778,6 +1778,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     // New: Check if streaming is requested
     const isStreamingRequested = req.body.streaming === true;
     
+    // Define sendEvent function with default implementation BEFORE the conditional block
+    let sendEvent = (eventType, data) => {
+    // Default empty implementation that just logs
+    console.log(`[STREAM] Would send ${eventType} event if streaming was enabled`);
+    };
+    
     // If streaming is requested, set up SSE connection
     if (isStreamingRequested) {
         console.log('\n🔄 Streaming response requested');
@@ -1789,7 +1795,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         res.setHeader('X-Accel-Buffering', 'no'); // Prevents buffering for nginx
         
         // Helper function to send SSE events
-        const sendEvent = (eventType, data) => {
+        sendEvent = (eventType, data) => {
             res.write(`event: ${eventType}\n`);
             res.write(`data: ${JSON.stringify(data)}\n\n`);
             // Flush the response stream
