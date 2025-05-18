@@ -1775,37 +1775,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         totalTime: 0
     };
 
-    // New: Check if streaming is requested
-    const isStreamingRequested = req.body.streaming === true;
-    
-    // Define sendEvent function with default implementation BEFORE the conditional block
-    let sendEvent = (eventType, data) => {
-    // Default empty implementation that just logs
-    console.log(`[STREAM] Would send ${eventType} event if streaming was enabled`);
-    };
-    
-    // If streaming is requested, set up SSE connection
-    if (isStreamingRequested) {
-        console.log('\n🔄 Streaming response requested');
-        
-        // Set headers for SSE
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no'); // Prevents buffering for nginx
-        
-        // Helper function to send SSE events
-        sendEvent = (eventType, data) => {
-            res.write(`event: ${eventType}\n`);
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-            // Flush the response stream
-            if (res.flush) res.flush();
-        };
-        
-        // Send initial connection event
-        sendEvent('connected', { message: 'Stream connection established' });
-    }
-
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -2735,96 +2704,21 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 ${language === 'auto' ? 'IMPORTANT: Respond in the same language as the user\'s question.' : `Response MUST be in ${language} language.`}`
         });
 
-        // Send thinking event for streaming
-        if (isStreamingRequested) {
-            sendEvent('thinking', { 
-                message: 'Sólrún is thinking...',
-                language: language
-            });
-        }
-
         // Record time before making GPT request
         const gptStart = Date.now();
         
-        // MODIFIED: Make GPT-4 request with streaming if requested
+        // Make GPT-4 request with retries
         let attempt = 0;
         let completion;
-        let fullResponse = '';
-        
         while (attempt < MAX_RETRIES) {
             try {
-                if (isStreamingRequested) {
-                    // Streaming request
-                    const stream = await openai.chat.completions.create({
-                        model: "gpt-4o",
-                        messages: messages,
-                        temperature: 0.7,
-                        max_tokens: getMaxTokens(userMessage),
-                        stream: true
-                    });
-
-                    // Process the stream
-                    let chunkBuffer = '';
-                    const chunkSize = 20; // Characters per chunk
-                    
-                    // For analytics
-                    fullResponse = '';
-                    
-                    for await (const chunk of stream) {
-                        const content = chunk.choices[0]?.delta?.content || '';
-                        if (content) {
-                            fullResponse += content;
-                            chunkBuffer += content;
-                            
-                            // Send chunks at reasonable intervals
-                            if (chunkBuffer.length >= chunkSize) {
-                                sendEvent('chunk', {
-                                    content: chunkBuffer,
-                                    done: false
-                                });
-                                chunkBuffer = '';
-                                
-                                // Small delay between chunks for smoother display
-                                await new Promise(resolve => setTimeout(resolve, 10));
-                            }
-                        }
-                    }
-                    
-                    // Send any remaining content
-                    if (chunkBuffer) {
-                        sendEvent('chunk', {
-                            content: chunkBuffer,
-                            done: false
-                        });
-                    }
-                    
-                    // Send completion event
-                    sendEvent('complete', {
-                        content: fullResponse,
-                        done: true
-                    });
-                    
-                    // Create synthetic completion object for consistency
-                    completion = {
-                        choices: [
-                            {
-                                message: {
-                                    content: fullResponse
-                                }
-                            }
-                        ]
-                    };
-                } else {
-                    // Regular non-streaming request (unchanged)
-                    completion = await openai.chat.completions.create({
-                        model: "gpt-4o",
-                        messages: messages,
-                        temperature: 0.7,
-                        max_tokens: getMaxTokens(userMessage)
-                    });
-                    
-                    fullResponse = completion.choices[0].message.content;
-                }
+                completion = await openai.chat.completions.create({
+                    // Updated to newer model with improved latency and performance
+                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: getMaxTokens(userMessage)
+                });
                 break;
             } catch (error) {
                 attempt++;
@@ -2834,22 +2728,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     attempt: attempt,
                     maxRetries: MAX_RETRIES
                 });
-                
-                if (isStreamingRequested) {
-                    // Send error event if streaming
-                    sendEvent('error', {
-                        message: "I apologize, but I'm having trouble connecting right now. Please try again shortly."
-                    });
-                    
-                    // End the stream
-                    res.end();
-                    return;
-                }
-                
                 if (attempt === MAX_RETRIES) {
                     throw new Error(`Failed after ${MAX_RETRIES} attempts: ${error.message}`);
                 }
-                
                 const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
                 console.log(`⏳ Retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_RETRIES})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
@@ -2859,19 +2740,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record GPT request time
         metrics.gptTime = Date.now() - gptStart;
         console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
-
-        // If we have a streaming request, we've already sent the response and can exit
-        if (isStreamingRequested) {
-            // Add AI response to the context system for future reference
-            addMessageToContext(context, { role: 'assistant', content: fullResponse });
-            
-            // Close the stream after a small delay to ensure all data is sent
-            setTimeout(() => {
-                res.end();
-            }, 100);
-            
-            return;
-        }
 
         // If we get here, we have a successful completion
         if (!completion) {
@@ -2947,7 +2815,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             total: `${metrics.totalTime}ms`
         });
 
-        // Return the response for non-streaming requests
+        // Return the response
         return res.status(200).json({
             message: filteredResponse, // Return the fully processed response
             postgresqlMessageId: postgresqlMessageId,
@@ -2969,23 +2837,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
-        // If streaming, send an error event and end the stream
-        if (isStreamingRequested) {
-            try {
-                const sendEvent = (eventType, data) => {
-                    res.write(`event: ${eventType}\n`);
-                    res.write(`data: ${JSON.stringify(data)}\n\n`);
-                };
-                
-                sendEvent('error', { message: errorMessage });
-                res.end();
-                return;
-            } catch (streamError) {
-                console.error('Error sending streaming error:', streamError);
-                // Fall through to regular error handling
-            }
-        }
-        
         // Get language using detection system
         const userMsg = req.body?.message || req.body?.question || '';
         const sessionId = req.body?.sessionId || null;
