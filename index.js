@@ -1775,6 +1775,41 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         totalTime: 0
     };
 
+    // IMPORTANT: Check if streaming is requested - moved near the top
+    const isStreamingRequested = req.body.streaming === true;
+    
+    // Define sendEvent function outside conditionals with default empty implementation
+    let sendEvent = (eventType, data) => {
+        // Default empty implementation
+        console.log(`[STREAM] Would send ${eventType} event if streaming was enabled`);
+    };
+    
+    // Set up streaming if requested
+    if (isStreamingRequested) {
+        console.log('\n🔄 Setting up streaming response');
+        
+        // Set headers for SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Prevents buffering for nginx
+        
+        // Override sendEvent with actual implementation
+        sendEvent = (eventType, data) => {
+            const eventString = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+            console.log(`[STREAM] Sending ${eventType} event: ${data.content?.length || 0} chars`);
+            res.write(eventString);
+            
+            // Flush the response stream if possible
+            if (res.flush) {
+                res.flush();
+            }
+        };
+        
+        // Send connected event to confirm stream is established
+        sendEvent('connected', { message: 'Stream connection established' });
+    }
+    
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -1800,7 +1835,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseObj.topicType || 'general',
                     responseObj.responseType || 'direct_response',
                     sessionId, // Pass the session ID from the client
-                    responseObj.status || 'active' // MODIFY THIS LINE to use responseObj instead of context
+                    responseObj.status || 'active' // use responseObj instead of context
                 );
                 
                 // Store PostgreSQL ID if available
@@ -2078,7 +2113,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         console.log('\n⏱️ Starting parallel initialization...');
         const parallelStart = Date.now();
         
-        // MIGRATION: Get or create context and perform language detection in parallel
+        // Get or create context and perform language detection in parallel
         let context, languageDecision;
         
         try {
@@ -2096,7 +2131,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             languageDecision = newDetectLanguage(userMessage, context);
         }
 
-        // Extract language code in addition to isIcelandic
+        // Extract language code
         const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
         
         // Update language info in the context
@@ -2707,6 +2742,113 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record time before making GPT request
         const gptStart = Date.now();
         
+        // STREAMING IMPLEMENTATION
+        if (isStreamingRequested) {
+            console.log('\n🔄 Using streaming mode for GPT request');
+            
+            try {
+                // Create a streaming completion
+                const stream = await openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: getMaxTokens(userMessage),
+                    stream: true
+                });
+                
+                // Track accumulated response for context saving
+                let accumulatedResponse = '';
+                
+                // Process the stream
+                for await (const chunk of stream) {
+                    const content = chunk.choices[0]?.delta?.content || '';
+                    
+                    if (content) {
+                        // Add to accumulated response
+                        accumulatedResponse += content;
+                        
+                        // Send chunk to client
+                        sendEvent('chunk', { content: content });
+                    }
+                }
+                
+                // Calculate GPT time
+                metrics.gptTime = Date.now() - gptStart;
+                console.log(`\n⏱️ GPT streaming completed in ${metrics.gptTime}ms`);
+                
+                // Log the complete response
+                console.log('\n🤖 Complete GPT Response:', accumulatedResponse);
+                
+                // Add the assistant's response to context
+                addMessageToContext(context, { role: 'assistant', content: accumulatedResponse });
+                
+                // Process the complete response - apply terminology and filter emojis
+                const enhancedResponse = await enforceTerminology(accumulatedResponse, openai);
+                const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+                const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+                
+                // Update the context with the processed response
+                context.messages[context.messages.length - 1].content = filteredResponse;
+                
+                // Broadcast to analytics via unified system
+                let postgresqlMessageId = null;
+                if (req.body.message) {
+                    const responseObj = {
+                        message: filteredResponse,
+                        language: {
+                            detected: context.language === 'is' ? 'Icelandic' : 'English',
+                            confidence: languageDecision.confidence,
+                            reason: languageDecision.reason
+                        },
+                        topicType: context?.lastTopic || 'general',
+                        responseType: 'gpt_response',
+                        status: context.status || 'active'
+                    };
+                    
+                    // Broadcast response
+                    const result = await sendBroadcastAndPrepareResponse(responseObj);
+                    postgresqlMessageId = result.postgresqlMessageId || null;
+                }
+                
+                // Send complete event with final processed response and metadata
+                sendEvent('complete', {
+                    content: filteredResponse,
+                    postgresqlMessageId: postgresqlMessageId,
+                    done: true,
+                    language: {
+                        detected: context.language === 'is' ? 'Icelandic' : 'English',
+                        confidence: languageDecision.confidence,
+                        reason: languageDecision.reason
+                    }
+                });
+                
+                // End the response - for streaming, we're done here
+                metrics.totalTime = Date.now() - startTime;
+                console.log('\n⏱️ Total processing time:', metrics.totalTime + 'ms');
+                
+                // End the response - must have a return to avoid double-response
+                return res.end();
+                
+            } catch (streamError) {
+                // Log streaming error
+                console.error('\n❌ Streaming error:', streamError);
+                
+                // Send error event to client
+                if (isStreamingRequested) {
+                    sendEvent('error', {
+                        message: 'Error in streaming request',
+                        error: streamError.message
+                    });
+                    
+                    // Don't return here - fall back to non-streaming approach
+                    console.log('\n⚠️ Falling back to non-streaming request');
+                }
+                
+                // We'll fall through to the non-streaming approach
+            }
+        }
+        
+        // REGULAR NON-STREAMING REQUEST (Original or Fallback)
         // Make GPT-4 request with retries
         let attempt = 0;
         let completion;
@@ -2737,6 +2879,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         }
         
+        // Process non-streaming response (same as before)
         // Record GPT request time
         metrics.gptTime = Date.now() - gptStart;
         console.log(`\n⏱️ GPT request completed in ${metrics.gptTime}ms`);
@@ -2815,7 +2958,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             total: `${metrics.totalTime}ms`
         });
 
-        // Return the response
+        // Return the regular response
         return res.status(200).json({
             message: filteredResponse, // Return the fully processed response
             postgresqlMessageId: postgresqlMessageId,
@@ -2835,6 +2978,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
+        // For streaming responses, send an error event before ending
+        if (isStreamingRequested) {
+            sendEvent('error', {
+                message: 'An error occurred while processing your request',
+                error: error.message
+            });
+            
+            return res.end();
+        }
+
+        // Regular error handling for non-streaming requests
         const errorMessage = "I apologize, but I'm having trouble connecting right now. Please try again shortly.";
 
         // Get language using detection system
