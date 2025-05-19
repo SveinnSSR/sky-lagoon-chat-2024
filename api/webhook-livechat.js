@@ -1,4 +1,4 @@
-// /api/webhook-livechat.js
+// /api/webhook-livechat.js.
 import { MongoClient } from 'mongodb';
 import Pusher from 'pusher';
 import { checkForDuplicateMessage } from '../database.js';
