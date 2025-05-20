@@ -1573,7 +1573,8 @@ const corsOptions = {
         'https://chatbot-analytics-beta.vercel.app', // your dashboard URL
         'https://hysing.svorumstrax.is',  // new domain for dashboard
         'https://skylagoon.com',
-        'https://www.skylagoon.com'
+        'https://www.skylagoon.com',
+        /.*sky-lagoon-chat-2024.*\.vercel\.app$/ // Allow all Vercel preview deployments
     ],
     methods: ['GET', 'POST', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
@@ -1583,10 +1584,16 @@ const corsOptions = {
         'Upgrade',
         'Connection',
         'Sec-WebSocket-Key',
-        'Sec-WebSocket-Version'
+        'Sec-WebSocket-Version',
+        'Authorization'
     ],
-    credentials: true
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 };
+
+// Add explicit OPTIONS handling
+app.options('*', cors(corsOptions));
 
 // Rate limiter
 const limiter = rateLimit({
@@ -1835,6 +1842,23 @@ app.get('/test-streaming', async (req, res) => {
 
 // Modified chat endpoint using only the new context system
 app.post('/chat', verifyApiKey, async (req, res) => {
+    // Check if this is a streaming request
+    const isStreamingRequest = req.body._streamRequest === true;
+    
+    // If streaming, set the appropriate headers
+    if (isStreamingRequest) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders(); // Force immediate headers
+        
+        // Send initial connection event
+        res.write(`data: ${JSON.stringify({
+            type: 'connected',
+            sessionId: req.body.sessionId || 'anonymous'
+        })}\n\n`);
+    }
+
     // Add performance tracking
     const startTime = Date.now();
     const metrics = {
@@ -2778,9 +2802,117 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Record time before making GPT request
         const gptStart = Date.now();
         
-        // Make GPT-4 request with retries
+        // Make GPT-4 request with retries or streaming
         let attempt = 0;
         let completion;
+        
+        // If streaming, use streaming API
+        if (isStreamingRequest) {
+            try {
+                // Create streaming completion
+                const stream = await openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: getMaxTokens(userMessage),
+                    stream: true
+                });
+                
+                let collectedContent = '';
+                
+                // Stream chunks as they arrive
+                for await (const chunk of stream) {
+                    const content = chunk.choices[0]?.delta?.content || '';
+                    
+                    if (content) {
+                        collectedContent += content;
+                        res.write(`data: ${JSON.stringify({
+                            type: 'chunk',
+                            content: content,
+                            sessionId: sessionId
+                        })}\n\n`);
+                    }
+                }
+                
+                // Add AI response to the context system with the full collected content
+                addMessageToContext(context, { role: 'assistant', content: collectedContent });
+                
+                // Process the complete response - apply terminology and emoji filtering
+                const enhancedResponse = await enforceTerminology(collectedContent, openai);
+                const filteredResponse = filterEmojis(enhancedResponse, SKY_LAGOON_GUIDELINES.emojis);
+                
+                // Update context with the fully processed response
+                context.messages[context.messages.length - 1].content = filteredResponse;
+                
+                // Broadcast the processed response
+                let postgresqlMessageId = null;
+                try {
+                    const broadcastResult = await broadcastConversation(
+                        userMessage,
+                        filteredResponse,
+                        context.language === 'is' ? 'is' : 'en',
+                        context?.lastTopic || 'general',
+                        'gpt_response',
+                        sessionId,
+                        context.status || 'active'
+                    );
+                    
+                    postgresqlMessageId = broadcastResult.postgresqlId || null;
+                } catch (broadcastError) {
+                    console.error('\n❌ Broadcast error:', broadcastError);
+                }
+                
+                // Send completion message with final processed content
+                res.write(`data: ${JSON.stringify({
+                    type: 'complete',
+                    completeContent: filteredResponse,
+                    postgresqlId: postgresqlMessageId,
+                    sessionId: sessionId
+                })}\n\n`);
+                
+                // End the response
+                res.end();
+                
+                // Cache the response
+                const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
+                responseCache.set(cacheKey, {
+                    response: {
+                        message: filteredResponse,
+                        postgresqlMessageId: postgresqlMessageId,
+                        language: {
+                            detected: context.language === 'is' ? 'Icelandic' : 'English',
+                            confidence: languageDecision.confidence,
+                            reason: languageDecision.reason
+                        }
+                    },
+                    timestamp: Date.now()
+                });
+                
+                // Record metrics and log
+                metrics.totalTime = Date.now() - startTime;
+                console.log('\n⏱️ Performance Metrics (streaming):', {
+                    sessionAndLanguage: `${metrics.sessionTime}ms`,
+                    knowledge: `${metrics.knowledgeTime}ms`,
+                    transfer: `${metrics.transferTime}ms`,
+                    total: `${metrics.totalTime}ms`
+                });
+                
+                // Since we've already ended the response, return early
+                return;
+            } catch (streamError) {
+                console.error('\n❌ Streaming error:', streamError);
+                // Send error in streaming format
+                res.write(`data: ${JSON.stringify({
+                    type: 'error',
+                    error: streamError.message,
+                    sessionId: sessionId
+                })}\n\n`);
+                res.end();
+                return;
+            }
+        }
+        
+        // Non-streaming code (your existing implementation)
         while (attempt < MAX_RETRIES) {
             try {
                 completion = await openai.chat.completions.create({
