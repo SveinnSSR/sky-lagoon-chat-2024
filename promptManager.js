@@ -25,6 +25,11 @@ import {
 import { getRelevantKnowledge } from './knowledgeBase.js';
 import { getRelevantKnowledge_is } from './knowledgeBase_is.js';
 
+// Creates a random ID that changes with each deployment
+const DEPLOYMENT_ID = Math.random().toString(36).substring(2, 10);
+
+console.log(`\n🚀 [SYSTEM] Server initialized with deployment ID: ${DEPLOYMENT_ID}`);
+
 // Configure logging
 const DEBUG_LEVEL = process.env.PROMPT_DEBUG_LEVEL || 'info'; // 'debug', 'info', 'warn', 'error'
 
@@ -156,7 +161,7 @@ const moduleMetadata = {
       'stefnumót', 'stefnumótspakki', 'couples', 'duo',
     
       // Legacy package names
-      'pure', 'sky', 'pure lite', 'pure pass', 'sky pass', 'pure package',
+      'pure', 'sky', 'pure lite', 'sky pass', 'pure package',
       'sky package', 'pure-lite', 'sky aðgangur', 'pure aðgangur',
     
       // Currency terms
@@ -332,8 +337,16 @@ const moduleMetadata = {
   },
 };
 
+// =============================================
+// PERFORMANCE OPTIMIZATION 1: CONTENT CACHING
+// =============================================
+
+// Module content cache to avoid reloading the same modules repeatedly
+const moduleContentCache = new Map();
+const MODULE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - longer caching for better performance
+
 /**
- * Gets content from a specified module for the appropriate language
+ * Gets content from a specified module for the appropriate language with caching
  * @param {string} modulePath - Module identifier (e.g., 'core/identity')
  * @param {Object} languageDecision - Information about detected language
  * @returns {Promise<string>} The prompt content for the specified language
@@ -348,16 +361,37 @@ async function getModuleContent(modulePath, languageDecision, seasonInfo = null)
     
     const language = languageDecision?.isIcelandic ? 'is' : 'en';
     
-    // Get content based on language
+    // Create a cache key
+    const cacheKey = `${DEPLOYMENT_ID}:${modulePath}:${language}:${seasonInfo?.season || 'none'}`;
+    
+    // Check cache first
+    if (moduleContentCache.has(cacheKey)) {
+      const cached = moduleContentCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < MODULE_CACHE_TTL) {
+        logger.debug(`Using cached module content for ${modulePath} (${language})`);
+        return cached.content;
+      }
+      moduleContentCache.delete(cacheKey); // Remove expired entry
+    }
+    
+    // Not in cache, load content
     let content;
     if (language === 'is') {
       content = module.getIcelandicPrompt ? 
                 await module.getIcelandicPrompt() : 
-                (module.getPrompt ? await module.getPrompt('is', seasonInfo) : ''); // Pass seasonInfo
+                (module.getPrompt ? await module.getPrompt('is', seasonInfo) : '');
     } else {
       content = module.getEnglishPrompt ? 
                 await module.getEnglishPrompt() : 
-                (module.getPrompt ? await module.getPrompt('en', seasonInfo) : ''); // Pass seasonInfo
+                (module.getPrompt ? await module.getPrompt('en', seasonInfo) : '');
+    }
+    
+    // Cache the content
+    if (content) {
+      moduleContentCache.set(cacheKey, {
+        content,
+        timestamp: Date.now()
+      });
     }
     
     return content || '';
@@ -366,6 +400,150 @@ async function getModuleContent(modulePath, languageDecision, seasonInfo = null)
     return ''; // Return empty string on error
   }
 }
+
+// Preload commonly used modules during initialization
+async function preloadCommonModules() {
+  // Get modules that are always included based on metadata
+  const alwaysIncludedModules = Object.entries(moduleMetadata)
+    .filter(([, metadata]) => metadata.alwaysInclude)
+    .map(([path]) => path);
+  
+  logger.info(`Preloading ${alwaysIncludedModules.length} common modules...`);
+  
+  for (const modulePath of alwaysIncludedModules) {
+    try {
+      // Preload English content
+      await getModuleContent(
+        modulePath, 
+        { isIcelandic: false, language: 'en' }
+      );
+      
+      // Preload Icelandic content
+      await getModuleContent(
+        modulePath, 
+        { isIcelandic: true, language: 'is' }
+      );
+      
+      logger.debug(`Preloaded module: ${modulePath}`);
+    } catch (error) {
+      logger.error(`Error preloading module ${modulePath}:`, error);
+    }
+  }
+  
+  logger.info(`Preloaded ${moduleContentCache.size} module content variants`);
+}
+
+// Run preloading in the background
+setTimeout(() => {
+  preloadCommonModules().catch(err => {
+    logger.error('Error in module preloading:', err);
+  });
+}, 100); // Small delay to avoid blocking startup
+
+// Clean up module content cache periodically
+setInterval(() => {
+  const now = Date.now();
+  let expiredCount = 0;
+  
+  for (const [key, entry] of moduleContentCache.entries()) {
+    if (now - entry.timestamp > MODULE_CACHE_TTL) {
+      moduleContentCache.delete(key);
+      expiredCount++;
+    }
+  }
+  
+  if (expiredCount > 0) {
+    logger.debug(`Cleaned up ${expiredCount} expired module content entries`);
+  }
+}, 30 * 60 * 1000); // Every 30 minutes
+
+// =============================================
+// PERFORMANCE OPTIMIZATION 2: PROMPT CACHING
+// =============================================
+
+// Assembled prompt cache to avoid rebuilding the same prompts
+const promptCache = new Map();
+const PROMPT_CACHE_TTL = 8 * 60 * 60 * 1000;  // 8 hours - longer caching for better performance
+const PROMPT_CACHE_MAX_SIZE = 500;
+
+/**
+ * Gets cached prompt if available
+ * @param {string} cacheKey - The cache key
+ * @returns {string|null} - The cached prompt or null
+ */
+function getCachedPrompt(cacheKey) {
+  if (promptCache.has(cacheKey)) {
+    const cached = promptCache.get(cacheKey);
+    
+    // Check if cache entry is still valid
+    if (Date.now() - cached.timestamp < PROMPT_CACHE_TTL) {
+      logger.info(`Using cached prompt for key: "${cacheKey.substring(0, 30)}..."`);
+      return cached.prompt;
+    }
+    
+    // Expired entry, remove it
+    promptCache.delete(cacheKey);
+  }
+  
+  return null;
+}
+
+/**
+ * Caches a prompt for future use
+ * @param {string} cacheKey - The cache key
+ * @param {string} prompt - The prompt to cache
+ * @returns {string} - The cached prompt
+ */
+function cachePrompt(cacheKey, prompt) {
+  promptCache.set(cacheKey, {
+    prompt,
+    timestamp: Date.now()
+  });
+  
+  // Clean cache if it gets too large
+  if (promptCache.size > PROMPT_CACHE_MAX_SIZE) {
+    cleanupPromptCache();
+  }
+  
+  return prompt;
+}
+
+/**
+ * Cleans up the prompt cache
+ */
+function cleanupPromptCache() {
+  logger.info(`Cleaning prompt cache (${promptCache.size} entries)`);
+  
+  const now = Date.now();
+  
+  // First remove expired entries
+  let expiredCount = 0;
+  for (const [key, entry] of promptCache.entries()) {
+    if (now - entry.timestamp > PROMPT_CACHE_TTL) {
+      promptCache.delete(key);
+      expiredCount++;
+    }
+  }
+  
+  // If still too large, remove oldest entries
+  if (promptCache.size > PROMPT_CACHE_MAX_SIZE - 50) {
+    const entries = [...promptCache.entries()];
+    // Sort by timestamp (oldest first)
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    // Remove oldest entries
+    let oldestRemoved = 0;
+    for (let i = 0; i < 50 && i < entries.length; i++) {
+      promptCache.delete(entries[i][0]);
+      oldestRemoved++;
+    }
+    
+    logger.info(`Removed ${expiredCount} expired and ${oldestRemoved} oldest prompt cache entries`);
+  }
+}
+
+// Run prompt cache cleanup periodically
+setInterval(cleanupPromptCache, 30 * 60 * 1000); // Every 30 minutes
 
 /**
  * Maps knowledge topics to required modules with robust error handling
@@ -483,6 +661,90 @@ function getRequiredModulesFromKnowledge(knowledgeItems) {
   }
 }
 
+// =============================================
+// PERFORMANCE OPTIMIZATION 3: FAST PATH DETECTION
+// =============================================
+
+/**
+ * Fast path detection for common message patterns
+ * Allows bypassing expensive processing for common query types while
+ * still using the same modules
+ */
+function detectFastPath(message, context, languageDecision) {
+  // Skip if message is too complex
+  if (!message || message.split(' ').length > 5) {
+    return null;
+  }
+
+  const lowerCaseMessage = message.toLowerCase();
+  
+  // Common fast path patterns
+  const FAST_PATHS = {
+    greeting: {
+      patterns: [
+        /^(hello|hi|hey|good\s(morning|afternoon|evening)|greetings)/i,
+        /^(hæ|halló|sæl|sæll|sælar|góðan\s(dag|morgun|kvöld)|blessaður|blessuð)/i
+      ],
+      modules: [
+        'core/identity',
+        'core/response_rules',
+        'core/personality',
+        'formatting/response_format',
+        'seasonal/current_season'
+      ]
+    },
+    thanks: {
+      patterns: [
+        /^(thanks|thank you|thx|ty)/i,
+        /^(takk|þakka|kærar þakkir)/i
+      ],
+      modules: [
+        'core/identity',
+        'core/response_rules',
+        'core/personality',
+        'formatting/response_format'
+      ]
+    },
+    simple_question: {
+      patterns: [
+        /^(what|how|when|where|why|who|is|are|do|does)/i,
+        /^(hvað|hvernig|hvenær|hvar|af hverju|hver|er|eru|gerir|gerið)/i
+      ],
+      // This doesn't provide modules - it's just flagging that this might be a simple question
+      // but we should still use standard module selection to get correct category modules
+      skipFastPath: true
+    }
+  };
+  
+  // Check each fast path
+  for (const [pathName, pathConfig] of Object.entries(FAST_PATHS)) {
+    const { patterns, modules, skipFastPath } = pathConfig;
+    
+    // Check if message matches any pattern for this path
+    const matchesPath = patterns.some(pattern => pattern.test(lowerCaseMessage));
+    
+    if (matchesPath) {
+      if (skipFastPath) {
+        // This path indicates we should use the normal flow, but we've identified a pattern
+        logger.debug(`Detected ${pathName} pattern, but proceeding with standard module selection`);
+        return null;
+      }
+      
+      logger.info(`🚀 Fast path activated: ${pathName}`);
+      
+      // Add language module based on detected language
+      const languageModule = (languageDecision?.isIcelandic || context?.language === 'is') 
+        ? 'language/icelandic_rules'
+        : 'language/english_rules';
+      
+      return [...modules, languageModule];
+    }
+  }
+  
+  // No fast path matched
+  return null;
+}
+
 /**
  * Analyzes a message using contextSystem's topic detection 
  * @param {string} message - User message
@@ -598,6 +860,12 @@ async function analyzeMessageIntent(message, context) {
  * @returns {Array<string>} Array of module paths to include
  */
 async function determineRelevantModules(userMessage, context, languageDecision, isHoursQuery) {
+  // Check for fast path first - optimization for common simple patterns
+  const fastPathModules = detectFastPath(userMessage, context, languageDecision);
+  if (fastPathModules) {
+    return fastPathModules;
+  }
+  
   // EARLY PREVENTION: Check for greeting patterns BEFORE other processing
   const lowerCaseMessage = userMessage.toLowerCase();
   const greetingPatterns = [
@@ -1204,6 +1472,35 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
       context.lastMessage = userMessage;
     }
     
+    // =============================================
+    // PERFORMANCE OPTIMIZATION 4: PROMPT CACHING
+    // =============================================
+    
+    // Generate a cache key based on critical parameters (without including full user message)
+    const primaryIntent = context?.intentHierarchy?.primaryIntent || 'none';
+    const language = languageDecision?.language || (languageDecision?.isIcelandic ? 'is' : 'en');
+    const lastTopic = context?.lastTopic || 'none';
+    const isLateArrival = context?.lateArrivalContext?.isLate ? 'late' : 'normal';
+    const isBookingChange = context?.bookingContext?.hasBookingChangeIntent ? 'change' : 'normal';
+    const seasonKey = seasonInfo?.season || 'regular';
+    
+    // Include basic message fingerprint in cache key (avoid full message for privacy and uniqueness)
+    const messageFingerprint = userMessage ? 
+      `${userMessage.length}:${userMessage.split(' ').length}:${userMessage.substring(0, 10).replace(/[^a-z0-9]/gi, '')}` : 
+      'empty';
+    
+    // Create a normalized cache key
+    const cacheKey = `${DEPLOYMENT_ID}:${primaryIntent}|${language}|${lastTopic}|${isLateArrival}|${isBookingChange}|${isHoursQuery ? 'hours' : 'normal'}|${seasonKey}|${messageFingerprint}`;
+    
+    // Check cache first before doing any expensive operations
+    const cachedPrompt = getCachedPrompt(cacheKey);
+    if (cachedPrompt) {
+      // Log performance and use cached prompt
+      const endTime = Date.now();
+      console.log(`\n⚡ Using cached prompt: ${endTime - startTime}ms total time (cache hit)`);
+      return cachedPrompt;
+    }
+    
     // Use pre-retrieved knowledge if provided or retrieve if needed
     let relevantKnowledge = preRetrievedKnowledge;
     if (!relevantKnowledge) {
@@ -1277,6 +1574,9 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     promptAssemblyStart = Date.now();
     const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData, seasonInfo);
     promptAssemblyEnd = Date.now();
+    
+    // Cache the result before returning
+    cachePrompt(cacheKey, assembledPrompt);
     
     // Performance metrics
     const endTime = Date.now();
