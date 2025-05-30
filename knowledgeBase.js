@@ -10,9 +10,9 @@ export const knowledgeBase = {
         ritual: "https://www.skylagoon.com/experience/skjol-ritual/",
         dining: {
             overview: "https://www.skylagoon.com/food-drink/",
-            smakk_bar: "https://www.skylagoon.com/dining/smakk-bar/",
+            smakk_bar: "https://www.skylagoon.com/food-drink/smakk-bar/",
             keimur_cafe: "https://www.skylagoon.com/food-drink/keimur-cafe/",
-            gelmir_bar: "https://www.skylagoon.com/dining/gelmir-bar/"
+            gelmir_bar: "https://www.skylagoon.com/food-drink/gelmir-bar/"
         },
         transportation: {
             overview: "https://www.skylagoon.com/getting-here",

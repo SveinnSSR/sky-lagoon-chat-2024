@@ -662,6 +662,71 @@ function getRequiredModulesFromKnowledge(knowledgeItems) {
 }
 
 // =============================================
+// Updated Pricing Enforcer
+// =============================================
+
+/**
+ * Replaces outdated prices with current prices for summer season 2025 (last updated June 1, 2025)
+ * This function acts as a safety net to catch any old prices that might come through
+ * from vector search or cached knowledge base entries
+ * @param {string} prompt - The assembled prompt
+ * @returns {string} The prompt with updated prices
+ */
+function updateOutdatedPrices(prompt) {
+  // Define old price patterns and their replacements
+  const priceReplacements = [
+    // Saman Package - Old weekday/weekend prices to new uniform price
+    { pattern: /12[,.]990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '15,990 ISK' },
+    { pattern: /14[,.]990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '15,990 ISK' },
+    { pattern: /12\.990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '15.990 ISK' },
+    { pattern: /14\.990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '15.990 ISK' },
+    
+    // Sér Package - Old weekday/weekend prices to new uniform price
+    { pattern: /15[,.]990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '19,990 ISK' },
+    { pattern: /17[,.]990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '19,990 ISK' },
+    { pattern: /15\.990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '19.990 ISK' },
+    { pattern: /17\.990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '19.990 ISK' },
+    
+    // Youth Saman - Old prices
+    { pattern: /6[,.]495\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '7,995 ISK' },
+    { pattern: /7[,.]495\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '7,995 ISK' },
+    { pattern: /6\.495\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '7.995 ISK' },
+    { pattern: /7\.495\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '7.995 ISK' },
+    
+    // Youth Sér - Old prices
+    { pattern: /7[,.]995\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '9,995 ISK' },
+    { pattern: /8[,.]995\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '9,995 ISK' },
+    { pattern: /7\.995\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '9.995 ISK' },
+    { pattern: /8\.995\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '9.995 ISK' },
+    
+    // Old Multi-Pass prices if they appear
+    { pattern: /44[,.]970\s*ISK/gi, replacement: (match) => 
+      match.includes(',') ? '47,970 ISK' : '47.970 ISK' },
+    { pattern: /35[,.]970\s*ISK/gi, replacement: (match) => 
+      match.includes(',') ? '38,970 ISK' : '38.970 ISK' },
+    
+    // Replace any mention of different weekday/weekend pricing structure
+    { pattern: /weekdays?\s*\/\s*weekends?/gi, replacement: '(all days)' },
+    { pattern: /virka\s*daga\s*\/\s*um\s*helgar/gi, replacement: '(alla daga)' },
+  ];
+  
+  let updatedPrompt = prompt;
+  
+  // Apply all replacements
+  priceReplacements.forEach(({ pattern, replacement }) => {
+    updatedPrompt = updatedPrompt.replace(pattern, replacement);
+  });
+  
+  // Add a warning if we detect any discussion of weekday/weekend price differences
+  const weekdayWeekendPattern = /different\s*(?:prices?|pricing)\s*(?:for|on)\s*weekdays?\s*and\s*weekends?|mismunandi\s*verð\s*(?:fyrir|á)\s*virka\s*daga\s*og\s*helgar/gi;
+  if (weekdayWeekendPattern.test(updatedPrompt)) {
+    logger.warn('Detected outdated weekday/weekend pricing structure in prompt');
+  }
+  
+  return updatedPrompt;
+}
+
+// =============================================
 // PERFORMANCE OPTIMIZATION 3: FAST PATH DETECTION
 // =============================================
 
@@ -1406,7 +1471,16 @@ Today's opening hours are ${sunsetData.todayOpeningHours}.
   });
   
   logger.debug('Module sizes:', moduleSizes);
+
+  // Apply price updates as final step
+  const originalAssembledPrompt = assembledPrompt;
+  assembledPrompt = updateOutdatedPrices(assembledPrompt);
   
+  // Log if any price updates were made
+  if (assembledPrompt !== originalAssembledPrompt) {
+    logger.info('Updated outdated prices in assembled prompt');
+  }
+
   return assembledPrompt;
 }
 
@@ -1575,8 +1649,11 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     const assembledPrompt = await assemblePrompt(allModules, sessionId, languageDecision, context, relevantKnowledge, sunsetData, seasonInfo);
     promptAssemblyEnd = Date.now();
     
+    // Apply final price safety check
+    const finalPrompt = updateOutdatedPrices(assembledPrompt);
+    
     // Cache the result before returning
-    cachePrompt(cacheKey, assembledPrompt);
+    cachePrompt(cacheKey, finalPrompt);
     
     // Performance metrics
     const endTime = Date.now();
@@ -1600,7 +1677,7 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     // Check performance 
     checkPerformance(metrics, userMessage, allModules);
     
-    return assembledPrompt;
+    return finalPrompt;
   } catch (error) {
     logger.error(`Error in dynamic prompt generation:`, error);
     logger.error(`Stack trace:`, error.stack);
