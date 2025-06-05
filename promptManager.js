@@ -1020,6 +1020,64 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     ];
   }
 
+  // EARLY PREVENTION: Check for genital/nudity terms BEFORE other processing
+  const genitalTerms = [
+    // Icelandic terms
+    'typpi', 'typpinu', 'píka', 'píku', 'píkunni', 'limur', 'lim', 'kynfæri', 'kynfærum',
+    'getnaðarlim', 'reður', 'eistu', 'pung', 'sköp', 'klof',
+    // English terms  
+    'penis', 'vagina', 'genitals', 'genital', 'dick', 'cock', 'pussy',
+    'naked', 'nude', 'nudity', 'private parts', 'privates',
+    // Common variations
+    'nakinn', 'nakin', 'nakt', 'ber',
+  ];
+
+  const containsGenitalTerms = genitalTerms.some(term => lowerCaseMessage.includes(term));
+
+  if (containsGenitalTerms) {
+    console.log('🚫 [SWIMWEAR-REQUIRED] Detected genital/nudity terms - forcing swimwear policy response');
+    
+    // Set context flag
+    if (context) {
+      context.requiresSwimwearPolicy = true;
+      context.lastTopic = 'swimwear_policy';
+    }
+    
+    // Force facilities module which contains swimwear information
+    moduleScores.set('services/facilities', 1.0);
+    moduleScores.set('core/response_rules', 1.0);
+    
+    // Return early with specific modules to ensure proper response
+    return [
+      'core/identity',
+      'core/response_rules', 
+      'services/facilities',
+      'formatting/response_format',
+      languageModule
+    ];
+  }
+
+  // EARLY PREVENTION: Check for breast-related terms (separate handling)
+  const breastTerms = [
+    // Icelandic
+    'brjóst', 'brjóstin', 'brjóstum', 'brjóstinu', 'geirvörtur', 'geirvörtu',
+    // English
+    'breast', 'breasts', 'topless', 'bare-chested', 'nipple', 'nipples'
+  ];
+
+  const containsBreastTerms = breastTerms.some(term => lowerCaseMessage.includes(term));
+
+  if (containsBreastTerms && !containsGenitalTerms) {
+    console.log('👙 [BREAST-POLICY] Detected breast-related terms - applying equality policy');
+    
+    if (context) {
+      context.breastPolicyQuery = true;
+      context.lastTopic = 'breast_policy';
+    }
+    
+    moduleScores.set('services/facilities', 1.0);
+  }  
+  
   // EARLY PREVENTION: Check for booking change with reference number
   const bookingRefPattern = /\b(\d{7,8}|[A-Z]+-\d{5,8}|confirmation.*\d{5,8})\b/i;
   const changeTerms = ['færa', 'breyta', 'flytja', 'move', 'change', 'modify', 'reschedule'];
