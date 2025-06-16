@@ -46,35 +46,14 @@ import {
 } from './sunsetTimes.js';
 // Terminology Processor - enforce terminology based on Sky Lagoon guidelines
 import { enforceTerminology, filterEmojis } from './terminologyProcessor.js';
-// AI aware LiveChat Integration - Both Agent Handover and Booking Change Request System
-import { 
-    checkAgentAvailability,
-    diagnosticLiveChat,
-    diagnosticGroupConfiguration,
-    diagnosticBotStatus,
-    createProperChat, // Use Customer API instead from createCustomerChat
-    createDirectAgentChat,
-    sendMessageToLiveChat,
-    detectBookingChangeRequest,
-    createBookingChangeRequest, // Most likely unused. Remove?
-    submitBookingChangeRequest,
-    shouldTransferToHumanAgent,
-    registerLiveChatWebhook,
-    // Add these new functions:
-    generateCustomerToken, // Used internally inside livechat.js by createCustomerChat and sendDualApiMessage - Unused at the moment (use createAttributedChat instead)
-    createCustomerChat, // Unusued - used createAttributedChat instead now
-    createAttributedChat,
-    sendCustomerApiMessage,  // Add this new function
-    sendDualApiMessage
-} from './services/livechat.js';
 // Mongo DB integration:
 // Database, Echo and Duplicate message prevention and Dual-credentials storage for Livechat (Customer and Agent credentials)
 import { 
     connectToDatabase, 
     storeRecentMessage, 
-    checkForDuplicateMessage, // called inside webhook-livechat.js
+    checkForDuplicateMessage, // called inside webhook-livechat.js // Delete since we removed the Livechat integration?
     // Add these new functions:  
-    storeDualCredentials, // called inside livechat.js
+    storeDualCredentials, // called inside livechat.js // Delete since we removed the Livechat integration?
     getDualCredentials 
 } from './database.js';
 // Import from Data Models - You can safely remove these imports as it's handled inside messageProcessor.js
@@ -98,11 +77,6 @@ console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI);
 console.log('███████████████████████████████████████████');
 console.log('███████ SERVER STARTING WITH ANALYTICS PROXY ███████');
 console.log('███████████████████████████████████████████');
-
-// Global cache for incoming webhooks (livechat)
-if (!global.recentWebhooks) {
-  global.recentWebhooks = new Map();
-}
 
 // Initialize recent sessions tracking - helps with failsafe message delivery
 if (!global.recentSessions) {
@@ -346,687 +320,6 @@ const CACHE_TTL = 3600000; // 1 hour
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 const OPENAI_TIMEOUT = 15000;  // 15 seconds
-
-// LiveChat Constants
-// Hours during which agents may be available
-// Open every day of the week from 9am to 4pm - Closed for now
-const LIVECHAT_HOURS = {
-    START: 21,    // 9 AM
-    END: 22,     // 4 PM (24-hour format)
-};
-
-/**
- * Helper function to check if current time is within operating hours
- * @returns {boolean} Whether current time is within operating hours
- */
-const isWithinOperatingHours = () => {
-    const now = new Date();
-    const hours = now.getHours(); // Use local time
-    const dayOfWeek = now.getDay(); // 0 is Sunday, 6 is Saturday
-    
-    // We're open every day of the week from 9am-4pm
-    const isWithinHours = hours >= LIVECHAT_HOURS.START && hours < LIVECHAT_HOURS.END;
-    
-    console.log('\n⏰ Hours Check:', {
-        currentHour: hours,
-        start: LIVECHAT_HOURS.START,
-        end: LIVECHAT_HOURS.END,
-        day: dayOfWeek,
-        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-        isWithin: isWithinHours
-    });
-    
-    // Only check hours, since we're open every day
-    return isWithinHours;
-};
-
-/**
- * Enhanced function to check if any agents are actually available
- * @returns {Promise<boolean>} Whether any agents are available
- */
-const areAgentsAvailable = async () => {
-    try {
-        // Use your existing function to check real agent availability
-        const agentStatus = await checkAgentAvailability(false); // false for English
-        
-        const agentsAvailable = agentStatus.areAgentsAvailable && 
-                               agentStatus.availableAgents && 
-                               agentStatus.availableAgents.length > 0;
-        
-        console.log('\n👥 Agent availability check:', {
-            agentsAvailable,
-            agentCount: agentStatus.availableAgents?.length || 0,
-            status: agentStatus
-        });
-        
-        return agentsAvailable;
-    } catch (error) {
-        console.error('\n❌ Error checking agent availability:', error);
-        return false; // Default to unavailable if check fails
-    }
-};
-
-/**
- * AI-powered function to check if booking change form should be shown.
- * no form is shown anymore after updates but keeping this for data and analytics benefits
- * Delete this soon since we're adding GPT changing bookings and sending to analytics system
- * @param {string} message - User message
- * @param {Object} languageDecision - Language detection information
- * @param {Object} context - Conversation context (optional)
- * @returns {Promise<Object>} Result with confidence score and reasoning
- */
-const shouldShowBookingForm = async (message, languageDecision, context = null) => {
-    try {
-        // Form submission check (direct indicator - skip other checks)
-        if (message.toLowerCase().startsWith('booking change request:')) {
-            console.log('\n✅ Form submission detected');
-            return {
-                shouldShowForm: true,
-                isWithinAgentHours: isWithinOperatingHours(),
-                confidence: 1.0,
-                reasoning: "Form submission"
-            };
-        }
-        
-        // Check for package difference questions - these should NOT trigger the form
-        const lowercaseMsg = message.toLowerCase();
-        if ((lowercaseMsg.includes('difference') || lowercaseMsg.includes('different')) && 
-            (lowercaseMsg.includes('package') || lowercaseMsg.includes('saman') || 
-             lowercaseMsg.includes('pure') || lowercaseMsg.includes('sér'))) {
-            console.log('\n❌ Package difference question detected - NOT a booking change request');
-            return {
-                shouldShowForm: false,
-                isWithinAgentHours: isWithinOperatingHours(),
-                confidence: 0.9,
-                reasoning: "Package difference question"
-            };
-        }
-        
-        // Use the AI-powered detection function from livechat.js
-        const isBookingChange = await detectBookingChangeRequest(message, languageDecision, context);
-        
-        console.log('\n📅 Booking Change Form Check:', {
-            message: message.substring(0, 30) + '...',
-            shouldShowForm: isBookingChange.shouldShowForm,
-            confidence: isBookingChange.confidence,
-            reasoning: isBookingChange.reasoning,
-            language: languageDecision.isIcelandic ? 'Icelandic' : 'English'
-        });
-        
-        return {
-            shouldShowForm: isBookingChange.shouldShowForm,
-            isWithinAgentHours: isWithinOperatingHours(),
-            confidence: isBookingChange.confidence,
-            reasoning: isBookingChange.reasoning
-        };
-    } catch (error) {
-        console.error('\n❌ Error in shouldShowBookingForm:', error);
-        return {
-            shouldShowForm: false,
-            isWithinAgentHours: isWithinOperatingHours(),
-            confidence: 0,
-            error: error.message
-        };
-    }
-};
-
-/**
- * AI-powered function to check if user should be transferred to a human agent
- * @param {string} message - User message
- * @param {Object} languageDecision - Language detection information
- * @param {Object} context - Conversation context
- * @returns {Promise<Object>} Result with transfer decision and reasoning
- */
-const shouldTransferToAgent = async (message, languageDecision, context) => {
-    try {
-        // ADDED: First check if within operating hours before proceeding
-        if (!isWithinOperatingHours()) {
-            console.log('\n⏰ Outside operating hours (9am-4pm), preventing transfer');
-            
-            // Create message for outside hours
-            const outsideHoursMessage = languageDecision.isIcelandic ? 
-                "Þjónustuver okkar er opið daglega frá kl. 9-16. Ég get þó reynt að aðstoða þig með spurningar þínar." :
-                "Our customer service team is available daily from 9 AM to 4 PM. I'll do my best to assist you with your questions.";
-            
-            return {
-                shouldTransfer: false,
-                reason: 'outside_operating_hours',
-                response: outsideHoursMessage
-            };
-        }
-        
-        // Log transfer check
-        console.log('\n👥 Agent Transfer Check:', {
-            message: message.substring(0, 30) + '...',
-            language: {
-                isIcelandic: languageDecision.isIcelandic,
-                confidence: languageDecision.confidence
-            }
-        });
-
-        // Use the AI-powered detection from livechat.js
-        const transferCheck = await shouldTransferToHumanAgent(message, languageDecision, context);
-        
-        console.log('\n🔍 Transfer Check Details:', {
-            shouldTransfer: transferCheck.shouldTransfer,
-            confidence: transferCheck.confidence,
-            reason: transferCheck.reason,
-            transferType: transferCheck.transferType || 'NONE'
-        });
-        
-        // ENHANCED: Check for ACTUAL agent availability instead of just hours
-        const agentsAvailable = await areAgentsAvailable();
-        
-        // SIMPLIFIED: Only handle explicit human requests
-        if (transferCheck.shouldTransfer && !agentsAvailable) {
-            // If human requested but unavailable, provide operating hours
-            const humanRequestedMessage = languageDecision.isIcelandic ? 
-                "Því miður er þjónustuverið okkar lokað núna. Opnunartími þjónustuvers er virka daga frá kl. 9-18 og um helgar frá kl. 9-16. Ég get þó reynt að aðstoða þig með spurningar þínar." :
-                "Our customer service team is currently unavailable. Our service hours are weekdays from 9 AM to 6 PM and weekends from 9 AM to 4 PM. I'll do my best to assist you with your questions.";
-            
-            return {
-                shouldTransfer: false,
-                reason: 'human_requested_but_no_agents',
-                response: humanRequestedMessage
-            };
-        }
-        
-        // If transfer is needed and agents are available
-        if (transferCheck.shouldTransfer && agentsAvailable) {
-            return {
-                shouldTransfer: true,
-                confidence: transferCheck.confidence,
-                reason: transferCheck.reason,
-                transferType: transferCheck.transferType,
-                agents: transferCheck.agents
-            };
-        }
-        
-        // Default case - no transfer needed
-        return {
-            shouldTransfer: false,
-            confidence: transferCheck.confidence,
-            reason: transferCheck.reason
-        };
-    } catch (error) {
-        console.error('\n❌ Error in shouldTransferToAgent:', error);
-        return {
-            shouldTransfer: false,
-            reason: 'error',
-            error: error.message
-        };
-    }
-};
-
-// Add these with other helper functions, AFTER imports but BEFORE endpoints
-// ===============================================================
-
-/**
- * Processes incoming messages from LiveChat agents
- * @param {Object} payload - The webhook payload from LiveChat
- * @returns {Promise<Object>} - Success status and any errors
- */
-async function processLiveChatMessage(payload) {
-  // Add these constants for direct access
-  const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
-  const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-  
-  try {
-    // Extract the relevant data from the payload
-    const chatId = payload.chat_id;
-    const event = payload.event;
-    const authorId = event.author_id;
-    const messageText = event.text;
-    
-    console.log(`\n📨 Processing message: "${messageText}" from ${authorId}`);
-    
-    // Ignore system messages (like transfer notifications)
-    if (messageText.includes('URGENT: AI CHATBOT TRANSFER') || 
-        messageText.includes('REMINDER: Customer waiting')) {
-      console.log('\n📝 Ignoring system message');
-      return { success: true };
-    }
-    
-    // Check if this is an agent message
-    const isAgentMessage = authorId && authorId.includes('@');
-    if (!isAgentMessage) {
-      console.log('\n📝 Ignoring non-agent message');
-      return { success: true };
-    }
-    
-    // Try to get session ID directly from memory cache first (fastest)
-    let sessionId = null;
-    if (global.liveChatSessionMappings && global.liveChatSessionMappings.has(chatId)) {
-      sessionId = global.liveChatSessionMappings.get(chatId);
-      console.log(`\n✅ Found session mapping in memory: ${chatId} -> ${sessionId}`);
-    }
-    
-    // If not in memory, try direct API lookup to get customer email
-    if (!sessionId) {
-      try {
-        console.log('\n🔍 Direct API lookup of chat data to extract session ID...');
-        
-        const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-        
-        const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${agentCredentials}`,
-            'X-Region': 'fra'
-          },
-          body: JSON.stringify({ chat_id: chatId })
-        });
-        
-        if (chatResponse.ok) {
-          const chatData = await chatResponse.json();
-          
-          // Find customer and extract session ID from email
-          const customer = chatData.users?.find(user => user.type === 'customer');
-          
-          // CRITICAL PART: Extract session ID from email
-          if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
-            sessionId = customer.email.replace('@skylagoon.com', '');
-            console.log(`\n✅ DIRECT API: Extracted session ID from email: ${chatId} -> ${sessionId}`);
-            
-            // Store for future use
-            if (!global.liveChatSessionMappings) {
-              global.liveChatSessionMappings = new Map();
-            }
-            global.liveChatSessionMappings.set(chatId, sessionId);
-            
-            // Also add to recent sessions
-            if (!global.recentSessions) {
-              global.recentSessions = new Set();
-            }
-            global.recentSessions.add(sessionId);
-            
-            // Try to store in MongoDB too as backup
-            try {
-              await storeChatSessionMapping(chatId, sessionId);
-            } catch (storageError) {
-              console.warn('\n⚠️ Could not store in MongoDB:', storageError.message);
-            }
-          } else if (customer && customer.session_fields && customer.session_fields.length > 0) {
-            // Fallback to session_fields
-            const sessionField = customer.session_fields.find(field => field.session_id);
-            if (sessionField && sessionField.session_id) {
-              sessionId = sessionField.session_id;
-              console.log(`\n✅ DIRECT API: Extracted session ID from session_fields: ${chatId} -> ${sessionId}`);
-            }
-          }
-        } else {
-          console.warn('\n⚠️ Failed to get chat data:', await chatResponse.text());
-        }
-      } catch (error) {
-        console.error('\n❌ Error in direct API lookup:', error);
-      }
-    }
-    
-    // FALLBACK: If we still couldn't find a session ID, try recent sessions
-    if (!sessionId && global.recentSessions && global.recentSessions.size > 0) {
-      sessionId = [...global.recentSessions].pop();
-      console.log(`\n⚠️ Using most recent session as fallback: ${sessionId}`);
-    }
-    
-    // If we still don't have a session ID, return error
-    if (!sessionId) {
-      console.error(`\n❌ Could not find sessionId for chatId: ${chatId}`);
-      return { success: false, error: 'Session not found' };
-    }
-    
-    // Get agent name for better UX
-    let authorName = "Agent";
-    try {
-      // Extract name from email if possible
-      if (authorId.includes('@')) {
-        authorName = authorId.split('@')[0];
-        // Capitalize first letter
-        authorName = authorName.charAt(0).toUpperCase() + authorName.slice(1);
-      }
-    } catch (error) {
-      console.warn('\n⚠️ Could not extract agent name:', error.message);
-    }
-    
-    // Create agent message
-    const agentMessage = {
-      role: 'agent',
-      content: messageText,
-      author: authorName,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Send to frontend via Pusher
-    console.log(`\n📤 Broadcasting agent message to session: ${sessionId}`);
-    await pusher.trigger('chat-channel', 'agent-message', {
-      sessionId: sessionId,
-      message: agentMessage,
-      chatId: chatId
-    });
-    
-    console.log('\n✅ Agent message broadcast successfully');
-    
-    // Also update context if available
-    try {
-      const context = await getPersistentSessionContext(sessionId);
-      if (context) {
-        addMessageToContext(context, {
-          role: 'agent', 
-          content: messageText,
-          author: authorName
-        });
-        console.log('\n✅ Updated conversation context with agent message');
-      }
-    } catch (contextError) {
-      console.warn('\n⚠️ Could not update context:', contextError.message);
-      // Continue anyway
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error('\n❌ Error processing LiveChat message:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Finds the session ID associated with a LiveChat chat ID
- * @param {string} chatId - The LiveChat chat ID
- * @returns {Promise<string|null>} - The session ID or null if not found
- */
-async function findSessionIdForChat(chatId) {
-  try {
-    console.log(`\n🔍 Looking up mapping for chat ID: ${chatId}`);
-    
-    // 1. First check in-memory (fastest)
-    if (global.liveChatSessionMappings && global.liveChatSessionMappings.has(chatId)) {
-      const sessionId = global.liveChatSessionMappings.get(chatId);
-      console.log(`\n✅ Found session mapping in memory: ${chatId} -> ${sessionId}`);
-      return sessionId;
-    }
-    
-    // 2. DIRECT API LOOKUP - Most reliable method for email extraction
-    try {
-      console.log('\n🔍 Direct API lookup to get customer email...');
-      
-      // Get agent credentials - hardcoded for reliability
-      const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; // From your livechat.js
-      const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc'; // From your livechat.js
-      const agentCredentials = Buffer.from(`${ACCOUNT_ID}:${PAT}`).toString('base64');
-      
-      const chatResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${agentCredentials}`,
-          'X-Region': 'fra'
-        },
-        body: JSON.stringify({ chat_id: chatId })
-      });
-      
-      if (chatResponse.ok) {
-        const chatData = await chatResponse.json();
-        console.log('\n✅ Successfully retrieved chat data from LiveChat API');
-        
-        // Find customer in the users array
-        const customer = chatData.users?.find(user => user.type === 'customer');
-        
-        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
-          // Extract session ID from email - THIS IS THE KEY PART
-          const sessionId = customer.email.replace('@skylagoon.com', '');
-          console.log(`\n✅ Extracted session ID from email: ${chatId} -> ${sessionId}`);
-          
-          // Store for future use
-          if (!global.liveChatSessionMappings) {
-            global.liveChatSessionMappings = new Map();
-          }
-          global.liveChatSessionMappings.set(chatId, sessionId);
-          
-          // Also try to store in persistent storage
-          try {
-            await storeChatSessionMapping(chatId, sessionId);
-          } catch (storageError) {
-            console.warn(`\n⚠️ Could not store in persistent storage: ${storageError.message}`);
-          }
-          
-          return sessionId;
-        } else {
-          console.log('\n⚠️ Customer found but email does not contain session ID:', 
-                     customer ? customer.email : 'No customer found');
-                     
-          // Try session_fields as fallback
-          if (customer && customer.session_fields && customer.session_fields.length > 0) {
-            let sessionId = null;
-            
-            // First try direct index
-            if (customer.session_fields[0].session_id) {
-              sessionId = customer.session_fields[0].session_id;
-            } else {
-              // Then try finding session_id field
-              const sessionField = customer.session_fields.find(field => field.session_id);
-              if (sessionField) {
-                sessionId = sessionField.session_id;
-              }
-            }
-            
-            if (sessionId) {
-              console.log(`\n✅ Found session ID in LiveChat session_fields: ${chatId} -> ${sessionId}`);
-              
-              // Store for future use
-              if (!global.liveChatSessionMappings) {
-                global.liveChatSessionMappings = new Map();
-              }
-              global.liveChatSessionMappings.set(chatId, sessionId);
-              
-              return sessionId;
-            }
-          }
-        }
-      } else {
-        console.warn('\n⚠️ Failed to get chat:', await chatResponse.text());
-      }
-    } catch (apiError) {
-      console.warn('\n⚠️ Error in direct API lookup:', apiError.message);
-    }
-    
-    // 3. Check webhooks cache for customer email
-    if (global.recentWebhooks && global.recentWebhooks.has(chatId)) {
-      console.log('\n🔍 Checking recent webhooks for customer email...');
-      const chat = global.recentWebhooks.get(chatId);
-      
-      if (chat && chat.users) {
-        const customer = chat.users.find(user => user.type === 'customer');
-        
-        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
-          // Extract session ID from email
-          const sessionId = customer.email.replace('@skylagoon.com', '');
-          console.log(`\n✅ Found session ID in webhook email: ${chatId} -> ${sessionId}`);
-          
-          // Store for future use
-          if (!global.liveChatSessionMappings) {
-            global.liveChatSessionMappings = new Map();
-          }
-          global.liveChatSessionMappings.set(chatId, sessionId);
-          
-          return sessionId;
-        }
-        
-        // Try session_fields as fallback
-        if (customer && customer.session_fields && customer.session_fields.length > 0) {
-          let sessionId = null;
-          
-          // Try to find session_id
-          for (const field of customer.session_fields) {
-            if (field.session_id) {
-              sessionId = field.session_id;
-              break;
-            }
-          }
-          
-          if (sessionId) {
-            console.log(`\n✅ Found session ID in webhook session_fields: ${chatId} -> ${sessionId}`);
-            
-            // Store for future use
-            if (!global.liveChatSessionMappings) {
-              global.liveChatSessionMappings = new Map();
-            }
-            global.liveChatSessionMappings.set(chatId, sessionId);
-            
-            return sessionId;
-          }
-        }
-      }
-    }
-    
-    // 4. Try file-based API store (fallback)
-    try {
-      console.log('\n🔍 Trying file-based storage API...');
-      const response = await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store?chatId=${chatId}`);
-      const data = await response.json();
-      
-      if (data.success && data.sessionId) {
-        console.log(`\n✅ Found session mapping via API: ${chatId} -> ${data.sessionId}`);
-        
-        // Cache for future lookups
-        if (!global.liveChatSessionMappings) {
-          global.liveChatSessionMappings = new Map();
-        }
-        global.liveChatSessionMappings.set(chatId, data.sessionId);
-        
-        return data.sessionId;
-      }
-    } catch (apiError) {
-      console.warn(`\n⚠️ API lookup error: ${apiError.message}`);
-    }
-    
-    // 5. Try MongoDB as last fallback
-    try {
-      console.log('\n🔍 Trying MongoDB as last fallback...');
-      const { db } = await connectToDatabase();
-      
-      // Try multiple collection names for robustness
-      const collectionNames = ['livechat_mappings', 'livechatMappings'];
-      
-      for (const collName of collectionNames) {
-        try {
-          const mapping = await db.collection(collName).findOne({ chatId: chatId });
-          
-          if (mapping && mapping.sessionId) {
-            console.log(`\n✅ Found session mapping in MongoDB (${collName}): ${chatId} -> ${mapping.sessionId}`);
-            
-            // Cache for future
-            if (!global.liveChatSessionMappings) {
-              global.liveChatSessionMappings = new Map();
-            }
-            global.liveChatSessionMappings.set(chatId, mapping.sessionId);
-            
-            return mapping.sessionId;
-          }
-        } catch (collError) {
-          console.warn(`\n⚠️ Error checking ${collName}: ${collError.message}`);
-        }
-      }
-    } catch (dbError) {
-      console.warn(`\n⚠️ MongoDB lookup error: ${dbError.message}`);
-    }
-    
-    console.log(`\n❌ No mapping found for chat ID: ${chatId} after trying all methods`);
-    return null;
-  } catch (error) {
-    console.error('\n❌ Error retrieving mapping:', error);
-    return null;
-  }
-}
-
-/**
- * Stores a mapping between LiveChat chat ID and session ID
- * @param {string} chatId - LiveChat chat ID
- * @param {string} sessionId - Chatbot session ID
- * @returns {Promise<boolean>} - Success status
- */
-async function storeChatSessionMapping(chatId, sessionId) {
-  try {
-    console.log(`\n🔗 Storing mapping: ${chatId} -> ${sessionId}`);
-    
-    // 1. Store in-memory for immediate use
-    if (!global.liveChatSessionMappings) {
-      global.liveChatSessionMappings = new Map();
-    }
-    global.liveChatSessionMappings.set(chatId, sessionId);
-    
-    // 2. Store via API endpoint (reliable across function instances)
-    try {
-      const response = await fetch(`${process.env.BASE_URL || 'https://sky-lagoon-chat-2024.vercel.app'}/api/mapping-store`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ chatId, sessionId })
-      });
-      
-      if (response.ok) {
-        console.log(`\n🔗 Mapping stored via API`);
-      } else {
-        console.warn(`\n⚠️ API storage failed: ${await response.text()}`);
-      }
-    } catch (apiError) {
-      console.warn(`\n⚠️ Could not store mapping via API: ${apiError.message}`);
-    }
-    
-    // 3. Also try MongoDB
-    try {
-      const { db } = await connectToDatabase();
-      
-      // Ensure the collection exists
-      let collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
-      if (collections.length === 0) {
-        await db.createCollection('livechat_mappings');
-        console.log('\n✅ Created livechat_mappings collection');
-      }
-      
-      // Store the mapping
-      await db.collection('livechat_mappings').updateOne(
-        { chatId },
-        { $set: { 
-            sessionId,
-            updatedAt: new Date()
-          }
-        },
-        { upsert: true }
-      );
-      
-      console.log(`\n🔗 Mapping stored in MongoDB`);
-    } catch (dbError) {
-      console.warn(`\n⚠️ Could not store in MongoDB: ${dbError.message}`);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('\n❌ Error storing chat mapping:', error);
-    return false;
-  }
-}
-
-/**
- * Ensures the livechat_mappings collection exists in MongoDB
- * @returns {Promise<void>}
- */
-async function ensureMappingCollection() {
-  try {
-    const { db } = await connectToDatabase();
-    const collections = await db.listCollections({name: 'livechat_mappings'}).toArray();
-    
-    if (collections.length === 0) {
-      console.log('\n📊 Creating livechat_mappings collection...');
-      await db.createCollection('livechat_mappings');
-      console.log('\n✅ livechat_mappings collection created');
-    } else {
-      console.log('\n✅ livechat_mappings collection already exists');
-    }
-  } catch (error) {
-    console.error('\n❌ Error ensuring mapping collection:', error);
-  }
-}
 
 /**
  * Modern intent-based booking change detection with multilingual support
@@ -1661,48 +954,6 @@ app.get('/', (req, res) => {
     });
 });
 
-// Add a diagnostic endpoint - Livechat testing
-app.get('/api/livechat-diagnostic', async (req, res) => {
-  try {
-    const results = await diagnosticLiveChat();
-    res.json({ success: true, results });
-  } catch (error) {
-    console.error('Diagnostic error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-// Add a group configuration diagnostic endpoint - Livechat testing pt 2
-app.get('/api/livechat-group-diagnostic', async (req, res) => {
-  try {
-    const results = await diagnosticGroupConfiguration();
-    res.json({ success: true, results });
-  } catch (error) {
-    console.error('Group diagnostic error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-// Add a diagnostic endpoint for bot status - Livechat testing pt 3
-app.get('/api/livechat-bot-diagnostic', async (req, res) => {
-  try {
-    const results = await diagnosticBotStatus();
-    res.json({ success: true, results });
-  } catch (error) {
-    console.error('Bot status diagnostic error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
 // Test endpoint for server status (add this before your main routes)
 app.get('/ping', (req, res) => {
     res.status(200).json({
@@ -1833,7 +1084,7 @@ app.get('/test-streaming', async (req, res) => {
   }
 });
 
-// Modified chat endpoint using only the new context system
+// Modified chat endpoint with ALL LiveChat code removed
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
     const startTime = Date.now();
@@ -1841,8 +1092,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         sessionTime: 0,
         languageTime: 0,
         knowledgeTime: 0,
-        transferTime: 0,
-        // bookingTime removed
         totalTime: 0
     };
 
@@ -1871,7 +1120,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                     responseObj.topicType || 'general',
                     responseObj.responseType || 'direct_response',
                     sessionId, // Pass the session ID from the client
-                    responseObj.status || 'active' // MODIFY THIS LINE to use responseObj instead of context
+                    responseObj.status || 'active'
                 );
                 
                 // Store PostgreSQL ID if available
@@ -1888,7 +1137,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
     };
     
     try {
-        // MIGRATION: Get sessionId directly from the request body
+        // Get sessionId directly from the request body
         const sessionId = req.body.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
         
         console.log('\n🔍 Full request body:', req.body);
@@ -1898,258 +1147,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const userMessage = req.body.message || req.body.question;
         
         console.log('\n📥 Incoming Message:', userMessage);
-        
-        // Handle messages when in agent mode - KEEP THIS ENTIRE BLOCK INTACT
-        if (req.body.chatId && req.body.isAgentMode) {
-            console.log('\n🚨 AGENT MODE HANDLER TRIGGERED:', {
-                chatId: req.body.chatId,
-                message: userMessage,
-                isAgentMode: req.body.isAgentMode
-            });
-            try {
-                // Store message in MongoDB for echo detection
-                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', req.body.chatId, userMessage);
-                try {
-                    await storeRecentMessage(req.body.chatId, userMessage);
-                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
-                } catch (storeError) {
-                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
-                }
-                
-                // Get dual credentials for this chat
-                console.log(`\n🔍 Looking up dual credentials for chat: ${req.body.chatId}`);
-                const dualCreds = await getDualCredentials(req.body.chatId);
-                
-                // ENHANCED: Log what we found
-                console.log('\n🔍 Dual credentials lookup result:', {
-                    found: !!dualCreds,
-                    hasCustomerToken: dualCreds?.customerToken ? true : false,
-                    hasEntityId: dualCreds?.entityId ? true : false
-                });
-                
-                // Always use agent credentials as fallback
-                const agentCredentials = req.body.agent_credentials || req.body.bot_token;
-                
-                if (!dualCreds && !agentCredentials) {
-                    throw new Error('Missing credentials for agent mode');
-                }
-                
-                // Track message for echo detection
-                try {
-                    if (!global.customerMessageTracker) {
-                        global.customerMessageTracker = new Map();
-                    }
-                    
-                    const chatMessages = global.customerMessageTracker.get(req.body.chatId) || [];
-                    chatMessages.push({
-                        text: userMessage,
-                        timestamp: Date.now()
-                    });
-                    
-                    global.customerMessageTracker.set(req.body.chatId, chatMessages);
-                    
-                    if (chatMessages.length > 10) {
-                        chatMessages.shift();
-                    }
-                    
-                    console.log(`\n🔒 Tracked customer message for echo detection: "${userMessage}"`);
-                } catch (trackError) {
-                    console.error('\n⚠️ Error tracking message:', trackError);
-                }
-                
-                // Attempt to send message with all available methods, trying each in turn
-                let messageSent = false;
-                
-                // ENHANCED: Use Customer API if we have customer token
-                if (!messageSent && dualCreds && dualCreds.customerToken) {
-                    console.log('\n🔑 Using Customer API with token for proper message styling');
-                    
-                    try {
-                        const ORGANIZATION_ID = '10d9b2c9-311a-41b4-94ae-b0c4562d7737';
-                        
-                        // Use the chat_id exactly as provided by LiveChat
-                        const chatId = req.body.chatId;
-                        
-                        console.log(`\n🔍 Using exact chat ID: "${chatId}" for Customer API`);
-                        
-                        // Use Bearer token as instructed by LiveChat
-                        const bearerToken = `Bearer ${dualCreds.customerToken}`;
-                        
-                        const apiUrl = `https://api.livechatinc.com/v3.5/customer/action/send_event?organization_id=${ORGANIZATION_ID}`;
-                        
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json', // Explicitly confirmed by Tomasz
-                                'Authorization': bearerToken 
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                event: {
-                                    type: 'message',
-                                    text: userMessage,
-                                    custom_id: `customer_msg_${Date.now()}`,
-                                    recipients: 'all' // KEY CHANGE: 'recipients' instead of 'visibility' per Tomasz
-                                }
-                            })
-                        });
-                        
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error('\n❌ Customer API error:', errorText);
-                            console.log('\n🔄 Will try next fallback method...');
-                        } else {
-                            console.log('\n✅ Message sent using Customer API (customer styling)');
-                            messageSent = true;
-                        }
-                    } catch (customerApiError) {
-                        console.error('\n❌ Customer API failed:', customerApiError.message);
-                    }
-                }
-                
-                // Fallback to Agent API with customer ID attribution
-                if (!messageSent && dualCreds && dualCreds.entityId) {
-                    console.log('\n🔑 Using Agent API with customer ID attribution');
-                    
-                    try {
-                        // Determine auth and create proper headers
-                        let authHeader;
-                        if (agentCredentials.startsWith('Basic ')) {
-                            authHeader = agentCredentials;
-                        } else if (agentCredentials.startsWith('Bearer ')) {
-                            authHeader = agentCredentials;
-                        } else if (agentCredentials.includes(':')) {
-                            authHeader = `Basic ${agentCredentials}`;
-                        } else {
-                            authHeader = `Basic ${agentCredentials}`;
-                        }
-                        
-                        // ENHANCED: Create message with prominent customer formatting
-                        const enhancedMessage = `══════ 👤 CUSTOMER MESSAGE ══════\n${userMessage}\n═══════════════════════════════`;
-                        
-                        // Create message event with customer attribution if we have a customer ID
-                        const eventObject = {
-                            type: 'message',
-                            text: enhancedMessage, // Enhanced formatting
-                            visibility: 'all',
-                            author_id: dualCreds.entityId // Set author to customer for attribution
-                        };
-                        
-                        console.log(`\n📝 Adding customer attribution (author_id: ${dualCreds.entityId})`);
-                        console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                        
-                        // Send the message with proper attribution
-                        const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': authHeader,
-                                'X-Region': 'fra'
-                            },
-                            body: JSON.stringify({
-                                chat_id: req.body.chatId,
-                                event: eventObject
-                            })
-                        });
-                        
-                        if (!sendResponse.ok) {
-                            const errorText = await sendResponse.text();
-                            console.error('\n❌ Error sending message to LiveChat:', errorText);
-                            console.log('\n🔄 Will try final fallback method...');
-                        } else {
-                            console.log('\n✅ Message sent with customer ID attribution');
-                            messageSent = true;
-                        }
-                    } catch (attributionError) {
-                        console.error('\n❌ Attribution approach failed:', attributionError.message);
-                        // Continue to final fallback - no throw here
-                    }
-                }
-                
-                // Final fallback - just use Agent API normally
-                if (!messageSent) {
-                    console.log('\n🔑 Falling back to Agent API without customer attribution');
-                    
-                    // Determine auth and create proper headers
-                    let authHeader;
-                    if (agentCredentials.startsWith('Basic ')) {
-                        authHeader = agentCredentials;
-                    } else if (agentCredentials.startsWith('Bearer ')) {
-                        authHeader = agentCredentials;
-                    } else if (agentCredentials.includes(':')) {
-                        authHeader = `Basic ${agentCredentials}`;
-                    } else {
-                        authHeader = `Basic ${agentCredentials}`;
-                    }
-                    
-                    // ENHANCED: Create message with prominent customer formatting
-                    const enhancedMessage = `══════ 👤 CUSTOMER MESSAGE ══════\n${userMessage}\n═══════════════════════════════`;
-                    
-                    // Create basic message event
-                    const eventObject = {
-                        type: 'message',
-                        text: enhancedMessage, // Enhanced formatting
-                        visibility: 'all'
-                    };
-                    
-                    console.log('\n📝 Event JSON structure:', JSON.stringify(eventObject, null, 2));
-                    
-                    // Send the message
-                    const sendResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': authHeader,
-                            'X-Region': 'fra'
-                        },
-                        body: JSON.stringify({
-                            chat_id: req.body.chatId,
-                            event: eventObject
-                        })
-                    });
-                    
-                    if (!sendResponse.ok) {
-                        const errorText = await sendResponse.text();
-                        console.error('\n❌ Error sending message to LiveChat:', errorText);
-                        throw new Error(`LiveChat API error: ${sendResponse.status}`);
-                    }
-                    
-                    console.log('\n✅ Message sent with prefix only (no attribution)');
-                    messageSent = true;
-                }
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (agent mode): ${metrics.totalTime}ms`);
-                
-                // Return success response
-                return res.status(200).json({
-                    success: true,
-                    chatId: req.body.chatId,
-                    agent_credentials: req.body.agent_credentials,
-                    bot_token: req.body.bot_token,
-                    suppressMessage: true,
-                    language: {
-                        detected: 'English', // Default since we don't have language detection yet
-                        confidence: 'medium'
-                    }
-                });
-            } catch (error) {
-                console.error('\n❌ LiveChat Message Error:', error);
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (agent mode error): ${metrics.totalTime}ms`);
-                
-                return res.status(500).json({
-                    message: "Error sending message to agent",
-                    error: error.message
-                });
-            }
-        }
 
-        // TARGETED PARALLELIZATION: Core operations in parallel
+        // PARALLELIZATION: Core operations in parallel
         console.log('\n⏱️ Starting parallel initialization...');
         const parallelStart = Date.now();
         
-        // MIGRATION: Get or create context and perform language detection in parallel
+        // Get or create context and perform language detection in parallel
         let context, languageDecision;
         
         try {
@@ -2180,7 +1183,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             isIcelandic: languageDecision.isIcelandic,
             confidence: languageDecision.confidence,
             reason: languageDecision.reason,
-            sessionId: sessionId // Add session ID to logs for traceability
+            sessionId: sessionId
         });
 
         // Check for non-supported languages
@@ -2193,7 +1196,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             const unsupportedLanguageResponse = "Unfortunately, I haven't been trained in this language yet. Please contact info@skylagoon.is who will be happy to assist.";
             
-            // Add to new context system before responding
+            // Add to context system before responding
             addMessageToContext(context, { role: 'user', content: userMessage });
             
             // Use the unified broadcast system but don't send response yet
@@ -2228,50 +1231,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             topics: context.topics
         });
 
-        // TARGETED PARALLELIZATION: Core operations in parallel
-        console.log('\n⏱️ Starting parallel operations...');
-        const operationsStart = Date.now();
-
-        // Determine which operations to run in parallel
-        let parallelPromises = [];
-        let transferCheck = { shouldTransfer: false, reason: 'livechat_transfer_disabled' };
-        let knowledgeBaseResults; // Declare this variable here
-
-        if (ENABLE_LIVECHAT_TRANSFER) {
-            console.log('\n👥 LiveChat transfer check enabled');
-            parallelPromises.push(
-                shouldTransferToAgent(userMessage, languageDecision, context)
-                    .then(result => {
-                        metrics.transferTime = Date.now() - operationsStart;
-                        return result;
-                    })
-            );
-        } else {
-            console.log('\n👥 LiveChat transfer check disabled via feature flag');
-            metrics.transferTime = 0;
-        }
-
-        // Always run knowledge retrieval
-        parallelPromises.push(
-            getKnowledgeWithFallbacks(userMessage, context)
-                .then(result => {
-                    metrics.knowledgeTime = Date.now() - operationsStart;
-                    return result;
-                })
-        );
-
-        // Run the enabled operations in parallel
-        const results = await Promise.all(parallelPromises);
-
-        // Extract results based on which operations were run
-        if (ENABLE_LIVECHAT_TRANSFER) {
-            transferCheck = results[0];
-            knowledgeBaseResults = results[1];
-        } else {
-            knowledgeBaseResults = results[0];
-        }
+        // Get knowledge - simplified without transfer check
+        console.log('\n⏱️ Starting knowledge retrieval...');
+        const knowledgeStart = Date.now();
         
-        console.log(`\n⏱️ Parallel operations completed in ${Date.now() - operationsStart}ms`);
+        const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
+        metrics.knowledgeTime = Date.now() - knowledgeStart;
+        
+        console.log(`\n⏱️ Knowledge retrieval completed in ${metrics.knowledgeTime}ms`);
 
         // Enhanced logging for language detection results
         console.log('\n🔬 Enhanced Language Detection Test:', {
@@ -2301,224 +1268,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // The function has already set the cancellation status
         }
 
-        // MIGRATION: Check if we should transfer to human agent with AI-powered detection
-        if (ENABLE_LIVECHAT_TRANSFER) {
-            console.log('\n🔄 Transfer Check Result:', {
-                shouldTransfer: transferCheck.shouldTransfer,
-                reason: transferCheck.reason,
-                confidence: transferCheck.confidence,
-                withinHours: isWithinOperatingHours(),
-                availableAgents: transferCheck.agents?.length || 0
-            });
-        } else {
-            console.log('\n🔄 Transfer Check: Disabled by feature flag - skipping hours check and agent availability');
-        }
-
-        // Check if user is already transferred to prevent duplicate transfers
-        if (context.transferStatus && context.transferStatus.transferred) {
-            console.log('\n📝 User already transferred to agent, skipping transfer');
-            
-            // IMPORTANT: For agent mode messages, just forward to LiveChat without bot response
-            if (req.body.isAgentMode) {
-                // Store message in MongoDB for echo detection
-                console.log('\n💾 ABOUT TO STORE MESSAGE IN MONGODB:', context.transferStatus.chatId, userMessage);
-                try {
-                    await storeRecentMessage(context.transferStatus.chatId, userMessage);
-                    console.log('\n✅ SUCCESSFULLY STORED MESSAGE IN MONGODB');
-                } catch (storeError) {
-                    console.error('\n⚠️ Error storing message in MongoDB:', storeError);
-                }
-                
-                // Send the message to LiveChat using the stored credentials
-                await sendMessageToLiveChat(
-                    context.transferStatus.chatId, 
-                    userMessage, 
-                    req.body.agent_credentials || req.body.bot_token
-                );
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (already transferred agent mode): ${metrics.totalTime}ms`);
-                
-                // Return success but suppress any bot message
-                return res.status(200).json({
-                    success: true,
-                    chatId: context.transferStatus.chatId,
-                    agent_credentials: req.body.agent_credentials || req.body.bot_token,
-                    suppressMessage: true,
-                    transferred: true
-                });
-            }
-            
-            // For non-agent messages, still show the reminder
-            const alreadyTransferredMessage = languageDecision.isIcelandic ?
-                "Þú ert þegar tengd(ur) við þjónustufulltrúa. Vinsamlegast haltu áfram samtalinu." :
-                "You are already connected with a live agent. Please continue your conversation here.";
-            
-            // Add response to context
-            addMessageToContext(context, { role: 'assistant', content: alreadyTransferredMessage });
-            
-            // Use the unified broadcast system to update the UI without creating a new transfer
-            const responseData = await sendBroadcastAndPrepareResponse({
-                message: alreadyTransferredMessage,
-                transferred: true,
-                chatId: context.transferStatus.chatId,
-                language: {
-                    detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                    confidence: languageDecision.confidence,
-                    reason: languageDecision.reason
-                },
-                topicType: 'transfer_reminder',
-                responseType: 'direct_response'
-            });
-            
-            metrics.totalTime = Date.now() - startTime;
-            console.log(`\n⏱️ Total processing time (already transferred): ${metrics.totalTime}ms`);
-            
-            return res.status(responseData.status || 200).json(responseData);
-        }
-        
-        if (transferCheck.shouldTransfer && ENABLE_LIVECHAT_TRANSFER) {
-            try {
-                // Create chat with correct customer attribution
-                console.log('\n📝 Creating new LiveChat chat with customer attribution:', sessionId);
-                const chatData = await createAttributedChat(sessionId, languageDecision.isIcelandic);
-
-                // Store mapping between LiveChat chat ID and our session ID in memory and MongoDB
-                if (chatData && chatData.chat_id) {
-                    // Use the persistent storage function
-                    await storeChatSessionMapping(chatData.chat_id, sessionId);
-                }
-                
-                if (!chatData || !chatData.chat_id) {
-                    throw new Error('Failed to create chat or get chat ID');
-                }
-                
-                console.log('\n✅ Chat created successfully with dual API approach:', chatData.chat_id);
-                
-                // Prepare transfer message based on language
-                const transferMessage = languageDecision.isIcelandic ?
-                    "Ég er að tengja þig við þjónustufulltrúa. Eitt andartak..." :
-                    "I'm connecting you with a customer service representative. One moment...";
-                
-                // Add response to context
-                addMessageToContext(context, { role: 'assistant', content: transferMessage });
-                
-                // Use the unified broadcast system to update the UI
-                const responseData = await sendBroadcastAndPrepareResponse({
-                    message: transferMessage,
-                    transferred: true,
-                    chatId: chatData.chat_id,
-                    customer_token: chatData.customer_token, // Add customer token
-                    agent_credentials: chatData.agent_credentials,
-                    initiateWidget: true,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    },
-                    topicType: 'transfer',
-                    responseType: 'direct_response'
-                });
-                
-                // Verification check using agent credentials - keeping this from the original code
-                setTimeout(async () => {
-                    try {
-                        console.log('\n⏱️ Running visibility verification check with agent credentials...');
-                        
-                        // Verify the chat exists and is active using agent credentials
-                        const verifyResponse = await fetch('https://api.livechatinc.com/v3.5/agent/action/get_chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Basic ${chatData.agent_credentials}`,
-                                'X-Region': 'fra'
-                            },
-                            body: JSON.stringify({
-                                chat_id: chatData.chat_id
-                            })
-                        });
-                        
-                        if (verifyResponse.ok) {
-                            const chatStatus = await verifyResponse.json();
-                            console.log('\n🔍 Chat status verification:', {
-                                id: chatData.chat_id,
-                                active: chatStatus.active,
-                                thread: chatStatus.thread || {},
-                                users: chatStatus.users?.length || 0
-                            });
-                            
-                            // If the chat looks inactive, send a follow-up message to alert agents
-                            if (!chatStatus.active || !chatStatus.thread?.events?.length) {
-                                console.log('\n⚠️ Chat visibility check - sending reminder message...');
-                                
-                                // Send a reminder message using agent credentials
-                                await fetch('https://api.livechatinc.com/v3.5/agent/action/send_event', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Basic ${chatData.agent_credentials}`,
-                                        'X-Region': 'fra'
-                                    },
-                                    body: JSON.stringify({
-                                        chat_id: chatData.chat_id,
-                                        event: {
-                                            type: 'message',
-                                            text: '🚨🚨 REMINDER: Customer waiting for assistance',
-                                            visibility: 'all'
-                                        }
-                                    })
-                                });
-                            }
-                        }
-                    } catch (verifyError) {
-                        console.error('\n⚠️ Verification error:', verifyError);
-                        // Don't throw - this is just an additional check
-                    }
-                }, 2000);
-
-                // Mark user as transferred to prevent duplicate transfers
-                context.transferStatus = {
-                    transferred: true,
-                    chatId: chatData.chat_id,
-                    timestamp: new Date().toISOString()
-                };
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (new transfer): ${metrics.totalTime}ms`);
-                
-                return res.status(responseData.status || 200).json(responseData);
-            } catch (error) {
-                console.error('\n❌ Transfer Error:', error);
-                
-                // Provide fallback response
-                const fallbackMessage = languageDecision.isIcelandic ?
-                    "Því miður get ég ekki tengt þig við þjónustufulltrúa núna. Vinsamlegast hringdu í +354 527 6800." :
-                    "I'm sorry, I couldn't connect you with a customer service representative. Please call +354 527 6800 for assistance.";
-                
-                // Add fallback response to context
-                addMessageToContext(context, { role: 'assistant', content: fallbackMessage });
-                
-                // Return error response
-                const errorResponseData = await sendBroadcastAndPrepareResponse({
-                    message: fallbackMessage,
-                    error: error.message,
-                    language: {
-                        detected: languageDecision.isIcelandic ? 'Icelandic' : 'English',
-                        confidence: languageDecision.confidence,
-                        reason: languageDecision.reason
-                    },
-                    topicType: 'transfer_failed',
-                    responseType: 'direct_response'
-                });
-                
-                metrics.totalTime = Date.now() - startTime;
-                console.log(`\n⏱️ Total processing time (transfer error): ${metrics.totalTime}ms`);
-                
-                return res.status(errorResponseData.status || 500).json(errorResponseData);
-            }
-        }
-
-        // Detect late arrival scenario - now using context system's late arrival tracking
+        // Detect late arrival scenario
         if (isLateArrivalMessage(userMessage, languageDecision.isIcelandic)) {
             console.log('\n🕒 Late arrival message detected');
             context.lateArrivalContext.isLate = true;
@@ -2547,7 +1297,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // MIGRATION: Detect if sunset information is relevant
+        // Detect if sunset information is relevant
         let sunsetData = null;
         if (isSunsetQuery(userMessage, languageDecision)) {
             console.log('\n🌅 Sunset-related query detected - adding data to context');
@@ -2624,7 +1374,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
        }
 
         // Enhanced system prompt with all context
-        const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true'; // Switches to New Modular Dynamic Prompt System
+        const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
         let systemPrompt;
 
         if (useModularPrompts) {
@@ -2634,11 +1384,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 userMessage, 
                 {
                     ...languageDecision,
-                    language: language // Pass explicit language code
+                    language: language
                 }, 
                 sunsetData,
-                knowledgeBaseResults, // Pass the already retrieved knowledge
-                seasonInfo // Add seasonInfo
+                knowledgeBaseResults,
+                seasonInfo
             );
         } else {
             // Use original synchronous version
@@ -2647,7 +1397,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 userMessage, 
                 {
                     ...languageDecision,
-                    language: language // Pass explicit language code
+                    language: language
                 }, 
                 sunsetData
             );
@@ -2720,25 +1470,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }
 
-        // Handle human agent requests outside hours
-        if (transferCheck && transferCheck.enhancePrompt && 
-            transferCheck.promptContext?.situation === 'human_requested_outside_hours') {
-            
-            messages.push({
-                role: "system",
-                content: `IMPORTANT: The user has specifically requested to speak with a human agent, but our 
-                customer service is only available during ${transferCheck.promptContext.operatingHours}.
-                
-                Generate a helpful, empathetic response that:
-                1. Acknowledges their desire to speak with a human agent
-                2. Explains when human agents are available
-                3. Offers alternative contact methods (phone: ${transferCheck.promptContext.phoneNumber}, 
-                   email: ${transferCheck.promptContext.email})
-                4. Offers to help with their question yourself where possible
-                5. Is conversational and natural, not like a generic message`
-            });
-        }
-
         // Conversation continuity check - Check if this is an ongoing conversation
         const isOngoingConversation = context.messages && 
                                      context.messages.filter(m => m.role === 'assistant').length > 0;
@@ -2784,8 +1515,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         while (attempt < MAX_RETRIES) {
             try {
                 completion = await openai.chat.completions.create({
-                    // Updated to newer model with improved latency and performance
-                    model: "gpt-4o", // Previously: "gpt-4-1106-preview"
+                    model: "gpt-4o",
                     messages: messages,
                     temperature: 0.7,
                     max_tokens: getMaxTokens(userMessage)
@@ -2824,11 +1554,11 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Add AI response to the context system
         addMessageToContext(context, { role: 'assistant', content: response });
         
-        // APPLY TERMINOLOGY ENHANCEMENT - Now asynchronous and passing the OpenAI instance
+        // APPLY TERMINOLOGY ENHANCEMENT
         const enhancedResponse = await enforceTerminology(response, openai);
         console.log('\n✨ Enhanced Response:', enhancedResponse);
         
-        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS - using imported function
+        // FILTER EMOJIS BEFORE SENDING TO ANALYTICS
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
         const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
         console.log('\n🧹 Emoji Filtered Response:', filteredResponse);
@@ -2836,12 +1566,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Update assistant message in context with filtered response
         context.messages[context.messages.length - 1].content = filteredResponse;
         
-        // Use the unified broadcast system for the GPT response - NOW WITH ENHANCED RESPONSE AND FILTERED EMOJIS
+        // Use the unified broadcast system for the GPT response
         let postgresqlMessageId = null;
         if (completion && req.body.message) {
-            // Create an intermediate response object - WITH ENHANCED RESPONSE AND FILTERED EMOJIS
+            // Create an intermediate response object
             const responseObj = {
-                message: filteredResponse, // FIXED: Now using fully processed response
+                message: filteredResponse,
                 language: {
                     detected: context.language === 'is' ? 'Icelandic' : 'English',
                     confidence: languageDecision.confidence,
@@ -2849,7 +1579,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 },
                 topicType: context?.lastTopic || 'general',
                 responseType: 'gpt_response',
-                status: context.status || 'active' // ADD THIS LINE
+                status: context.status || 'active'
             };
             
             // Pass through sendBroadcastAndPrepareResponse to broadcast
@@ -2864,7 +1594,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Cache the response
         responseCache.set(cacheKey, {
             response: {
-                message: filteredResponse, // Use the fully processed response
+                message: filteredResponse,
                 postgresqlMessageId: postgresqlMessageId,
                 language: {
                     detected: context.language === 'is' ? 'Icelandic' : 'English',
@@ -2880,15 +1610,13 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         console.log('\n⏱️ Performance Metrics:', {
             sessionAndLanguage: `${metrics.sessionTime}ms`,
             knowledge: `${metrics.knowledgeTime}ms`,
-            transfer: `${metrics.transferTime}ms`,
-            // booking metric removed
             gpt: `${metrics.gptTime}ms`,
             total: `${metrics.totalTime}ms`
         });
 
         // Return the response
         return res.status(200).json({
-            message: filteredResponse, // Return the fully processed response
+            message: filteredResponse,
             postgresqlMessageId: postgresqlMessageId,
             language: {
                 detected: context.language,
@@ -3772,205 +2500,6 @@ app.post('/webhook-debug', (req, res) => {
   });
   res.status(200).send('OK');
 });
-
-// Add this AFTER your existing endpoints but BEFORE app.listen
-// ===============================================================
-// LiveChat webhook endpoint for receiving agent messages
-// This route is currently not being used, but kept for reference
-app.post('/webhook/livechat', async (req, res) => {
-  // Add these constants at the top of your webhook handler for direct access
-  const ACCOUNT_ID = 'e3a3d41a-203f-46bc-a8b0-94ef5b3e378e'; 
-  const PAT = 'fra:rmSYYwBm3t_PdcnJIOfQf2aQuJc';
-  
-  try {
-    console.log('\n📩 Received webhook from LiveChat:', {
-      action: req.body.action,
-      type: req.body.payload?.event?.type,
-      author: req.body.payload?.event?.author_id,
-      chat_id: req.body.payload?.chat_id || req.body.payload?.chat?.id
-    });
-    
-    // Log full payload for debugging
-    console.log('\n🔍 Full webhook payload:', JSON.stringify(req.body, null, 2));
-    
-    // Verify the webhook is authentic
-    if (!req.body.action || !req.body.payload) {
-      console.warn('\n⚠️ Invalid webhook format');
-      return res.status(400).json({ success: false, error: 'Invalid webhook format' });
-    }
-    
-    // Handle incoming_chat events - this contains customer info
-    if (req.body.action === 'incoming_chat') {
-      try {
-        console.log('\n📝 Processing incoming_chat webhook...');
-        
-        // Extract chat ID and customer info
-        const chat = req.body.payload.chat;
-        if (!chat || !chat.id) {
-          console.warn('\n⚠️ Invalid chat payload in incoming_chat webhook');
-          return res.status(200).json({ success: true });
-        }
-        
-        const chatId = chat.id;
-        console.log('\n🔍 Processing incoming_chat for chat ID:', chatId);
-        
-        // Store in global cache
-        if (!global.recentWebhooks) {
-          global.recentWebhooks = new Map();
-        }
-        global.recentWebhooks.set(chatId, chat);
-        console.log('\n💾 Stored webhook in memory cache');
-        
-        // Extract session ID from customer email - NEW PRIMARY APPROACH
-        const users = chat.users || [];
-        const customer = users.find(user => user.type === 'customer');
-        
-        if (customer && customer.email && customer.email.includes('@skylagoon.com')) {
-          // Extract session ID from email
-          const sessionId = customer.email.replace('@skylagoon.com', '');
-          console.log(`\n✅ Extracted session ID from email: ${chatId} -> ${sessionId}`);
-          
-          // Store this mapping in memory for immediate use
-          if (!global.liveChatSessionMappings) {
-            global.liveChatSessionMappings = new Map();
-          }
-          global.liveChatSessionMappings.set(chatId, sessionId);
-          console.log(`\n🔗 Stored mapping in memory: ${chatId} -> ${sessionId}`);
-          
-          // Also add to recent sessions for failsafe
-          if (!global.recentSessions) {
-            global.recentSessions = new Set();
-          }
-          global.recentSessions.add(sessionId);
-          console.log(`\n📝 Added ${sessionId} to recent sessions`);
-          
-          // Also try to store in MongoDB and file-based API for persistence
-          try {
-            await storeChatSessionMapping(chatId, sessionId);
-            console.log('\n✅ Stored mapping in persistent storage');
-          } catch (storageError) {
-            console.warn('\n⚠️ Could not store in persistent storage:', storageError.message);
-          }
-        } 
-        // Fallback to session_fields if email doesn't contain the session ID
-        else if (customer && customer.session_fields && customer.session_fields.length > 0) {
-          let sessionId = null;
-          
-          // First try direct index
-          if (customer.session_fields[0].session_id) {
-            sessionId = customer.session_fields[0].session_id;
-          } else {
-            // Then try finding session_id field
-            const sessionField = customer.session_fields.find(field => field.session_id);
-            if (sessionField) {
-              sessionId = sessionField.session_id;
-            }
-          }
-          
-          if (sessionId) {
-            console.log(`\n✅ Found session ID in session_fields: ${chatId} -> ${sessionId}`);
-            
-            // Store this mapping in memory for immediate use
-            if (!global.liveChatSessionMappings) {
-              global.liveChatSessionMappings = new Map();
-            }
-            global.liveChatSessionMappings.set(chatId, sessionId);
-            console.log(`\n🔗 Stored mapping in memory: ${chatId} -> ${sessionId}`);
-            
-            // Also add to recent sessions for failsafe
-            if (!global.recentSessions) {
-              global.recentSessions = new Set();
-            }
-            global.recentSessions.add(sessionId);
-            console.log(`\n📝 Added ${sessionId} to recent sessions`);
-            
-            // Also try to store in persistent storage
-            try {
-              await storeChatSessionMapping(chatId, sessionId);
-            } catch (storageError) {
-              console.warn('\n⚠️ Could not store in persistent storage:', storageError.message);
-            }
-          } else {
-            console.warn('\n⚠️ No session_id found in session_fields');
-          }
-        } else {
-          console.warn('\n⚠️ No customer email or session_fields found for extracting session ID');
-        }
-      } catch (error) {
-        console.error('\n❌ Error processing incoming_chat webhook:', error);
-      }
-      
-      // Always return success for incoming_chat events
-      return res.status(200).json({ success: true });
-    }
-    
-    // Handle incoming message events - THIS IS THE IMPORTANT PART
-    if (req.body.action === 'incoming_event' && req.body.payload.event?.type === 'message') {
-      // Call the existing processLiveChatMessage function instead of inline processing
-      const result = await processLiveChatMessage(req.body.payload);
-      
-      if (result.success) {
-        console.log('\n✅ LiveChat message processed successfully');
-        return res.status(200).json({ success: true });
-      } else {
-        console.error('\n❌ Failed to process LiveChat message:', result.error);
-        return res.status(500).json({ success: false, error: result.error });
-      }
-    }
-    
-    // For other webhook types, just acknowledge receipt
-    return res.status(200).json({ success: true });
-    
-  } catch (error) {
-    console.error('\n❌ Webhook processing error:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Register LiveChat webhook on server startup
-(async () => {
-  try {
-    // Wait a moment for server to be fully started
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Production URL (can be overridden with environment variable)
-    const webhookUrl = process.env.WEBHOOK_URL || 'https://sky-lagoon-chat-2024.vercel.app/api/webhook-livechat';
-    
-    console.log('\n🔄 Registering LiveChat webhook at:', webhookUrl);
-    
-    const result = await registerLiveChatWebhook(webhookUrl);
-    
-    if (result.success) {
-      console.log('\n✅ LiveChat webhook registration successful:', result.webhookId);
-    } else {
-      console.error('\n❌ LiveChat webhook registration failed:', result.error);
-    }
-    
-    // Register a secondary debug webhook
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const debugWebhookUrl = process.env.WEBHOOK_URL
-      ? process.env.WEBHOOK_URL.replace('/api/webhook-livechat', '/api/webhook-debug')
-      : 'https://sky-lagoon-chat-2024.vercel.app/api/webhook-debug';
-    
-    console.log('\n🔄 Registering DEBUG webhook at:', debugWebhookUrl);
-    
-    const debugResult = await registerLiveChatWebhook(debugWebhookUrl);
-    
-    if (debugResult.success) {
-      console.log('\n✅ DEBUG webhook registration successful:', debugResult.webhookId);
-    } else {
-      console.error('\n❌ DEBUG webhook registration failed:', debugResult.error);
-    }
-
-    // NEW CODE: Ensure the livechat_mappings collection exists
-    console.log('\n🔄 Ensuring livechat_mappings collection exists...');
-    await ensureMappingCollection();
-
-  } catch (error) {
-    console.error('\n❌ Error during webhook registration:', error);
-  }
-})();
 
 // Start server with enhanced logging
 const PORT = config.PORT;
