@@ -1084,7 +1084,7 @@ app.get('/test-streaming', async (req, res) => {
   }
 });
 
-// Modified chat endpoint with ALL LiveChat code removed
+// Optimized chat endpoint with parallel processing - COMPLETE VERSION
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
     const startTime = Date.now();
@@ -1092,6 +1092,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         sessionTime: 0,
         languageTime: 0,
         knowledgeTime: 0,
+        gptTime: 0,
         totalTime: 0
     };
 
@@ -1109,27 +1110,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Only broadcast if we have a message to send (skip for suppressed messages)
         if (responseObj.message && !responseObj.suppressMessage) {
-            try {
-                console.log(`📨 Broadcasting response with session ID: ${sessionId || 'None provided'}`);
-                
-                // Single broadcast point with session ID
-                const broadcastResult = await broadcastConversation(
-                    req.body.message || req.body.question || "unknown_message",
-                    responseObj.message,
-                    languageInfo.detected === 'Icelandic' ? 'is' : 'en',
-                    responseObj.topicType || 'general',
-                    responseObj.responseType || 'direct_response',
-                    sessionId, // Pass the session ID from the client
-                    responseObj.status || 'active'
-                );
-                
-                // Store PostgreSQL ID if available
-                if (broadcastResult && broadcastResult.postgresqlId) {
-                    responseObj.postgresqlMessageId = broadcastResult.postgresqlId;
+            // Fire and forget - don't await
+            setImmediate(async () => {
+                try {
+                    console.log(`📨 Broadcasting response with session ID: ${sessionId || 'None provided'}`);
+                    
+                    // Single broadcast point with session ID
+                    const broadcastResult = await broadcastConversation(
+                        req.body.message || req.body.question || "unknown_message",
+                        responseObj.message,
+                        languageInfo.detected === 'Icelandic' ? 'is' : 'en',
+                        responseObj.topicType || 'general',
+                        responseObj.responseType || 'direct_response',
+                        sessionId, // Pass the session ID from the client
+                        responseObj.status || 'active'
+                    );
+                    
+                    // Store PostgreSQL ID if available
+                    if (broadcastResult && broadcastResult.postgresqlId) {
+                        responseObj.postgresqlMessageId = broadcastResult.postgresqlId;
+                    }
+                } catch (error) {
+                    console.error('❌ Error in broadcast function:', error);
                 }
-            } catch (error) {
-                console.error('❌ Error in broadcast function:', error);
-            }
+            });
         }
         
         // Return the response object without sending it
@@ -1153,13 +1157,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const parallelStart = Date.now();
         
         // Get or create context and perform language detection in parallel
-        let context, languageDecision;
+        let context, languageDecision, knowledgePromise;
         
         try {
-            [context, languageDecision] = await Promise.all([
-                getPersistentSessionContext(sessionId),
-                newDetectLanguage(userMessage)
-            ]);
+            // Start all three operations in parallel
+            const contextPromise = getPersistentSessionContext(sessionId);
+            const languagePromise = newDetectLanguage(userMessage);
+            knowledgePromise = getKnowledgeWithFallbacks(userMessage, null); // Start immediately
+            
+            // Wait for context and language (needed for early checks)
+            [context, languageDecision] = await Promise.all([contextPromise, languagePromise]);
             
             metrics.sessionTime = Date.now() - parallelStart;
             console.log(`\n⏱️ Session and language detection completed in ${metrics.sessionTime}ms`);
@@ -1168,6 +1175,8 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Fallback to in-memory session
             context = getSessionContext(sessionId);
             languageDecision = newDetectLanguage(userMessage, context);
+            // Also start knowledge retrieval in fallback scenario
+            knowledgePromise = getKnowledgeWithFallbacks(userMessage, context);
         }
 
         // Extract language code in addition to isIcelandic
@@ -1183,7 +1192,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             isIcelandic: languageDecision.isIcelandic,
             confidence: languageDecision.confidence,
             reason: languageDecision.reason,
-            sessionId: sessionId
+            sessionId: sessionId // Add session ID to logs for traceability
         });
 
         // Check for non-supported languages
@@ -1231,15 +1240,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             topics: context.topics
         });
 
-        // Get knowledge - simplified without transfer check
-        console.log('\n⏱️ Starting knowledge retrieval...');
-        const knowledgeStart = Date.now();
-        
-        const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
-        metrics.knowledgeTime = Date.now() - knowledgeStart;
-        
-        console.log(`\n⏱️ Knowledge retrieval completed in ${metrics.knowledgeTime}ms`);
-
         // Enhanced logging for language detection results
         console.log('\n🔬 Enhanced Language Detection Test:', {
             message: userMessage,
@@ -1283,6 +1283,30 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             const timeContext = updateTimeContext(userMessage, context, seasonInfo);
             console.log('\n⏰ Time context updated:', timeContext);
         }
+
+        // Add cache key with language
+        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
+        const cached = responseCache.get(cacheKey);
+        
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            console.log('\n📦 Using cached response:', {
+                message: userMessage,
+                language: languageDecision.isIcelandic ? 'is' : 'en',
+                confidence: languageDecision.confidence
+            });
+            
+           metrics.totalTime = Date.now() - startTime;
+           console.log(`\n⏱️ Total processing time (cached): ${metrics.totalTime}ms`);
+           
+           return res.json(cached.response);
+       }
+
+        // Wait for knowledge results now that we need them
+        console.log('\n⏱️ Waiting for knowledge retrieval...');
+        const knowledgeStart = Date.now();
+        const knowledgeBaseResults = await knowledgePromise;
+        metrics.knowledgeTime = Date.now() - knowledgeStart;
+        console.log(`\n⏱️ Knowledge retrieval completed in ${metrics.knowledgeTime}ms`);
 
         // Update conversation memory with current topic if we found knowledge
         if (knowledgeBaseResults.length > 0) {
@@ -1355,23 +1379,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 console.log('\n🌍 Seasonal Context Updated:', context.seasonalContext);
             }
         }
-
-        // Add cache key with language
-        const cacheKey = `${sessionId}:${userMessage.toLowerCase().trim()}:${context.language}`;
-        const cached = responseCache.get(cacheKey);
-        
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-            console.log('\n📦 Using cached response:', {
-                message: userMessage,
-                language: languageDecision.isIcelandic ? 'is' : 'en',
-                confidence: languageDecision.confidence
-            });
-            
-           metrics.totalTime = Date.now() - startTime;
-           console.log(`\n⏱️ Total processing time (cached): ${metrics.totalTime}ms`);
-           
-           return res.json(cached.response);
-       }
 
         // Enhanced system prompt with all context
         const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
