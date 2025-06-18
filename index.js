@@ -1160,13 +1160,15 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         let context, languageDecision, knowledgePromise;
         
         try {
-            // Start all three operations in parallel
+            // Start context and language in parallel first
             const contextPromise = getPersistentSessionContext(sessionId);
             const languagePromise = newDetectLanguage(userMessage);
-            knowledgePromise = getKnowledgeWithFallbacks(userMessage, null); // Start immediately
             
-            // Wait for context and language (needed for early checks)
+            // Wait for context and language first
             [context, languageDecision] = await Promise.all([contextPromise, languagePromise]);
+            
+            // NOW start knowledge retrieval with proper context
+            knowledgePromise = getKnowledgeWithFallbacks(userMessage, context);
             
             metrics.sessionTime = Date.now() - parallelStart;
             console.log(`\n⏱️ Session and language detection completed in ${metrics.sessionTime}ms`);
@@ -1175,7 +1177,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             // Fallback to in-memory session
             context = getSessionContext(sessionId);
             languageDecision = newDetectLanguage(userMessage, context);
-            // Also start knowledge retrieval in fallback scenario
+            // Start knowledge retrieval with fallback context
             knowledgePromise = getKnowledgeWithFallbacks(userMessage, context);
         }
 
