@@ -1166,6 +1166,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             // Wait for context and language first
             [context, languageDecision] = await Promise.all([contextPromise, languagePromise]);
+
+            // RESTORE BOOKING CHANGE STATUS from context properties
+            if (context.bookingContext?.hasBookingChangeIntent || 
+                context.lastTopic === 'booking_change' ||
+                context.topics?.includes('booking_change')) {
+              console.log('📋 Restoring booking_change status from context properties');
+              context.status = 'booking_change';
+            }
             
             // NOW start knowledge retrieval with proper context
             knowledgePromise = getKnowledgeWithFallbacks(userMessage, context);
@@ -1231,6 +1239,16 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Add this message to the context system
         addMessageToContext(context, { role: 'user', content: userMessage });
         
+        // CHECK if message contains booking details (reference + email + date)
+        const hasBookingRef = /\b\d{7,8}\b/.test(userMessage);
+        const hasEmail = userMessage.includes('@');
+        const hasDate = /\b\d{1,2}(st|nd|rd|th)?\b/.test(userMessage);
+
+        if (hasBookingRef && hasEmail && hasDate && context.status === 'booking_change') {
+          console.log('📋 User provided all booking details - maintaining booking_change status');
+          context.allBookingDetailsProvided = true;
+        }
+
         // Update topics in the context system
         updateTopicContext(context, userMessage);
 
@@ -1460,15 +1478,26 @@ app.post('/chat', verifyApiKey, async (req, res) => {
 
         // Check for booking change status and cancellations specifically
         if (context.status === 'booking_change') {
-            messages.push({
-                role: "system",
-                content: `CRITICAL INSTRUCTION OVERRIDE: 
+            let overrideContent = `CRITICAL INSTRUCTION OVERRIDE: 
         The current conversation has status='booking_change' which has been detected.
         You MUST use the CONVERSATIONAL BOOKING CHANGE HANDLING process to collect 
         all required booking information conversationally rather than directing the user to email.
-        This is a high-priority instruction that overrides any other booking change handling guidance.`
+        This is a high-priority instruction that overrides any other booking change handling guidance.`;
+
+            // Add stronger instruction if all details provided
+            if (context.allBookingDetailsProvided) {
+                overrideContent += `
+
+        CRITICAL: The user has provided ALL required information in their message.
+        USE THE CRITICAL RESPONSE TEMPLATE FROM SECTION 7 IMMEDIATELY.
+        Do NOT say "reaching out to our team" or "if you have questions".`;
+            }
+
+            messages.push({
+                role: "system",
+                content: overrideContent
             });
-        } 
+        }
         else if (context.status === 'cancellation') {
             messages.push({
                 role: "system",
