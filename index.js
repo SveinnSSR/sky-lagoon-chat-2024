@@ -385,7 +385,11 @@ const detectBookingChangeIntent = (userMessage, context) => {
     // "My booking" plus modal verbs and words like "adjust"
     (hasMyBooking && hasModalVerbs && 
      (lowercaseMsg.includes('adjust') || lowercaseMsg.includes('change') || 
-      lowercaseMsg.includes('aðlaga')));
+      lowercaseMsg.includes('aðlaga'))) ||
+    // ADDED: Explicit reschedule without needing "booking" word
+    lowercaseMsg.includes('reschedule') ||
+    // ADDED: Clear intent to not cancel
+    (lowercaseMsg.includes("don't want to cancel") || lowercaseMsg.includes("not cancel"));
   
   if (isChangeRequest) {
     console.log('\n✅ Booking change intent detected');
