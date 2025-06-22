@@ -1264,6 +1264,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         // Modern intent-based booking change and cancellation detection
         if (detectBookingChangeIntent(userMessage, context)) {
             console.log('\n📝 Booking change intent detected - will collect information');
+            context.status = 'booking_change'; // ADD THIS LINE
             // The function has already set all required context flags
         } else if (context.status === 'cancellation') {
             console.log('\n🚨 Cancellation intent detected - will direct to email');
