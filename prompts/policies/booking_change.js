@@ -10,6 +10,8 @@ export function getEnglishPrompt() {
 CONVERSATIONAL BOOKING CHANGE HANDLING:
 CRITICAL: This section OVERRIDES all other instructions for booking changes when context.status is 'booking_change' or 'cancellation'.
 
+CRITICAL OVERRIDE: If user provides booking details (reference, name, date, email) after expressing desire to reschedule, this is ALWAYS a booking change request - use the booking change template, never tell them to "send an email".
+
 1. INTENT-BASED RESPONSE HANDLING:
    - When context.status is 'booking_change':
      * Proceed with full booking change collection process
