@@ -322,95 +322,111 @@ const INITIAL_RETRY_DELAY = 1000;
 const OPENAI_TIMEOUT = 15000;  // 15 seconds
 
 /**
- * Modern intent-based booking change detection with multilingual support
+ * Topic detection for booking-related conversations
  * @param {string} userMessage - The user's message
  * @param {Object} context - The conversation context
- * @returns {boolean} - Whether a booking change intent was detected
+ * @returns {boolean} - Whether booking change topics were detected
  */
 const detectBookingChangeIntent = (userMessage, context) => {
   // Detect language
   const isIcelandic = context.language === 'is';
   const lowercaseMsg = userMessage.toLowerCase();
   
-  // Check for cancellation intent first
+  // Initialize topics array if needed
+  if (!context.topics) context.topics = [];
+  
+  // Track what topics are mentioned
+  const topicsDetected = [];
+  
+  // Check for cancellation mentions
   const cancellationTerms = isIcelandic 
     ? ['hætta við', 'afbóka', 'afpanta', 'afbókun', 'endurgreiðslu', 'skila']
     : ['cancel', 'refund', 'money back', 'cancelation', 'cancellation'];
-    
-  const hasCancellationIntent = cancellationTerms.some(term => lowercaseMsg.includes(term));
+
+  // BUT check if they're negating cancellation
+  const negatesCancellation = lowercaseMsg.includes("don't want to cancel") || 
+                              lowercaseMsg.includes("not cancel") ||
+                              lowercaseMsg.includes("instead of cancel");
   
-  if (hasCancellationIntent) {
-    console.log('\n🚨 Cancellation intent detected');
-    
-    // Set cancellation status and flags
-    context.status = 'cancellation';
-    context.bookingContext = context.bookingContext || {};
-    context.bookingContext.hasCancellationIntent = true;
-    context.bookingContext.hasBookingChangeIntent = false;
-    
-    // Add to topics tracking
-    if (!context.topics) context.topics = [];
-    if (!context.topics.includes('cancellation')) {
-      context.topics.push('cancellation');
-    }
-    
-    return false; // Not a booking change, but we've set the status
+  if (cancellationTerms.some(term => lowercaseMsg.includes(term)) && !negatesCancellation) {
+    topicsDetected.push('cancellation');
   }
   
   // Enhanced booking change detection
   const changeTerms = isIcelandic 
     ? ['breyta', 'breyting', 'skipta', 'uppfæra', 'endurskipuleggja', 'aðlaga', 'færa'] 
     : ['change', 'modify', 'switch', 'update', 'reschedule', 'adjust', 'move'];
-    
+  
   const hasChangeTerms = changeTerms.some(term => lowercaseMsg.includes(term));
   
-  // Check for "my booking" pattern
+  // Check for "my booking" pattern - KEEP THIS, IT'S USEFUL!
   const hasMyBooking = isIcelandic
     ? /\b(mín|mínum|mína|mínar|mitt|minn|okkar)\s+.{0,10}(bókun|pöntun|tími)\b/i.test(userMessage) ||
       /\b(bókun|pöntun|tími).{0,10}(mín|mínum|mína|mínar|mitt|minn|okkar)\b/i.test(userMessage)
     : /\b(my|our)\s+.{0,10}(booking|reservation|time|appointment)\b/i.test(userMessage) ||
       /\b(booking|reservation|time|appointment).{0,10}(my|our)\b/i.test(userMessage);
-      
-  // Check for modal verb patterns
+  
+  // Check for modal verb patterns - ALSO USEFUL!
   const hasModalVerbs = isIcelandic
     ? /\b(get|gæti|má|get ég|gæti ég|má ég)\b/i.test(lowercaseMsg)
     : /\b(can|could|would|able to|want to|need to|like to)\b/i.test(lowercaseMsg);
   
-  // Detection logic
-  const isChangeRequest = 
+  // Detect booking change topics using all our patterns
+  const suggestsBookingChange = 
     // Direct change request
     (hasChangeTerms && (lowercaseMsg.includes('booking') || lowercaseMsg.includes('bókun'))) ||
     // "My booking" plus change terms
     (hasMyBooking && hasChangeTerms) ||
-    // "My booking" plus modal verbs and words like "adjust"
+    // "My booking" plus modal verbs (e.g., "Can I move my booking?")
     (hasMyBooking && hasModalVerbs && 
      (lowercaseMsg.includes('adjust') || lowercaseMsg.includes('change') || 
-      lowercaseMsg.includes('aðlaga'))) ||
-    // ADDED: Explicit reschedule without needing "booking" word
+      lowercaseMsg.includes('move') || lowercaseMsg.includes('aðlaga'))) ||
+    // Explicit reschedule
     lowercaseMsg.includes('reschedule') ||
-    // ADDED: Clear intent to not cancel
-    (lowercaseMsg.includes("don't want to cancel") || lowercaseMsg.includes("not cancel"));
+    // Clear intent to not cancel
+    negatesCancellation;
   
-  if (isChangeRequest) {
-    console.log('\n✅ Booking change intent detected');
-    
-    // Set all required context flags
-    context.status = 'booking_change';
-    context.bookingContext = context.bookingContext || {};
+  if (suggestsBookingChange) {
+    topicsDetected.push('booking_change');
+  }
+  
+  // General booking topic if they mention booking/reservation
+  if (hasMyBooking || /booking|reservation|bókun|pöntun/i.test(lowercaseMsg)) {
+    topicsDetected.push('booking');
+  }
+  
+  // Add detected topics to context
+  topicsDetected.forEach(topic => {
+    if (!context.topics.includes(topic)) {
+      context.topics.push(topic);
+    }
+  });
+  
+  // Update booking context for backward compatibility
+  if (!context.bookingContext) {
+    context.bookingContext = {};
+  }
+  
+  if (topicsDetected.includes('cancellation')) {
+    context.bookingContext.hasCancellationIntent = true;
+  }
+  
+  if (topicsDetected.includes('booking_change')) {
     context.bookingContext.hasBookingIntent = true;
     context.bookingContext.hasBookingChangeIntent = true;
     context.lastTopic = 'booking_change';
-    
-    // Add to topics
-    if (!context.topics) context.topics = [];
-    if (!context.topics.includes('booking_change')) {
-      context.topics.push('booking_change');
-    }
-    
-    return true;
   }
   
-  return false;
+  // Log what we found with more detail
+  if (topicsDetected.length > 0) {
+    console.log(`\n📝 Topics detected: ${topicsDetected.join(', ')}`);
+    if (hasMyBooking) console.log('   - User mentioned their booking');
+    if (hasModalVerbs) console.log('   - Modal verbs detected');
+    if (hasChangeTerms) console.log('   - Change terms detected');
+  }
+  
+  // Return true if booking change topics were mentioned
+  return topicsDetected.includes('booking_change');
 };
 
 // Add this helper function to detect sunset-related queries
@@ -1170,14 +1186,6 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             
             // Wait for context and language first
             [context, languageDecision] = await Promise.all([contextPromise, languagePromise]);
-
-            // RESTORE BOOKING CHANGE STATUS from context properties
-            if (context.bookingContext?.hasBookingChangeIntent || 
-                context.lastTopic === 'booking_change' ||
-                context.topics?.includes('booking_change')) {
-              console.log('📋 Restoring booking_change status from context properties');
-              context.status = 'booking_change';
-            }
             
             // NOW start knowledge retrieval with proper context
             knowledgePromise = getKnowledgeWithFallbacks(userMessage, context);
@@ -1248,9 +1256,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         const hasEmail = userMessage.includes('@');
         const hasDate = /\b\d{1,2}(st|nd|rd|th)?\b/.test(userMessage);
 
-        if (hasBookingRef && hasEmail && hasDate && context.status === 'booking_change') {
-          console.log('📋 User provided all booking details - maintaining booking_change status');
+        if (hasBookingRef && hasEmail && hasDate) {
+          console.log('📋 User provided all booking details');
           context.allBookingDetailsProvided = true;
+          
+          // If booking topics have been discussed, note this
+          if (context.topics?.some(topic => ['booking', 'booking_change'].includes(topic))) {
+            console.log('   - In context of booking discussion');
+          }
         }
 
         // Update topics in the context system
@@ -1283,14 +1296,12 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             }
         });
 
-        // Modern intent-based booking change and cancellation detection
-        if (detectBookingChangeIntent(userMessage, context)) {
-            console.log('\n📝 Booking change intent detected - will collect information');
-            context.status = 'booking_change'; // ADD THIS LINE
-            // The function has already set all required context flags
-        } else if (context.status === 'cancellation') {
-            console.log('\n🚨 Cancellation intent detected - will direct to email');
-            // The function has already set the cancellation status
+        // Topic detection for booking-related conversations
+        detectBookingChangeIntent(userMessage, context);
+
+        // Log what's happening for debugging
+        if (context.topics?.length > 0) {
+            console.log(`\n📝 Active topics: ${context.topics.join(', ')}`);
         }
 
         // Detect late arrival scenario
@@ -1481,36 +1492,18 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Check for booking change status and cancellations specifically
-        if (context.status === 'booking_change') {
-            let overrideContent = `CRITICAL INSTRUCTION OVERRIDE: 
-        The current conversation has status='booking_change' which has been detected.
-        You MUST use the CONVERSATIONAL BOOKING CHANGE HANDLING process to collect 
-        all required booking information conversationally rather than directing the user to email.
-        This is a high-priority instruction that overrides any other booking change handling guidance.`;
-
-            // Add stronger instruction if all details provided
-            if (context.allBookingDetailsProvided) {
-                overrideContent += `
-
-        CRITICAL: The user has provided ALL required information in their message.
-        USE THE CRITICAL RESPONSE TEMPLATE FROM SECTION 7 IMMEDIATELY.
-        Do NOT say "reaching out to our team" or "if you have questions".`;
-            }
-
-            messages.push({
-                role: "system",
-                content: overrideContent
-            });
-        }
-        else if (context.status === 'cancellation') {
-            messages.push({
-                role: "system",
-                content: `CRITICAL INSTRUCTION OVERRIDE:
-        The current conversation has status='cancellation' which has been detected.
-        You MUST use the CANCELLATION TEMPLATE to direct the user to email our team.
-        Do NOT collect booking details for cancellations.
-        This is a high-priority instruction that overrides any other cancellation handling guidance.`
-            });
+        if (context.topics?.some(topic => ['booking', 'booking_change', 'cancellation'].includes(topic))) {
+          let contextMessage = `Topics in this conversation: ${context.topics.join(', ')}.`;
+          
+          if (context.allBookingDetailsProvided) {
+            contextMessage += `\n\nThe user has provided complete booking details. 
+            If they want to make changes, use the booking change template from booking_change.js.`;
+          }
+          
+          messages.push({
+            role: "system",
+            content: contextMessage
+          });
         }
 
         // Conversation continuity check - Check if this is an ongoing conversation
@@ -1622,7 +1615,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                 },
                 topicType: context?.lastTopic || 'general',
                 responseType: 'gpt_response',
-                status: context.status || 'active'
+                status: context.topics?.includes('booking_change') ? 'booking_change' : 
+                context.topics?.includes('cancellation') ? 'cancellation' : 
+                'active'
             };
             
             // Pass through sendBroadcastAndPrepareResponse to broadcast
