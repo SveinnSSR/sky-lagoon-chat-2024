@@ -9,6 +9,9 @@ import rateLimit from 'express-rate-limit';
 import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 import Pusher from 'pusher';
+import { WebSocketServer } from 'ws';
+import { createServer } from 'http';
+
 // Enhanced context management system
 import { 
     getSessionContext, 
@@ -83,6 +86,13 @@ if (!global.recentSessions) {
   global.recentSessions = new Set();
 }
 
+// Initialize Express
+const app = express();
+app.set('trust proxy', 1);
+
+// Create HTTP server for WebSocket support
+const server = createServer(app);
+
 // Initialize Pusher with your credentials
 const pusher = new Pusher({
     appId: process.env.PUSHER_APP_ID,
@@ -90,6 +100,200 @@ const pusher = new Pusher({
     secret: process.env.PUSHER_SECRET,
     cluster: process.env.PUSHER_CLUSTER,
     useTLS: true
+});
+
+// WebSocket server for streaming responses
+const wss = new WebSocketServer({ server });
+
+// Simple session storage for streaming
+const sessions = new Map();
+
+// WebSocket connection handling
+wss.on('connection', (ws, req) => {
+    console.log('🔌 WebSocket client connected');
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message);
+            console.log('📨 WebSocket message received:', {
+                type: data.type,
+                sessionId: data.sessionId,
+                hasMessage: !!data.message
+            });
+            
+            if (data.type === 'chat' && data.message) {
+                await handleStreamingChat(ws, data);
+            }
+        } catch (error) {
+            console.error('❌ WebSocket message error:', error);
+            ws.send(JSON.stringify({ 
+                type: 'error', 
+                message: 'Invalid message format' 
+            }));
+        }
+    });
+
+    ws.on('close', () => {
+        console.log('🔌 WebSocket client disconnected');
+    });
+
+    ws.on('error', (error) => {
+        console.error('❌ WebSocket error:', error);
+    });
+});
+
+// Streaming chat handler
+async function handleStreamingChat(ws, data) {
+    const { message: userMessage, sessionId } = data;
+    const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    
+    try {
+        // Send connection confirmation
+        ws.send(JSON.stringify({
+            type: 'stream-connected',
+            streamId: streamId,
+            sessionId: sessionId
+        }));
+
+        // Get session and detect language (using Sky Lagoon's existing system)
+        const sessionInfo = await getOrCreateSession(sessionId);
+        const languageDecision = newDetectLanguage(userMessage);
+        const detectedLanguage = languageDecision.isIcelandic ? "is" : "en";
+        
+        // Get session for conversation history
+        if (!sessions.has(sessionId)) {
+            sessions.set(sessionId, {
+                messages: [],
+                createdAt: new Date(),
+            });
+        }
+        const session = sessions.get(sessionId);
+
+        // Add user message to session
+        session.messages.push({
+            role: "user",
+            content: userMessage,
+        });
+
+        // Use Sky Lagoon's existing system prompt logic
+        const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
+        let systemPrompt;
+
+        if (useModularPrompts) {
+            // Get knowledge and context (simplified for streaming)
+            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, {});
+            const sunsetData = isSunsetQuery(userMessage, languageDecision) ? 
+                getSunsetDataForContext(userMessage, languageDecision) : null;
+            const seasonInfo = getCurrentSeason();
+            
+            systemPrompt = await getOptimizedSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                languageDecision, 
+                sunsetData,
+                knowledgeBaseResults,
+                seasonInfo
+            );
+        } else {
+            systemPrompt = getSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                languageDecision
+            );
+        }
+
+        // Prepare messages for OpenAI
+        const messages = [
+            {
+                role: "system",
+                content: systemPrompt,
+            },
+            ...session.messages.slice(-10), // Keep last 10 messages
+        ];
+
+        // Create streaming completion
+        const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: getMaxTokens(userMessage),
+            stream: true
+        });
+
+        let fullResponse = '';
+        let chunkNumber = 0;
+
+        // Stream the response
+        for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            
+            if (content) {
+                fullResponse += content;
+                chunkNumber++;
+                
+                // Send chunk via WebSocket
+                ws.send(JSON.stringify({
+                    type: 'stream-chunk',
+                    streamId: streamId,
+                    sessionId: sessionId,
+                    content: content,
+                    chunkNumber: chunkNumber
+                }));
+            }
+        }
+
+        // Add assistant response to session
+        session.messages.push({
+            role: "assistant",
+            content: fullResponse,
+        });
+
+        // Apply Sky Lagoon's terminology enhancement
+        const enhancedResponse = await enforceTerminology(fullResponse, openai);
+        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+
+        // Send completion signal with enhanced response
+        ws.send(JSON.stringify({
+            type: 'stream-complete',
+            streamId: streamId,
+            sessionId: sessionId,
+            completeContent: filteredResponse
+        }));
+
+        // Fire-and-forget analytics (using Sky Lagoon's existing system)
+        setImmediate(async () => {
+            try {
+                const detectedTopic = detectTopic(userMessage, [], {}, languageDecision);
+                await broadcastConversation(
+                    userMessage,
+                    filteredResponse,
+                    detectedLanguage,
+                    detectedTopic.topic || 'general',
+                    "streaming_chat",
+                    sessionId,
+                    "active"
+                );
+                console.log('📊 Streaming analytics sent');
+            } catch (error) {
+                console.error('❌ Error in streaming analytics:', error);
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Streaming error:', error);
+        ws.send(JSON.stringify({
+            type: 'stream-error',
+            streamId: streamId,
+            sessionId: sessionId,
+            error: error.message
+        }));
+    }
+}
+
+// Initialize OpenAI
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
 });
 
 // Optimized broadcastConversation that preserves Pusher functionality and uses the message processor
@@ -856,20 +1060,11 @@ const config = {
     API_KEY: process.env.API_KEY
 };
 
-// Initialize Express
-const app = express();
-app.set('trust proxy', 1);  // Add this line to fix X-Forwarded-For error
-
 // Add request logging middleware
 app.use((req, res, next) => {
     console.log(`⚡ REQUEST: ${req.method} ${req.path}`);
     next();
   });
-
-// Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
-});
 
 // CORS Configuration
 const corsOptions = {
@@ -967,6 +1162,7 @@ app.get('/', (req, res) => {
     res.json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
+        features: ["HTTP API", "WebSocket Streaming", "SSE Streaming"],
         config: {
             openaiConfigured: !!config.OPENAI_API_KEY,
             apiKeyConfigured: !!config.API_KEY
@@ -1033,75 +1229,179 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
         messages.general;
 };
 
-// Try adding this directly after your other Express routes
-// Make sure it's BEFORE any catch-all routes or error handlers
-// This is only a test - you can delete this
-app.get('/test-streaming', async (req, res) => {
-  // Create a unique ID for this stream
-  const streamId = `test_${Date.now()}`;
-  
-  console.log(`[TEST] Starting test stream: ${streamId}`);
-  
-  try {
-    // 1. Send the "connected" event via Pusher
-    await pusher.trigger('chat-channel', 'stream-connected', {
-      streamId: streamId,
-      sessionId: 'test-session',
-      timestamp: Date.now()
-    });
-    console.log(`[TEST] Connected event sent for ${streamId}`);
-    
-    // 2. Send immediate response to browser
-    res.status(200).json({
-      message: "Test stream started",
-      streamId: streamId
-    });
-    
-    // 3. Simulate chunks being sent (no OpenAI dependency)
-    const testChunks = [
-      "This ", "is ", "a ", "test ", "message ", 
-      "sent ", "in ", "chunks ", "to ", "verify ",
-      "that ", "streaming ", "works ", "correctly."
-    ];
-    
-    // 4. Send chunks with delay to simulate real streaming
-    for (let i = 0; i < testChunks.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
-      
-      // Send chunk via Pusher
-      await pusher.trigger('chat-channel', 'stream-chunk', {
-        streamId: streamId,
-        sessionId: 'test-session',
-        content: testChunks[i],
-        chunkNumber: i+1,
-        timestamp: Date.now()
-      });
-      console.log(`[TEST] Chunk ${i+1} sent: "${testChunks[i]}"`);
-    }
-    
-    // 5. Send completion event
-    await pusher.trigger('chat-channel', 'stream-complete', {
-      streamId: streamId,
-      sessionId: 'test-session',
-      completeContent: testChunks.join(''),
-      timestamp: Date.now()
-    });
-    console.log(`[TEST] Stream complete event sent for ${streamId}`);
-    
-  } catch (error) {
-    console.error(`[TEST] Streaming test error: ${error.message}`);
-    // Try to send error event
+// SSE Streaming endpoint (Vercel compatible!) - ADD BEFORE your existing /chat endpoint
+app.post("/chat-stream", verifyApiKey, async (req, res) => {
+    const startTime = Date.now();
+
     try {
-      await pusher.trigger('chat-channel', 'stream-error', {
-        streamId: streamId,
-        sessionId: 'test-session',
-        error: error.message,
-        timestamp: Date.now()
-      });
-    } catch (pusherError) {
-      console.error(`[TEST] Failed to send error event: ${pusherError.message}`);
+        const { message: userMessage, sessionId } = req.body;
+
+        if (!userMessage) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        console.log("📡 SSE Stream Request:", userMessage);
+        console.log("🔑 Session:", sessionId);
+
+        // Set up Server-Sent Events headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type, x-api-key',
+        });
+
+        // Send connection confirmation
+        const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        res.write(`data: ${JSON.stringify({
+            type: 'stream-connected',
+            streamId: streamId,
+            sessionId: sessionId
+        })}\n\n`);
+
+        // Get session and detect language (using Sky Lagoon's existing system)
+        const sessionInfo = await getOrCreateSession(sessionId);
+        const languageDecision = newDetectLanguage(userMessage);
+        const detectedLanguage = languageDecision.isIcelandic ? "is" : "en";
+        
+        // Session management (same as WebSocket)
+        if (!sessions.has(sessionId)) {
+            sessions.set(sessionId, {
+                messages: [],
+                createdAt: new Date(),
+            });
+        }
+        const session = sessions.get(sessionId);
+
+        session.messages.push({
+            role: "user",
+            content: userMessage,
+        });
+
+        // Use Sky Lagoon's existing system prompt logic
+        const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
+        let systemPrompt;
+
+        if (useModularPrompts) {
+            // Get knowledge and context (simplified for streaming)
+            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, {});
+            const sunsetData = isSunsetQuery(userMessage, languageDecision) ? 
+                getSunsetDataForContext(userMessage, languageDecision) : null;
+            const seasonInfo = getCurrentSeason();
+            
+            systemPrompt = await getOptimizedSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                languageDecision, 
+                sunsetData,
+                knowledgeBaseResults,
+                seasonInfo
+            );
+        } else {
+            systemPrompt = getSystemPrompt(sessionId, 
+                userMessage.toLowerCase().match(/hour|open|close|time/i), 
+                userMessage, 
+                languageDecision
+            );
+        }
+
+        // Prepare messages for OpenAI (same as WebSocket)
+        const messages = [
+            {
+                role: "system",
+                content: systemPrompt,
+            },
+            ...session.messages.slice(-10),
+        ];
+
+        // Create streaming completion (SAME as WebSocket!)
+        const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: getMaxTokens(userMessage),
+            stream: true
+        });
+
+        let fullResponse = '';
+        let chunkNumber = 0;
+
+        // Stream the response via SSE (instead of WebSocket)
+        for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            
+            if (content) {
+                fullResponse += content;
+                chunkNumber++;
+                
+                // Send chunk via SSE (same data as WebSocket)
+                res.write(`data: ${JSON.stringify({
+                    type: 'stream-chunk',
+                    streamId: streamId,
+                    sessionId: sessionId,
+                    content: content,
+                    chunkNumber: chunkNumber
+                })}\n\n`);
+            }
+        }
+
+        // Add response to session
+        session.messages.push({
+            role: "assistant",
+            content: fullResponse,
+        });
+
+        // Apply Sky Lagoon's terminology enhancement
+        const enhancedResponse = await enforceTerminology(fullResponse, openai);
+        const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
+        const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+
+        // Send completion signal (same as WebSocket)
+        res.write(`data: ${JSON.stringify({
+            type: 'stream-complete',
+            streamId: streamId,
+            sessionId: sessionId,
+            completeContent: filteredResponse
+        })}\n\n`);
+
+        // End the stream
+        res.write(`data: [DONE]\n\n`);
+        res.end();
+
+        // Fire-and-forget analytics (same as WebSocket)
+        setImmediate(async () => {
+            try {
+                const detectedTopic = detectTopic(userMessage, [], {}, languageDecision);
+                await broadcastConversation(
+                    userMessage,
+                    filteredResponse,
+                    detectedLanguage,
+                    detectedTopic.topic || 'general',
+                    "sse_streaming",
+                    sessionId,
+                    "active"
+                );
+                console.log('📊 SSE analytics sent');
+            } catch (error) {
+                console.error('❌ Error in SSE analytics:', error);
+            }
+        });
+
+        const totalTime = Date.now() - startTime;
+        console.log(`⏱️ SSE Stream completed in: ${totalTime}ms`);
+
+    } catch (error) {
+        console.error('❌ SSE Stream error:', error);
+        
+        // Send error via SSE
+        res.write(`data: ${JSON.stringify({
+            type: 'stream-error',
+            error: error.message
+        })}\n\n`);
+        
+        res.end();
     }
-  }
 });
 
 // Optimized chat endpoint with parallel processing - COMPLETE VERSION
@@ -2539,12 +2839,13 @@ app.post('/webhook-debug', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Start server with enhanced logging
+// Start server with WebSocket support
 const PORT = config.PORT;
-const server = app.listen(PORT, () => {
-    console.log('\n🚀 Server Status:');
+server.listen(PORT, () => {
+    console.log('\n🌊 Sky Lagoon AI Backend Started');
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Port: ${PORT}`);
+    console.log(`🔌 WebSocket server ready for streaming`);
     console.log(`Time: ${new Date().toLocaleString()}`);
     console.log('\n⚙️ Configuration:');
     console.log(`OpenAI API Key configured: ${!!config.OPENAI_API_KEY}`);
@@ -2552,6 +2853,12 @@ const server = app.listen(PORT, () => {
     console.log('\n🔒 Security:');
     console.log('CORS origins:', corsOptions.origin);
     console.log('Rate limiting:', `${limiter.windowMs/60000} minutes, ${limiter.max} requests`);
+    console.log('\n📚 Features Loaded:');
+    console.log('   - HTTP API for traditional chat');
+    console.log('   - WebSocket streaming for real-time responses');
+    console.log('   - SSE streaming for Vercel deployment');
+    console.log('   - All existing Sky Lagoon features preserved');
+    console.log('   - Premium response streaming (no emojis/labels)');
 });
 
 // Enhanced error handling for server startup
