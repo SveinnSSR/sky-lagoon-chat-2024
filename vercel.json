@@ -22,7 +22,7 @@
             "src": "/api/webhook-livechat",
             "dest": "/api/webhook-livechat.js",
             "headers": {
-                "Access-Control-Allow-Origin": "",
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                 "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key"
             }
@@ -39,12 +39,24 @@
             "src": "/ws",
             "dest": "index.js",
             "headers": {
-                "Access-Control-Allow-Origin": "",
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                 "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key, Upgrade, Connection",
                 "Access-Control-Allow-Credentials": "true"
             },
             "continue": true
+        },
+        {
+            "src": "/chat-stream",
+            "dest": "index.js",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Origin, Authorization, x-api-key",
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
         },
         {
             "src": "/chat",
