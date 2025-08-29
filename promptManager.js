@@ -666,61 +666,47 @@ function getRequiredModulesFromKnowledge(knowledgeItems) {
 // =============================================
 
 /**
- * Replaces outdated prices with current prices for summer season 2025 (last updated June 1, 2025)
- * This function acts as a safety net to catch any old prices that might come through
+ * Prevents any package pricing from appearing in prompts by redirecting to booking system
+ * This function acts as a safety net to catch any package prices that might come through
  * from vector search or cached knowledge base entries
  * @param {string} prompt - The assembled prompt
- * @returns {string} The prompt with updated prices
+ * @returns {string} The prompt with pricing redirected to booking system
  */
 function updateOutdatedPrices(prompt) {
-  // Define old price patterns and their replacements
-  const priceReplacements = [
-    // Saman Package - Old weekday/weekend prices to new uniform price
-    { pattern: /12[,.]990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '15,990 ISK' },
-    { pattern: /14[,.]990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '15,990 ISK' },
-    { pattern: /12\.990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '15.990 ISK' },
-    { pattern: /14\.990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '15.990 ISK' },
+  // Detect if prompt contains Icelandic content to use appropriate booking link
+  const isIcelandic = /(?:verð|pakki|aðgangur|bóka|heimsókn|fyrir)/i.test(prompt);
+  
+  const englishBookingLink = 'For current pricing, visit: [Book Your Visit](https://www.skylagoon.com/booking)';
+  const icelandicBookingLink = 'Fyrir núverandi verð, farðu á: [Bóka heimsókn](https://www.skylagoon.com/is/boka)';
+  
+  const bookingRedirect = isIcelandic ? icelandicBookingLink : englishBookingLink;
+  
+  // Define patterns that should redirect to booking system
+  const priceRedirectPatterns = [
+    // Any ISK amounts that might be package pricing
+    { pattern: /\b(?:1[2-9][,.]?\d{3}|[2-9]\d[,.]?\d{3})\s*ISK(?:\s*(?:weekdays?|weekends?|virka\s*daga|um\s*helgar|alla?\s*daga?))?/gi, 
+      replacement: bookingRedirect },
     
-    // Sér Package - Old weekday/weekend prices to new uniform price
-    { pattern: /15[,.]990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '19,990 ISK' },
-    { pattern: /17[,.]990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '19,990 ISK' },
-    { pattern: /15\.990\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '19.990 ISK' },
-    { pattern: /17\.990\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '19.990 ISK' },
-    
-    // Youth Saman - Old prices
-    { pattern: /6[,.]495\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '7,995 ISK' },
-    { pattern: /7[,.]495\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '7,995 ISK' },
-    { pattern: /6\.495\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '7.995 ISK' },
-    { pattern: /7\.495\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '7.995 ISK' },
-    
-    // Youth Sér - Old prices
-    { pattern: /7[,.]995\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '9,995 ISK' },
-    { pattern: /8[,.]995\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '9,995 ISK' },
-    { pattern: /7\.995\s*ISK\s*(?:weekdays?|virka\s*daga)/gi, replacement: '9.995 ISK' },
-    { pattern: /8\.995\s*ISK\s*(?:weekends?|um\s*helgar)/gi, replacement: '9.995 ISK' },
-    
-    // Old Multi-Pass prices if they appear
-    { pattern: /44[,.]970\s*ISK/gi, replacement: (match) => 
-      match.includes(',') ? '47,970 ISK' : '47.970 ISK' },
-    { pattern: /35[,.]970\s*ISK/gi, replacement: (match) => 
-      match.includes(',') ? '38,970 ISK' : '38.970 ISK' },
+    // Specific old pricing patterns
+    { pattern: /(?:12[,.]?990|14[,.]?990|15[,.]?990|17[,.]?990|19[,.]?990|7[,.]?995|8[,.]?995|9[,.]?995|6[,.]?495|7[,.]?495|44[,.]?970|35[,.]?970|38[,.]?970|47[,.]?970)\s*ISK/gi, 
+      replacement: bookingRedirect },
     
     // Replace any mention of different weekday/weekend pricing structure
-    { pattern: /weekdays?\s*\/\s*weekends?/gi, replacement: '(all days)' },
-    { pattern: /virka\s*daga\s*\/\s*um\s*helgar/gi, replacement: '(alla daga)' },
+    { pattern: /weekdays?\s*\/\s*weekends?/gi, replacement: '(prices vary - check booking page)' },
+    { pattern: /virka\s*daga\s*\/\s*um\s*helgar/gi, replacement: '(verð breytilegt - sjá bókunarsíðu)' },
   ];
   
   let updatedPrompt = prompt;
   
   // Apply all replacements
-  priceReplacements.forEach(({ pattern, replacement }) => {
+  priceRedirectPatterns.forEach(({ pattern, replacement }) => {
     updatedPrompt = updatedPrompt.replace(pattern, replacement);
   });
   
-  // Add a warning if we detect any discussion of weekday/weekend price differences
-  const weekdayWeekendPattern = /different\s*(?:prices?|pricing)\s*(?:for|on)\s*weekdays?\s*and\s*weekends?|mismunandi\s*verð\s*(?:fyrir|á)\s*virka\s*daga\s*og\s*helgar/gi;
-  if (weekdayWeekendPattern.test(updatedPrompt)) {
-    logger.warn('Detected outdated weekday/weekend pricing structure in prompt');
+  // Add a warning if we detect any discussion of specific package pricing
+  const pricingPattern = /\b(?:saman|sér).*?(?:1[2-9][,.]?\d{3}|[2-9]\d[,.]?\d{3})\s*ISK/gi;
+  if (pricingPattern.test(updatedPrompt)) {
+    logger.warn('Detected package pricing in prompt - redirecting to booking system');
   }
   
   return updatedPrompt;
