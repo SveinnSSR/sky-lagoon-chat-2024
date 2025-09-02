@@ -740,8 +740,22 @@ const getCurrentSeason = () => {
     const today = new Date();
     const month = today.getMonth(); // 0-11 (Jan-Dec)
     const day = today.getDate();
+    const year = today.getFullYear();
     const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
-    
+
+    // Check for closure on September 2, 2025
+    if (year === 2025 && month === 8 && day === 2) {
+      return {
+          season: 'closure',
+          closingTime: 'CLOSED',
+          lastRitual: 'CLOSED',
+          barClose: 'CLOSED',
+          lagoonClose: 'CLOSED',
+          greeting: 'Temporary Closure',
+          openingTime: 'CLOSED'
+      };
+  }
+
     // Handle Easter 2025 (April 17-21, 2025)
     if (month === 3 && day >= 17 && day <= 21) { // April is month 3 (0-indexed)
         console.log(`🐣 Easter period detected: April ${day}, 2025`);
@@ -1516,7 +1530,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             reason: languageDecision.reason,
             sessionId: sessionId // Add session ID to logs for traceability
         });
-
+        
         // Check for non-supported languages
         if (languageDecision.reason === 'non_supported_language') {
             console.log('\n🌐 Non-supported language detected:', {
@@ -1751,18 +1765,33 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             context.lastTopic === 'seasonal' || 
             userMessage.toLowerCase().includes('hour') || 
             userMessage.toLowerCase().includes('open') || 
-            userMessage.toLowerCase().includes('close')) {
+            userMessage.toLowerCase().includes('close') ||
+            seasonInfo.season === 'closure') {
             
-            systemPrompt += `\n\nCURRENT OPERATING HOURS:
-            Today (${seasonInfo.greeting}):
-            Opening Hours: ${seasonInfo.season === 'summer' ? '09:00' : 
-                          seasonInfo.season === 'winter' ? '11:00 weekdays, 10:00 weekends' : '10:00'}
-            Closing Time: ${seasonInfo.closingTime}
-            Last Ritual: ${seasonInfo.lastRitual}
-            Bar Service Until: ${seasonInfo.barClose}
-            Lagoon Access Until: ${seasonInfo.lagoonClose}
-            
-            Please include these specific times in your response.`;
+            if (seasonInfo.season === 'closure') {
+                systemPrompt += `\n\nCURRENT OPERATING STATUS:
+                
+              Sky Lagoon is CLOSED today (September 2, 2025) due to planned maintenance by Veita.
+
+              IMPORTANT: Always inform guests:
+              - We are closed today due to water system maintenance
+              - Contact info@skylagoon.is to reschedule booking or get full refund  
+              - We reopen tomorrow (September 3) with normal hours
+              - We apologize for any inconvenience
+
+              For questions about tomorrow or future dates, provide normal operating hours.`;
+            } else {
+                systemPrompt += `\n\nCURRENT OPERATING HOURS:
+                Today (${seasonInfo.greeting}):
+                Opening Hours: ${seasonInfo.season === 'summer' ? '09:00' : 
+                              seasonInfo.season === 'winter' ? '11:00 weekdays, 10:00 weekends' : '10:00'}
+                Closing Time: ${seasonInfo.closingTime}
+                Last Ritual: ${seasonInfo.lastRitual}
+                Bar Service Until: ${seasonInfo.barClose}
+                Lagoon Access Until: ${seasonInfo.lagoonClose}
+                
+                Please include these specific times in your response.`;
+            }
         }
         
         // Prepare messages array
