@@ -1771,7 +1771,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             if (seasonInfo.season === 'closure') {
                 systemPrompt += `\n\nCURRENT OPERATING STATUS:
                 
-              Sky Lagoon is CLOSED today (September 2, 2025) due to planned maintenance by Veita.
+              Sky Lagoon is CLOSED today (September 2, 2025) due to planned maintenance by Veitur.
 
               IMPORTANT: Always inform guests:
               - We are closed today due to water system maintenance
