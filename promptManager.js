@@ -1171,6 +1171,13 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     console.log('💰 [REFUND] Adding booking_change module based on refund terms detection');
   }
 
+  // EARLY PREVENTION: Check for Icelandic booking change terms
+  const icelandicBookingChangeTerms = ['breyta bókun', 'breyta bókuninni', 'breytt bókun', 'breytingu á bókun'];
+  if (icelandicBookingChangeTerms.some(term => lowerCaseMessage.includes(term))) {
+    moduleScores.set('policies/booking_change', 1.0);
+    console.log('🇮🇸 [BOOKING-CHANGE-IS] Adding booking_change module for Icelandic booking change request');
+  }
+  
   // EARLY PREVENTION: Check for guest count and group size terms BEFORE other processing
   const guestChangeTerms = ['add guest', 'add more guest', 'additional guest', 'extra guest', 'more people', 'add people', 'bæta við gest', 'fleiri gest'];
   const groupSizePattern = /\b(1[1-9]|[2-9]\d+)\s*(people|guests?|persons?|gestir?|manna?)\b/i;
