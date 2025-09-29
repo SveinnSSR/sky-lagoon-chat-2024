@@ -287,19 +287,7 @@ export const knowledgeBase_is = {
             "Breytast opnunartímarnir eftir árstíðum?",
         ],
         regular: {
-            summer: {
-                period: "1. júní -- 30. september",
-                hours: "09:00 -- 23:00",
-                daily: true,
-                experience: "Á kyrrlátum sumarkvöldum getur þú notið miðnætursólarinnar í hlýju lóninu"
-
-            },
-            autumn: {
-                period: "1. október -- 31. október",
-                hours: "10:00 -- 23:00",
-                daily: true,
-                description: "Haustið býður upp á rólegar stundir í lóninu með litríku haustlitunum í forgrunni"
-            },
+            // Winter (November 1 - May 31)
             winter: {
                 period: "1. nóvember -- 31. maí",
                 weekday: {
@@ -314,6 +302,38 @@ export const knowledgeBase_is = {
                     morning: "Vetramorgnar eru einstakir í lóninu þar sem sólarupprásin skartar sínu fegursta",
                     evening: "Ef heppnin er með þér getur þú fylgst með norðurljósunum stíga draumkenndan dans á dimmum vetrarkvöldum"
                 }
+            },
+            // June
+            june: {
+                period: "1. júní -- 30. júní",
+                hours: "09:00 -- 23:00",
+                daily: true,
+                experience: "Á kyrllátum sumarkvöldum getur þú notið miðnætursólarinnar í hlýju lóninu"
+            },
+            // July-August  
+            summer: {
+                period: "1. júlí -- 31. ágúst",
+                weekday: {
+                    days: "Laugardaga til fimmtudaga",
+                    hours: "08:30 -- 23:00"
+                },
+                friday: {
+                    days: "Föstudaga",
+                    hours: "08:00 -- 23:00"
+                }
+            },
+            // September
+            september: {
+                period: "1. september -- 30. september",
+                hours: "09:00 -- 23:00",
+                daily: true
+            },
+            // October
+            october: {
+                period: "1. október -- 31. október",
+                hours: "10:00 -- 22:00",
+                daily: true,
+                description: "Haustið býður upp á rólegar stundir í lóninu með litríku haustlitunum í forgrunni"
             }
         },
         holidays: {
@@ -327,11 +347,11 @@ export const knowledgeBase_is = {
             },
             boxing_day: {
                 date: "26. desember",
-                hours: "09:00 -- 10:00"
+                hours: "09:00 -- 22:00"
             },
             new_years_eve: {
                 date: "31. desember",
-                hours: "09:00 -- 22:00"
+                hours: "09:00 -- 18:00"
             },
             new_years_day: {
                 date: "1. janúar",
@@ -340,27 +360,31 @@ export const knowledgeBase_is = {
         },
         venue_specific: {
             smakk_bar: {
-                description: "Á Smakk Bar bjóðum við upp á nokkra sérvalda íslenska sælkeraplatta ásamt frábæru úrvali af víni, bjór og öðrum drykkjum. Sælkeraplattarnir innihalda sérvalda bita sem mynda fullkomið jafnvægi og eru settir saman úr árstíðabundnu hráefni. Tilvalin leið til að ljúka góðri heimsókn í Sky Lagoonn",
+                description: "Á Smakk Bar bjóðum við upp á...",
                 winter: {
-                    period: "Frá 1. október til 17. maí",
+                    period: "Frá 1. nóvember til 20. júní",
                     hours: "12:00--21:30",
                     days: "alla daga"
                 },
-                summer: {
-                    period: "Frá 18. maí til 14. ágúst",
+                summer_peak: {
+                    period: "Frá 21. júní til 20. ágúst",
                     hours: "12:00--22:30",
                     days: "alla daga"
                 },
-                autumn: {
-                    period: "Frá 15. ágúst til 30. september",
-                    weekday: {
-                        days: "sunnudaga til föstudaga",
-                        hours: "11:00--22:30"
-                    },
-                    weekend: {
-                        days: "laugardaga",
-                        hours: "10:00--22:30"
-                    }
+                fall: {
+                    period: "Frá 21. ágúst til 20. október",
+                    hours: "12:00--22:30",
+                    days: "alla daga"
+                },
+                october_2025: {
+                    period: "1. október -- 31. október 2025",
+                    hours: "12:00--21:30",
+                    days: "alla daga"
+                },
+                late_october: {
+                    period: "Frá 21. október til 31. október",
+                    hours: "12:00--21:30",
+                    days: "alla daga"
                 }
             },
             keimur_cafe: {
@@ -374,9 +398,11 @@ export const knowledgeBase_is = {
             last_entry: {
                 policy: "Síðasta innritun er alltaf 2 klukkustundum fyrir lokun.",
                 seasonal_times: {
-                    winter: "Síðasta innritun er klukkan 20:00 yfir vetrartímann (1. nóvember - 31. maí)",
-                    summer: "Síðasta innritun er klukkan 21:00 yfir sumartímann (1. júní - 30. september)",
-                    autumn: "Síðasta innritun er klukkan 21:00 yfir hausttímann (1. október - 31. október)"
+                    winter: "Síðasta innritun er klukkan 20:00 yfir vetrartímann (1. nóvember - 20. júní)",
+                    summer_peak: "Síðasta innritun er klukkan 21:00 yfir sumarháönn (21. júní - 20. ágúst)",
+                    fall: "Síðasta innritun er klukkan 21:00 yfir haustið (21. ágúst - 20. október)",
+                    october_2025: "Síðasta innritun er klukkan 20:00 í október 2025",
+                    late_october: "Síðasta innritun er klukkan 20:00 seint í október (21. - 31. október)"
                 },
                 explanation: "Þar sem ritúalið og barinn loka klukkutíma fyrir lokun og lónið 30 mínútum fyrir lokun, þá er innritun lokað 2 klukkustundum fyrir lokun.",
                 recommendation: "Við mælum með að bóka að minnsta kosti 2-3 klukkustundum fyrir lokun til að njóta allra þæginda okkar að fullu."

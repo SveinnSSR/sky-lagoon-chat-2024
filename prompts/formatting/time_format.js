@@ -1,4 +1,3 @@
-
 // prompts/formatting/time_format.js
 // Contains time formatting rules and time awareness information
 
@@ -55,9 +54,12 @@ TIME DURATION GUIDELINES:
    - Always mention last entry times for each activity
 
 4. For Evening Timing:
-   Remember these closing times:
-   - Facility opens at ${seasonInfo.openingTime} (GMT)
-   - Facility closes at ${seasonInfo.closingTime} (GMT)
+   Remember these closing times by season:
+   - Winter (Nov 1 - May 31): Facility closes at 22:00 (GMT)
+   - June: Facility closes at 23:00 (GMT)
+   - July-August: Facility closes at 23:00 (GMT)
+   - September: Facility closes at 23:00 (GMT)
+   - October: Facility closes at 22:00 (GMT)
    - Lagoon closes 30 minutes before facility closing
    - Ritual & Bar close 1 hour before facility closing
    - Last food orders 30 minutes before closing
@@ -150,15 +152,29 @@ TIME FORMATTING GUIDELINES:
 
 8. For Special Period Queries:
    - For English and other languages:
+     * Winter schedule (Nov 1 - May 31): "From November to May 31, we open at 11:00 (GMT) on weekdays and 10:00 (GMT) on weekends, closing at 22:00 (GMT)"
+     * June: "In June, we open at 09:00 (GMT) and close at 23:00 (GMT) every day"
+     * July-August: "In July and August, we open at 08:30 (GMT) Saturday through Thursday and 08:00 (GMT) on Fridays, closing at 23:00 (GMT)"
+     * September: "In September, we open at 09:00 (GMT) and close at 23:00 (GMT) every day"
+     * October: "In October, we open at 10:00 (GMT) and close at 22:00 (GMT) every day"
      * Easter 2025: "During Easter 2025 (April 17-21), we open at 10:00 (GMT) and close at 22:00 (GMT)"
-     * Christmas Eve: "On Christmas Eve, we have limited hours: 11:00 (GMT) - 16:00 (GMT)"
-     * Christmas Day: "On Christmas Day, we open at 11:00 (GMT) and close at 18:00 (GMT)"
-     * New Year's Eve & Day: "On New Year's Eve and New Year's Day, we open at 11:00 (GMT) and close at 22:00 (GMT)"
+     * Christmas Eve: "On Christmas Eve, we have limited hours: 09:00 (GMT) - 16:00 (GMT)"
+     * Christmas Day: "On Christmas Day, we open at 09:00 (GMT) and close at 18:00 (GMT)"
+     * Boxing Day: "On December 26, we open at 09:00 (GMT) and close at 22:00 (GMT)"
+     * New Year's Eve: "On New Year's Eve, we open at 09:00 (GMT) and close at 18:00 (GMT)"
+     * New Year's Day: "On New Year's Day, we open at 10:00 (GMT) and close at 22:00 (GMT)"
    - For Icelandic:
+     * Winter schedule: "Frá 1. nóvember til 31. maí, opnum við klukkan 11:00 á virkum dögum og klukkan 10:00 um helgar, lokum klukkan 22:00"
+     * June: "Í júní, opnum við klukkan 09:00 og lokum klukkan 23:00 alla daga"
+     * July-August: "Í júlí og ágúst, opnum við klukkan 08:30 laugardaga til fimmtudaga og klukkan 08:00 á föstudögum, lokum klukkan 23:00"
+     * September: "Í september, opnum við klukkan 09:00 og lokum klukkan 23:00 alla daga"
+     * October: "Í október, opnum við klukkan 10:00 og lokum klukkan 22:00 alla daga"
      * Easter 2025: "Yfir páska 2025 (17.-21. apríl), opnum við klukkan 10:00 og lokum klukkan 22:00"
-     * Christmas Eve: "Á aðfangadag eru takmarkaðir opnunartímar: klukkan 11:00 til 16:00"
-     * Christmas Day: "Á jóladag opnum við klukkan 11:00 og lokum klukkan 18:00"
-     * New Year's Eve & Day: "Á gamlársdag og nýársdag opnum við klukkan 11:00 og lokum klukkan 22:00"
+     * Christmas Eve: "Á aðfangadag eru takmarkaðir opnunartímar: klukkan 09:00 til 16:00"
+     * Christmas Day: "Á jóladag opnum við klukkan 09:00 og lokum klukkan 18:00"
+     * Boxing Day: "Annan í jólum opnum við klukkan 09:00 og lokum klukkan 22:00"
+     * New Year's Eve: "Á gamlársdag opnum við klukkan 09:00 og lokum klukkan 18:00"
+     * New Year's Day: "Á nýársdag opnum við klukkan 10:00 og lokum klukkan 22:00"
 
 9. ALWAYS use dynamic times from seasonInfo rather than hardcoded values
 `;

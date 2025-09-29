@@ -26,30 +26,7 @@ export const knowledgeBase = {
     opening_hours: {
         tagline: "We look forward to welcoming you where the sea meets the sky",
         regular: {
-            summer: {
-                period: "June 1 - September 30",
-                hours: "09:00 (GMT) - 23:00 (GMT)",
-                daily: true,
-                facilities: {
-                    lagoon: "Closes 30 minutes before closing time",
-                    ritual: "Closes 1 hour before closing time",
-                    gelmir_bar: "Closes 1 hour before closing time",
-                    keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
-                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
-                }
-            },
-            autumn: {
-                period: "October 1 - October 31",
-                hours: "10:00 (GMT) - 23:00 (GMT)",
-                daily: true,
-                facilities: {
-                    lagoon: "Closes 30 minutes before closing time",
-                    ritual: "Closes 1 hour before closing time",
-                    gelmir_bar: "Closes 1 hour before closing time",
-                    keimur_cafe: "10:00 (GMT) - 22:30 (GMT)",
-                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
-                }
-            },
+            // Winter (November 1 - May 31)
             winter: {
                 period: "November 1 - May 31",
                 weekday: {
@@ -70,9 +47,74 @@ export const knowledgeBase = {
                         lagoon: "Closes 30 minutes before closing time",
                         ritual: "Closes 1 hour before closing time",
                         gelmir_bar: "Closes 1 hour before closing time",
-                        keimur_cafe: "11:00 (GMT) - 21:30 (GMT)",
+                        keimur_cafe: "10:00 (GMT) - 21:30 (GMT)",
                         smakk_bar: "12:00 (GMT) - 21:30 (GMT)"
                     }
+                }
+            },
+            // June
+            june: {
+                period: "June 1 - June 30",
+                hours: "09:00 (GMT) - 23:00 (GMT)",
+                daily: true,
+                facilities: {
+                    lagoon: "Closes 30 minutes before closing time",
+                    ritual: "Closes 1 hour before closing time",
+                    gelmir_bar: "Closes 1 hour before closing time",
+                    keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
+                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
+                }
+            },
+            // July-August
+            summer: {
+                period: "July 1 - August 31",
+                weekday: {
+                    days: "Saturday - Thursday",
+                    hours: "08:30 (GMT) - 23:00 (GMT)",
+                    facilities: {
+                        lagoon: "Closes 30 minutes before closing time",
+                        ritual: "Closes 1 hour before closing time",
+                        gelmir_bar: "Closes 1 hour before closing time",
+                        keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
+                        smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
+                    }
+                },
+                friday: {
+                    days: "Friday",
+                    hours: "08:00 (GMT) - 23:00 (GMT)",
+                    facilities: {
+                        lagoon: "Closes 30 minutes before closing time",
+                        ritual: "Closes 1 hour before closing time",
+                        gelmir_bar: "Closes 1 hour before closing time",
+                        keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
+                        smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
+                    }
+                }
+            },
+            // September
+            september: {
+                period: "September 1 - September 30",
+                hours: "09:00 (GMT) - 23:00 (GMT)",
+                daily: true,
+                facilities: {
+                    lagoon: "Closes 30 minutes before closing time",
+                    ritual: "Closes 1 hour before closing time",
+                    gelmir_bar: "Closes 1 hour before closing time",
+                    keimur_cafe: "09:00 (GMT) - 22:30 (GMT)",
+                    smakk_bar: "12:00 (GMT) - 22:30 (GMT)"
+                }
+            },
+            // October
+            october: {
+                period: "October 1 - October 31",
+                hours: "10:00 (GMT) - 22:00 (GMT)",
+                daily: true,
+                facilities: {
+                    lagoon: "Closes 30 minutes before closing time",
+                    ritual: "Closes 1 hour before closing time",
+                    gelmir_bar: "Closes 1 hour before closing time",
+                    keimur_cafe: "10:00 (GMT) - 21:30 (GMT)",
+                    smakk_bar: "12:00 (GMT) - 21:30 (GMT)"
                 }
             }
         },
@@ -110,33 +152,55 @@ export const knowledgeBase = {
             keimur_cafe: {
                 name: "Keimur Café",
                 description: "Fresh coffee, light meals, and Icelandic treats",
-                summer: {
-                    period: "June 1 - September 30",
+                winter: {
+                    period: "November 1 - June 20",
+                    weekday_hours: "11:00 (GMT) - 21:30 (GMT)",
+                    weekend_hours: "10:00 (GMT) - 21:30 (GMT)"
+                },
+                summer_peak: {
+                    period: "June 21 - August 20",
+                    hours: "08:00 (GMT) - 22:30 (GMT)"
+                },
+                fall: {
+                    period: "August 21 - October 20",
                     hours: "09:00 (GMT) - 22:30 (GMT)"
                 },
-                autumn: {
-                    period: "October 1 - October 31",
-                    hours: "10:00 (GMT) - 22:30 (GMT)"
+                october_2025: {
+                    period: "October 1 - October 31, 2025",
+                    hours: "10:00 (GMT) - 21:30 (GMT)"
                 },
-                winter: {
-                    period: "November 1 - May 31",
-                    hours: "11:00 (GMT) - 21:30 (GMT)"
+                late_october: {
+                    period: "October 21 - October 31",
+                    weekday_hours: "11:00 (GMT) - 21:30 (GMT)",
+                    weekend_hours: "10:00 (GMT) - 21:30 (GMT)"
                 },
                 notes: "Last orders 30 minutes before closing"
             },
             smakk_bar: {
                 name: "Smakk Bar",
                 description: "Icelandic culinary experience with tasting platters",
-                summer: {
-                    period: "June 1 - September 30",
-                    hours: "12:00 (GMT) - 22:30 (GMT)"
-                },
-                autumn: {
-                    period: "October 1 - October 31",
-                    hours: "12:00 (GMT) - 22:30 (GMT)"
+                all_seasons: {
+                    opening: "12:00 (GMT)",
+                    closing: "30 minutes before facility closing"
                 },
                 winter: {
-                    period: "November 1 - May 31",
+                    period: "November 1 - June 20",
+                    hours: "12:00 (GMT) - 21:30 (GMT)"
+                },
+                summer_peak: {
+                    period: "June 21 - August 20",
+                    hours: "12:00 (GMT) - 22:30 (GMT)"
+                },
+                fall: {
+                    period: "August 21 - October 20",
+                    hours: "12:00 (GMT) - 22:30 (GMT)"
+                },
+                october_2025: {
+                    period: "October 1 - October 31, 2025",
+                    hours: "12:00 (GMT) - 21:30 (GMT)"
+                },
+                late_october: {
+                    period: "October 21 - October 31",
                     hours: "12:00 (GMT) - 21:30 (GMT)"
                 },
                 notes: "Last orders 30 minutes before closing"
@@ -155,13 +219,14 @@ export const knowledgeBase = {
                 grace_period: "30 minutes from booked time",
                 beyond_grace: "Subject to availability if arriving after grace period"
             },
-            // Add this new section here
             last_entry: {
                 policy: "Last entry is always 2 hours before closing time",
                 seasonal_times: {
-                    winter: "20:00 (GMT) during winter season (November 1 - May 31)",
-                    summer: "21:00 (GMT) during summer season (June 1 - September 30)",
-                    autumn: "21:00 (GMT) during autumn season (October 1 - October 31)"
+                    winter: "20:00 (GMT) during winter season (November 1 - June 20)",
+                    summer_peak: "21:00 (GMT) during summer peak (June 21 - August 20)",
+                    fall: "21:00 (GMT) during fall season (August 21 - October 20)",
+                    october_2025: "20:00 (GMT) during October 2025",
+                    late_october: "20:00 (GMT) during late October (October 21-31)"
                 },
                 important_note: "The Skjól ritual and Gelmir Bar close one hour before facility closing, and the lagoon area closes 30 minutes before closing time",
                 booking_recommendation: "We recommend booking at least 2-3 hours before closing to fully enjoy all facilities"

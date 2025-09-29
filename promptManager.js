@@ -351,7 +351,7 @@ const MODULE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - longer caching for b
  * @param {Object} languageDecision - Information about detected language
  * @returns {Promise<string>} The prompt content for the specified language
  */
-async function getModuleContent(modulePath, languageDecision, seasonInfo = null) {
+async function getModuleContent(modulePath, languageDecision, seasonInfo = null, context = null) {
   try {
     const module = moduleRegistry[modulePath];
     if (!module) {
@@ -379,11 +379,11 @@ async function getModuleContent(modulePath, languageDecision, seasonInfo = null)
     if (language === 'is') {
       content = module.getIcelandicPrompt ? 
                 await module.getIcelandicPrompt() : 
-                (module.getPrompt ? await module.getPrompt('is', seasonInfo) : '');
+                (module.getPrompt ? await module.getPrompt('is', context || seasonInfo) : '');
     } else {
       content = module.getEnglishPrompt ? 
                 await module.getEnglishPrompt() : 
-                (module.getPrompt ? await module.getPrompt('en', seasonInfo) : '');
+                (module.getPrompt ? await module.getPrompt('en', context || seasonInfo) : '');
     }
     
     // Cache the content
@@ -1018,7 +1018,11 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     'nakinn', 'nakin', 'nakt', 'ber',
   ];
 
-  const containsGenitalTerms = genitalTerms.some(term => lowerCaseMessage.includes(term));
+  const containsGenitalTerms = genitalTerms.some(term => {
+    // Use word boundary regex for proper word matching
+    const regex = new RegExp(`\\b${term}\\b`, 'i');
+    return regex.test(lowerCaseMessage);
+  });
 
   if (containsGenitalTerms) {
     console.log('🚫 [SWIMWEAR-REQUIRED] Detected genital/nudity terms - forcing swimwear policy response');
@@ -1051,7 +1055,11 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     'breast', 'breasts', 'topless', 'bare-chested', 'nipple', 'nipples'
   ];
 
-  const containsBreastTerms = breastTerms.some(term => lowerCaseMessage.includes(term));
+  const containsBreastTerms = breastTerms.some(term => {
+    // Use word boundary regex for proper word matching
+    const regex = new RegExp(`\\b${term}\\b`, 'i');
+    return regex.test(lowerCaseMessage);
+  });
 
   if (containsBreastTerms && !containsGenitalTerms) {
     console.log('👙 [BREAST-POLICY] Detected breast-related terms - applying equality policy');
@@ -1148,6 +1156,28 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     console.log('🚌 [TRANSPORT] Adding facilities module based on transportation terms detection');
   }
 
+  // EARLY PREVENTION: Check for careers/job application terms BEFORE other processing
+  const careerTerms = [
+    // English
+    'apply', 'job', 'employment', 'career', 'work for you', 'position', 'hiring', 
+    'application', 'resume', 'opportunities', 'openings',
+    // Icelandic
+    'sæki', 'sækja', 'starf', 'störf', 'atvinna', 'vinna hjá', 'starfsumsókn',
+    'ferilskrá', 'atvinnuumsókn', 'starfsmöguleikar'
+  ];
+  
+  if (careerTerms.some(term => lowerCaseMessage.includes(term))) {
+    console.log('💼 [CAREERS] Detected careers/job inquiry - ensuring proper response');
+    // Force response_rules to be included with high priority
+    moduleScores.set('core/response_rules', 1.0);
+    
+    // Set context for careers inquiry
+    if (context) {
+      context.lastTopic = 'careers';
+      context.careersInquiry = true;
+    }
+  }
+  
   // EARLY PREVENTION: Check for location terms BEFORE other processing
   const locationTerms = ['where', 'location', 'address', 'town', 'city', 'center', 'downtown', 
       'close', 'near', 'distance', 'far', 'how far', 'directions', 'map'];
@@ -1259,7 +1289,25 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
     moduleScores.set('formatting/time_format', 0.95);
     logger.debug('Adding time_format module for time query');
   }
-  
+
+  // For PURE hours questions, don't include heavy modules (Reason: we were getting wrong hours answers because of too many characters from the main modules)
+  const isPureHoursQuery = 
+    (intentAnalysis.primaryIntent === 'hours' || 
+     intentAnalysis.primaryIntent === 'section') &&  // 'section' because your logs show that
+    userMessage.toLowerCase().match(/^\s*(what|when|what are|what's).*(hour|hours|open|close|opening|closing)/i) &&
+    !userMessage.toLowerCase().includes('package') &&
+    !userMessage.toLowerCase().includes('facilities') &&
+    !userMessage.toLowerCase().includes('ritual') &&
+    !userMessage.toLowerCase().includes('price') &&
+    !userMessage.toLowerCase().includes('cost');
+
+  if (isPureHoursQuery) {
+    // Remove packages and facilities from scores if they were added
+    moduleScores.delete('services/packages');
+    moduleScores.delete('services/facilities');
+    logger.debug('Excluding packages/facilities modules for pure hours query');
+  }  
+
   // Booking change queries
   if (intentAnalysis.isBookingChangeQuery || 
       context.bookingContext?.hasBookingChangeIntent ||
@@ -1381,7 +1429,7 @@ async function assemblePrompt(modules, sessionId, languageDecision, context, rel
     modulePromises[category] = categoryModules.map(modulePath => {
       return new Promise(async (resolve) => {
         try {
-          const content = await getModuleContent(modulePath, languageDecision, seasonInfo);
+          const content = await getModuleContent(modulePath, languageDecision, seasonInfo, context);
           if (content) {
             moduleSizes[modulePath] = content.length;
           }
@@ -1605,7 +1653,38 @@ export async function getOptimizedSystemPrompt(sessionId, isHoursQuery, userMess
     if (context && userMessage) {
       context.lastMessage = userMessage;
     }
-    
+
+    // Detect and store month information for time queries
+    if (context && userMessage) {
+      const monthNames = {
+        'january': 0, 'february': 1, 'march': 2, 'april': 3, 'may': 4, 'june': 5,
+        'july': 6, 'august': 7, 'september': 8, 'october': 9, 'november': 10, 'december': 11,
+        'janúar': 0, 'febrúar': 1, 'mars': 2, 'apríl': 3, 'maí': 4, 'júní': 5,
+        'júlí': 6, 'ágúst': 7, 'september': 8, 'október': 9, 'nóvember': 10, 'desember': 11
+      };
+      
+      const lowerMessage = userMessage.toLowerCase();
+      for (const [monthName, monthIndex] of Object.entries(monthNames)) {
+        if (lowerMessage.includes(monthName)) {
+          context.queryMonth = {
+            name: monthName,
+            index: monthIndex,
+            year: lowerMessage.match(/20\d{2}/) ? parseInt(lowerMessage.match(/20\d{2}/)[0]) : new Date().getFullYear()
+          };
+          console.log(`📅 [MONTH-QUERY] Detected month query: ${monthName} ${context.queryMonth.year}`);
+          break;
+        }
+      }
+      
+      // Also detect specific date queries (e.g., "June 20th", "December 25")
+      const datePattern = /(\d{1,2})(st|nd|rd|th)?/i;
+      const dateMatch = lowerMessage.match(datePattern);
+      if (dateMatch && context.queryMonth) {
+        context.queryMonth.day = parseInt(dateMatch[1]);
+        console.log(`📅 [DATE-QUERY] Detected specific date: ${context.queryMonth.name} ${context.queryMonth.day}`);
+      }
+    }    
+
     // =============================================
     // PERFORMANCE OPTIMIZATION 4: PROMPT CACHING
     // =============================================

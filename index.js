@@ -386,40 +386,41 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
 // Cache and state management
 const responseCache = new Map();
 
-// Seasonal opening hours object
+// Seasonal opening hours object - based on Sky Lagoon website (last updated sept 26, 2025)
 const OPENING_HOURS = {
-    // Winter (Nov-May)
+    // Winter (Nov 1 - May 31)
     winter: {
         weekdays: { open: 11, close: 22 },
         weekends: { open: 10, close: 22 }
     },
-    // June
-    earlyJune: {
+    // June (June 1 - June 30)
+    june: {
         weekdays: { open: 9, close: 23 },
         weekends: { open: 9, close: 23 }
     },
-    // July-August
+    // July-August (July 1 - August 31)
     summer: {
-        weekdays: { open: 8, close: 23 },
-        weekends: { open: 8, close: 23 }
+        regularDays: { open: 8.5, close: 23 },  // 8:30am = 8.5
+        friday: { open: 8, close: 23 }          // Fridays open at 8am
     },
-    // September
+    // September (September 1 - September 30)
     september: {
         weekdays: { open: 9, close: 23 },
         weekends: { open: 9, close: 23 }
     },
-    // October
+    // October (October 1 - October 31)
     october: {
-        weekdays: { open: 10, close: 23 },
-        weekends: { open: 10, close: 23 }
+        weekdays: { open: 10, close: 22 },
+        weekends: { open: 10, close: 22 }
     },
     // Holiday periods
     holiday: {
         easter: { open: 10, close: 22 },
-        christmasEve: { open: 11, close: 16 },
-        christmasDay: { open: 11, close: 18 },
-        newYearsEve: { open: 11, close: 22 },
-        newYearsDay: { open: 11, close: 22 }
+        christmasEve: { open: 9, close: 16 },  // Dec 24
+        christmasDay: { open: 9, close: 18 },  // Dec 25
+        boxingDay: { open: 9, close: 22 },     // Dec 26
+        newYearsEve: { open: 9, close: 18 },   // Dec 31
+        newYearsDay: { open: 10, close: 22 }   // Jan 1
     }
 };
 
@@ -428,49 +429,71 @@ const getCurrentOpeningHours = () => {
     const today = new Date();
     const month = today.getMonth(); // 0-11 (Jan-Dec)
     const day = today.getDate();
-    const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
+    const year = today.getFullYear();
+    const dayOfWeek = today.getDay(); // 0-6 (Sun-Sat)
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // 0 = Sunday, 6 = Saturday
+    const isFriday = dayOfWeek === 5;
     
-    // Check for holiday periods first - just like in getCurrentSeason()
+    // Check for holiday periods first
     if (isEasterPeriod2025(today)) {
-        // For Easter, return fixed hours regardless of weekday/weekend
         return { open: 10, close: 22 };
     }
     
-    // Check for other specific holidays
+    // Check for holidays
     if (month === 11 && day === 24) { // Christmas Eve
-        return { open: 11, close: 16 };
+        return { open: 9, close: 16 };
     }
     
     if (month === 11 && day === 25) { // Christmas Day
-        return { open: 11, close: 18 };
+        return { open: 9, close: 18 };
+    }
+    
+    if (month === 11 && day === 26) { // Boxing Day
+        return { open: 9, close: 22 };
     }
     
     if (month === 11 && day === 31) { // New Year's Eve
-        return { open: 11, close: 22 };
+        return { open: 9, close: 18 };
     }
     
     if (month === 0 && day === 1) { // New Year's Day
-        return { open: 11, close: 22 };
+        return { open: 10, close: 22 };
     }
     
-    // Regular seasonal logic (unchanged)
-    let season;
-    if (month >= 10 || month <= 4) { // Nov-May (10=Nov, 0=Jan, 4=May)
-        season = 'winter';
-    } else if (month === 5) { // June
-        season = 'earlyJune';
-    } else if (month === 6 || month === 7) { // July-August
-        season = 'summer';
-    } else if (month === 8) { // September
-        season = 'september';
-    } else if (month === 9) { // October
-        season = 'october';
+    // Regular seasonal logic
+    // November - May: Winter hours
+    if (month >= 10 || month <= 4) { // Nov, Dec, Jan, Feb, Mar, Apr, May
+        return isWeekend ? OPENING_HOURS.winter.weekends : OPENING_HOURS.winter.weekdays;
     }
     
-    return isWeekend ? OPENING_HOURS[season].weekends : OPENING_HOURS[season].weekdays;
+    // June: 9am-11pm every day
+    if (month === 5) {
+        return OPENING_HOURS.june.weekdays; // Same for weekdays and weekends
+    }
+    
+    // July-August: 8:30am-11pm (8am on Fridays)
+    if (month === 6 || month === 7) {
+        if (isFriday) {
+            return OPENING_HOURS.summer.friday;
+        }
+        return OPENING_HOURS.summer.regularDays;
+    }
+    
+    // September: 9am-11pm every day
+    if (month === 8) {
+        return OPENING_HOURS.september.weekdays; // Same for weekdays and weekends
+    }
+    
+    // October: 10am-10pm every day
+    if (month === 9) {
+        return OPENING_HOURS.october.weekdays; // Same for weekdays and weekends
+    }
+    
+    // Fallback to winter hours
+    return isWeekend ? OPENING_HOURS.winter.weekends : OPENING_HOURS.winter.weekdays;
 };
 
-// Function to get opening hours for a specific month - currently unused but maintained for consistency
+// Function to get opening hours for a specific month
 // Example usage: answering "What are your hours in December?"
 const getMonthOpeningHours = (monthName) => {
     const monthIndex = {
@@ -479,9 +502,10 @@ const getMonthOpeningHours = (monthName) => {
         'october': 9, 'november': 10, 'december': 11
     }[monthName.toLowerCase()];
     
+    const year = new Date().getFullYear();
+    
     // Special case for April 2025 (Easter month)
-    if (monthName.toLowerCase() === 'april' && new Date().getFullYear() === 2025) {
-        // Return an object that indicates Easter period exists
+    if (monthName.toLowerCase() === 'april' && year === 2025) {
         return {
             weekdays: { open: 11, close: 22 },
             weekends: { open: 10, close: 22 },
@@ -489,24 +513,67 @@ const getMonthOpeningHours = (monthName) => {
         };
     }
     
-    // Regular seasonal logic (unchanged)
-    let season;
-    if (monthIndex >= 10 || monthIndex <= 4) { // Nov-May
-        season = 'winter';
-    } else if (monthIndex === 5) { // June
-        season = 'earlyJune';
-    } else if (monthIndex === 6 || monthIndex === 7) { // July-August
-        season = 'summer';
-    } else if (monthIndex === 8) { // September
-        season = 'september';
-    } else if (monthIndex === 9) { // October
-        season = 'october';
+    // Regular seasonal logic
+    let result;
+    
+    // November-May: Winter hours
+    if (monthIndex >= 10 || monthIndex <= 4) {
+        result = {
+            weekdays: OPENING_HOURS.winter.weekdays,
+            weekends: OPENING_HOURS.winter.weekends
+        };
+    } 
+    // June: 9am-11pm every day
+    else if (monthIndex === 5) {
+        result = {
+            weekdays: OPENING_HOURS.june.weekdays,
+            weekends: OPENING_HOURS.june.weekends,
+            note: 'Same hours every day'
+        };
+    } 
+    // July-August: 8:30am-11pm (8am Fridays)
+    else if (monthIndex === 6 || monthIndex === 7) {
+        result = {
+            regularDays: OPENING_HOURS.summer.regularDays,
+            friday: OPENING_HOURS.summer.friday,
+            note: 'Fridays open at 8:00am, all other days at 8:30am'
+        };
+    } 
+    // September: 9am-11pm every day
+    else if (monthIndex === 8) {
+        result = {
+            weekdays: OPENING_HOURS.september.weekdays,
+            weekends: OPENING_HOURS.september.weekends,
+            note: 'Same hours every day'
+        };
+    } 
+    // October: 10am-10pm every day
+    else if (monthIndex === 9) {
+        result = {
+            weekdays: OPENING_HOURS.october.weekdays,
+            weekends: OPENING_HOURS.october.weekends,
+            note: 'Same hours every day'
+        };
     }
     
-    return {
-        weekdays: OPENING_HOURS[season].weekdays,
-        weekends: OPENING_HOURS[season].weekends
-    };
+    // Add holiday information for December
+    if (monthIndex === 11) {
+        result.holidays = {
+            christmasEve: OPENING_HOURS.holiday.christmasEve,
+            christmasDay: OPENING_HOURS.holiday.christmasDay,
+            boxingDay: OPENING_HOURS.holiday.boxingDay,
+            newYearsEve: OPENING_HOURS.holiday.newYearsEve
+        };
+    }
+    
+    // Add holiday information for January
+    if (monthIndex === 0) {
+        result.holidays = {
+            newYearsDay: OPENING_HOURS.holiday.newYearsDay
+        };
+    }
+    
+    return result;
 };
 
 // Brand Guidelines and Constants
@@ -741,23 +808,25 @@ const getCurrentSeason = () => {
     const month = today.getMonth(); // 0-11 (Jan-Dec)
     const day = today.getDate();
     const year = today.getFullYear();
-    const isWeekend = today.getDay() === 0 || today.getDay() === 6; // 0 = Sunday, 6 = Saturday
+    const dayOfWeek = today.getDay(); // 0-6 (Sun-Sat)
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isFriday = dayOfWeek === 5;
 
     // Check for closure on September 2, 2025
     if (year === 2025 && month === 8 && day === 2) {
-      return {
-          season: 'closure',
-          closingTime: 'CLOSED',
-          lastRitual: 'CLOSED',
-          barClose: 'CLOSED',
-          lagoonClose: 'CLOSED',
-          greeting: 'Temporary Closure',
-          openingTime: 'CLOSED'
-      };
-  }
+        return {
+            season: 'closure',
+            closingTime: 'CLOSED',
+            lastRitual: 'CLOSED',
+            barClose: 'CLOSED',
+            lagoonClose: 'CLOSED',
+            greeting: 'Temporary Closure',
+            openingTime: 'CLOSED'
+        };
+    }
 
     // Handle Easter 2025 (April 17-21, 2025)
-    if (month === 3 && day >= 17 && day <= 21) { // April is month 3 (0-indexed)
+    if (month === 3 && day >= 17 && day <= 21 && year === 2025) {
         console.log(`🐣 Easter period detected: April ${day}, 2025`);
         return {
             season: 'holiday',
@@ -766,12 +835,12 @@ const getCurrentSeason = () => {
             barClose: '21:00',
             lagoonClose: '21:30',
             greeting: 'Easter Holiday',
-            openingTime: '10:00' // Special Easter opening time
+            openingTime: '10:00'
         };
     }
     
-    // Other holiday checks
-    if (month === 11 && day === 24) { // Dec is month 11 (0-indexed)
+    // Holiday checks with CORRECTED opening times
+    if (month === 11 && day === 24) { // Christmas Eve
         return {
             season: 'holiday',
             closingTime: '16:00',
@@ -779,11 +848,11 @@ const getCurrentSeason = () => {
             barClose: '15:00',
             lagoonClose: '15:30',
             greeting: 'Christmas Eve',
-            openingTime: '11:00'
+            openingTime: '09:00' // FIXED: was 11:00
         };
     }
     
-    if (month === 11 && day === 25) {
+    if (month === 11 && day === 25) { // Christmas Day
         return {
             season: 'holiday',
             closingTime: '18:00',
@@ -791,23 +860,35 @@ const getCurrentSeason = () => {
             barClose: '17:00',
             lagoonClose: '17:30',
             greeting: 'Christmas Day',
-            openingTime: '11:00'
+            openingTime: '09:00' // FIXED: was 11:00
         };
     }
-    
-    if (month === 11 && day === 31) {
+
+    if (month === 11 && day === 26) { // Boxing Day - ADDED
         return {
             season: 'holiday',
             closingTime: '22:00',
             lastRitual: '20:00',
             barClose: '21:00',
             lagoonClose: '21:30',
-            greeting: 'New Year\'s Eve',
-            openingTime: '11:00'
+            greeting: 'Boxing Day',
+            openingTime: '09:00'
         };
     }
     
-    if (month === 0 && day === 1) { // Jan is month 0 (0-indexed)
+    if (month === 11 && day === 31) { // New Year's Eve
+        return {
+            season: 'holiday',
+            closingTime: '18:00', // FIXED: was 22:00
+            lastRitual: '16:00',   // FIXED
+            barClose: '17:00',     // FIXED
+            lagoonClose: '17:30',  // FIXED
+            greeting: 'New Year\'s Eve',
+            openingTime: '09:00' // FIXED: was 11:00
+        };
+    }
+    
+    if (month === 0 && day === 1) { // New Year's Day
         return {
             season: 'holiday',
             closingTime: '22:00',
@@ -815,43 +896,77 @@ const getCurrentSeason = () => {
             barClose: '21:00',
             lagoonClose: '21:30',
             greeting: 'New Year\'s Day',
-            openingTime: '11:00'
+            openingTime: '10:00' // FIXED: was 11:00
         };
     }
 
-    // Regular seasons
-    if (month >= 10 || month <= 4) { // Nov-May (10=Nov, 0=Jan, 4=May)
+    // October (month 9)
+    if (month === 9) {
         return {
-            season: 'winter',
+            season: 'october',
             closingTime: '22:00',
             lastRitual: '20:00',
             barClose: '21:00',
             lagoonClose: '21:30',
-            greeting: 'winter',
-            openingTime: isWeekend ? '10:00' : '11:00' // Weekend vs weekday opening times
+            greeting: 'October',
+            openingTime: '10:00' // 10am-10pm every day
         };
     }
-    
-    if (month >= 5 && month <= 8) { // June-Sept (5=June, 8=Sept)
+
+    // September (month 8)
+    if (month === 8) {
+        return {
+            season: 'september',
+            closingTime: '23:00',
+            lastRitual: '21:00',
+            barClose: '22:00',
+            lagoonClose: '22:30',
+            greeting: 'September',
+            openingTime: '09:00' // 9am-11pm every day
+        };
+    }
+
+    // July-August (months 6-7)
+    if (month === 6 || month === 7) {
+        let openingTime;
+        if (isFriday) {
+            openingTime = '08:00'; // Fridays open at 8am
+        } else {
+            openingTime = '08:30'; // Other days at 8:30am
+        }
         return {
             season: 'summer',
             closingTime: '23:00',
             lastRitual: '21:00',
             barClose: '22:00',
             lagoonClose: '22:30',
-            greeting: 'summer',
-            openingTime: '08:00' // Summer opening time
+            greeting: 'Summer',
+            openingTime: openingTime
         };
     }
-    
+
+    // June (month 5)
+    if (month === 5) {
+        return {
+            season: 'june',
+            closingTime: '23:00',
+            lastRitual: '21:00',
+            barClose: '22:00',
+            lagoonClose: '22:30',
+            greeting: 'June',
+            openingTime: '09:00' // 9am-11pm every day
+        };
+    }
+
+    // Winter: November through May (months 10, 11, 0, 1, 2, 3, 4)
     return {
-        season: 'autumn',
-        closingTime: '23:00',
-        lastRitual: '21:00',
-        barClose: '22:00',
-        lagoonClose: '22:30',
-        greeting: 'autumn',
-        openingTime: '10:00'
+        season: 'winter',
+        closingTime: '22:00',
+        lastRitual: '20:00',
+        barClose: '21:00',
+        lagoonClose: '21:30',
+        greeting: 'Winter',
+        openingTime: isWeekend ? '10:00' : '11:00'
     };
 };
 
@@ -1761,12 +1876,17 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         }
 
         // Add seasonal context to prompt if relevant
-        if (context.lastTopic === 'hours' || 
-            context.lastTopic === 'seasonal' || 
-            userMessage.toLowerCase().includes('hour') || 
-            userMessage.toLowerCase().includes('open') || 
-            userMessage.toLowerCase().includes('close') ||
-            seasonInfo.season === 'closure') {
+        const isAskingAboutSpecificMonth = context && context.queryMonth && 
+            !userMessage.toLowerCase().includes('today') && 
+            !userMessage.toLowerCase().includes('now');
+
+        if (!isAskingAboutSpecificMonth && // Don't add today's hours if asking about specific month
+            (context.lastTopic === 'hours' || 
+             context.lastTopic === 'seasonal' || 
+             userMessage.toLowerCase().includes('hour') || 
+             userMessage.toLowerCase().includes('open') || 
+             userMessage.toLowerCase().includes('close') ||
+             seasonInfo.season === 'closure')) {
             
             if (seasonInfo.season === 'closure') {
                 systemPrompt += `\n\nCURRENT OPERATING STATUS:
@@ -1783,9 +1903,7 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             } else {
                 systemPrompt += `\n\nCURRENT OPERATING HOURS:
                 Today (${seasonInfo.greeting}):
-                Opening Hours: ${seasonInfo.season === 'summer' ? '09:00' : 
-                              seasonInfo.season === 'winter' ? '11:00 weekdays, 10:00 weekends' : '10:00'}
-                Closing Time: ${seasonInfo.closingTime}
+                Opening Hours: ${seasonInfo.openingTime} - ${seasonInfo.closingTime}
                 Last Ritual: ${seasonInfo.lastRitual}
                 Bar Service Until: ${seasonInfo.barClose}
                 Lagoon Access Until: ${seasonInfo.lagoonClose}

@@ -297,8 +297,7 @@ For Easter 2025 specifically:
 
 We open earlier at 10:00 (GMT) on these days to better serve our guests.` 
 : 
-`These are our regular hours during the ${seasonInfo.greeting} season.
-${seasonInfo.season === 'winter' ? 'During winter, we open at 11:00 (GMT) on weekdays and 10:00 (GMT) on weekends.' : ''}`}
+`These are our regular hours during the ${seasonInfo.greeting} season.`}
 
 CRITICAL RESPONSE RULES:
 1. NEVER mention "knowledge base", "database", or that you are "checking information"
@@ -1252,7 +1251,7 @@ TIME DURATION GUIDELINES:
 5. For Opening Time Queries:
    - ALWAYS mention exact opening time: "${seasonInfo.openingTime} (GMT)"
    - For holiday periods, emphasize special hours: "During ${seasonInfo.greeting}, we open at ${seasonInfo.openingTime} (GMT)"
-   - For weekend vs weekday differences: "We open at ${seasonInfo.season === 'winter' ? '11:00 (GMT) on weekdays and 10:00 (GMT) on weekends' : seasonInfo.openingTime + ' (GMT) every day'}"
+   - For weekend vs weekday differences: Use the actual ${seasonInfo.openingTime} (GMT) value
    - Always include "(GMT)" after time values
 
 6. For Date-Specific Queries:
@@ -1338,14 +1337,16 @@ TIME FORMATTING GUIDELINES:
 8. For Special Period Queries:
    - For English and other languages:
      * Easter 2025: "During Easter 2025 (April 17-21), we open at 10:00 (GMT) and close at 22:00 (GMT)"
-     * Christmas Eve: "On Christmas Eve, we have limited hours: 11:00 (GMT) - 16:00 (GMT)"
-     * Christmas Day: "On Christmas Day, we open at 11:00 (GMT) and close at 18:00 (GMT)"
-     * New Year's Eve & Day: "On New Year's Eve and New Year's Day, we open at 11:00 (GMT) and close at 22:00 (GMT)"
+     * Christmas Eve: "On Christmas Eve, we have limited hours: 09:00 (GMT) - 16:00 (GMT)"
+     * Christmas Day: "On Christmas Day, we open at 09:00 (GMT) and close at 18:00 (GMT)"
+     * New Year's Eve: "On New Year's Eve, we open at 09:00 (GMT) and close at 18:00 (GMT)"
+     * New Year's Day: "On New Year's Day, we open at 10:00 (GMT) and close at 22:00 (GMT)"
    - For Icelandic:
      * Easter 2025: "Yfir páska 2025 (17.-21. apríl), opnum við klukkan 10:00 og lokum klukkan 22:00"
-     * Christmas Eve: "Á aðfangadag eru takmarkaðir opnunartímar: klukkan 11:00 til 16:00"
-     * Christmas Day: "Á jóladag opnum við klukkan 11:00 og lokum klukkan 18:00"
-     * New Year's Eve & Day: "Á gamlársdag og nýársdag opnum við klukkan 11:00 og lokum klukkan 22:00"
+     * Christmas Eve: "Á aðfangadag eru takmarkaðir opnunartímar: klukkan 09:00 til 16:00"
+     * Christmas Day: "Á jóladag opnum við klukkan 09:00 og lokum klukkan 18:00"
+     * New Year's Eve: "Á gamlársdag opnum við klukkan 09:00 og lokum klukkan 18:00"
+     * New Year's Day: "Á nýársdag opnum við klukkan 10:00 og lokum klukkan 22:00"
 
 9. ALWAYS use dynamic times from seasonInfo rather than hardcoded values
 
@@ -1722,12 +1723,22 @@ RESPONSE FORMATTING GUIDELINES:
    Each package includes full access to all seven steps of our signature Skjól ritual.
 
 3. Opening Hours Format:
-   Summer (June 1 - September 30):
-   - Daily: 09:00 - 23:00
-
    Winter (November 1 - May 31):
    - Monday to Friday: 11:00 - 22:00
    - Saturday and Sunday: 10:00 - 22:00
+   
+   June:
+   - Daily: 09:00 - 23:00
+   
+   July-August:
+   - Saturday to Thursday: 08:30 - 23:00
+   - Friday: 08:00 - 23:00
+   
+   September:
+   - Daily: 09:00 - 23:00
+   
+   October:
+   - Daily: 10:00 - 22:00
 
 4. Facility Description Format:
    Our facilities include:
