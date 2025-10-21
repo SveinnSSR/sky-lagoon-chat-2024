@@ -148,6 +148,11 @@ async function handleStreamingChat(ws, data) {
     const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     
     try {
+        // NEW: Extract country/IP from WebSocket request if available
+        // Note: WebSocket doesn't have direct access to Cloudflare headers
+        // So we'll pass null for both (only HTTP requests get geo data)
+        const userCountry = null;
+        const userIp = null;
         // Send connection confirmation
         ws.send(JSON.stringify({
             type: 'stream-connected',
@@ -272,7 +277,9 @@ async function handleStreamingChat(ws, data) {
                     detectedTopic.topic || 'general',
                     "streaming_chat",
                     sessionId,
-                    "active"
+                    "active",
+                    userCountry,  // null for WebSocket
+                    userIp        // null for WebSocket
                 );
                 console.log('📊 Streaming analytics sent');
             } catch (error) {
@@ -297,7 +304,7 @@ const openai = new OpenAI({
 });
 
 // Optimized broadcastConversation that preserves Pusher functionality and uses the message processor
-const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null, status = 'active') => {
+const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null, status = 'active', userCountry = null, userIp = null) => {
     try {
         // Skip processing for empty messages
         if (!userMessage || !botResponse) {
@@ -315,8 +322,10 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 topic: topic,
                 type: type,
                 clientId: 'sky-lagoon',
-                status: status  // Pass the status to analytics
-            }
+                status: status,  // Pass the status to analytics
+                userCountry: userCountry  // NEW: Pass Cloudflare country
+            },
+            userIp  // NEW: Pass user IP
         );
         
         // Check if processing was successful
@@ -1372,6 +1381,11 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
         console.log("📡 SSE Stream Request:", userMessage);
         console.log("🔑 Session:", sessionId);
 
+        // NEW: Capture user's country from Cloudflare and IP
+        const userCountry = req.headers['cf-ipcountry'];
+        const userIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim();
+        console.log(`📍 SSE User Country: ${userCountry || 'unknown'}, IP: ${userIp}`);
+
         // Set up Server-Sent Events headers
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
@@ -1509,7 +1523,9 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
                     detectedTopic.topic || 'general',
                     "sse_streaming",
                     sessionId,
-                    "active"
+                    "active",
+                    userCountry,  // NEW
+                    userIp        // NEW
                 );
                 console.log('📊 SSE analytics sent');
             } catch (error) {
@@ -1545,6 +1561,14 @@ app.post('/chat', verifyApiKey, async (req, res) => {
         totalTime: 0
     };
 
+    // NEW: Capture user's country from Cloudflare and IP
+    const userCountry = req.headers['cf-ipcountry'];  // Cloudflare provides this
+    const userIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                   req.headers['x-real-ip'] || 
+                   req.socket.remoteAddress ||
+    
+    console.log(`📍 User Country: ${userCountry || 'unknown'}, IP: ${userIp}`);
+
     // Unified function to broadcast but NOT send response
     const sendBroadcastAndPrepareResponse = async (responseObj) => {
         // Default values for language if not provided
@@ -1572,7 +1596,9 @@ app.post('/chat', verifyApiKey, async (req, res) => {
                         responseObj.topicType || 'general',
                         responseObj.responseType || 'direct_response',
                         sessionId, // Pass the session ID from the client
-                        responseObj.status || 'active'
+                        responseObj.status || 'active',
+                        userCountry,  // NEW
+                        userIp        // NEW
                     );
                     
                     // Store PostgreSQL ID if available
@@ -2563,7 +2589,8 @@ async function saveConversationToMongoDB(conversationData, languageInfo) {
 }
 
 /**
- * Send conversation data to analytics system
+ * ATT: This might be redundant legacy code. Possibly we are only using processMessagePair in messageProcessor.js now. Need to confirm later.
+ * Send conversation data to analytics system.
  * 
  * Makes a direct HTTP POST request to the analytics API with conversation data.
  * Uses a persistent MongoDB session for conversation continuity.

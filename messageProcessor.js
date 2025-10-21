@@ -21,7 +21,7 @@ const analyticsSentMessages = new Map();
  * @param {Object} metadata - Additional metadata about the interaction
  * @returns {Promise<Object>} Processing result with IDs and status
  */
-export async function processMessagePair(userMessage, botResponse, metadata = {}) {
+export async function processMessagePair(userMessage, botResponse, metadata = {}, userIp = null) {
   try {
     // Log detailed information about the message pair
     console.log(`\n📨 Processing message pair: 
@@ -116,7 +116,7 @@ export async function processMessagePair(userMessage, botResponse, metadata = {}
     await saveConversationToMongoDB(conversationData);
 
     // Send conversation to analytics system
-    const analyticsResult = await sendConversationToAnalytics(conversationData);
+    const analyticsResult = await sendConversationToAnalytics(conversationData, metadata.userCountry, userIp);
 
     // Return success with message IDs and PostgreSQL ID (for feedback)
     return {
@@ -196,7 +196,7 @@ async function saveConversationToMongoDB(conversationData) {
  * @param {Object} conversationData - Normalized conversation data
  * @returns {Promise<Object>} Analytics result with PostgreSQL ID
  */
-async function sendConversationToAnalytics(conversationData) {
+async function sendConversationToAnalytics(conversationData, userCountry = null, userIp = null) {
   try {
     // DEDUPLICATION CHECK: Create signature for this specific message set
     const botMessages = conversationData.messages.filter(m => m.role === 'assistant' || m.type === 'bot');
@@ -231,12 +231,45 @@ async function sendConversationToAnalytics(conversationData) {
       Topic: ${conversationData.topic || 'general'}`
     );
     
+    // NEW: Get geo data (Cloudflare first, then fallback to ip-api.com)
+    let geoHeaders = {};
+    
+    if (userCountry && userCountry !== 'XX') {
+      // Use Cloudflare country (free, unlimited)
+      geoHeaders = {
+        'x-user-ip-country': userCountry,
+        'x-user-ip-region': '',
+        'x-user-ip-city': ''
+      };
+      console.log(`✅ Using Cloudflare geo: ${userCountry}`);
+    } else if (userIp && userIp !== 'unknown' && userIp !== '::1' && userIp !== '127.0.0.1') {
+      // Fallback to ip-api.com (1000/month free)
+      try {
+        console.log(`🌍 Looking up geo data for IP: ${userIp}`);
+        const geoResponse = await fetch(`http://ip-api.com/json/${userIp}?fields=status,countryCode,regionName,city`);
+        if (geoResponse.ok) {
+          const geoData = await geoResponse.json();
+          if (geoData.status === 'success' && geoData.countryCode) {
+            geoHeaders = {
+              'x-user-ip-country': geoData.countryCode,
+              'x-user-ip-region': geoData.regionName || '',
+              'x-user-ip-city': geoData.city || ''
+            };
+            console.log(`✅ Geo: ${geoData.city}, ${geoData.regionName}, ${geoData.countryCode}`);
+          }
+        }
+      } catch (geoError) {
+        console.log('⚠️ Geo lookup error (non-critical):', geoError.message);
+      }
+    }
+    
     // Make HTTP request to analytics API
     const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANALYTICS_API_KEY || 'sky-lagoon-secret-2024'
+        'x-api-key': process.env.ANALYTICS_API_KEY || 'sky-lagoon-secret-2024',
+        ...geoHeaders  // NEW: Include geo headers
       },
       body: JSON.stringify(conversationData)
     });
