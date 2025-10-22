@@ -180,13 +180,19 @@ async function handleStreamingChat(ws, data) {
             content: userMessage,
         });
 
+        // Get context for knowledge retrieval
+        const context = await getPersistentSessionContext(sessionId);
+        
+        // Update language context
+        updateLanguageContext(context, userMessage);
+
         // Use Sky Lagoon's existing system prompt logic
         const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
         let systemPrompt;
 
         if (useModularPrompts) {
             // Get knowledge and context (simplified for streaming)
-            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, {});
+            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
             const sunsetData = isSunsetQuery(userMessage, languageDecision) ? 
                 getSunsetDataForContext(userMessage, languageDecision) : null;
             const seasonInfo = getCurrentSeason();
@@ -1422,13 +1428,19 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             content: userMessage,
         });
 
+        // Get context for knowledge retrieval
+        const context = await getPersistentSessionContext(sessionId);
+        
+        // Update language context
+        updateLanguageContext(context, userMessage);
+
         // Use Sky Lagoon's existing system prompt logic
         const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
         let systemPrompt;
 
         if (useModularPrompts) {
             // Get knowledge and context (simplified for streaming)
-            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, {});
+            const knowledgeBaseResults = await getKnowledgeWithFallbacks(userMessage, context);
             const sunsetData = isSunsetQuery(userMessage, languageDecision) ? 
                 getSunsetDataForContext(userMessage, languageDecision) : null;
             const seasonInfo = getCurrentSeason();
