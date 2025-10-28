@@ -1124,11 +1124,18 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   
   // EARLY PREVENTION: Check for age-related terms BEFORE other processing
   const ageTerms = [
+    // English terms
     'age', 'child', 'children', 'kid', 'year old', 'yr old', 'son', 'daughter',
     // Add terms for infants and babies
     'month old', 'infant', 'baby', 'babies', 'toddler', 'newborn', 'months old',
     // Add truncated words that could appear
-    'month', 'infant', 'baby'
+    'month', 'infant', 'baby',
+    // Icelandic terms
+    'aldur', 'aldurstakmark', 'aldurstak', 'aldursmörk', 'aldurstakmarkanir',
+    'börn', 'barn', 'barnið', 'barni', 'barns', 'barna',
+    'ungbarn', 'ungbörn', 'ungmenni', 'unglingar', 'unglingur',
+    'ára', 'ára gamall', 'ára gömul', 'árs', 'mánaða',
+    'sonur', 'dóttir', 'smábarn', 'smábörn', 'ungviði'
   ];
   if (ageTerms.some(term => lowerCaseMessage.includes(term))) {
     moduleScores.set('policies/age_policy', 1.0); // Add with maximum confidence
