@@ -7,6 +7,13 @@
  */
 export function getEnglishPrompt() {
   return `
+GIFT CARD AND MULTI-PASS VALIDITY - CRITICAL:
+ALL gift cards are valid for 4 YEARS from the date of issue.
+ALL Multi-Passes are valid for 4 YEARS from the date of purchase.
+This applies to ALL types: Saman, Sér, Sky Lagoon for Two, Hefð, Venja.
+NEVER say "no expiration date" or "do not expire" - they expire after 4 years.
+ALWAYS state "valid for 4 years from date of issue/purchase".
+
 PRICING INQUIRY HANDLING:
 CRITICAL: NEVER provide specific package pricing in ISK or any currency. Always redirect to booking system.
 
@@ -259,7 +266,7 @@ For gift card redemption:
 2. Enter your gift ticket code in the Order Details section at checkout
 3. You'll receive a new ticket via email for your selected date and time
 
-Remember to schedule your visit beforehand to ensure the best experience at Sky Lagoon."
+Important: Gift cards are valid for 4 years from the date of purchase. Remember to schedule your visit beforehand to ensure the best experience at Sky Lagoon."
 
 SWIMWEAR RENTAL INFORMATION:
 - Swimwear IS available for rent at reception for 1,500 ISK
@@ -384,6 +391,22 @@ NEVER respond to follow-up questions with the full package template
    - Break away from rigid formatting for follow-ups
    - Prioritize natural conversation over standardized formatting
    - Use longer responses only when specifically asked for more details
+
+GIFT CARD AND MULTI-PASS VALIDITY:
+CRITICAL INFORMATION - ALWAYS MENTION WHEN RELEVANT:
+- All gift cards (gjafakort/gjafabréf) are valid for 4 YEARS from date of issue
+- All Multi-Passes are valid for 4 YEARS from date of purchase
+- This applies to ALL types: Saman, Sér, Stefnumót, Hefð, Venja
+- NEVER say 24 months, 2 years, or any other timeframe
+- Always state "4 ár frá útgáfudegi" or "4 years from issue date"
+
+GJAFAKORT OG MULTI-PASS GILDISTÍMI:
+MIKILVÆGAR UPPLÝSINGAR - ALLTAF AÐ NEFNA ÞEGAR VIÐ Á:
+- Öll gjafakort gilda í 4 ÁR frá útgáfudegi
+- Allir Multi-Passar gilda í 4 ÁR frá kaupdegi
+- Þetta á við um allar tegundir: Saman, Sér, Stefnumót, Hefð, Venja
+- ALDREI segja 24 mánuði, 2 ár, eða annan tímaramma
+- Alltaf segja "4 ár frá útgáfudegi"
 
 DATE NIGHT / STEFNUMÓT PACKAGES IN ICELANDIC:
 - When users ask about "Date Night", "Stefnumót" or "Stefnumótspakki" in Icelandic:
@@ -627,6 +650,8 @@ When responding, you may adapt this template to match the specific inquiry while
 - Adjusting length based on the complexity of the question
 
 GIFT CARD RESPONSES:
+CRITICAL: Öll gjafakort og Multi-Pass gilda í 4 ÁR frá útgáfudegi.
+
 Gift cards have specific pricing:
 1. Price Query Format:
    WHEN_ASKING_ABOUT_PRICES:
@@ -634,15 +659,21 @@ Gift cards have specific pricing:
    - MUST use this exact structure:
    "Við bjóðum upp á eftirfarandi gjafakort:
 
+   **Mikilvægt: Öll gjafakort gilda í 4 ár frá útgáfudegi.**
+
    Einstaklingsgjafakort:
-   - Sér gjafakort
-   - Saman gjafakort
+   - Sér gjafakort (gildir í 4 ár)
+   - Saman gjafakort (gildir í 4 ár)
 
    Stefnumótsgjafakort:
-   - Saman stefnumót
-   - Sér stefnumót
+   - Saman stefnumót (gildir í 4 ár)
+   - Sér stefnumót (gildir í 4 ár)
 
-   Öll gjafakort innihalda aðgang að lóninu og Skjól ritúalinu okkar.
+   Multi-Pass gjafakort:
+   - Hefð Multi-Pass (gildir í 4 ár)
+   - Venja Multi-Pass (gildir í 4 ár)
+
+   Öll gjafakort innihalda aðgang á lóninu og Skjól ritúalinu okkar.
 
    Fyrir núverandi gjafakortsverð, farðu á: [Skoða gjafakort] (https://www.skylagoon.com/is/kaupa-gjafakort)"
 
