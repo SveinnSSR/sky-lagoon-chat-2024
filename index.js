@@ -143,6 +143,11 @@ wss.on('connection', (ws, req) => {
 });
 
 // Streaming chat handler
+// =====================================================================
+// WEBSOCKET STREAMING HANDLER - Bidirectional real-time communication
+// Persistent connection for interactive streaming (client ↔ server)
+// Used by: Local development, traditional server deployments (not Vercel)
+// =====================================================================
 async function handleStreamingChat(ws, data) {
     const { message: userMessage, sessionId } = data;
     const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -221,6 +226,38 @@ async function handleStreamingChat(ws, data) {
             },
             ...session.messages.slice(-10), // Keep last 10 messages
         ];
+
+        // Age policy date awareness (same as in main chat endpoint and websocket endpoint)
+        if (userMessage.toLowerCase().match(/\b(age|old|year|birthday|turn|verður|ára|afmæli|mars|march|apríl|april)\b/)) {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth(); // 0-11
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            
+            messages.push({
+                role: "system",
+                content: `CRITICAL AGE ELIGIBILITY RULE:
+            Today is ${monthNames[currentMonth]} ${today.getDate()}, ${currentYear}.
+            Current month number: ${currentMonth} (0=Jan, 11=Dec)
+
+            ELIGIBILITY RULE: Children must turn 12 in ${currentYear} to visit now.
+
+            LOGIC FOR BIRTH MONTHS:
+            - If someone says "turning 12 in March" or "birthday in April" in December:
+            - March is month 2, April is month 3
+            - Both are LESS than current month (${currentMonth})
+            - Therefore they mean March ${currentYear + 1} or April ${currentYear + 1}
+            - Child turning 12 in ${currentYear + 1} = NOT ELIGIBLE now
+
+            - If someone says "11 year old, birthday in June" in December:
+            - June is month 5
+            - June (5) < December (11) = June has passed
+            - If child is still 11, birthday must be June ${currentYear + 1}
+            - NOT ELIGIBLE now
+
+            Apply this logic BEFORE determining eligibility.`
+            });
+        }
 
         // Create streaming completion
         const stream = await openai.chat.completions.create({
@@ -1374,6 +1411,11 @@ const formatErrorMessage = (error, userMessage, languageDecision) => {
 };
 
 // SSE Streaming endpoint (Vercel compatible!) - ADD BEFORE your existing /chat endpoint
+// =====================================================================
+// SSE STREAMING ENDPOINT - Server-Sent Events for Vercel compatibility
+// Streams response chunks over HTTP (unidirectional: server → client)
+// Used by: Production Vercel deployment (skylagoon.com chatbot)
+// =====================================================================
 app.post("/chat-stream", verifyApiKey, async (req, res) => {
     const startTime = Date.now();
 
@@ -1470,6 +1512,38 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             ...session.messages.slice(-10),
         ];
 
+        // Age policy date awareness (same as in main chat endpoint and websocket endpoint)
+        if (userMessage.toLowerCase().match(/\b(age|old|year|birthday|turn|verður|ára|afmæli|mars|march|apríl|april)\b/)) {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth(); // 0-11
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            
+            messages.push({
+                role: "system",
+                content: `CRITICAL AGE ELIGIBILITY RULE:
+            Today is ${monthNames[currentMonth]} ${today.getDate()}, ${currentYear}.
+            Current month number: ${currentMonth} (0=Jan, 11=Dec)
+
+            ELIGIBILITY RULE: Children must turn 12 in ${currentYear} to visit now.
+
+            LOGIC FOR BIRTH MONTHS:
+            - If someone says "turning 12 in March" or "birthday in April" in December:
+            - March is month 2, April is month 3
+            - Both are LESS than current month (${currentMonth})
+            - Therefore they mean March ${currentYear + 1} or April ${currentYear + 1}
+            - Child turning 12 in ${currentYear + 1} = NOT ELIGIBLE now
+
+            - If someone says "11 year old, birthday in June" in December:
+            - June is month 5
+            - June (5) < December (11) = June has passed
+            - If child is still 11, birthday must be June ${currentYear + 1}
+            - NOT ELIGIBLE now
+
+            Apply this logic BEFORE determining eligibility.`
+            });
+        }
+
         // Create streaming completion (SAME as WebSocket!)
         const stream = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -1562,6 +1636,11 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
 });
 
 // Optimized chat endpoint with parallel processing - COMPLETE VERSION
+// =====================================================================
+// MAIN CHAT ENDPOINT - Synchronous HTTP request/response
+// Returns complete response in single JSON payload (no streaming)
+// Used by: Testing, fallback scenarios, local development (node index.js)
+// =====================================================================
 app.post('/chat', verifyApiKey, async (req, res) => {
     // Add performance tracking
     const startTime = Date.now();
