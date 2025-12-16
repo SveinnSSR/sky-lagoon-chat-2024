@@ -2003,6 +2003,38 @@ app.post('/chat', verifyApiKey, async (req, res) => {
             });
         }        
 
+        // Age policy date awareness
+        if (userMessage.toLowerCase().match(/\b(age|old|year|birthday|turn|verður|ára|afmæli|mars|march|apríl|april)\b/)) {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth(); // 0-11
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            
+            messages.push({
+                role: "system",
+                content: `CRITICAL AGE ELIGIBILITY RULE:
+        Today is ${monthNames[currentMonth]} ${today.getDate()}, ${currentYear}.
+        Current month number: ${currentMonth} (0=Jan, 11=Dec)
+
+        ELIGIBILITY RULE: Children must turn 12 in ${currentYear} to visit now.
+
+        LOGIC FOR BIRTH MONTHS:
+        - If someone says "turning 12 in March" or "birthday in April" in December:
+        - March is month 2, April is month 3
+        - Both are LESS than current month (${currentMonth})
+        - Therefore they mean March ${currentYear + 1} or April ${currentYear + 1}
+        - Child turning 12 in ${currentYear + 1} = NOT ELIGIBLE now
+
+        - If someone says "11 year old, birthday in June" in December:
+        - June is month 5
+        - June (5) < December (11) = June has passed
+        - If child is still 11, birthday must be June ${currentYear + 1}
+        - NOT ELIGIBLE now
+
+        Apply this logic BEFORE determining eligibility.`
+            });
+        }
+
         // Add special context for likely conversational messages
         if (userMessage.split(' ').length <= 4 || 
             /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {

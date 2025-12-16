@@ -234,9 +234,9 @@ export function getPrompt(language, context = null) {
   const seasonInfo = determineCurrentSeason(targetDate);
   const isIcelandic = language === 'is';
   const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
+  const currentYear = currentDate.getFullYear(); // why is this unused?
   const currentMonth = currentDate.getMonth();
-  const currentDay = currentDate.getDate();
+  const currentDay = currentDate.getDate(); // why is this unused?
   const dayOfWeek = currentDate.getDay();
   const isFriday = dayOfWeek === 5;
   

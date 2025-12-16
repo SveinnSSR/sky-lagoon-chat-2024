@@ -977,8 +977,14 @@ async function determineRelevantModules(userMessage, context, languageDecision, 
   moduleScores.set('formatting/response_format', 0.9);
 
   // EARLY PREVENTION: Force Icelandic for common Icelandic greetings
+  // BUT ONLY if it's a short greeting (not part of a longer sentence)
   const icelandicGreetingPatterns = /^(hæ|halló|sæl|sæll|góðan dag|góðan daginn)/i;
-  if (icelandicGreetingPatterns.test(lowerCaseMessage)) {
+  
+  // Check if message is just a simple greeting (5 words or less AND matches greeting pattern)
+  const wordCount = lowerCaseMessage.trim().split(/\s+/).length;
+  const isShortGreeting = wordCount <= 5 && icelandicGreetingPatterns.test(lowerCaseMessage);
+  
+  if (isShortGreeting) {
     console.log('🇮🇸 [ICELANDIC] Detected specific Icelandic greeting - forcing Icelandic response');
     
     // Force Icelandic language settings
