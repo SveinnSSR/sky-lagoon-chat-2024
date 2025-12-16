@@ -1,5 +1,5 @@
 // prompts/seasonal/current_season.js
-// Contains current season determination and volcanic activity information
+// Contains current season determination and volcanic activity information.
 
 /**
  * Determines the current season based on date
