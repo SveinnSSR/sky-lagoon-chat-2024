@@ -1512,6 +1512,18 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             ...session.messages.slice(-10),
         ];
 
+        // Conversation continuity check - Check if this is an ongoing conversation
+        const isOngoingConversation = session.messages && 
+                                     session.messages.filter(m => m.role === 'assistant').length > 0;
+
+        if (isOngoingConversation) {
+            messages.push({
+                role: "system",
+                content: `Note: This is a continuing conversation. Maintain conversation flow without 
+                introducing new greetings like "Hello" or "Hello there".`
+            });
+        }
+
         // Age policy date awareness (same as in main chat endpoint and websocket endpoint)
         if (userMessage.toLowerCase().match(/\b(age|old|year|birthday|turn|verður|ára|afmæli|mars|march|apríl|april)\b/)) {
             const today = new Date();
@@ -1541,6 +1553,16 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             - NOT ELIGIBLE now
 
             Apply this logic BEFORE determining eligibility.`
+            });
+        }
+
+        // Add special context for likely conversational messages
+        if (userMessage.split(' ').length <= 4 || 
+            /^(hi|hello|hey|hæ|halló|thanks|takk|ok|how are you|who are you)/i.test(userMessage)) {
+            
+            messages.push({
+                role: "system",
+                content: `This appears to be a conversational message rather than a factual question. Handle it naturally with appropriate small talk, greeting, or acknowledgment responses while maintaining Sky Lagoon's brand voice.`
             });
         }
 
