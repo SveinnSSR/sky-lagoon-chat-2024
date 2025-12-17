@@ -1453,10 +1453,43 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
 
         // Get session and detect language (using Sky Lagoon's existing system)
         const sessionInfo = await getOrCreateSession(sessionId);
+        
+        // Get persistent context (replaces in-memory session)
+        let context;
+        try {
+            context = await getPersistentSessionContext(sessionId);
+        } catch (sessionError) {
+            console.error(`❌ Session recovery error:`, sessionError);
+            // Fallback to in-memory session
+            context = getSessionContext(sessionId);
+        }
+        
         const languageDecision = newDetectLanguage(userMessage);
         const detectedLanguage = languageDecision.isIcelandic ? "is" : "en";
         
-        // Session management (same as WebSocket)
+        // Extract language code
+        const language = languageDecision.language || (languageDecision.isIcelandic ? 'is' : 'en');
+        
+        // Update language info in the context
+        updateLanguageContext(context, userMessage);
+        
+        // Enhanced logging for language detection
+        console.log('\n🌍 Enhanced Language Detection:', {
+            message: userMessage,
+            language: language,
+            isIcelandic: languageDecision.isIcelandic,
+            confidence: languageDecision.confidence,
+            reason: languageDecision.reason,
+            sessionId: sessionId
+        });
+        
+        // Add this message to the context system
+        addMessageToContext(context, { role: 'user', content: userMessage });
+        
+        // Update topics in the context system
+        updateTopicContext(context, userMessage);
+        
+        // Session management (keep for backward compatibility with streaming)
         if (!sessions.has(sessionId)) {
             sessions.set(sessionId, {
                 messages: [],
@@ -1470,11 +1503,86 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             content: userMessage,
         });
 
-        // Get context for knowledge retrieval
-        const context = await getPersistentSessionContext(sessionId);
+        // Topic detection for booking-related conversations
+        detectBookingChangeIntent(userMessage, context);
+
+        // Log what's happening for debugging
+        if (context.topics?.length > 0) {
+            console.log(`\n📝 Active topics: ${context.topics.join(', ')}`);
+        }
+
+        // Log what's happening for debugging
+        if (context.topics?.length > 0) {
+            console.log(`\n📝 Active topics: ${context.topics.join(', ')}`);
+        }
+
+        // Detect late arrival scenario
+        if (isLateArrivalMessage(userMessage, languageDecision.isIcelandic)) {
+            console.log('\n🕒 Late arrival message detected');
+            context.lateArrivalContext.isLate = true;
+            context.lastTopic = 'late_arrival';
+        }        
+
+        // Get current season info for hours
+        const seasonInfo = getCurrentSeason();
         
-        // Update language context
-        updateLanguageContext(context, userMessage);
+        // Update time context tracking if relevant
+        if (userMessage.toLowerCase().match(/hour|time|opin|lokar|when|hvenær|ritual|duration/i)) {
+            const timeContext = updateTimeContext(userMessage, context, seasonInfo);
+            console.log('\n⏰ Time context updated:', timeContext);
+        }
+
+        // Check for seasonal context
+        if (context.lastTopic === 'seasonal' || 
+            userMessage.toLowerCase().match(/winter|summer|holiday|season|vetur|sumar|hátíð|árstíð/i)) {
+            
+            let seasonalInfo = knowledgeBaseResults.find(k => k.type === 'seasonal_information');
+            
+            if (seasonalInfo) {
+                // Determine season type
+                const isWinter = userMessage.toLowerCase().includes('winter') || 
+                                userMessage.toLowerCase().includes('northern lights') ||
+                                (context.language === 'is' && (
+                                    userMessage.toLowerCase().includes('vetur') ||
+                                    userMessage.toLowerCase().includes('vetrar') ||
+                                    userMessage.toLowerCase().includes('norðurljós')
+                                ));
+                
+                // Store season info
+                const newType = isWinter ? 'winter' : 'summer';
+                context.lastTopic = 'seasonal';
+                
+                // Update seasonal context
+                if (context.seasonalContext.type && context.seasonalContext.type !== newType) {
+                    context.seasonalContext.previousSeason = context.seasonalContext.type;
+                    context.seasonalContext.transitionDate = Date.now();
+                }
+                
+                // Update holiday context if needed
+                const currentSeason = getCurrentSeason();
+                context.seasonalContext.holidayContext = {
+                    isHoliday: currentSeason.season === 'holiday',
+                    holidayType: currentSeason.greeting || null,
+                    specialHours: currentSeason.season === 'holiday' ? {
+                        closing: currentSeason.closingTime,
+                        lastRitual: currentSeason.lastRitual,
+                        barClose: currentSeason.barClose,
+                        lagoonClose: currentSeason.lagoonClose
+                    } : null
+                };
+                
+                // Update the main seasonal context
+                context.seasonalContext = {
+                    ...context.seasonalContext,
+                    type: newType,
+                    subtopic: userMessage.toLowerCase().includes('northern lights') ? 'northern_lights' : 
+                              userMessage.toLowerCase().includes('midnight sun') ? 'midnight_sun' : 'general',
+                    currentInfo: seasonalInfo.content
+                };
+                
+                console.log('\n🌍 Seasonal Context Updated:', context.seasonalContext);
+            }
+        }
 
         // Use Sky Lagoon's existing system prompt logic
         const useModularPrompts = process.env.USE_MODULAR_PROMPTS === 'true';
@@ -1521,6 +1629,41 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
                 role: "system",
                 content: `Note: This is a continuing conversation. Maintain conversation flow without 
                 introducing new greetings like "Hello" or "Hello there".`
+            });
+        }
+
+        // Add context awareness from conversation history
+        if (context.messages && context.messages.length > 0) {
+            // Include last 5 messages from persistent context for better continuity
+            const recentContextMessages = context.messages.slice(-5);
+            messages.push(...recentContextMessages);
+        }
+
+        // Add special context for late arrival or booking modification
+        if (context.lateArrivalContext?.isLate || context.bookingContext?.hasBookingIntent) {
+            messages.push({
+                role: "system",
+                content: `CURRENT CONTEXT:
+                    Language: ${context.language === 'is' ? 'Icelandic' : 'English'}
+                    Late Arrival: ${context.lateArrivalContext?.isLate ? 'Yes' : 'No'}
+                    Sold Out Status: ${context.soldOutStatus ? 'Yes' : 'No'}
+                    Booking Modification: ${context.bookingContext?.hasBookingIntent ? 'Requested' : 'No'}
+                    Time of Day: ${new Date().getHours() >= 9 && new Date().getHours() < 19 ? 'During support hours' : 'After hours'}`
+            });
+        }
+
+        // Check for booking change status and cancellations specifically
+        if (context.topics?.some(topic => ['booking', 'booking_change', 'cancellation'].includes(topic))) {
+            let contextMessage = `Topics in this conversation: ${context.topics.join(', ')}.`;
+            
+            if (context.allBookingDetailsProvided) {
+                contextMessage += `\n\nThe user has provided complete booking details. 
+                If they want to make changes, use the booking change template from booking_change.js.`;
+            }
+            
+            messages.push({
+                role: "system",
+                content: contextMessage
             });
         }
 
@@ -1602,6 +1745,9 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             role: "assistant",
             content: fullResponse,
         });
+
+        // Add AI response to the context system
+        addMessageToContext(context, { role: 'assistant', content: fullResponse });
 
         // Apply Sky Lagoon's terminology enhancement
         const enhancedResponse = await enforceTerminology(fullResponse, openai);
