@@ -1673,7 +1673,16 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
                 introducing new greetings like "Hello" or "Hello there".`
             });
         } else {
-            console.log(`👋 New conversation - greetings allowed`);
+            console.log(`👋 First message in conversation - intelligent greeting handling`);
+            messages.push({
+                role: "system",
+                content: `IMPORTANT: This is the user's first message in this conversation.
+
+                GREETING RULES:
+                - If the user's message is a simple greeting (like "hi", "hello", "hæ"), respond with a warm welcome and ask what you can help with.
+                - If the user's message contains a specific question or request (they're asking for information, explaining a situation, or requesting help with something specific), answer their question directly WITHOUT adding a greeting or asking "what can I help you with?" - they already told you what they need.
+                - Be natural and conversational, but don't be redundant by asking them what they need when they just told you.`
+            });
         }
 
         // Add context awareness from conversation history
