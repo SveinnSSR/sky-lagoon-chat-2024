@@ -1528,6 +1528,13 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
         }
         const session = sessions.get(sessionId);
 
+        // CRITICAL: Sync persistent context messages to in-memory session
+        // This ensures ongoing conversation detection works after MongoDB recovery
+        if (context.messages && context.messages.length > 0 && session.messages.length === 0) {
+            console.log(`🔄 Syncing ${context.messages.length} messages from persistent context to in-memory session`);
+            session.messages = [...context.messages];
+        }
+
         session.messages.push({
             role: "user",
             content: userMessage,
@@ -1651,15 +1658,22 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
         ];
 
         // Conversation continuity check - Check if this is an ongoing conversation
-        const isOngoingConversation = session.messages && 
-                                     session.messages.filter(m => m.role === 'assistant').length > 0;
+        // Check BOTH in-memory session AND persistent context for conversation history
+        const hasSessionMessages = session.messages && 
+                                  session.messages.filter(m => m.role === 'assistant').length > 0;
+        const hasContextMessages = context.messages && 
+                                   context.messages.filter(m => m.role === 'assistant').length > 0;
+        const isOngoingConversation = hasSessionMessages || hasContextMessages;
 
         if (isOngoingConversation) {
+            console.log(`🔄 Ongoing conversation detected - suppressing greeting`);
             messages.push({
                 role: "system",
                 content: `Note: This is a continuing conversation. Maintain conversation flow without 
                 introducing new greetings like "Hello" or "Hello there".`
             });
+        } else {
+            console.log(`👋 New conversation - greetings allowed`);
         }
 
         // Add context awareness from conversation history
@@ -1783,6 +1797,13 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
         const enhancedResponse = await enforceTerminology(fullResponse, openai);
         const approvedEmojis = SKY_LAGOON_GUIDELINES.emojis;
         const filteredResponse = filterEmojis(enhancedResponse, approvedEmojis);
+
+        // Log the actual response for easier debugging
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('💬 FINAL RESPONSE TO USER:');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(filteredResponse);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
         // Send completion signal (same as WebSocket)
         res.write(`data: ${JSON.stringify({
