@@ -1451,13 +1451,43 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
             sessionId: sessionId
         })}\n\n`);
 
-        // Get session and detect language (using Sky Lagoon's existing system)
-        const sessionInfo = await getOrCreateSession(sessionId);
+        // NOTE: getOrCreateSession is NOT needed here - it's called internally by broadcastConversation
+        // during analytics. Calling it here creates an unused variable and redundant database call.
+        // If you need session info for debugging, uncomment the line below.
+        // const sessionInfo = await getOrCreateSession(sessionId);
         
         // Get persistent context (replaces in-memory session)
         let context;
         try {
             context = await getPersistentSessionContext(sessionId);
+            
+            // CHECK FOR SESSION TIMEOUT - Prevent context bleeding
+            const sessionTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
+            const now = Date.now();
+            const lastActivity = context.lastActivity || now;
+            const timeSinceLastActivity = now - lastActivity;
+            
+            if (timeSinceLastActivity > sessionTimeout) {
+                console.log(`⏰ Session timeout detected for ${sessionId} (${Math.round(timeSinceLastActivity / 60000)} minutes inactive)`);
+                console.log(`🔄 Clearing old context to prevent context bleeding`);
+                
+                // Create fresh context for this session
+                context = getSessionContext(sessionId);
+                console.log(`✅ Fresh context created - no context bleeding`);
+            } else {
+                // EXTRA SAFETY: Verify session ID matches
+                if (context.sessionId && context.sessionId !== sessionId) {
+                    console.log(`⚠️ Session ID mismatch detected!`);
+                    console.log(`   Context has: ${context.sessionId}`);
+                    console.log(`   Request has: ${sessionId}`);
+                    console.log(`🔄 Creating fresh context due to ID mismatch`);
+                    context = getSessionContext(sessionId);
+                } else {
+                    // Update last activity timestamp
+                    context.lastActivity = now;
+                    console.log(`✅ Session active - continuing conversation (${Math.round(timeSinceLastActivity / 1000)}s since last message)`);
+                }
+            }
         } catch (sessionError) {
             console.error(`❌ Session recovery error:`, sessionError);
             // Fallback to in-memory session
