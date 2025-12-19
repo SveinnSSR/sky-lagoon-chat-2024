@@ -1659,14 +1659,14 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
 
         // Conversation continuity check - Check if this is an ongoing conversation
         // Check BOTH in-memory session AND persistent context for conversation history
-        const hasSessionMessages = session.messages && 
-                                  session.messages.filter(m => m.role === 'assistant').length > 0;
-        const hasContextMessages = context.messages && 
-                                   context.messages.filter(m => m.role === 'assistant').length > 0;
+        // We check for ANY messages (not just assistant) because even having previous
+        // user messages means this is a returning conversation
+        const hasSessionMessages = session.messages && session.messages.length > 1; // > 1 because current message was just added
+        const hasContextMessages = context.messages && context.messages.length > 0;
         const isOngoingConversation = hasSessionMessages || hasContextMessages;
 
         if (isOngoingConversation) {
-            console.log(`🔄 Ongoing conversation detected - suppressing greeting`);
+            console.log(`🔄 Ongoing conversation detected (session: ${session.messages.length} msgs, context: ${context.messages?.length || 0} msgs) - suppressing greeting`);
             messages.push({
                 role: "system",
                 content: `Note: This is a continuing conversation. Maintain conversation flow without 
