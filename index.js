@@ -65,6 +65,8 @@ import { normalizeConversation, normalizeMessage } from './dataModels.js';
 import { getOrCreateSession } from './sessionManager.js';
 // Add this import near the top of index.js with your other imports
 import { processMessagePair } from './messageProcessor.js';
+// Import file processor for enhanced features (images, files, voice)
+import { processFiles } from './utils/fileProcessor.js';
 // timeUtils file for later use
 import { extractTimeInMinutes, extractComplexTimeInMinutes } from './timeUtils.js'; // not being used yet
 
@@ -118,7 +120,9 @@ wss.on('connection', (ws, req) => {
             console.log('📨 WebSocket message received:', {
                 type: data.type,
                 sessionId: data.sessionId,
-                hasMessage: !!data.message
+                hasMessage: !!data.message,
+                hasImages: !!data.images?.length,
+                hasFiles: !!data.files?.length
             });
             
             if (data.type === 'chat' && data.message) {
@@ -149,10 +153,15 @@ wss.on('connection', (ws, req) => {
 // Used by: Local development, traditional server deployments (not Vercel)
 // =====================================================================
 async function handleStreamingChat(ws, data) {
-    const { message: userMessage, sessionId } = data;
+    const { message: userMessage, sessionId, images, files } = data;
     const streamId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     
     try {
+        console.log('🚀 WebSocket streaming chat started:', {
+            sessionId,
+            hasImages: !!images?.length,
+            hasFiles: !!files?.length
+        });
         // NEW: Extract country/IP from WebSocket request if available
         // Note: WebSocket doesn't have direct access to Cloudflare headers
         // So we'll pass null for both (only HTTP requests get geo data)
@@ -179,7 +188,15 @@ async function handleStreamingChat(ws, data) {
         }
         const session = sessions.get(sessionId);
 
-        // Add user message to session
+        // Extract text from files
+        let fileContext = '';
+        if (files && files.length > 0) {
+            console.log(`📄 WebSocket: Processing ${files.length} files...`);
+            fileContext = await processFiles(files);
+            console.log(`✅ WebSocket: File text extracted: ${fileContext.length} chars`);
+        }
+
+        // Add user message
         session.messages.push({
             role: "user",
             content: userMessage,
@@ -218,14 +235,32 @@ async function handleStreamingChat(ws, data) {
             );
         }
 
-        // Prepare messages for OpenAI
+        // Prepare messages with file context if present
         const messages = [
-            {
-                role: "system",
-                content: systemPrompt,
-            },
-            ...session.messages.slice(-10), // Keep last 10 messages
+            { role: "system", content: systemPrompt },
+            ...session.messages.slice(-10),
         ];
+
+        // Add file context to last user message if present
+        if (fileContext) {
+            messages[messages.length - 1].content += `\n\nDOCUMENT CONTENT:\n${fileContext.slice(0, 8000)}`;
+        }
+
+        // Add images if present
+        if (images && images.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            lastMessage.content = [
+                { type: 'text', text: lastMessage.content },
+                ...images.map(img => ({
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:${img.mimeType};base64,${img.data}`,
+                        detail: 'high'
+                    }
+                }))
+            ];
+            console.log('🖼️ WebSocket: Added images to prompt');
+        }
 
         // Age policy date awareness (same as in main chat endpoint and websocket endpoint)
         if (userMessage.toLowerCase().match(/\b(age|old|year|birthday|turn|verður|ára|afmæli|mars|march|apríl|april)\b/)) {
@@ -309,7 +344,7 @@ async function handleStreamingChat(ws, data) {
             completeContent: filteredResponse
         }));
 
-        // Fire-and-forget analytics (using Sky Lagoon's existing system)
+        // Fire-and-forget analytics with metadata
         setImmediate(async () => {
             try {
                 const detectedTopic = detectTopic(userMessage, [], {}, languageDecision);
@@ -322,9 +357,16 @@ async function handleStreamingChat(ws, data) {
                     sessionId,
                     "active",
                     userCountry,  // null for WebSocket
-                    userIp        // null for WebSocket
+                    userIp,       // null for WebSocket
+                    // CRITICAL: Pass metadata for analytics
+                    {
+                        hasImages: images && images.length > 0,
+                        imageCount: images?.length || 0,
+                        hasFiles: files && files.length > 0,
+                        fileCount: files?.length || 0
+                    }
                 );
-                console.log('📊 Streaming analytics sent');
+                console.log('📊 WebSocket analytics sent with metadata');
             } catch (error) {
                 console.error('❌ Error in streaming analytics:', error);
             }
@@ -347,8 +389,15 @@ const openai = new OpenAI({
 });
 
 // Optimized broadcastConversation that preserves Pusher functionality and uses the message processor
-const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null, status = 'active', userCountry = null, userIp = null) => {
+// ENHANCED: Now accepts messageMetadata for image/file attachment tracking
+const broadcastConversation = async (userMessage, botResponse, language, topic = 'general', type = 'chat', clientSessionId = null, status = 'active', userCountry = null, userIp = null, messageMetadata = null) => {
     try {
+        // Log broadcast initiation for auditability
+        console.log('📤 Broadcasting conversation to analytics system:', {
+            hasMetadata: !!messageMetadata,
+            hasImages: messageMetadata?.hasImages || false,
+            hasFiles: messageMetadata?.hasFiles || false
+        });
         // Skip processing for empty messages
         if (!userMessage || !botResponse) {
             console.log('Skipping broadcast for empty message');
@@ -366,7 +415,9 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 type: type,
                 clientId: 'sky-lagoon',
                 status: status,  // Pass the status to analytics
-                userCountry: userCountry  // NEW: Pass Cloudflare country
+                userCountry: userCountry,  // NEW: Pass Cloudflare country
+                // CRITICAL: Pass metadata for attachment tracking in analytics
+                messageMetadata: messageMetadata
             },
             userIp  // NEW: Pass user IP
         );
@@ -378,6 +429,7 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                 const sessionInfo = await getOrCreateSession(clientSessionId);
                 
                 // Create minimal conversation data for Pusher (retaining backward compatibility)
+                // CRITICAL: Include metadata in user message for analytics system
                 const conversationData = {
                     id: sessionInfo.conversationId,
                     sessionId: sessionInfo.sessionId,
@@ -389,7 +441,10 @@ const broadcastConversation = async (userMessage, botResponse, language, topic =
                             id: processResult.userMessageId,
                             content: userMessage,
                             role: 'user',
-                            type: 'user'
+                            type: 'user',
+                            // CRITICAL: Include metadata if provided (for analytics system display)
+                            // This allows analytics to show: 🖼️ 1 image, 📄 2 documents
+                            ...(messageMetadata && { metadata: messageMetadata })
                         },
                         {
                             id: processResult.botMessageId,
@@ -1420,7 +1475,7 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
     const startTime = Date.now();
 
     try {
-        const { message: userMessage, sessionId } = req.body;
+        const { message: userMessage, sessionId, images, files } = req.body;
 
         if (!userMessage) {
             return res.status(400).json({ error: 'Message is required' });
@@ -1838,10 +1893,17 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
                     "sse_streaming",
                     sessionId,
                     "active",
-                    userCountry,  // NEW
-                    userIp        // NEW
+                    userCountry,
+                    userIp,
+                    // CRITICAL: Pass metadata for analytics
+                    {
+                        hasImages: images && images.length > 0,
+                        imageCount: images?.length || 0,
+                        hasFiles: files && files.length > 0,
+                        fileCount: files?.length || 0
+                    }
                 );
-                console.log('📊 SSE analytics sent');
+                console.log('📊 SSE analytics sent with metadata');
             } catch (error) {
                 console.error('❌ Error in SSE analytics:', error);
             }
@@ -1862,6 +1924,302 @@ app.post("/chat-stream", verifyApiKey, async (req, res) => {
         res.end();
     }
 });
+
+// ============================================================================
+// Helpers: Icelandic TTS normalization (dates/times/years)
+// ============================================================================
+
+function icelandicHour(hh) {
+    const h = parseInt(hh, 10);
+    const map = {
+      0: "núll", 1: "eitt", 2: "tvö", 3: "þrjú", 4: "fjögur", 5: "fimm",
+      6: "sex", 7: "sjö", 8: "átta", 9: "níu", 10: "tíu", 11: "ellefu",
+      12: "tólf", 13: "þrettán", 14: "fjórtán", 15: "fimmtán", 16: "sextán",
+      17: "sautján", 18: "átján", 19: "nítján", 20: "tuttugu",
+      21: "tuttugu og eitt", 22: "tuttugu og tvö", 23: "tuttugu og þrjú",
+    };
+    return map[h] ?? String(h);
+  }
+  
+  function icelandicMinute(mm) {
+    const m = parseInt(mm, 10);
+    if (m === 0) return ""; // drop :00 completely for natural speech
+  
+    const map = {
+      5: "fimm",
+      10: "tíu",
+      15: "fimmtán",
+      20: "tuttugu",
+      25: "tuttugu og fimm",
+      30: "þrjátíu",
+      35: "þrjátíu og fimm",
+      40: "fjörutíu",
+      45: "fjörutíu og fimm",
+      50: "fimmtíu",
+      55: "fimmtíu og fimm",
+    };
+  
+    // If it's not a 5-minute increment, just say the number (good enough to start)
+    return map[m] ?? String(m);
+  }
+  
+  function speakTime(hh, mm) {
+    const hourSpoken = icelandicHour(hh);
+    const minuteSpoken = icelandicMinute(mm);
+    if (!minuteSpoken) return `klukkan ${hourSpoken}`;
+    return `klukkan ${hourSpoken} ${minuteSpoken}`;
+  }
+  
+  function normalizeIsTimes(text) {
+    let t = text;
+  
+    // 1) Time ranges FIRST: 07:45-16:00 (also handles en-dash/em-dash)
+    t = t.replace(
+      /\b([01]?\d|2[0-3]):([0-5]\d)\s*[-–—]\s*([01]?\d|2[0-3]):([0-5]\d)\b/g,
+      (_, h1, m1, h2, m2) => `frá ${speakTime(h1, m1)} til ${speakTime(h2, m2)}`
+    );
+  
+    // 2) Single times: 07:45
+    t = t.replace(
+      /\b([01]?\d|2[0-3]):([0-5]\d)\b/g,
+      (_, h, m) => speakTime(h, m)
+    );
+  
+    return t;
+  }
+  
+  // --- Years (2000-2099) ---
+  // 2026 -> "tvö þúsund tuttugu og sex"
+  function icelandicNumber(n) {
+    const ones = ["núll","eitt","tvö","þrjú","fjögur","fimm","sex","sjö","átta","níu"];
+    const teens = ["tíu","ellefu","tólf","þrettán","fjórtán","fimmtán","sextán","sautján","átján","nítján"];
+    const tensMap = {
+      2: "tuttugu",
+      3: "þrjátíu",
+      4: "fjörutíu",
+      5: "fimmtíu",
+      6: "sextíu",
+      7: "sjötíu",
+      8: "áttatíu",
+      9: "níutíu",
+    };
+  
+    if (n < 10) return ones[n];
+    if (n < 20) return teens[n - 10];
+  
+    const tens = Math.floor(n / 10);
+    const onesDigit = n % 10;
+  
+    const tensWord = tensMap[tens] ?? String(n);
+    if (onesDigit === 0) return tensWord;
+  
+    return `${tensWord} og ${ones[onesDigit]}`;
+  }
+  
+  function speakYearIs(yyyy) {
+    const y = parseInt(yyyy, 10);
+  
+    // Modern years you’ll say a lot
+    if (y >= 2000 && y <= 2099) {
+      const rest = y - 2000;
+      if (rest === 0) return "tvö þúsund";
+      return `tvö þúsund ${icelandicNumber(rest)}`;
+    }
+  
+    // If outside that range, leave as digits (safe default)
+    return String(yyyy);
+  }
+  
+  function normalizeIsTts(text) {
+    let t = text;
+  
+    // Normalize times (ranges + single times)
+    t = normalizeIsTimes(t);
+  
+    // Dates
+    const months = {
+      "01": "janúar", "02": "febrúar", "03": "mars", "04": "apríl",
+      "05": "maí", "06": "júní", "07": "júlí", "08": "ágúst",
+      "09": "september", "10": "október", "11": "nóvember", "12": "desember",
+    };
+  
+    // ISO: 2025-12-28 -> "28. desember 2025"
+    t = t.replace(/\b(20\d{2})-(\d{2})-(\d{2})\b/g, (_, yyyy, mm, dd) => {
+      const day = String(parseInt(dd, 10));
+      return `${day}. ${months[mm] || mm} ${yyyy}`;
+    });
+  
+    // Dotted: 28.12.2025 -> "28. desember 2025"
+    t = t.replace(/\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b/g, (_, d, m, yyyy) => {
+      const day = String(parseInt(d, 10));
+      const mm = String(parseInt(m, 10)).padStart(2, "0");
+      return `${day}. ${months[mm] || mm} ${yyyy}`;
+    });
+  
+    // Slash: assume Icelandic DD/MM/YYYY -> "28. desember 2025"
+    t = t.replace(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/g, (_, d, m, yyyy) => {
+      const day = String(parseInt(d, 10));
+      const mm = String(parseInt(m, 10)).padStart(2, "0");
+      return `${day}. ${months[mm] || mm} ${yyyy}`;
+    });
+  
+    // Years: 2025 -> "tvö þúsund tuttugu og fimm"
+    // Only converts standalone 20xx (safe for your use case)
+    t = t.replace(/\b(20\d{2})\b/g, (_, yyyy) => speakYearIs(yyyy));
+  
+    // Abbreviations
+    t = t.replace(/\bkl\.\b/gi, "klukkan");
+    t = t.replace(/\bca\.\b/gi, "um það bil");
+  
+    return t;
+  }
+  
+  // ============================================================================
+  // VOICE TRANSCRIPTION ENDPOINT
+  // ============================================================================
+  app.post('/transcribe-audio', verifyApiKey, async (req, res) => {
+    const startTime = Date.now();
+  
+    try {
+      console.log('🎤 Voice transcription request received');
+  
+      const { audio, mimeType, language } = req.body; // language optional: "is" | "en" | undefined
+  
+      if (!audio) {
+        console.error('❌ No audio data provided');
+        return res.status(400).json({ error: 'Audio data is required' });
+      }
+  
+      console.log('📦 Converting base64 audio to buffer...');
+      const audioBuffer = Buffer.from(audio, 'base64');
+      const audioSizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
+      console.log(`📊 Audio size: ${audioSizeMB}MB`);
+  
+      const getExtension = (mime) => {
+        if (!mime) return 'webm';
+        if (mime.includes('webm')) return 'webm';
+        if (mime.includes('mp3')) return 'mp3';
+        if (mime.includes('wav')) return 'wav';
+        if (mime.includes('m4a')) return 'm4a';
+        if (mime.includes('ogg')) return 'ogg';
+        return 'webm';
+      };
+  
+      const extension = getExtension(mimeType);
+      console.log(`🎵 Audio format: ${extension} (${mimeType || 'audio/webm'})`);
+  
+      // Create proper File object
+      const audioFile = new File(
+        [audioBuffer],
+        `audio.${extension}`,
+        { type: mimeType || 'audio/webm' }
+      );
+  
+      console.log('🚀 Sending audio to OpenAI Transcription API...');
+      console.log(`⚙️ Settings: whisper-1, language: ${language || 'AUTO'}`);
+  
+      const transcriptionArgs = {
+        file: audioFile,
+        model: 'whisper-1',
+        // If you know it’s Icelandic, pass "is" to reduce weirdness.
+        // If not provided, it auto-detects.
+        ...(language ? { language } : {}),
+        // Remove bilingual prompt; it often hurts date/time and mixed output.
+        // prompt: 'Íslenska, English'
+      };
+  
+      const transcription = await openai.audio.transcriptions.create(transcriptionArgs);
+  
+      const transcribedText = transcription.text || transcription;
+  
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Transcription complete in ${totalTime}ms`);
+      console.log(`📝 Text (${transcribedText.length} chars): "${transcribedText.substring(0, 100)}..."`);
+  
+      res.json({
+        success: true,
+        text: transcribedText,
+        duration: totalTime,
+        audioSize: audioSizeMB
+      });
+  
+    } catch (error) {
+      console.error('❌ Voice transcription error:', error);
+      console.error('Error details:', error.message);
+  
+      const totalTime = Date.now() - startTime;
+      console.log(`⏱️ Error after: ${totalTime}ms`);
+  
+      res.status(500).json({
+        success: false,
+        error: 'Transcription failed',
+        message: error.message
+      });
+    }
+  });
+  
+  // ============================================================================
+  // TEXT-TO-SPEECH ENDPOINT
+  // ============================================================================
+  app.post('/text-to-speech', verifyApiKey, async (req, res) => {
+    const startTime = Date.now();
+  
+    try {
+      console.log('🔊 Text-to-speech request received');
+  
+      const { text, voice = 'nova', language } = req.body;
+  
+      if (!text) {
+        console.error('❌ No text provided');
+        return res.status(400).json({ error: 'Text is required' });
+      }
+  
+      // Normalize for Icelandic by default (unless explicitly English)
+      const inputText = (language === 'is' || !language) ? normalizeIsTts(text) : text;
+  
+      console.log(`🗣️ Generating speech: "${inputText.substring(0, 70)}..." (voice: ${voice})`);
+      if (inputText !== text) {
+        console.log('🧠 Applied Icelandic TTS normalization for dates/times');
+      }
+  
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1-hd',
+        voice,
+        input: inputText,
+        speed: 1.0
+      });
+  
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+  
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Speech generated in ${totalTime}ms (${(buffer.length / 1024).toFixed(1)}KB)`);
+  
+      res.json({
+        success: true,
+        audio: buffer.toString('base64'),
+        mimeType: 'audio/mpeg',
+        duration: totalTime,
+        size: buffer.length
+      });
+  
+    } catch (error) {
+      console.error('❌ TTS error:', error);
+      console.error('Error details:', error.message);
+  
+      const totalTime = Date.now() - startTime;
+      console.log(`⏱️ Error after: ${totalTime}ms`);
+  
+      res.status(500).json({
+        success: false,
+        error: 'TTS failed',
+        message: error.message
+      });
+    }
+  });
+  
+  console.log('🎤 Voice endpoints initialized:');
+  console.log('   - /transcribe-audio (Whisper)');
+  console.log('   - /text-to-speech (TTS)');  
 
 // Optimized chat endpoint with parallel processing - COMPLETE VERSION
 // =====================================================================

@@ -16,19 +16,24 @@ const analyticsSentMessages = new Map();
  * 
  * This is the main entry point for all message processing in the system
  * 
+ * ENHANCED: Now supports metadata for image/file attachments
+ * This metadata will be sent to the analytics system (chatbot-analytics) for tracking
+ * 
  * @param {string} userMessage - The user's message
  * @param {string} botResponse - The bot's response
  * @param {Object} metadata - Additional metadata about the interaction
+ * @param {Object} metadata.messageMetadata - Attachment metadata (images/files info)
  * @returns {Promise<Object>} Processing result with IDs and status
  */
 export async function processMessagePair(userMessage, botResponse, metadata = {}, userIp = null) {
   try {
-    // Log detailed information about the message pair
+    // Log detailed information about the message pair for auditability
     console.log(`\n📨 Processing message pair: 
       User: ${userMessage.substring(0, 30)}${userMessage.length > 30 ? '...' : ''}
       Bot: ${botResponse.substring(0, 30)}${botResponse.length > 30 ? '...' : ''}
       SessionID: ${metadata.sessionId || 'none'}
-      Language: ${metadata.language || 'en'}`
+      Language: ${metadata.language || 'en'}
+      HasAttachments: ${metadata.messageMetadata ? 'yes' : 'no'}`
     );
 
     // CRITICAL VALIDATION: Ensure we have both messages
@@ -61,26 +66,48 @@ export async function processMessagePair(userMessage, botResponse, metadata = {}
     // Add to processed messages set for deduplication
     processedMessages.add(messageSignature);
 
-    // Cleanup old entries occasionally
+    // Cleanup old entries occasionally to prevent memory leaks
     if (processedMessages.size > 1000) {
       const oldEntries = Array.from(processedMessages).slice(0, 500);
       oldEntries.forEach(entry => processedMessages.delete(entry));
+      console.log('🧹 Cleaned up old deduplication entries');
     }
 
     // Generate unique, trackable IDs for both messages
-    // USING uuidv4: Add additional uniqueness to message IDs
+    // USING uuidv4: Add additional uniqueness to message IDs for analytics tracking
     const userMessageId = `user-msg-${Date.now()}-${uuidv4().substring(0, 8)}`;
     const botMessageId = `bot-msg-${Date.now() + 1}-${uuidv4().substring(0, 8)}`; // Ensure different timestamps
 
-    // Create normalized messages
+    // ENHANCED: Create normalized user message WITH metadata if attachments present
+    // This metadata will be sent to analytics system for tracking and display
     const normalizedUserMessage = normalizeMessage({
       id: userMessageId,
       content: userMessage,
       role: 'user',
       sender: 'user',
       timestamp: new Date().toISOString(),
-      language: metadata.language || 'en'
+      language: metadata.language || 'en',
+      // CRITICAL: Attach file/image metadata if present
+      // This allows analytics system to show: 🖼️ 1 mynd, 📄 2 skjöl
+      ...(metadata.messageMetadata && {
+        metadata: {
+          hasImages: metadata.messageMetadata.hasImages || false,
+          imageCount: metadata.messageMetadata.imageCount || 0,
+          hasFiles: metadata.messageMetadata.hasFiles || false,
+          fileCount: metadata.messageMetadata.fileCount || 0
+        }
+      })
     });
+
+    // Log metadata attachment for debugging and auditability
+    if (metadata.messageMetadata) {
+      console.log('📎 Attaching metadata to user message for analytics:', {
+        hasImages: metadata.messageMetadata.hasImages,
+        imageCount: metadata.messageMetadata.imageCount,
+        hasFiles: metadata.messageMetadata.hasFiles,
+        fileCount: metadata.messageMetadata.fileCount
+      });
+    }
 
     const normalizedBotMessage = normalizeMessage({
       id: botMessageId,
@@ -104,18 +131,19 @@ export async function processMessagePair(userMessage, botResponse, metadata = {}
       status: metadata.status || 'active'
     });
 
-    // Log normalized data for debugging
+    // Log normalized data for debugging and auditability
     console.log(`\n✅ Message pair normalized successfully:
       ConversationID: ${conversationData.id}
       UserMessageID: ${userMessageId}
       BotMessageID: ${botMessageId}
-      Topic: ${metadata.topic || 'general'}`
+      Topic: ${metadata.topic || 'general'}
+      HasMetadata: ${!!metadata.messageMetadata}`
     );
 
     // Save conversation to MongoDB for persistence
     await saveConversationToMongoDB(conversationData);
 
-    // Send conversation to analytics system
+    // Send conversation to analytics system (chatbot-analytics)
     const analyticsResult = await sendConversationToAnalytics(conversationData, metadata.userCountry, userIp);
 
     // Return success with message IDs and PostgreSQL ID (for feedback)
@@ -147,6 +175,13 @@ async function saveConversationToMongoDB(conversationData) {
   try {
     // Connect to MongoDB
     const { db } = await connectToDatabase();
+    
+    // Log save operation for auditability
+    console.log('💾 Saving conversation to MongoDB:', {
+      id: conversationData.id,
+      messageCount: conversationData.messages.length,
+      hasMetadata: conversationData.messages.some(m => m.metadata)
+    });
     
     // Check if conversation exists
     const existingConvo = await db.collection('conversations').findOne({
@@ -193,6 +228,9 @@ async function saveConversationToMongoDB(conversationData) {
 /**
  * Send conversation data to analytics system via its API
  * 
+ * ENHANCED: Now includes metadata in the payload for analytics tracking
+ * The analytics system (chatbot-analytics) will receive attachment indicators
+ * 
  * @param {Object} conversationData - Normalized conversation data
  * @returns {Promise<Object>} Analytics result with PostgreSQL ID
  */
@@ -223,15 +261,16 @@ async function sendConversationToAnalytics(conversationData, userCountry = null,
       }
     }
 
-    // Log payload for analytics debugging
+    // Log payload for analytics debugging and auditability
     console.log(`📤 Sending to analytics:
       ConversationID: ${conversationData.id}
       SessionID: ${conversationData.sessionId}
       MessageCount: ${conversationData.messages.length}
-      Topic: ${conversationData.topic || 'general'}`
+      Topic: ${conversationData.topic || 'general'}
+      HasAttachments: ${conversationData.messages.some(m => m.metadata)}`
     );
     
-    // NEW: Get geo data (Cloudflare first, then fallback to ip-api.com)
+    // Get geo data (Cloudflare first, then fallback to ip-api.com)
     let geoHeaders = {};
     
     if (userCountry && userCountry !== 'XX') {
@@ -264,12 +303,14 @@ async function sendConversationToAnalytics(conversationData, userCountry = null,
     }
     
     // Make HTTP request to analytics API
+    // NOTE: The analytics system (chatbot-analytics) will receive the metadata
+    // and can display attachment indicators in conversation history
     const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/conversations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANALYTICS_API_KEY || 'sky-lagoon-secret-2024',
-        ...geoHeaders  // NEW: Include geo headers
+        ...geoHeaders
       },
       body: JSON.stringify(conversationData)
     });
@@ -305,7 +346,7 @@ async function sendConversationToAnalytics(conversationData, userCountry = null,
               
               console.log(`✅ Created ID mapping: ${originalMessage.id} -> ${pgMessage.id}`);
               
-              // Store the PostgreSQL ID for bot messages
+              // Store the PostgreSQL ID for bot messages (for feedback)
               if (originalMessage.role === 'assistant' || originalMessage.type === 'bot') {
                 botMessagePostgresqlId = pgMessage.id;
               }
@@ -323,7 +364,7 @@ async function sendConversationToAnalytics(conversationData, userCountry = null,
               postgresqlId: botMessagePostgresqlId
             });
             
-            // Cleanup old entries occasionally
+            // Cleanup old entries occasionally to prevent memory leaks
             if (analyticsSentMessages.size > 500) {
               const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
               for (const [key, value] of analyticsSentMessages.entries()) {
@@ -331,6 +372,7 @@ async function sendConversationToAnalytics(conversationData, userCountry = null,
                   analyticsSentMessages.delete(key);
                 }
               }
+              console.log('🧹 Cleaned up old analytics sent messages cache');
             }
           }
         }

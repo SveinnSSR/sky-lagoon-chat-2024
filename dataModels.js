@@ -24,6 +24,7 @@
  * @property {string} timestamp - ISO timestamp
  * @property {string} [language] - Message language code
  * @property {string} [postgresqlId] - Reference to analytics system ID
+ * @property {Object} [metadata] - Optional metadata for images/files tracking
  */
 
 /**
@@ -88,6 +89,13 @@ export function normalizeConversation(conversation) {
 
 /**
  * Validates and normalizes a message object - compatible with your schema
+ * ENHANCED: Now preserves metadata for image/file attachments (for analytics system)
+ * 
+ * This metadata will be sent to the analytics system (chatbot-analytics) which can:
+ * - Track how often images/files are used in conversations
+ * - Show attachment indicators in conversation history
+ * - Analyze which types of content lead to better outcomes
+ * 
  * @param {Object} message - Raw message data
  * @returns {MessageData} - Normalized message data
  */
@@ -127,6 +135,22 @@ export function normalizeMessage(message) {
   // PostgreSQL ID if available
   const postgresqlId = message.postgresqlId || null;
   
+  // ENHANCED: Preserve metadata if present (for images/files tracking in analytics)
+  // This allows the analytics system to show attachment indicators like:
+  // 🖼️ 1 mynd, 📄 2 skjöl
+  const metadata = message.metadata || undefined;
+  
+  // Log metadata preservation for debugging and auditability
+  if (metadata) {
+    console.log('📎 Preserving message metadata for analytics:', {
+      messageId: id,
+      hasImages: metadata.hasImages,
+      imageCount: metadata.imageCount,
+      hasFiles: metadata.hasFiles,
+      fileCount: metadata.fileCount
+    });
+  }
+  
   return {
     id,
     content,
@@ -134,7 +158,8 @@ export function normalizeMessage(message) {
     type,   // 'user' or 'bot' - for database compatibility
     timestamp,
     language,
-    postgresqlId
+    postgresqlId,
+    ...(metadata && { metadata }) // Only include if exists
   };
 }
 
