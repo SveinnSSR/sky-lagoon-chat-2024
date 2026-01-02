@@ -1,8 +1,8 @@
 // sessionManager.js
 import { connectToDatabase } from './database.js';
 
-// Define session timeout (15 minutes)
-const SESSION_TIMEOUT = 15 * 60 * 1000; 
+// Define session timeout (20 minutes - updated for better UX)
+const SESSION_TIMEOUT = 20 * 60 * 1000; 
 
 // Create a global session cache
 if (!global.sessionCache) {
@@ -13,6 +13,7 @@ if (!global.sessionCache) {
  * Get or create a persistent session from MongoDB
  * Enhanced with session timeout and better conversation separation
  * Uses the frontend session ID to maintain conversation continuity
+ * FIXED: Now generates STABLE conversation IDs that persist across messages
  * 
  * @param {string} sessionId - The client session ID
  * @returns {Promise<Object>} Session information
@@ -36,7 +37,8 @@ export async function getOrCreateSession(sessionId) {
         console.log(`⏰ Session timeout detected for ${frontendSessionId} (${Math.round((currentTime - lastActivity)/1000/60)} minutes inactive)`);
         
         // Generate a new unique conversation ID that includes the original session ID for traceability
-        const newConversationId = `${frontendSessionId}_${Date.now()}`;
+        // CRITICAL: Only add timestamp on TIMEOUT, not on every message
+        const newConversationId = `${frontendSessionId}_timeout_${Date.now()}`;
         
         // Create a new session with the timeout marker
         const timeoutSession = {
@@ -77,6 +79,7 @@ export async function getOrCreateSession(sessionId) {
       }
       
       // If no timeout, update the last activity time and return the cached session
+      // CRITICAL: Return SAME conversationId - don't create a new one!
       cachedSession.lastActivity = Date.now();
       global.sessionCache.set(frontendSessionId, cachedSession);
       console.log(`🔄 Using cached session: ${cachedSession.conversationId} for frontend session: ${frontendSessionId}`);
@@ -107,9 +110,10 @@ export async function getOrCreateSession(sessionId) {
     } catch (dbConnectionError) {
       console.error('❌ Error connecting to MongoDB:', dbConnectionError);
       // Instead of throwing the error, create a session but cache it
+      // FIXED: Use stable ID without timestamp for temp sessions
       const tempSession = {
         sessionId: frontendSessionId, // Use the frontend session ID directly!
-        conversationId: `${frontendSessionId}_${Date.now()}`, // Use timestamp to ensure uniqueness
+        conversationId: `${frontendSessionId}_temp`, // STABLE - no timestamp unless timeout
         startedAt: new Date().toISOString(),
         lastActivity: Date.now()
       };
@@ -145,7 +149,8 @@ export async function getOrCreateSession(sessionId) {
         console.log(`⏰ Session timeout detected in DB for ${frontendSessionId} (${Math.round((currentTime - lastActivity)/1000/60)} minutes inactive)`);
         
         // Generate a new unique conversation ID
-        const newConversationId = `${frontendSessionId}_${Date.now()}`;
+        // CRITICAL: Only add timestamp on TIMEOUT
+        const newConversationId = `${frontendSessionId}_timeout_${Date.now()}`;
         
         // Create a new session record
         const newSession = {
@@ -182,6 +187,7 @@ export async function getOrCreateSession(sessionId) {
       }
       
       // If no timeout, use the existing session and update last activity
+      // CRITICAL: Return SAME conversationId from database!
       console.log(`🔄 Using existing session: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
       
       // Update last activity time
@@ -209,7 +215,8 @@ export async function getOrCreateSession(sessionId) {
 
     // Create a new session if no matching session was found
     // Use a new conversation ID that includes the frontend session ID plus timestamp for uniqueness
-    const newConversationId = `${frontendSessionId}_${Date.now()}`;
+    // FIXED: Use stable suffix instead of timestamp for first-time sessions
+    const newConversationId = `${frontendSessionId}_new`;
     
     const newSession = {
       type: 'chat_session',
@@ -245,7 +252,8 @@ export async function getOrCreateSession(sessionId) {
     console.error('❌ Error with session management:', error);
     
     // Create a fallback session using the frontend session ID plus timestamp
-    const fallbackConversationId = `${sessionId || 'unknown'}_${Date.now()}`;
+    // FIXED: Use stable suffix for fallback sessions
+    const fallbackConversationId = `${sessionId || 'unknown'}_fallback`;
     
     const fallbackSession = {
       sessionId: sessionId || `emergency_${Date.now()}`, 
@@ -260,6 +268,50 @@ export async function getOrCreateSession(sessionId) {
     console.log(`⚠️ Using fallback session: ${fallbackSession.conversationId}`);
     return fallbackSession;
   }
+}
+
+/**
+ * Force create a new conversation (called when user clicks "New Chat")
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<Object>} New session information
+ */
+export async function createNewConversation(sessionId) {
+  const frontendSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  
+  // Generate a NEW conversation ID with timestamp (explicit new chat)
+  const newConversationId = `${frontendSessionId}_new_${Date.now()}`;
+  
+  const newSession = {
+    sessionId: frontendSessionId,
+    conversationId: newConversationId,
+    startedAt: new Date().toISOString(),
+    lastActivity: Date.now(),
+    isNewSession: true
+  };
+  
+  // Update cache
+  global.sessionCache.set(frontendSessionId, newSession);
+  console.log(`🆕 User started NEW chat: ${newConversationId}`);
+  
+  // Update MongoDB
+  try {
+    const dbConnection = await connectToDatabase();
+    const db = dbConnection.db;
+    
+    await db.collection('globalSessions').insertOne({
+      type: 'chat_session',
+      frontendSessionId: frontendSessionId,
+      sessionId: frontendSessionId,
+      conversationId: newConversationId,
+      startedAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      isUserInitiated: true
+    });
+  } catch (dbError) {
+    console.error('❌ Error saving new conversation:', dbError);
+  }
+  
+  return newSession;
 }
 
 /**
@@ -282,6 +334,7 @@ export function getAllSessions() {
 // Export default for ESM compatibility
 export default {
   getOrCreateSession,
+  createNewConversation,
   sessionExists,
   getAllSessions
 };
