@@ -24,6 +24,7 @@ export async function getOrCreateSession(sessionId) {
     const frontendSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     
     console.log(`🔍 Session lookup for: ${frontendSessionId}`);
+    console.log(`📊 Cache size: ${global.sessionCache.size}, Has this session: ${global.sessionCache.has(frontendSessionId)}`);
     
     // Check local cache first - this prevents generating new sessions during temporary DB issues
     if (global.sessionCache.has(frontendSessionId)) {
@@ -84,20 +85,21 @@ export async function getOrCreateSession(sessionId) {
       global.sessionCache.set(frontendSessionId, cachedSession);
       console.log(`🔄 Using cached session: ${cachedSession.conversationId} for frontend session: ${frontendSessionId}`);
       
-      // Try to update last activity in MongoDB too
-      try {
-        const dbConnection = await connectToDatabase();
-        const db = dbConnection.db;
-        const globalSessionCollection = db.collection('globalSessions');
-        
-        await globalSessionCollection.updateOne(
-          { conversationId: cachedSession.conversationId },
-          { $set: { lastActivity: new Date().toISOString() } }
-        );
-      } catch (dbError) {
-        console.warn('⚠️ Could not update session activity time in MongoDB:', dbError);
-        // Continue with the cached session anyway
-      }
+      // Try to update last activity in MongoDB too (non-blocking)
+      setImmediate(async () => {
+        try {
+          const dbConnection = await connectToDatabase();
+          const db = dbConnection.db;
+          const globalSessionCollection = db.collection('globalSessions');
+          
+          await globalSessionCollection.updateOne(
+            { conversationId: cachedSession.conversationId },
+            { $set: { lastActivity: new Date().toISOString() } }
+          );
+        } catch (dbError) {
+          console.warn('⚠️ Could not update session activity time in MongoDB:', dbError);
+        }
+      });
       
       return cachedSession;
     }
@@ -110,10 +112,10 @@ export async function getOrCreateSession(sessionId) {
     } catch (dbConnectionError) {
       console.error('❌ Error connecting to MongoDB:', dbConnectionError);
       // Instead of throwing the error, create a session but cache it
-      // FIXED: Use stable ID without timestamp for temp sessions
+      // Use the frontend session ID directly as conversation ID for stability
       const tempSession = {
-        sessionId: frontendSessionId, // Use the frontend session ID directly!
-        conversationId: `${frontendSessionId}_temp`, // STABLE - no timestamp unless timeout
+        sessionId: frontendSessionId,
+        conversationId: frontendSessionId, // CHANGED: Use same ID for both (most stable)
         startedAt: new Date().toISOString(),
         lastActivity: Date.now()
       };
@@ -188,17 +190,19 @@ export async function getOrCreateSession(sessionId) {
       
       // If no timeout, use the existing session and update last activity
       // CRITICAL: Return SAME conversationId from database!
-      console.log(`🔄 Using existing session: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
+      console.log(`🔄 Using existing session from DB: ${existingSession.conversationId} for frontend session: ${frontendSessionId}`);
       
-      // Update last activity time
-      try {
-        await globalSessionCollection.updateOne(
-          { conversationId: existingSession.conversationId },
-          { $set: { lastActivity: now.toISOString() } }
-        );
-      } catch (updateError) {
-        console.warn('⚠️ Could not update session activity time:', updateError);
-      }
+      // Update last activity time (non-blocking)
+      setImmediate(async () => {
+        try {
+          await globalSessionCollection.updateOne(
+            { conversationId: existingSession.conversationId },
+            { $set: { lastActivity: now.toISOString() } }
+          );
+        } catch (updateError) {
+          console.warn('⚠️ Could not update session activity time:', updateError);
+        }
+      });
       
       const sessionInfo = {
         sessionId: existingSession.sessionId,
@@ -214,27 +218,29 @@ export async function getOrCreateSession(sessionId) {
     }
 
     // Create a new session if no matching session was found
-    // Use a new conversation ID that includes the frontend session ID plus timestamp for uniqueness
-    // FIXED: Use stable suffix instead of timestamp for first-time sessions
-    const newConversationId = `${frontendSessionId}_new`;
+    // CRITICAL FIX: Use the frontend session ID directly as conversation ID
+    // This ensures STABLE IDs across all backend instances and cache clears
+    const newConversationId = frontendSessionId;
     
     const newSession = {
       type: 'chat_session',
       frontendSessionId: frontendSessionId, // Store the frontend session ID
       frontendSessionIds: [frontendSessionId], // Keep track of all associated session IDs
       sessionId: frontendSessionId, // Use the frontend session ID directly
-      conversationId: newConversationId, // Use a unique conversation ID
+      conversationId: newConversationId, // CHANGED: Same as sessionId for stability
       startedAt: now.toISOString(),
       lastActivity: now.toISOString()
     };
     
-    // Save to MongoDB
-    try {
-      await globalSessionCollection.insertOne(newSession);
-      console.log(`🌐 Created new session: ${newSession.conversationId} for frontend session: ${frontendSessionId}`);
-    } catch (insertError) {
-      console.warn('⚠️ Could not save new session to MongoDB:', insertError);
-    }
+    // Save to MongoDB (non-blocking)
+    setImmediate(async () => {
+      try {
+        await globalSessionCollection.insertOne(newSession);
+        console.log(`🌐 Created new session in DB: ${newSession.conversationId} for frontend session: ${frontendSessionId}`);
+      } catch (insertError) {
+        console.warn('⚠️ Could not save new session to MongoDB:', insertError);
+      }
+    });
     
     const sessionInfo = {
       sessionId: newSession.sessionId,
@@ -246,24 +252,24 @@ export async function getOrCreateSession(sessionId) {
     
     // Cache this session for future use
     global.sessionCache.set(frontendSessionId, sessionInfo);
+    console.log(`✅ Created and cached new session: ${newConversationId}`);
     
     return sessionInfo;
   } catch (error) {
     console.error('❌ Error with session management:', error);
     
-    // Create a fallback session using the frontend session ID plus timestamp
-    // FIXED: Use stable suffix for fallback sessions
-    const fallbackConversationId = `${sessionId || 'unknown'}_fallback`;
+    // Create a fallback session using the frontend session ID directly
+    const fallbackConversationId = sessionId || `emergency_${Date.now()}`;
     
     const fallbackSession = {
-      sessionId: sessionId || `emergency_${Date.now()}`, 
-      conversationId: fallbackConversationId, 
+      sessionId: fallbackConversationId, 
+      conversationId: fallbackConversationId, // CHANGED: Use same ID for stability
       startedAt: new Date().toISOString(),
       lastActivity: Date.now()
     };
     
     // Cache this session
-    global.sessionCache.set(sessionId || `emergency_${Date.now()}`, fallbackSession);
+    global.sessionCache.set(fallbackConversationId, fallbackSession);
     
     console.log(`⚠️ Using fallback session: ${fallbackSession.conversationId}`);
     return fallbackSession;
@@ -293,23 +299,25 @@ export async function createNewConversation(sessionId) {
   global.sessionCache.set(frontendSessionId, newSession);
   console.log(`🆕 User started NEW chat: ${newConversationId}`);
   
-  // Update MongoDB
-  try {
-    const dbConnection = await connectToDatabase();
-    const db = dbConnection.db;
-    
-    await db.collection('globalSessions').insertOne({
-      type: 'chat_session',
-      frontendSessionId: frontendSessionId,
-      sessionId: frontendSessionId,
-      conversationId: newConversationId,
-      startedAt: new Date().toISOString(),
-      lastActivity: new Date().toISOString(),
-      isUserInitiated: true
-    });
-  } catch (dbError) {
-    console.error('❌ Error saving new conversation:', dbError);
-  }
+  // Update MongoDB (non-blocking)
+  setImmediate(async () => {
+    try {
+      const dbConnection = await connectToDatabase();
+      const db = dbConnection.db;
+      
+      await db.collection('globalSessions').insertOne({
+        type: 'chat_session',
+        frontendSessionId: frontendSessionId,
+        sessionId: frontendSessionId,
+        conversationId: newConversationId,
+        startedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        isUserInitiated: true
+      });
+    } catch (dbError) {
+      console.error('❌ Error saving new conversation:', dbError);
+    }
+  });
   
   return newSession;
 }
