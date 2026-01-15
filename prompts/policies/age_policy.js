@@ -33,9 +33,9 @@ Response template:
 
 Important: The age requirement is based on birth year, meaning children who will turn 12 within the calendar year may visit Sky Lagoon, even if they haven't had their birthday yet.
 
-This age policy is designed to ensure the best experience for all our guests, as our facility is primarily created for adult relaxation. The presence of alcohol service in our lagoon area is also a factor in this decision.
+Please note that it's important to bring valid ID to verify your child's age, as our staff will need to confirm this upon arrival. This helps ensure a smooth check-in experience for everyone.
 
-Please note that our staff may request ID to verify a child's age, and we reserve the right to refuse entry if proper identification cannot be provided."
+This age policy is designed to ensure the best experience for all our guests, as our facility is primarily created for adult relaxation. The presence of alcohol service in our lagoon area is also a factor in this decision."
 
 For questions specifically about age limit reasoning:
 "Our age policy is designed to ensure a tranquil, relaxing environment for all guests. The Sky Lagoon experience, including our Skjól ritual and overall atmosphere, is crafted primarily with adults in mind to provide a peaceful setting for relaxation and rejuvenation. The presence of alcohol service in our lagoon area is also a consideration in our age policy.
@@ -45,7 +45,7 @@ Once children reach 12 years of age, they're welcome to enjoy our facilities, wi
 For questions about birth year vs. exact age:
 "At Sky Lagoon, we consider the birth year when applying our age requirement. This means children turning 12 during the calendar year are welcome to visit, even if they haven't yet reached their 12th birthday on the day of the visit.
 
-Please note that children ages 12-14 must always be accompanied by a guardian (18 years or older)."
+Please note that children ages 12-14 must always be accompanied by a guardian (18 years or older). It's important to bring valid ID to verify age, as our staff will need to confirm this to ensure compliance with our policy."
 
 Guidelines for age restriction responses:
 1. Always maintain a warm, friendly tone while being clear about the policy
@@ -59,8 +59,9 @@ Guidelines for age restriction responses:
 5. Always mention the supervision requirement for ages 12-14
 6. Structure responses to directly answer the specific question
 7. When declining access for younger children, use a gentle, understanding tone
-8. End with contact information when additional assistance might be needed: "For any additional questions about our age policy, please contact our team at reservations@skylagoon.is"
-9. Balance professionalism with warmth - policy information should always be accurate and clear
+8. Mention ID verification requirement clearly, framing it as important for policy compliance
+9. End with contact information when additional assistance might be needed: "For any additional questions about our age policy, please contact our team at reservations@skylagoon.is"
+10. Balance professionalism with warmth - policy information should always be accurate and clear
 `;
 }
 
@@ -88,9 +89,9 @@ Response template:
 
 Aldurstakmarkið miðast við fæðingarár, þannig að börn sem verða 12 ára á almanaksárinu mega heimsækja okkur.
 
-Þetta aldurstakmark er sett til að tryggja gæði upplifunar fyrir alla gesti, þar sem upplifunin er hönnuð fyrir fullorðna einstaklinga til að veita slökun og endurnæringu. Áfengissala í lóninu er einnig þáttur í þessari ákvörðun.
+Vinsamlegast athugið að mikilvægt er að koma með gild skilríki til að staðfesta aldur barnsins, þar sem starfsfólk okkar þarf að geta staðfest þetta við komu. Þetta hjálpar til við að tryggja greiða innritun fyrir alla.
 
-Athugið að starfsfólk okkar kann að óska eftir staðfestingu á aldri í formi skilríkja."
+Þetta aldurstakmark er sett til að tryggja gæði upplifunar fyrir alla gesti, þar sem upplifunin er hönnuð fyrir fullorðna einstaklinga til að veita slökun og endurnæringu. Áfengissala í lóninu er einnig þáttur í þessari ákvörðun."
 
 For questions about age limit reasoning:
 "Aldurstakmarkið hjá okkur er sett til að tryggja gæði upplifunar fyrir alla gesti. Upplifunin er hönnuð fyrir fullorðna einstaklinga til að veita slökun og endurnæringu. Áfengissala í lóninu er einnig þáttur í þessari ákvörðun.
@@ -100,7 +101,7 @@ Lónið okkar, Skjól ritúalið og heildarupplifunin er ekki hönnuð með bör
 For questions about birth year vs. exact age:
 "Hjá okkur gildir fæðingarárið fyrir aldurstakmarkið. Þetta þýðir að börn sem verða 12 ára á almanaksárinu mega heimsækja Sky Lagoon, jafnvel þótt þau hafi ekki náð 12 ára aldri á heimsóknardegi.
 
-Börn á aldrinum 12-14 ára verða þó alltaf að vera í fylgd foreldra/forráðamanna (18 ára eða eldri)."
+Börn á aldrinum 12-14 ára verða þó alltaf að vera í fylgd foreldra/forráðamanna (18 ára eða eldri). Mikilvægt er að koma með gild skilríki til að staðfesta aldur, þar sem starfsfólk okkar þarf að geta staðfest þetta til að tryggja að reglum sé fylgt."
 
 Guidelines for age restriction responses:
 1. Always maintain a friendly, informative tone
@@ -108,8 +109,9 @@ Guidelines for age restriction responses:
 3. Explain the reasoning behind the policy when relevant
 4. Include the birth year exception when appropriate
 5. Always mention the supervision requirement for ages 12-14
-6. Structure the response to directly answer the specific age-related question
-7. End with a helpful, positive note where appropriate
+6. Mention ID verification requirement clearly, framing it as important for policy compliance
+7. Structure the response to directly answer the specific age-related question
+8. End with a helpful, positive note where appropriate
 `;
 }
 
