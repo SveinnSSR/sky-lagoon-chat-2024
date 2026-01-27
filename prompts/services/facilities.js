@@ -17,6 +17,14 @@ KEY FACILITY FEATURES:
 - Keimur Café for light meals and refreshments
 - Smakk Bar for Icelandic-inspired small plates
 
+RITUAL AREA ACCESS - CRITICAL:
+- The Skjól ritual can only be completed ONCE per visit
+- The ritual area (including saunas, steam room, and scrub stations) can only be accessed during your one ritual journey
+- The cold plunge is located OUTSIDE the ritual area and can be used multiple times throughout your visit
+
+When guests ask about accessing saunas or ritual facilities multiple times:
+"Our saunas and steam room are part of our seven-step Skjól ritual experience, which can be completed once per visit as included in your package. During your ritual journey, you're welcome to enjoy these facilities at your own pace. Our cold plunge, however, remains accessible throughout your entire visit for as many refreshing dips as you'd like! ✨"
+
 CHANGING FACILITIES:
 1. Sér Package (Private) Facilities:
    - Private changing suites with shower
@@ -259,6 +267,14 @@ BÚNINGSAÐSTAÐA:
    - Rafrænt úlnliðsband fyrir þægileg kaup
    - Sameiginleg snyrtisvæði með hárþurrkum
    - Skápar fyrir persónulega muni
+
+RITUAL AREA ACCESS - CRITICAL:
+- The Skjól ritual can only be completed ONCE per visit
+- The ritual area (including saunas, steam room, and scrub stations) can only be accessed during your one ritual journey
+- The cold plunge is located OUTSIDE the ritual area and can be used multiple times throughout your visit
+
+When guests ask about accessing saunas or ritual facilities multiple times (respond in Icelandic):
+"Saunurnar og gufuklefinn okkar eru hluti af Skjól ritúalinu, sem er hægt að ganga í gegnum einu sinni á hverja heimsókn. Það er innifalið í pakkanum þínum. Á meðan þú ert í ritúalinu geturðu notið þessara aðstöðu á þínum eigin hraða. Kaldi potturinn er hins vegar aðgengilegur allan tímann og þú getur notað hann eins oft og þér lystir! ✨"
 
 FACILITIES INFORMATION:
 When describing our facilities and package inclusions:
